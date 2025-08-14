@@ -1,3 +1,59 @@
-[gd_scene format=3 uid="uid://cfd2e6mvgypc0"]
+[gd_scene load_steps=2 format=3 uid="uid://cfd2e6mvgypc0"]
+
+[ext_resource type="Script" uid="uid://dhgns65mwdjdv" path="res://scripts/ContextPanel.gd" id="1_ivpv1"]
 
 [node name="ContextPanel" type="Node2D"]
+
+[node name="Control_ContextPanel" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
+offset_bottom = 40.0
+grow_horizontal = 0
+script = ExtResource("1_ivpv1")
+log_text_path = NodePath("PanelContainer_LogDock/TextEdit_LogText")
+next_day_button_path = NodePath("Button_NextDay")
+
+[node name="PanelContainer_LogDock" type="PanelContainer" parent="Control_ContextPanel"]
+custom_minimum_size = Vector2(380, 300)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -381.0
+offset_top = -1.0
+offset_right = -1.0
+offset_bottom = 299.0
+grow_horizontal = 0
+
+[node name="Label_Log" type="Label" parent="Control_ContextPanel/PanelContainer_LogDock"]
+layout_mode = 2
+text = "Log"
+
+[node name="TextEdit_LogText" type="TextEdit" parent="Control_ContextPanel/PanelContainer_LogDock"]
+layout_mode = 2
+editable = false
+context_menu_enabled = false
+emoji_menu_enabled = false
+shortcut_keys_enabled = false
+drag_and_drop_selection_enabled = false
+virtual_keyboard_enabled = false
+middle_mouse_paste_enabled = false
+
+[node name="Button_NextDay" type="Button" parent="Control_ContextPanel"]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -82.0
+offset_top = 248.0
+offset_right = -3.0
+offset_bottom = 279.0
+grow_horizontal = 0
+grow_vertical = 2
+text = "Next Day"
+icon_alignment = 1
