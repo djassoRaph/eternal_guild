@@ -16,9 +16,13 @@ offset_bottom = 40.0
 [node name="CanvasLayer_HUD" type="CanvasLayer" parent="Control_Main"]
 
 [node name="ContextPanel" type="Control" parent="Control_Main/CanvasLayer_HUD"]
+custom_minimum_size = Vector2(380, 300)
 layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
 offset_bottom = 40.0
+grow_horizontal = 0
 script = ExtResource("2_rvslj")
 metadata/_custom_type_script = "uid://dhgns65mwdjdv"
