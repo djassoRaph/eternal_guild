@@ -24,6 +24,7 @@ LogBus="*res://scripts/LogBus.gd"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="viewport"
+window/main_scene="uid://i5s7dnul3bol"
 
 [rendering]
 

@@ -1,28 +1,28 @@
 [gd_scene load_steps=3 format=3 uid="uid://i5s7dnul3bol"]
 
 [ext_resource type="PackedScene" uid="uid://bswv432lpdhko" path="res://scenes/TavernScreen.tscn" id="1_rvslj"]
-[ext_resource type="Script" uid="uid://dhgns65mwdjdv" path="res://scripts/ContextPanel.gd" id="2_rvslj"]
+[ext_resource type="PackedScene" uid="uid://cfd2e6mvgypc0" path="res://scenes/ContextPanel.tscn" id="3_0bbpv"]
 
 [node name="Main" type="Node2D"]
 
 [node name="Control_Main" type="Control" parent="."]
 layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="TavernScreen" parent="Control_Main" instance=ExtResource("1_rvslj")]
+layout_mode = 1
 
 [node name="CanvasLayer_HUD" type="CanvasLayer" parent="Control_Main"]
 
-[node name="ContextPanel" type="Control" parent="Control_Main/CanvasLayer_HUD"]
-custom_minimum_size = Vector2(380, 300)
-layout_mode = 3
-anchors_preset = 1
-anchor_left = 1.0
+[node name="ContextPanel" parent="Control_Main/CanvasLayer_HUD" instance=ExtResource("3_0bbpv")]
+top_level = true
+z_index = 100
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = -40.0
-offset_bottom = 40.0
-grow_horizontal = 0
-script = ExtResource("2_rvslj")
-metadata/_custom_type_script = "uid://dhgns65mwdjdv"
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

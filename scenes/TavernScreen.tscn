@@ -4,10 +4,36 @@
 [ext_resource type="Texture2D" uid="uid://cwaj62jafww18" path="res://assets/textures/guild_hall_tavern.png" id="3_plv0w"]
 [ext_resource type="Texture2D" uid="uid://j1wq180xk0kk" path="res://assets/textures/guild_hall_desk.png" id="4_8tpov"]
 
-[node name="TavernScreen" type="Node2D"]
+[node name="TavernScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Control_ZoneTavern" type="Control" parent="."]
+custom_minimum_size = Vector2(300, 200)
+layout_mode = 3
+anchors_preset = 0
+offset_left = 1.0
+offset_top = 254.0
+offset_right = 406.0
+offset_bottom = 729.0
+
+[node name="Control_ZoneDesk" type="Control" parent="."]
+custom_minimum_size = Vector2(300, 200)
+layout_mode = 3
+anchors_preset = 0
+offset_left = 962.0
+offset_top = 255.0
+offset_right = 1319.0
+offset_bottom = 769.0
 
 [node name="TextureRect_tavernbase" type="TextureRect" parent="."]
 texture_filter = 1
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -17,10 +43,12 @@ offset_bottom = 1019.0
 grow_horizontal = 2
 grow_vertical = 2
 texture = ExtResource("2_ym56d")
+expand_mode = 4
 
 [node name="TextureRect_tavern_highlight" type="TextureRect" parent="."]
 visible = false
 texture_filter = 1
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -32,10 +60,12 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("3_plv0w")
+expand_mode = 4
 
 [node name="TextureRect_desk_highlight" type="TextureRect" parent="."]
 visible = false
 texture_filter = 1
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -47,23 +77,4 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 texture = ExtResource("4_8tpov")
-
-[node name="Control_ZoneTavern" type="Control" parent="."]
-visible = false
-custom_minimum_size = Vector2(300, 200)
-layout_mode = 3
-anchors_preset = 0
-offset_left = 1.0
-offset_top = 254.0
-offset_right = 406.0
-offset_bottom = 729.0
-
-[node name="Control_ZoneDesk" type="Control" parent="."]
-visible = false
-custom_minimum_size = Vector2(300, 200)
-layout_mode = 3
-anchors_preset = 0
-offset_left = 962.0
-offset_top = 255.0
-offset_right = 1319.0
-offset_bottom = 769.0
+expand_mode = 4

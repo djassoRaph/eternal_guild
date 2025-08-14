@@ -8,8 +8,6 @@ class_name TavernScreen
 @onready var zone_desk: Control        = $Control_ZoneDesk
 
 func _ready() -> void:
-	for c in get_children():
-		print("Child:", c.name)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_setup_textures()
 	_wire_zone(zone_tavern, hover_tavern, "tavern")
@@ -20,18 +18,15 @@ func _setup_textures() -> void:
 	for n in nodes:
 		n.set_anchors_preset(Control.PRESET_FULL_RECT)
 		n.set_offsets_preset(Control.PRESET_FULL_RECT)
-		n.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # fill + center
+		n.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED   # fill + center
 		n.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		n.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		n.mouse_filter = Control.MOUSE_FILTER_IGNORE  # don't eat mouse input
-
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE                # don't block zones
 	hover_tavern.visible = false
-	hover_desk.visible = false
-
-	hover_tavern.visible = false
-	hover_desk.visible = false
+	hover_desk.visible   = false
 
 func _wire_zone(zone: Control, hover: TextureRect, zone_name: String) -> void:
+	zone.mouse_filter = Control.MOUSE_FILTER_STOP
 	zone.mouse_entered.connect(func() -> void:
 		hover.visible = true
 		LogBus.post("Hover: " + zone_name)
