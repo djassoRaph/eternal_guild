@@ -1,13 +1,15 @@
 extends Control
 class_name TavernScreen
 
-@onready var base: TextureRect = %"base"
-@onready var hover_tavern: TextureRect = %"hover_tavern"
-@onready var hover_desk: TextureRect = %"hover_desk"
-@onready var zone_tavern: Control = %"ZoneTavern"
-@onready var zone_desk: Control = %"ZoneDesk"
+@onready var base: TextureRect         = $TextureRect_tavernbase
+@onready var hover_tavern: TextureRect = $TextureRect_tavern_highlight
+@onready var hover_desk: TextureRect   = $TextureRect_desk_highlight
+@onready var zone_tavern: Control      = $Control_ZoneTavern
+@onready var zone_desk: Control        = $Control_ZoneDesk
 
 func _ready() -> void:
+	for c in get_children():
+		print("Child:", c.name)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_setup_textures()
 	_wire_zone(zone_tavern, hover_tavern, "tavern")
