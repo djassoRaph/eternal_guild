@@ -1,3 +1,50 @@
-[gd_scene format=3 uid="uid://i5s7dnul3bol"]
+[gd_scene load_steps=5 format=3 uid="uid://i5s7dnul3bol"]
+
+[ext_resource type="Script" uid="uid://b0sr1jows6pf" path="res://scripts/TavernScreen.gd" id="1_rarhs"]
+[ext_resource type="Texture2D" uid="uid://clj5d4o6r4kbu" path="res://assets/textures/guild_hall.png" id="2_vcsgt"]
+[ext_resource type="Texture2D" uid="uid://cwaj62jafww18" path="res://assets/textures/guild_hall_tavern.png" id="3_c01mt"]
+[ext_resource type="Texture2D" uid="uid://j1wq180xk0kk" path="res://assets/textures/guild_hall_desk.png" id="4_nxtc6"]
 
 [node name="Main" type="Node2D"]
+
+[node name="TavernScreen" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_rarhs")
+
+[node name="TextureRect_tavernbase" type="TextureRect" parent="TavernScreen"]
+offset_right = 1536.0
+offset_bottom = 1024.0
+texture = ExtResource("2_vcsgt")
+
+[node name="TextureRect_tavern_highlight" type="TextureRect" parent="TavernScreen"]
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+texture = ExtResource("3_c01mt")
+
+[node name="TextureRect_desk_highlight" type="TextureRect" parent="TavernScreen"]
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+texture = ExtResource("4_nxtc6")
+
+[node name="Control_ZoneTavern" type="Control" parent="TavernScreen"]
+custom_minimum_size = Vector2(300, 200)
+anchors_preset = 0
+offset_left = 150.0
+offset_top = 300.0
+offset_right = 190.0
+offset_bottom = 340.0
+
+[node name="Control_ZoneDesk" type="Control" parent="TavernScreen"]
+custom_minimum_size = Vector2(300, 200)
+anchors_preset = 0
+offset_left = 600.0
+offset_top = 320.0
+offset_right = 640.0
+offset_bottom = 360.0
