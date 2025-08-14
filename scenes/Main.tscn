@@ -15,6 +15,7 @@ offset_bottom = 40.0
 script = ExtResource("1_rarhs")
 
 [node name="TextureRect_tavernbase" type="TextureRect" parent="TavernScreen"]
+layout_mode = 0
 offset_right = 1536.0
 offset_bottom = 1024.0
 texture = ExtResource("2_vcsgt")
@@ -34,17 +35,19 @@ offset_bottom = 40.0
 texture = ExtResource("4_nxtc6")
 
 [node name="Control_ZoneTavern" type="Control" parent="TavernScreen"]
+visible = false
 custom_minimum_size = Vector2(300, 200)
 anchors_preset = 0
-offset_left = 150.0
-offset_top = 300.0
-offset_right = 190.0
-offset_bottom = 340.0
+offset_left = 1.0
+offset_top = 254.0
+offset_right = 406.0
+offset_bottom = 729.0
 
 [node name="Control_ZoneDesk" type="Control" parent="TavernScreen"]
+visible = false
 custom_minimum_size = Vector2(300, 200)
 anchors_preset = 0
-offset_left = 600.0
-offset_top = 320.0
-offset_right = 640.0
-offset_bottom = 360.0
+offset_left = 962.0
+offset_top = 255.0
+offset_right = 1319.0
+offset_bottom = 769.0
