@@ -1,0 +1,397 @@
+[gd_scene load_steps=49 format=3 uid="uid://c27e75reyl3re"]
+
+[ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://player.gd" id="1_cwghm"]
+[ext_resource type="PackedScene" uid="uid://dbomj4nofjjcc" path="res://bench.glb" id="1_m4lj6"]
+[ext_resource type="PackedScene" uid="uid://epamk5scugrv" path="res://table.glb" id="2_0exie"]
+[ext_resource type="Texture2D" uid="uid://o1100eue0x5j" path="res://bench_bench_albedo.png" id="3_cwghm"]
+[ext_resource type="ArrayMesh" uid="uid://ve30acubcg4q" path="res://Chair 3.obj" id="4_bianl"]
+[ext_resource type="ArrayMesh" uid="uid://c07jxt0ggvyo5" path="res://Chair 5.obj" id="5_x2ury"]
+[ext_resource type="PackedScene" uid="uid://b1g6kl84dss3e" path="res://barrel.glb" id="6_0nrlt"]
+[ext_resource type="Shader" uid="uid://c6qhkhar3xobg" path="res://edge_detection.gdshader" id="7_0exie"]
+[ext_resource type="Script" uid="uid://bc1jjl5acmb7" path="res://camera_3d.gd" id="8_bianl"]
+[ext_resource type="Script" uid="uid://bdcg61kndww6t" path="res://interactive.gd" id="8_x2ury"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_0exie"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_cwghm"]
+
+[sub_resource type="Environment" id="Environment_kr071"]
+ambient_light_color = Color(0.4, 0.5, 0.7, 1)
+ambient_light_energy = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kr071"]
+albedo_color = Color(0.529412, 0.392157, 0.254902, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_6oapo"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cwghm"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_dbh4p"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6oapo"]
+albedo_color = Color(0.47451, 0.419608, 0.368627, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bianl"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_b7xp1"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_bianl"]
+size = Vector3(0.75, 1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_0i7ti"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_2qto8"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_m4lj6"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_0exie"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x2ury"]
+albedo_color = Color(0.349295, 0.212264, 0.0891526, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cwghm"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0nrlt"]
+albedo_color = Color(0.541176, 0.309804, 0.121569, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_bianl"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qlm8p"]
+albedo_texture = ExtResource("3_cwghm")
+
+[sub_resource type="BoxMesh" id="BoxMesh_x2ury"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rus88"]
+albedo_color = Color(0.733333, 0.392157, 0.14902, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_in5p4"]
+albedo_texture = ExtResource("3_cwghm")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rbvb6"]
+albedo_texture = ExtResource("3_cwghm")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7d3yx"]
+albedo_texture = ExtResource("3_cwghm")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_n6x1j"]
+albedo_texture = ExtResource("3_cwghm")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_for0f"]
+albedo_color = Color(0.4, 0.4, 0.35, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_7d3yx"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2ks6e"]
+albedo_color = Color(0.3, 0.3, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rbvb6"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_kr071"]
+size = Vector3(1, 0.075, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_td5e2"]
+albedo_color = Color(0.456504, 0.230155, 0.0647923, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_in5p4"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_x2ury"]
+size = Vector3(2.70709, 1.88477, 2.33063)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_x2ury"]
+height = 3.87549
+radius = 1.43994
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_x2ury"]
+radius = 2.0
+
+[sub_resource type="QuadMesh" id="QuadMesh_m4lj6"]
+flip_faces = true
+size = Vector2(2, 2)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cwghm"]
+render_priority = 0
+shader = ExtResource("7_0exie")
+shader_parameter/lightIntensity = 1.25
+shader_parameter/lineAlpha = 0.7
+shader_parameter/useLighting = true
+shader_parameter/lineHighlight = 0.2
+shader_parameter/lineShadow = 0.55
+
+[node name="Node3D" type="Node3D"]
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+texture_filter = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+stretch_shrink = 2
+
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+handle_input_locally = false
+size = Vector2i(576, 324)
+render_target_update_mode = 4
+
+[node name="Character" type="Node3D" parent="SubViewportContainer/SubViewport"]
+
+[node name="Player" type="CharacterBody3D" parent="SubViewportContainer/SubViewport/Character"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.8475, 3.6505, 5.20177)
+script = ExtResource("1_cwghm")
+
+[node name="Skeleton3D" type="Skeleton3D" parent="SubViewportContainer/SubViewport/Character/Player"]
+
+[node name="SpringBoneSimulator3D" type="SpringBoneSimulator3D" parent="SubViewportContainer/SubViewport/Character/Player/Skeleton3D"]
+transform = Transform3D(1.5, 0, 0, 0, 3, 0, 0, 0, 1.5, -0.114552, -0.341397, -0.784)
+
+[node name="SpringBoneCollisionCapsule3D" type="SpringBoneCollisionCapsule3D" parent="SubViewportContainer/SubViewport/Character/Player/Skeleton3D/SpringBoneSimulator3D"]
+transform = Transform3D(4, 0, 0, 0, 2, 0, 0, 0, 4, 0.082, 0.255, 0.475)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Character/Player"]
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0.201211, 0)
+mesh = SubResource("CylinderMesh_0exie")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Character/Player"]
+shape = SubResource("CylinderShape3D_cwghm")
+
+[node name="Environment" type="Node3D" parent="SubViewportContainer/SubViewport"]
+
+[node name="DeskLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.5685, 1.58766, -0.254468)
+light_color = Color(1, 0.9, 0.6, 1)
+light_energy = 1.5
+omni_range = 4.0
+
+[node name="Outdoors Light" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+transform = Transform3D(0.766044, 0.45452, -0.45452, 0, 0.707107, 0.707107, 0.642788, -0.541675, 0.541675, 9, 3, 8.01709)
+light_color = Color(1, 0.8, 0.5, 1)
+light_energy = 1.5
+
+[node name="TavernLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.18159, 4.10605, 2.08308)
+light_color = Color(0.6, 0.8, 1, 1)
+light_energy = 2.0
+omni_range = 15.0
+
+[node name="BarLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 3, -1.8)
+light_color = Color(1, 0.9, 0.6, 1)
+light_energy = 1.5
+omni_range = 4.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/Environment"]
+environment = SubResource("Environment_kr071")
+
+[node name="Architecture" type="Node3D" parent="SubViewportContainer/SubViewport"]
+
+[node name="Floor" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(20, 0, 0, 0, 0.2, 0, 0, 0, 9, 5, 0, 0.35)
+material_override = SubResource("StandardMaterial3D_kr071")
+mesh = SubResource("BoxMesh_6oapo")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/Floor"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/Floor/StaticBody3D"]
+shape = SubResource("BoxShape3D_cwghm")
+
+[node name="FloorEntrance" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(4, 0, 0, 0, 0.2, 0, 0, 0, 3, 10.7079, 0, 6.32592)
+mesh = SubResource("BoxMesh_dbh4p")
+surface_material_override/0 = SubResource("StandardMaterial3D_6oapo")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/FloorEntrance"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/FloorEntrance/StaticBody3D"]
+shape = SubResource("BoxShape3D_bianl")
+
+[node name="WallNorth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(20, 0, 0, 0, 4, 0, 0, 0, 0.3, 5, 2, -4)
+mesh = SubResource("BoxMesh_b7xp1")
+
+[node name="IndoorNorthwall" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(20, 0, 0, 0, 4, 0, 0, 0, 0.3, 7.50153, 2, -1.86817)
+mesh = SubResource("BoxMesh_bianl")
+skeleton = NodePath("../WallNorth")
+
+[node name="WallSouth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(10, 0, 0, 0, 4, 0, 0, 0, 0.3, 0, 2, 4.76846)
+visible = false
+mesh = SubResource("BoxMesh_0i7ti")
+
+[node name="WallEast" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 8.6, -5, 2, 0.318025)
+mesh = SubResource("BoxMesh_2qto8")
+
+[node name="WallWest" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 8, 14.9943, 2, 0)
+visible = false
+mesh = SubResource("BoxMesh_m4lj6")
+
+[node name="Ceiling" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
+transform = Transform3D(10.5, 0, 0, 0, 0.2, 0, 0, 0, 8.5, 0, 4.1, 0)
+visible = false
+mesh = SubResource("BoxMesh_0exie")
+
+[node name="bench2" parent="SubViewportContainer/SubViewport/Architecture" instance=ExtResource("1_m4lj6")]
+transform = Transform3D(0.0432881, 0, -0.999063, 0, 1, 0, 0.999063, 0, 0.0432881, 1.52776, -0.0188675, -1.31386)
+
+[node name="table2" parent="SubViewportContainer/SubViewport/Architecture" instance=ExtResource("2_0exie")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0.0168631, 0, 3.0587)
+
+[node name="Furniture" type="Node3D" parent="SubViewportContainer/SubViewport"]
+
+[node name="Bar" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+
+[node name="BarCounter" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Bar"]
+transform = Transform3D(4, 0, 0, 0, -0.2, 0, 0, 0, 1, -3, 1.4, -2)
+material_override = SubResource("StandardMaterial3D_x2ury")
+mesh = SubResource("BoxMesh_cwghm")
+skeleton = NodePath("../..")
+
+[node name="CounterFoot" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Bar/BarCounter"]
+transform = Transform3D(0.125, 0, 0, 0, -3.5, 0, 0, 0, 0.5, 0.353604, 3.5, 0)
+material_override = SubResource("StandardMaterial3D_0nrlt")
+mesh = SubResource("CylinderMesh_bianl")
+skeleton = NodePath("../../..")
+
+[node name="Desk" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+
+[node name="MissionDesk" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk"]
+transform = Transform3D(2, 0, 0, 0, 0.2, 0, 0, 0, 1.2, 12.1624, 0.9, 0.108331)
+material_override = SubResource("StandardMaterial3D_qlm8p")
+mesh = SubResource("BoxMesh_x2ury")
+skeleton = NodePath("../..")
+
+[node name="CounterFoot4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, -0.401, -2, -0.341)
+material_override = SubResource("StandardMaterial3D_rus88")
+mesh = SubResource("CylinderMesh_bianl")
+skeleton = NodePath("../CounterFoot")
+
+[node name="CounterFoot" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, -0.4, -2, 0.3)
+material_override = SubResource("StandardMaterial3D_rus88")
+mesh = SubResource("CylinderMesh_bianl")
+skeleton = NodePath("../../../Bar/BarCounter/CounterFoot")
+
+[node name="CounterFoot2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, 0.4, -2, 0.3)
+material_override = SubResource("StandardMaterial3D_rus88")
+mesh = SubResource("CylinderMesh_bianl")
+skeleton = NodePath("../CounterFoot")
+
+[node name="CounterFoot3" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, 0.403, -2, -0.353)
+material_override = SubResource("StandardMaterial3D_rus88")
+mesh = SubResource("CylinderMesh_bianl")
+skeleton = NodePath("../CounterFoot")
+
+[node name="Chairs" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+
+[node name="Chair3" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+transform = Transform3D(0.5, 0, 0, 0, 0.8, 0, 0, 0, 0.5, -0.587034, 0.398272, 3.51529)
+material_override = SubResource("StandardMaterial3D_in5p4")
+mesh = ExtResource("4_bianl")
+skeleton = NodePath("../../../../..")
+
+[node name="Chair4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+transform = Transform3D(0.5, 0, 0, 0, 0.8, 0, 0, 0, 0.5, -0.869028, 0.431921, 2.69633)
+material_override = SubResource("StandardMaterial3D_rbvb6")
+mesh = ExtResource("4_bianl")
+skeleton = NodePath("../..")
+
+[node name="Chair5" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+transform = Transform3D(0.5, 0, 0, 0, 0.8, 0, 0, 0, 0.5, 0.809535, 0.378464, 3.47442)
+material_override = SubResource("StandardMaterial3D_7d3yx")
+mesh = ExtResource("4_bianl")
+skeleton = NodePath("../..")
+
+[node name="Chair6" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 12.3792, 0.690094, -0.91724)
+mesh = ExtResource("5_x2ury")
+
+[node name="Chair7" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+transform = Transform3D(-0.0435779, 0, -0.498097, 0, 1, 0, 0.498097, 0, -0.0435779, 0.797525, 0.846973, 2.85741)
+material_override = SubResource("StandardMaterial3D_n6x1j")
+mesh = ExtResource("5_x2ury")
+
+[node name="Fireplace" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+
+[node name="FireplaceBack" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Fireplace"]
+transform = Transform3D(1, 0, 0, 0, 2, 0, 0, 0, 2, -4.37572, 0.85344, 2.95584)
+material_override = SubResource("StandardMaterial3D_for0f")
+mesh = SubResource("BoxMesh_7d3yx")
+skeleton = NodePath("../..")
+
+[node name="FireplaceBase" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Fireplace"]
+transform = Transform3D(1.5, 0, 0, 0, 0.5, 0, 0, 0, 2.5, -4.14807, 0.245816, 2.95802)
+material_override = SubResource("StandardMaterial3D_2ks6e")
+mesh = SubResource("BoxMesh_rbvb6")
+skeleton = NodePath("../..")
+
+[node name="Mantel" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Fireplace"]
+transform = Transform3D(1.1, 0, 0, 0, 1.23, 0, 0, 0, 2.2, -4.29858, 1.84693, 2.92972)
+mesh = SubResource("BoxMesh_kr071")
+
+[node name="MissionBoard" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+
+[node name="MissionBoard" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/MissionBoard"]
+transform = Transform3D(3, 0, 0, 0, 2, 0, 0, 0, 0.5, 4.6576, 2.40069, -1.68981)
+material_override = SubResource("StandardMaterial3D_td5e2")
+mesh = SubResource("BoxMesh_in5p4")
+skeleton = NodePath("../..")
+
+[node name="Props" type="Node3D" parent="SubViewportContainer/SubViewport"]
+
+[node name="Mugs" type="Node3D" parent="SubViewportContainer/SubViewport/Props"]
+
+[node name="Bottles" type="Node3D" parent="SubViewportContainer/SubViewport/Props"]
+
+[node name="Decorations" type="Node3D" parent="SubViewportContainer/SubViewport/Props"]
+
+[node name="Candle" type="Node3D" parent="SubViewportContainer/SubViewport/Props"]
+
+[node name="barrel2" parent="SubViewportContainer/SubViewport/Props" instance=ExtResource("6_0nrlt")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.22104, 0.113271, -2.07107)
+
+[node name="barrel3" parent="SubViewportContainer/SubViewport/Props" instance=ExtResource("6_0nrlt")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.28423, 0.0810082, -2.23046)
+
+[node name="barrel4" parent="SubViewportContainer/SubViewport/Props" instance=ExtResource("6_0nrlt")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.23753, 0.0797064, -2.14522)
+
+[node name="Interactive" type="Node3D" parent="SubViewportContainer/SubViewport"]
+script = ExtResource("8_x2ury")
+
+[node name="BarArea" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38041, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/BarArea"]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -1.9529, -0.118891, -2.09991)
+shape = SubResource("BoxShape3D_x2ury")
+debug_color = Color(0, 0.6, 0.7, 0.668)
+
+[node name="MissionBoard" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.68592, 0, -0.629103)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/MissionBoard"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.37278, 0.488119, -0.384003)
+shape = SubResource("CylinderShape3D_x2ury")
+
+[node name="RecruitmentDesk" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.8142, 0.953636, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/RecruitmentDesk"]
+shape = SubResource("SphereShape3D_x2ury")
+
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport"]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 12.7284, 8, 6.82844)
+projection = 1
+size = 12.0
+script = ExtResource("8_bianl")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Camera3D"]
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_m4lj6")
+surface_material_override/0 = SubResource("ShaderMaterial_cwghm")
