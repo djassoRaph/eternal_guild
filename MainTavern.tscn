@@ -1,5 +1,6 @@
-[gd_scene load_steps=49 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=54 format=3 uid="uid://c27e75reyl3re"]
 
+[ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://player.gd" id="1_cwghm"]
 [ext_resource type="PackedScene" uid="uid://dbomj4nofjjcc" path="res://bench.glb" id="1_m4lj6"]
 [ext_resource type="PackedScene" uid="uid://epamk5scugrv" path="res://table.glb" id="2_0exie"]
@@ -97,12 +98,13 @@ albedo_color = Color(0.456504, 0.230155, 0.0647923, 1)
 [sub_resource type="BoxShape3D" id="BoxShape3D_x2ury"]
 size = Vector3(2.70709, 1.88477, 2.33063)
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_x2ury"]
-height = 3.87549
-radius = 1.43994
-
 [sub_resource type="SphereShape3D" id="SphereShape3D_x2ury"]
 radius = 2.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_qlm8p"]
+size = Vector3(1.99072, 2.62048, 1.96149)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_0nrlt"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_m4lj6"]
 flip_faces = true
@@ -117,7 +119,16 @@ shader_parameter/useLighting = true
 shader_parameter/lineHighlight = 0.2
 shader_parameter/lineShadow = 0.55
 
+[sub_resource type="Theme" id="Theme_0nrlt"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0nrlt"]
+bg_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qlm8p"]
+bg_color = Color(1, 1, 1, 1)
+
 [node name="Node3D" type="Node3D"]
+script = ExtResource("1_0nrlt")
 
 [node name="SubViewportContainer" type="SubViewportContainer" parent="."]
 texture_filter = 1
@@ -131,7 +142,7 @@ stretch_shrink = 2
 
 [node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
 handle_input_locally = false
-size = Vector2i(576, 324)
+size = Vector2i(960, 540)
 render_target_update_mode = 4
 
 [node name="Character" type="Node3D" parent="SubViewportContainer/SubViewport"]
@@ -210,7 +221,7 @@ transform = Transform3D(20, 0, 0, 0, 4, 0, 0, 0, 0.3, 5, 2, -4)
 mesh = SubResource("BoxMesh_b7xp1")
 
 [node name="IndoorNorthwall" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(20, 0, 0, 0, 4, 0, 0, 0, 0.3, 7.50153, 2, -1.86817)
+transform = Transform3D(15.6953, 0, 0, 0, 4, 0, 0, 0, 0.3, 9.13063, 2, -1.87596)
 mesh = SubResource("BoxMesh_bianl")
 skeleton = NodePath("../WallNorth")
 
@@ -234,7 +245,7 @@ visible = false
 mesh = SubResource("BoxMesh_0exie")
 
 [node name="bench2" parent="SubViewportContainer/SubViewport/Architecture" instance=ExtResource("1_m4lj6")]
-transform = Transform3D(0.0432881, 0, -0.999063, 0, 1, 0, 0.999063, 0, 0.0432881, 1.52776, -0.0188675, -1.31386)
+transform = Transform3D(0.0432881, 0, -0.999063, 0, 1, 0, 0.999063, 0, 0.0432881, 8.18546, -0.0188675, -1.31386)
 
 [node name="table2" parent="SubViewportContainer/SubViewport/Architecture" instance=ExtResource("2_0exie")]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0.0168631, 0, 3.0587)
@@ -337,7 +348,7 @@ mesh = SubResource("BoxMesh_kr071")
 [node name="MissionBoard" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
 
 [node name="MissionBoard" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/MissionBoard"]
-transform = Transform3D(3, 0, 0, 0, 2, 0, 0, 0, 0.5, 4.6576, 2.40069, -1.68981)
+transform = Transform3D(3, 0, 0, 0, 2, 0, 0, 0, 0.5, 5.88364, 2.40069, -1.68981)
 material_override = SubResource("StandardMaterial3D_td5e2")
 mesh = SubResource("BoxMesh_in5p4")
 skeleton = NodePath("../..")
@@ -372,21 +383,28 @@ transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -1.9529, -0.118891, -2.09991)
 shape = SubResource("BoxShape3D_x2ury")
 debug_color = Color(0, 0.6, 0.7, 0.668)
 
-[node name="MissionBoard" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.68592, 0, -0.629103)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/MissionBoard"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.37278, 0.488119, -0.384003)
-shape = SubResource("CylinderShape3D_x2ury")
-
 [node name="RecruitmentDesk" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.8142, 0.953636, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/RecruitmentDesk"]
 shape = SubResource("SphereShape3D_x2ury")
 
+[node name="NextDayArea" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.47227, 0, -3.43201)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/NextDayArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.495361, 1.30703, 0.480743)
+shape = SubResource("BoxShape3D_qlm8p")
+
+[node name="MissionBoard" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.86048, 1.81339, -1.04096)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/MissionBoard"]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0.0580997, 0, 0)
+shape = SubResource("BoxShape3D_0nrlt")
+
 [node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport"]
-transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 12.7284, 8, 6.82844)
+transform = Transform3D(0.707107, -0.353553, 0.612373, 0, 0.866026, 0.5, -0.707107, -0.353553, 0.612373, 12.7284, 8, 6.82844)
 projection = 1
 size = 12.0
 script = ExtResource("8_bianl")
@@ -395,3 +413,97 @@ script = ExtResource("8_bianl")
 extra_cull_margin = 16384.0
 mesh = SubResource("QuadMesh_m4lj6")
 surface_material_override/0 = SubResource("ShaderMaterial_cwghm")
+
+[node name="GameUI" type="CanvasLayer" parent="."]
+
+[node name="TopStatsBar" type="HBoxContainer" parent="GameUI"]
+custom_minimum_size = Vector2(0, 60)
+offset_right = 500.0
+offset_bottom = 60.0
+grow_horizontal = 2
+tooltip_text = "Status and info"
+
+[node name="DayLabel" type="Label" parent="GameUI/TopStatsBar"]
+layout_mode = 2
+text = "Day: 1"
+
+[node name="GoldLabel" type="Label" parent="GameUI/TopStatsBar"]
+layout_mode = 2
+text = "Gold: 30
+"
+
+[node name="BeerLabel" type="Label" parent="GameUI/TopStatsBar"]
+layout_mode = 2
+text = "Beer: 5
+"
+
+[node name="MainArea" type="HSplitContainer" parent="GameUI"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -200.0
+offset_right = 500.0
+grow_vertical = 0
+
+[node name="TavernView" type="Panel" parent="GameUI/MainArea"]
+custom_minimum_size = Vector2(500, 200)
+layout_mode = 2
+
+[node name="LogContainer" type="ScrollContainer" parent="GameUI/MainArea/TavernView"]
+custom_minimum_size = Vector2(500, 200)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_0nrlt")
+theme_override_styles/panel = SubResource("StyleBoxFlat_0nrlt")
+theme_override_styles/focus = SubResource("StyleBoxFlat_qlm8p")
+follow_focus = true
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="EventLog" type="RichTextLabel" parent="GameUI/MainArea/TavernView/LogContainer"]
+custom_minimum_size = Vector2(500, 200)
+layout_mode = 2
+theme_override_colors/default_color = Color(0, 0, 0, 1)
+bbcode_enabled = true
+text = "It was the visible text area remember that! custom minimum size needs to be configred"
+tab_size = 10
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+visible = false
+
+[node name="PauseBackground" type="Control" parent="PauseMenu"]
+modulate = Color(1, 1, 1, 0.7)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PauseMenu"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainMenuButton" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Main Menu"
+
+[node name="QuitButton" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Quit game GTG!"
+
+[connection signal="pressed" from="PauseMenu/VBoxContainer/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
+[connection signal="pressed" from="PauseMenu/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
