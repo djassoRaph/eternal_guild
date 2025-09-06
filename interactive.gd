@@ -55,7 +55,6 @@ func create_popups():
 	beer_popup.dialog_text = "Beer Stock: 5\nGold: 30\n\n[Buy Beer] [Sell Beer]"
 	beer_popup.size = Vector2(300, 200)
 	add_child(beer_popup)
-	send_log_message("Beer popup created")
 	print("Beer popup created: ", beer_popup != null)
 	
 	# Mission popup
@@ -64,7 +63,6 @@ func create_popups():
 	mission_popup.dialog_text = "Available Missions:\n- Clear Slimes (5-10g)\n- Escort Merchant (40-60g)"
 	mission_popup.size = Vector2(400, 250)
 	add_child(mission_popup)
-	send_log_message("mission popup created")
 	print("Mission popup created: ", mission_popup != null)
 	
 	# Recruitment popup
@@ -73,11 +71,9 @@ func create_popups():
 	recruitment_popup.dialog_text = "Available Recruits:\n- Brom (Fighter) - 10g\n- Lyra (Mage) - 15g"
 	recruitment_popup.size = Vector2(350, 200)
 	add_child(recruitment_popup)
-	send_log_message("recruit popup created")
 	print("Recruitment popup created: ", recruitment_popup != null)
 
 func _input(event):
-		
 	if event.is_action_pressed("interact"):
 		if player_in_bar:
 			if not beer_popup:
@@ -86,6 +82,7 @@ func _input(event):
 				beer_popup.dialog_text = "Manage your tavern here!\n\nBeer Stock: 5\nGold: 30"
 				add_child(beer_popup)
 				print("Created beer popup")
+				send_log_message("beer")
 			beer_popup.popup_centered()
 			
 		elif player_in_mission:
@@ -95,6 +92,7 @@ func _input(event):
 				mission_popup.dialog_text = "Available Missions:\n\n- Clear Slimes (5-10g)\n- Escort Merchant (40-60g)"
 				add_child(mission_popup)
 				print("Created mission popup")
+				send_log_message("mission")
 			mission_popup.popup_centered()
 			
 		elif player_in_recruitment:
@@ -104,6 +102,7 @@ func _input(event):
 				recruitment_popup.dialog_text = "Available Recruits:\n\n- Brom (Fighter) - 10g\n- Lyra (Mage) - 15g"
 				add_child(recruitment_popup)
 				print("Created recruitment popup")
+				send_log_message("recruitment")
 			recruitment_popup.popup_centered()
 
 func _on_bar_entered(body):
@@ -145,8 +144,9 @@ func _on_nextday_exited(body):
 		
 		
 func send_log_message(message: String):
-	var main_script = get_node("/root/Node3D")
+	var main_script = get_tree().current_scene
 	if main_script and main_script.has_method("log_message"):
+		await get_tree().process_frame  # Wait one frame
 		main_script.log_message(message)
 	else:
 		print("Could not find main tavern script")

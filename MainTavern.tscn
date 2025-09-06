@@ -441,8 +441,10 @@ text = "Beer: 5
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_top = -200.0
-offset_right = 500.0
+offset_left = 52.0
+offset_top = -269.0
+offset_right = 552.0
+offset_bottom = -69.0
 grow_vertical = 0
 
 [node name="TavernView" type="Panel" parent="GameUI/MainArea"]
