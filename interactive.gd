@@ -13,12 +13,8 @@ var player_in_mission = false
 var player_in_recruitment = false
 var player_in_bedroomarea = false
 
-var beer_popup: AcceptDialog
-var mission_popup: AcceptDialog
-var recruitment_popup: AcceptDialog
 
 func _ready():
-	
 	print("Script attached to: ", get_path())
 	print("Looking for GameUI...")
 	
@@ -26,6 +22,7 @@ func _ready():
 	print("mission_area: ", mission_area) 
 	print("recruitment_area: ", recruitment_area)
 	print("nextday_area: ", bedroom_area)
+	
 	# Connect area signals
 	bar_area.body_entered.connect(_on_bar_entered)
 	bar_area.body_exited.connect(_on_bar_exited)
@@ -38,72 +35,31 @@ func _ready():
 	
 	recruitment_area.body_entered.connect(_on_recruitment_entered)
 	recruitment_area.body_exited.connect(_on_recruitment_exited)
-	print("next line is log_message(\"testing\") function")
-	send_log_message("LOG A MESSAGE INSIDE ")
-	print("previous line is log_message(\"testing\") function")
-	send_log_message("aye")
-
-
-
-func create_popups():
-	"""Create simple popup dialogs"""
-	print("Creating popups...")
 	
-	# Beer management popup
-	beer_popup = AcceptDialog.new()
-	beer_popup.title = "Tavern Management"
-	beer_popup.dialog_text = "Beer Stock: 5\nGold: 30\n\n[Buy Beer] [Sell Beer]"
-	beer_popup.size = Vector2(300, 200)
-	add_child(beer_popup)
-	print("Beer popup created: ", beer_popup != null)
-	
-	# Mission popup
-	mission_popup = AcceptDialog.new()
-	mission_popup.title = "Mission Board"
-	mission_popup.dialog_text = "Available Missions:\n- Clear Slimes (5-10g)\n- Escort Merchant (40-60g)"
-	mission_popup.size = Vector2(400, 250)
-	add_child(mission_popup)
-	print("Mission popup created: ", mission_popup != null)
-	
-	# Recruitment popup
-	recruitment_popup = AcceptDialog.new()
-	recruitment_popup.title = "Recruitment Office"
-	recruitment_popup.dialog_text = "Available Recruits:\n- Brom (Fighter) - 10g\n- Lyra (Mage) - 15g"
-	recruitment_popup.size = Vector2(350, 200)
-	add_child(recruitment_popup)
-	print("Recruitment popup created: ", recruitment_popup != null)
+	send_log_message("Interactive areas connected!")
+
 
 func _input(event):
 	if event.is_action_pressed("interact"):
+		print("🔑 E key detected! player_in_bar: ", player_in_bar)
 		if player_in_bar:
-			if not beer_popup:
-				beer_popup = AcceptDialog.new()
-				beer_popup.title = "Tavern Management"
-				beer_popup.dialog_text = "Manage your tavern here!\n\nBeer Stock: 5\nGold: 30"
-				add_child(beer_popup)
-				print("Created beer popup")
-				send_log_message("beer")
-			beer_popup.popup_centered()
-			
+			print("🍺 Attempting to open beer popup...")
+			# CORRECT path for your scene
+			var beer_popup = get_node("/root/Node3D/GameUI/PopupManager/BeerManagementPopup")
+			print("🔍 Beer popup found: ", beer_popup)
+			if beer_popup:
+				print("✅ Calling open_beer_management...")
+				beer_popup.open_beer_management()
+				send_log_message("Looking at your stock")
+			else:
+				print("❌ Beer popup not found!")
+
 		elif player_in_mission:
-			if not mission_popup:
-				mission_popup = AcceptDialog.new()
-				mission_popup.title = "Mission Board"
-				mission_popup.dialog_text = "Available Missions:\n\n- Clear Slimes (5-10g)\n- Escort Merchant (40-60g)"
-				add_child(mission_popup)
-				print("Created mission popup")
-				send_log_message("mission")
-			mission_popup.popup_centered()
-			
+			send_log_message("mission")
+				
 		elif player_in_recruitment:
-			if not recruitment_popup:
-				recruitment_popup = AcceptDialog.new()
-				recruitment_popup.title = "Recruitment Office"  
-				recruitment_popup.dialog_text = "Available Recruits:\n\n- Brom (Fighter) - 10g\n- Lyra (Mage) - 15g"
-				add_child(recruitment_popup)
-				print("Created recruitment popup")
-				send_log_message("recruitment")
-			recruitment_popup.popup_centered()
+			send_log_message("recruitment")
+			
 
 func _on_bar_entered(body):
 	if body.name == "Player":

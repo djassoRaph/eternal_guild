@@ -1,4 +1,4 @@
-[gd_scene load_steps=54 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=55 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://player.gd" id="1_cwghm"]
@@ -11,6 +11,7 @@
 [ext_resource type="Shader" uid="uid://c6qhkhar3xobg" path="res://edge_detection.gdshader" id="7_0exie"]
 [ext_resource type="Script" uid="uid://bc1jjl5acmb7" path="res://camera_3d.gd" id="8_bianl"]
 [ext_resource type="Script" uid="uid://bdcg61kndww6t" path="res://interactive.gd" id="8_x2ury"]
+[ext_resource type="Script" uid="uid://dvsvglpbrmgsn" path="res://beer_management.gd" id="12_qlm8p"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_0exie"]
 
@@ -473,6 +474,103 @@ theme_override_colors/default_color = Color(0, 0, 0, 1)
 bbcode_enabled = true
 text = "It was the visible text area remember that! custom minimum size needs to be configred"
 tab_size = 10
+
+[node name="PopupManager" type="Control" parent="GameUI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BeerManagementPopup" type="PopupPanel" parent="GameUI/PopupManager"]
+size = Vector2i(400, 400)
+script = ExtResource("12_qlm8p")
+
+[node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/BeerManagementPopup"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 396.0
+offset_bottom = 396.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="PaddingContainer" type="MarginContainer" parent="GameUI/PopupManager/BeerManagementPopup/MainContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="MissionBoardPopup" type="PopupPanel" parent="GameUI/PopupManager"]
+size = Vector2i(400, 300)
+
+[node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/MissionBoardPopup"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 396.0
+offset_bottom = 296.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="PaddingContainer" type="MarginContainer" parent="GameUI/PopupManager/MissionBoardPopup/MainContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="RecruitmentPopup" type="PopupPanel" parent="GameUI/PopupManager"]
+size = Vector2i(400, 300)
+
+[node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/RecruitmentPopup"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 396.0
+offset_bottom = 296.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="PaddingContainer" type="MarginContainer" parent="GameUI/PopupManager/RecruitmentPopup/MainContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="BedroomPopup" type="PopupPanel" parent="GameUI/PopupManager"]
+size = Vector2i(400, 300)
+
+[node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/BedroomPopup"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 396.0
+offset_bottom = 296.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="PaddingContainer" type="MarginContainer" parent="GameUI/PopupManager/BedroomPopup/MainContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
 
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 visible = false
