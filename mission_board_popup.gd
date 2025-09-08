@@ -9,6 +9,7 @@ var missions = [
 	{"name": "Scavenge Herbs in Forest", "danger": 3, "reward_range": [10, 20], "party_required": true},
 	{"name": "Defend the Grain Warehouse", "danger": 2, "reward_range": [15, 25], "party_required": true}
 ]
+var assigned_missions = []
 
 func _ready():
 	print("Mission Board Popup ready")
@@ -58,13 +59,24 @@ func create_mission_board_ui():
 	
 	# Create mission cards
 	for mission in missions:
-		create_mission_card(mission, missions_container)
+		if not is_mission_assigned(mission):
+			create_mission_card(mission, missions_container)
+		
+
+func is_mission_assigned(mission: Dictionary) -> bool:
+	"""Check if this mission is currently assigned"""
+	for assigned in assigned_missions:
+		if assigned.name == mission.name:
+			return true
+	return false
+
+
 
 func create_mission_card(mission: Dictionary, parent: VBoxContainer):
 	"""Create a card showing mission details and assignment options"""
 	var card = PanelContainer.new()
 	parent.add_child(card)
-	
+
 	# Style the card based on danger level
 	var card_style = StyleBoxFlat.new()
 	var danger_color = get_danger_color(mission.danger)
@@ -165,6 +177,8 @@ func create_mission_card(mission: Dictionary, parent: VBoxContainer):
 	adventurer_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	assignment_container.add_child(adventurer_info)
 	
+
+	
 	# Assign button
 	var assign_button = Button.new()
 	assign_button.text = assign_text
@@ -207,8 +221,11 @@ func get_mission_description(mission_name: String) -> String:
 
 func assign_mission(mission: Dictionary, ready_adventurers: Array):
 	"""Assign adventurers to a mission"""
+	assigned_missions.append(mission)
 	hide()  # Close the mission board
 	
+	
+
 	if mission.party_required:
 		# For party missions, take 2-3 ready adventurers
 		var party_size = min(3, ready_adventurers.size())
@@ -304,3 +321,10 @@ func send_log_message(message: String):
 		main_script.log_message(message)
 	else:
 		print("LOG: " + message)
+
+	
+func refresh_daily_missions():
+	"""Reset missions for a new day"""
+	assigned_missions.clear()
+	var main_script = get_tree().current_scene
+	main_script.log_message("New guild contracts have been posted!")

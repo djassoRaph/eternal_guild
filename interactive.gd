@@ -74,9 +74,10 @@ func _input(event):
 				recruitment_popup.open_recruitment_desk()
 				send_log_message("Looking for new guild members...")
 			
+		
 		elif player_in_bedroomarea:
-			send_log_message("💤 Time to rest and advance to the next day...")
-			# TODO: Add day progression popup here
+			send_log_message("💤 Resting and advancing to the next day...")
+			advance_day_interaction()
 
 func _on_bar_entered(body):
 	if body.name == "Player":
@@ -123,4 +124,12 @@ func send_log_message(message: String):
 		main_script.log_message(message)
 	else:
 		print("Could not find main tavern script")
-		
+
+func advance_day_interaction():
+	"""Handle the bedroom day advancement interaction"""
+	if player_in_bedroomarea:
+		var main_script = get_tree().current_scene
+		if main_script and main_script.has_method("advance_to_next_day"):
+			main_script.advance_to_next_day()
+		else:
+			send_log_message("Error: Could not advance day")

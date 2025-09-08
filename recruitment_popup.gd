@@ -270,9 +270,9 @@ func create_recruit_card(recruit: Dictionary, parent: VBoxContainer):
 func hire_recruit(recruit: Dictionary):
 	"""Hire a recruit and add them to the main adventurers roster"""
 	var main_script = get_tree().current_scene
-	if main_script and main_script.has_method("hire_adventurer"):
+	if main_script and main_script.has_method("hire_recruit"):
 		# Call main script to handle the hiring
-		main_script.hire_adventurer(recruit)
+		main_script.hire_recruit(recruit)
 		
 		# Mark as hired
 		recruit.availability = "Hired"
@@ -314,3 +314,10 @@ func send_log_message(message: String):
 		main_script.log_message(message)
 	else:
 		print("LOG: " + message)
+
+
+func refresh_daily_recruits():
+	"""Reset recruits for a new day"""
+	available_recruits.clear()
+	var main_script = get_tree().current_scene
+	main_script.log_message("New adventurers have arrived seeking employment!")
