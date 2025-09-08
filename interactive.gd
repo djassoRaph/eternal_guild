@@ -44,7 +44,6 @@ func _input(event):
 		print("🔑 E key detected! player_in_bar: ", player_in_bar)
 		if player_in_bar:
 			print("🍺 Attempting to open beer popup...")
-			# CORRECT path for your scene
 			var beer_popup = get_node("/root/Node3D/GameUI/PopupManager/BeerManagementPopup")
 			print("🔍 Beer popup found: ", beer_popup)
 			if beer_popup:
@@ -55,11 +54,29 @@ func _input(event):
 				print("❌ Beer popup not found!")
 
 		elif player_in_mission:
-			send_log_message("mission")
+			# Check if player has any adventurers first
+			var main_script = get_tree().current_scene
+			if main_script and main_script.has_method("get_adventurer_count"):
+				var adventurer_count = main_script.get_adventurer_count()
+				if adventurer_count == 0:
+					send_log_message("❌ You need to hire adventurers before checking the mission board!")
+					send_log_message("💡 Visit the recruitment desk first.")
+					return
+			
+			var mission_popup = get_node("/root/Node3D/GameUI/PopupManager/MissionBoardPopup")
+			if mission_popup:
+				mission_popup.open_mission_board()
+				send_log_message("Examining available guild contracts...")
 				
 		elif player_in_recruitment:
-			send_log_message("recruitment")
+			var recruitment_popup = get_node("/root/Node3D/GameUI/PopupManager/RecruitmentPopup")
+			if recruitment_popup:
+				recruitment_popup.open_recruitment_desk()
+				send_log_message("Looking for new guild members...")
 			
+		elif player_in_bedroomarea:
+			send_log_message("💤 Time to rest and advance to the next day...")
+			# TODO: Add day progression popup here
 
 func _on_bar_entered(body):
 	if body.name == "Player":
@@ -106,3 +123,4 @@ func send_log_message(message: String):
 		main_script.log_message(message)
 	else:
 		print("Could not find main tavern script")
+		

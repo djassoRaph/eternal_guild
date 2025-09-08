@@ -19,14 +19,8 @@ func populate_popup_content():
 	# Create the beer management interface
 	create_beer_ui()
 
-func create_beer_ui():
-	# Tavern keeper greeting
-	var greeting = Label.new()
-	greeting.text = "\"Welcome, Guildmaster! What can I get for you?\""
-	greeting.add_theme_font_size_override("font_size", 14)
-	greeting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main_container.add_child(greeting)
-	
+func create_beer_ui():	
+	send_log_message("\"Welcome, Guildmaster! What can I get for you?\"")
 	# Purchase section title
 	var purchase_title = Label.new()
 	purchase_title.text = "Beer Purchase Options"

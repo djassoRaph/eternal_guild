@@ -1,4 +1,4 @@
-[gd_scene load_steps=55 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=58 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://player.gd" id="1_cwghm"]
@@ -12,6 +12,8 @@
 [ext_resource type="Script" uid="uid://bc1jjl5acmb7" path="res://camera_3d.gd" id="8_bianl"]
 [ext_resource type="Script" uid="uid://bdcg61kndww6t" path="res://interactive.gd" id="8_x2ury"]
 [ext_resource type="Script" uid="uid://dvsvglpbrmgsn" path="res://beer_management.gd" id="12_qlm8p"]
+[ext_resource type="Script" uid="uid://dcb6ql0i352xc" path="res://recruitment_popup.gd" id="13_rus88"]
+[ext_resource type="Script" uid="uid://cbgy3d1lp4gi4" path="res://mission_board_popup.gd" id="13_td5e2"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_0exie"]
 
@@ -127,6 +129,13 @@ bg_color = Color(1, 1, 1, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qlm8p"]
 bg_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rus88"]
+bg_color = Color(1, 1, 1, 1)
+expand_margin_left = 5.0
+expand_margin_top = 5.0
+expand_margin_right = 5.0
+expand_margin_bottom = 5.0
 
 [node name="Node3D" type="Node3D"]
 script = ExtResource("1_0nrlt")
@@ -471,8 +480,10 @@ vertical_scroll_mode = 2
 custom_minimum_size = Vector2(500, 200)
 layout_mode = 2
 theme_override_colors/default_color = Color(0, 0, 0, 1)
+theme_override_styles/fill = SubResource("StyleBoxFlat_rus88")
 bbcode_enabled = true
 text = "It was the visible text area remember that! custom minimum size needs to be configred"
+scroll_following = true
 tab_size = 10
 
 [node name="PopupManager" type="Control" parent="GameUI"]
@@ -508,6 +519,7 @@ theme_override_constants/margin_bottom = 10
 
 [node name="MissionBoardPopup" type="PopupPanel" parent="GameUI/PopupManager"]
 size = Vector2i(400, 300)
+script = ExtResource("13_td5e2")
 
 [node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/MissionBoardPopup"]
 anchors_preset = 15
@@ -530,6 +542,7 @@ theme_override_constants/margin_bottom = 10
 
 [node name="RecruitmentPopup" type="PopupPanel" parent="GameUI/PopupManager"]
 size = Vector2i(400, 300)
+script = ExtResource("13_rus88")
 
 [node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/RecruitmentPopup"]
 anchors_preset = 15
