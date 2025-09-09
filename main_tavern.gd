@@ -5,6 +5,7 @@ extends Node3D
 @onready var day_label = $GameUI/TopStatsBar/DayLabel
 @onready var gold_label = $GameUI/TopStatsBar/GoldLabel
 @onready var beer_label = $GameUI/TopStatsBar/BeerLabel
+@onready var fade_system = $UIOverlay/FadeToBlack
 var adventurers = []
 var max_adventurers = 5
 var current_day = 1
@@ -18,6 +19,8 @@ func _ready():
 	log_message("Game started successfully!")
 	# Allow this node to process input even when paused
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if fade_system:
+		fade_system.fade_complete.connect(_on_sleep_complete)
 
 func _input(event):
 	if event.is_action_pressed("ui_cancel"):
@@ -36,6 +39,8 @@ func advance_to_next_day():
 	process_adventurer_recovery()
 	reset_daily_content()
 	check_tax_deadline()
+	
+	fade_system.start_sleep_fade()
 	
 	# Update day display
 	day_label.text = "Day: " + str(current_day)
@@ -300,3 +305,8 @@ func update_beer(change: int):
 	var current_beer = get_current_beer()
 	var new_beer = current_beer + change
 	beer_label.text = "Beer: " + str(new_beer)
+	
+func _on_sleep_complete():
+	"""Called when fade transition completes - do the actual day advancement"""
+	current_day += 1
+	log_message("🌅 Day " + str(current_day) + " begins...")
