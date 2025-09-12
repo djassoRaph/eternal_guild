@@ -1,24 +1,34 @@
-[gd_scene load_steps=65 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=74 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://player.gd" id="1_cwghm"]
 [ext_resource type="PackedScene" uid="uid://dbomj4nofjjcc" path="res://bench.glb" id="1_m4lj6"]
 [ext_resource type="PackedScene" uid="uid://epamk5scugrv" path="res://table.glb" id="2_0exie"]
 [ext_resource type="Texture2D" uid="uid://o1100eue0x5j" path="res://bench_bench_albedo.png" id="3_cwghm"]
+[ext_resource type="PackedScene" uid="uid://domlqe0ab240t" path="res://characters/models/kaykit_adventurers/Barbarian.glb" id="3_rbvb6"]
 [ext_resource type="ArrayMesh" uid="uid://ve30acubcg4q" path="res://Chair 3.obj" id="4_bianl"]
+[ext_resource type="PackedScene" uid="uid://bvnvvrun1rn04" path="res://characters/models/kaykit_adventurers/Knight.glb" id="4_for0f"]
 [ext_resource type="ArrayMesh" uid="uid://c07jxt0ggvyo5" path="res://Chair 5.obj" id="5_x2ury"]
 [ext_resource type="PackedScene" uid="uid://b1g6kl84dss3e" path="res://barrel.glb" id="6_0nrlt"]
 [ext_resource type="Shader" uid="uid://c6qhkhar3xobg" path="res://edge_detection.gdshader" id="7_0exie"]
 [ext_resource type="Script" uid="uid://bc1jjl5acmb7" path="res://camera_3d.gd" id="8_bianl"]
 [ext_resource type="Script" uid="uid://bdcg61kndww6t" path="res://interactive.gd" id="8_x2ury"]
 [ext_resource type="Script" uid="uid://dvsvglpbrmgsn" path="res://beer_management.gd" id="12_qlm8p"]
+[ext_resource type="Script" uid="uid://blrj1xbsnxh50" path="res://PatronSpawner.gd" id="13_ghpec"]
 [ext_resource type="Script" uid="uid://dcb6ql0i352xc" path="res://recruitment_popup.gd" id="13_rus88"]
 [ext_resource type="Script" uid="uid://cbgy3d1lp4gi4" path="res://mission_board_popup.gd" id="13_td5e2"]
 [ext_resource type="Script" uid="uid://bid6sqlhv351d" path="res://fade_to_black.gd" id="15_in5p4"]
+[ext_resource type="PackedScene" uid="uid://rmodh1bhe68t" path="res://characters/models/kaykit_adventurers/Rogue.glb" id="18_n6x1j"]
+[ext_resource type="PackedScene" uid="uid://diiutgt0e5ki0" path="res://characters/models/kaykit_adventurers/Rogue_Hooded.glb" id="19_641vb"]
+[ext_resource type="PackedScene" uid="uid://f4xx5yv4p3ni" path="res://characters/models/kaykit_adventurers/Mage.glb" id="20_5yi2f"]
+[ext_resource type="PackedScene" uid="uid://c14g6d7x2t7dj" path="res://characters/models/kaykit_skeletons/Skeleton_Mage.glb" id="21_o17dw"]
+[ext_resource type="PackedScene" uid="uid://qs3sryawo10n" path="res://characters/models/kaykit_skeletons/Skeleton_Minion.glb" id="22_ghpec"]
+[ext_resource type="PackedScene" uid="uid://dib3cd6p4yvgv" path="res://characters/models/kaykit_skeletons/Skeleton_Rogue.glb" id="23_oyqik"]
+[ext_resource type="PackedScene" uid="uid://c5neoctmblga8" path="res://characters/models/kaykit_skeletons/Skeleton_Warrior.glb" id="24_fcoqr"]
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_0exie"]
-
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_cwghm"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_xw0ls"]
+margin = 0.05
+height = 1.5
 
 [sub_resource type="Environment" id="Environment_kr071"]
 ambient_light_color = Color(0.4, 0.5, 0.7, 1)
@@ -59,7 +69,7 @@ size = Vector3(0.763367, 1, 2.61877)
 [sub_resource type="BoxMesh" id="BoxMesh_0exie"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_7d3yx"]
-size = Vector3(1, 0.852905, 1)
+size = Vector3(1.12195, 0.852905, 2.3559)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x2ury"]
 albedo_color = Color(0.349295, 0.212264, 0.0891526, 1)
@@ -170,26 +180,17 @@ handle_input_locally = false
 size = Vector2i(960, 540)
 render_target_update_mode = 4
 
-[node name="Character" type="Node3D" parent="SubViewportContainer/SubViewport"]
-
-[node name="Player" type="CharacterBody3D" parent="SubViewportContainer/SubViewport/Character"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.8475, 3.6505, 6.62493)
+[node name="Player" type="CharacterBody3D" parent="SubViewportContainer/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 3.31525, 6.15256)
 script = ExtResource("1_cwghm")
 
-[node name="Skeleton3D" type="Skeleton3D" parent="SubViewportContainer/SubViewport/Character/Player"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Player"]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_xw0ls")
+debug_color = Color(0, 0.434, 0.508, 1)
 
-[node name="SpringBoneSimulator3D" type="SpringBoneSimulator3D" parent="SubViewportContainer/SubViewport/Character/Player/Skeleton3D"]
-transform = Transform3D(1.5, 0, 0, 0, 3, 0, 0, 0, 1.5, -0.114552, -0.341397, -0.784)
-
-[node name="SpringBoneCollisionCapsule3D" type="SpringBoneCollisionCapsule3D" parent="SubViewportContainer/SubViewport/Character/Player/Skeleton3D/SpringBoneSimulator3D"]
-transform = Transform3D(4, 0, 0, 0, 2, 0, 0, 0, 4, 0.082, 0.255, 0.475)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Character/Player"]
-transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 0, 0.201211, 0)
-mesh = SubResource("CylinderMesh_0exie")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Character/Player"]
-shape = SubResource("CylinderShape3D_cwghm")
+[node name="Rogue" parent="SubViewportContainer/SubViewport/Player" instance=ExtResource("18_n6x1j")]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, -0.5, 0)
 
 [node name="Environment" type="Node3D" parent="SubViewportContainer/SubViewport"]
 
@@ -295,7 +296,7 @@ transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0.0168631, 0, 3.0587)
 [node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/table2"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/table2/StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.258972, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0217896, 0.258972, 0.0111992)
 shape = SubResource("BoxShape3D_7d3yx")
 
 [node name="Furniture" type="Node3D" parent="SubViewportContainer/SubViewport"]
@@ -376,13 +377,13 @@ mesh = ExtResource("4_bianl")
 skeleton = NodePath("../../../../..")
 
 [node name="Chair4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
-transform = Transform3D(0.5, 0, 0, 0, 0.8, 0, 0, 0, 0.5, -0.869028, 0.431921, 2.69633)
+transform = Transform3D(0.5, 0, 0, 0, 0.8, 0, 0, 0, 0.5, -1.41856, 0.431921, 2.69633)
 material_override = SubResource("StandardMaterial3D_rbvb6")
 mesh = ExtResource("4_bianl")
 skeleton = NodePath("../..")
 
 [node name="Chair5" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
-transform = Transform3D(0.5, 0, 0, 0, 0.8, 0, 0, 0, 0.5, 0.809535, 0.378464, 3.47442)
+transform = Transform3D(0.499959, -0.0102902, 0, 0.00643136, 0.799934, 0, 0, 0, 0.5, 0.809535, 0.378464, 3.47442)
 material_override = SubResource("StandardMaterial3D_7d3yx")
 mesh = ExtResource("4_bianl")
 skeleton = NodePath("../..")
@@ -392,7 +393,7 @@ transform = Transform3D(0.5, 0, 0, 0, 1, 0, 0, 0, 0.5, 12.3792, 0.690094, -0.917
 mesh = ExtResource("5_x2ury")
 
 [node name="Chair7" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
-transform = Transform3D(-0.0435779, 0, -0.498097, 0, 1, 0, 0.498097, 0, -0.0435779, 0.797525, 0.846973, 2.85741)
+transform = Transform3D(-0.0435779, 0, -0.498097, 0, 1, 0, 0.498097, 0, -0.0435779, 1.33881, 0.846973, 2.48653)
 material_override = SubResource("StandardMaterial3D_n6x1j")
 mesh = ExtResource("5_x2ury")
 
@@ -486,6 +487,14 @@ script = ExtResource("8_bianl")
 extra_cull_margin = 16384.0
 mesh = SubResource("QuadMesh_m4lj6")
 surface_material_override/0 = SubResource("ShaderMaterial_cwghm")
+
+[node name="PatronSpawner" type="Node3D" parent="SubViewportContainer/SubViewport"]
+script = ExtResource("13_ghpec")
+
+[node name="CharacterBody3D" type="CharacterBody3D" parent="SubViewportContainer/SubViewport/PatronSpawner"]
+
+[node name="Knight" parent="SubViewportContainer/SubViewport/PatronSpawner/CharacterBody3D" instance=ExtResource("4_for0f")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.35348, 4.04343, -4.03668)
 
 [node name="GameUI" type="CanvasLayer" parent="."]
 
@@ -692,6 +701,30 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("15_in5p4")
+
+[node name="Barbarian" parent="." instance=ExtResource("3_rbvb6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.72067, 4.05291, -3.75201)
+
+[node name="Rogue" parent="." instance=ExtResource("18_n6x1j")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.03485, 4.06111, -3.76978)
+
+[node name="Rogue_Hooded" parent="." instance=ExtResource("19_641vb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.54163, 3.93085, -4.08518)
+
+[node name="Mage" parent="." instance=ExtResource("20_5yi2f")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.89209, 3.74671, -4.81209)
+
+[node name="Skeleton_Mage" parent="." instance=ExtResource("21_o17dw")]
+transform = Transform3D(0.117884, 0, 0.993027, 0, 1, 0, -0.993027, 0, 0.117884, -5.0892, 3.98352, -3.21545)
+
+[node name="Skeleton_Minion" parent="." instance=ExtResource("22_ghpec")]
+transform = Transform3D(-0.145807, 0, 0.989313, 0, 1, 0, -0.989313, 0, -0.145807, -4.91298, 4.00003, -0.202221)
+
+[node name="Skeleton_Rogue" parent="." instance=ExtResource("23_oyqik")]
+transform = Transform3D(0.0756401, 0, 0.997135, 0, 1, 0, -0.997135, 0, 0.0756401, -5.02977, 3.92723, 1.40431)
+
+[node name="Skeleton_Warrior" parent="." instance=ExtResource("24_fcoqr")]
+transform = Transform3D(-0.0150965, 0, 0.999886, 0, 1, 0, -0.999886, 0, -0.0150965, -4.90856, 4.00003, 3.5684)
 
 [connection signal="pressed" from="PauseMenu/VBoxContainer/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
 [connection signal="pressed" from="PauseMenu/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
