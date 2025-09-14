@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dbomj4nofjjcc"
-path="res://.godot/imported/bench.glb-c5f4856df270b247afb005819504c369.scn"
+uid="uid://dj4mt3qitvyys"
+path="res://.godot/imported/crate.glb-3fe214628c7a1e0370ff848ffde7e705.scn"
 
 [deps]
 
-source_file="res://bench.glb"
-dest_files=["res://.godot/imported/bench.glb-c5f4856df270b247afb005819504c369.scn"]
+source_file="res://assets/environment/furniture/crate.glb"
+dest_files=["res://.godot/imported/crate.glb-3fe214628c7a1e0370ff848ffde7e705.scn"]
 
 [params]
 

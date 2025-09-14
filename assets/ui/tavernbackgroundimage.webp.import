@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dp1087mljfoyg"
-path="res://.godot/imported/webp.webp-58b91cb2d54164327ef00925349ffda8.ctex"
+uid="uid://cqwy0fi07s163"
+path="res://.godot/imported/tavernbackgroundimage.webp-41efb3bcb22621da344f1cec4d6c1460.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://webp.webp"
-dest_files=["res://.godot/imported/webp.webp-58b91cb2d54164327ef00925349ffda8.ctex"]
+source_file="res://assets/ui/tavernbackgroundimage.webp"
+dest_files=["res://.godot/imported/tavernbackgroundimage.webp-41efb3bcb22621da344f1cec4d6c1460.ctex"]
 
 [params]
 

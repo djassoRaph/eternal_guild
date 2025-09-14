@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://c07jxt0ggvyo5"
+path="res://.godot/imported/Chair 5.obj-840e73801c4164dc6b76a18212c61440.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Chair 5.obj-840e73801c4164dc6b76a18212c61440.mesh"]
+
+source_file="res://assets/environment/furniture/Chair 5.obj"
+dest_files=["res://.godot/imported/Chair 5.obj-840e73801c4164dc6b76a18212c61440.mesh", "res://.godot/imported/Chair 5.obj-840e73801c4164dc6b76a18212c61440.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

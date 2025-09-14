@@ -13,7 +13,11 @@ config_version=5
 config/name="ShiningSun"
 run/main_scene="uid://83x67lyylyw3"
 config/features=PackedStringArray("4.4", "GL Compatibility")
-config/icon="res://icon.svg"
+config/icon="res://assets/ui/icons/icon.svg"
+
+[autoload]
+
+GameManager="*res://scripts/GameManager.gd"
 
 [display]
 

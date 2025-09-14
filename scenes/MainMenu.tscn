@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://83x67lyylyw3"]
 
 [ext_resource type="Script" uid="uid://8ntdfyvxo8jo" path="res://scripts/menus/main_menu.gd" id="1_eiy7p"]
-[ext_resource type="Texture2D" uid="uid://dp1087mljfoyg" path="res://webp.webp" id="1_i26rj"]
+[ext_resource type="Texture2D" uid="uid://cqwy0fi07s163" path="res://assets/ui/tavernbackgroundimage.webp" id="1_i26rj"]
 
 [sub_resource type="FontFile" id="FontFile_i26rj"]
 cache/0/36/0/ascent = 0.0

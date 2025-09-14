@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://epamk5scugrv"
-path="res://.godot/imported/table.glb-3476bb16449cfd04c8c3210d50a7a3d2.scn"
+uid="uid://dbomj4nofjjcc"
+path="res://.godot/imported/bench.glb-ed333ccca8f6f8340aafe0ae057fe5ac.scn"
 
 [deps]
 
-source_file="res://table.glb"
-dest_files=["res://.godot/imported/table.glb-3476bb16449cfd04c8c3210d50a7a3d2.scn"]
+source_file="res://assets/environment/furniture/bench.glb"
+dest_files=["res://.godot/imported/bench.glb-ed333ccca8f6f8340aafe0ae057fe5ac.scn"]
 
 [params]
 

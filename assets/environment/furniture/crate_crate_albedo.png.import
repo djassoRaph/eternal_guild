@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://o1100eue0x5j"
-path.s3tc="res://.godot/imported/bench_bench_albedo.png-22043efd7cfb3bee68548b806fc0854e.s3tc.ctex"
+uid="uid://bxjgn0gnwb383"
+path.s3tc="res://.godot/imported/crate_crate_albedo.png-77d3590b22d5385d76cec702e9fd9563.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "ce5029504f4b0a4d0b34d73cb7fdf32f"
+"md5": "892ed18b3a5414eb3339d8f7b251fb6b"
 }
 
 [deps]
 
-source_file="res://bench_bench_albedo.png"
-dest_files=["res://.godot/imported/bench_bench_albedo.png-22043efd7cfb3bee68548b806fc0854e.s3tc.ctex"]
+source_file="res://assets/environment/furniture/crate_crate_albedo.png"
+dest_files=["res://.godot/imported/crate_crate_albedo.png-77d3590b22d5385d76cec702e9fd9563.s3tc.ctex"]
 
 [params]
 

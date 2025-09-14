@@ -7,8 +7,7 @@ func _input(event):
 
 func toggle_unpause_menu():
 	var pause_menu = get_node("PauseMenu")  # Go up to root
-	if(pause_menu.visible){
+	if(pause_menu.visible):
 		pause_menu.hidden
-	}
 	get_tree().paused = !pause_menu.visible
 	

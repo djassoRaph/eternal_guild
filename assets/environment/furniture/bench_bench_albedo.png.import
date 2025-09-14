@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dyv0l4olc5jhu"
-path.s3tc="res://.godot/imported/barrel_barrel_albedo.png-701b8859ba79569611aac5925c7afb1e.s3tc.ctex"
+uid="uid://o1100eue0x5j"
+path.s3tc="res://.godot/imported/bench_bench_albedo.png-6562b35a6cdb2e16fecd380a12820870.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "b535a765e663d491f6dbe55d10e1a764"
+"md5": "ce5029504f4b0a4d0b34d73cb7fdf32f"
 }
 
 [deps]
 
-source_file="res://barrel_barrel_albedo.png"
-dest_files=["res://.godot/imported/barrel_barrel_albedo.png-701b8859ba79569611aac5925c7afb1e.s3tc.ctex"]
+source_file="res://assets/environment/furniture/bench_bench_albedo.png"
+dest_files=["res://.godot/imported/bench_bench_albedo.png-6562b35a6cdb2e16fecd380a12820870.s3tc.ctex"]
 
 [params]
 
