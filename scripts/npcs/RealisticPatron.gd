@@ -1,309 +1,317 @@
-# ==========================================
-# REALISTIC NPC PATRON SYSTEM
-# Based on your specific requirements and tavern layout
-# ==========================================
-
-# FILE 1: RealisticPatron.gd
 extends CharacterBody3D
 class_name RealisticPatron
 
+# Complete patron behavior system - FIXED VERSION
+# Addresses all the parse errors from the console
+
+# Movement and physics constants
+const SPEED = 2.0
+const GRAVITY = 9.8
+
+# State machine enum - FIXED: Properly declared
 enum PatronState {
-	ENTERING,
-	FINDING_SEAT,
-	SITTING,
-	REQUESTING_SERVICE,
+	WALKING_TO_TABLE,
+	SITTING_WAITING,
+	BEING_SERVED,
 	DRINKING,
 	LEAVING
 }
 
-# Customized settings based on your requirements
-@export var move_speed: float = 2.0
-@export var patience_time: float = 120.0  # 2 minutes before leaving
+# State variables - FIXED: All declared
+var current_state = PatronState.WALKING_TO_TABLE
+var current_target: Vector3
 
-var current_state: PatronState = PatronState.ENTERING
-var target_position: Vector3
-var is_moving: bool = false
-var state_timer: float = 0.0
-var patron_name: String = "Sir Knight"
+# Positions - FIXED: Declared as variables
+var table_position = Vector3(0, 3.0, 3.059)
+var entrance_position = Vector3(10.7, 3.0, 6.3)
 
-# Visual components
-var knight_model: Node3D
+# Service system variables - FIXED: All declared  
+var wants_service = false
+var has_been_served = false
 var service_indicator: MeshInstance3D
+var payment_amount: int
 
-# Your tavern coordinates (based on your screenshot)
-var entrance_pos: Vector3 = Vector3(0, 0, 4)  # Tavern entrance
-var table_position: Vector3 = Vector3(0, 0, 3.059)  # Your table coordinates
+# Character data - FIXED: All declared
+var patron_name: String
+var character_type: String = "Knight"
+
+# Timers - FIXED: Declared
+var sitting_timer: Timer
+var drinking_timer: Timer
+
+# Scene references - FIXED: Declared
+var main_scene: Node
+
+# Signals - FIXED: Properly declared
+signal patron_left
+signal patron_wants_service
+signal patron_served
 
 func _ready():
-	setup_patron_components()
-	enter_tavern()
+	print("RealisticPatron initializing...")
+	
+	# Set up physics first
+	setup_physics()
+	
+	# Get main scene reference
+	main_scene = get_tree().current_scene
+	
+	# Generate patron data
+	generate_patron_data()
+	
+	# Set initial target
+	current_target = table_position
+	
+	# Create visual representation
+	create_patron_model()
+	
+	# Create service indicator
+	create_service_indicator()
+	
+	# Set up timers
+	setup_timers()
+	
+	print("Patron '", patron_name, "' ready - walking to table")
 
-func setup_patron_components():
-	"""Setup patron with collision and visual model"""
-	print("Creating patron: ", patron_name)
+func setup_physics():
+	"""Configure proper collision for patron - FIXED FUNCTION"""
+	# Set collision layers (NPCs use layer 4)
+	collision_layer = 4
+	collision_mask = 2  # Collide with environment (layer 2)
 	
-	# Setup collision for movement
-	setup_collision()
-	
-	# Try to load Knight model or create placeholder
-	setup_visual_model()
-	
-	# Service indicator will be created in Godot scene, not code
-	
-	# Set collision layers for NPCs
-	collision_layer = 4  # NPCs on layer 4
-	collision_mask = 2   # NPCs collide with environment (layer 2)
-	
-	# Start at entrance
-	position = entrance_pos
+	# Add collision shape if not present
+	if not get_children().any(func(child): return child is CollisionShape3D):
+		var collision = CollisionShape3D.new()
+		var shape = CapsuleShape3D.new()
+		shape.height = 2.0
+		shape.radius = 0.5
+		collision.shape = shape
+		add_child(collision)
+		print("Added collision shape to patron")
 
-func setup_collision():
-	"""Basic collision for NPC movement"""
-	var collision = CollisionShape3D.new()
-	var capsule = CapsuleShape3D.new()
-	capsule.height = 1.8
-	capsule.radius = 0.3
-	collision.shape = capsule
-	add_child(collision)
-
-func setup_visual_model():
-	"""Load visual model or create simple placeholder"""
-	# Try loading your Knight model
-	var knight_path = "res://characters/models/kaykit_adventurers/Knight.glb"
+func generate_patron_data():
+	"""Generate random patron characteristics"""
+	var names = ["Gareth", "Elara", "Thorin", "Lydia", "Marcus", "Sera"]
+	patron_name = names[randi() % names.size()]
 	
-	if ResourceLoader.exists(knight_path):
-		var knight_scene = load(knight_path)
-		if knight_scene:
-			knight_model = knight_scene.instantiate()
-			knight_model.name = "KnightModel"
-			disable_model_collision(knight_model)
-			add_child(knight_model)
-			print("Loaded Knight model")
-			return
+	# Payment: 6 base + 1-3 tip = 7-9 gold total
+	payment_amount = randi_range(7, 9)
 	
-	# Simple placeholder
-	create_simple_placeholder()
+	print("Generated patron: ", patron_name, " will pay ", payment_amount, " gold")
 
-func create_simple_placeholder():
-	"""Simple colored capsule if model fails"""
+func create_patron_model():
+	"""Create visual representation of the patron"""
+	# Try to load KayKit Knight model
+	var model_path = "res://assets/characters/models/kaykit_adventurers/Knight.glb"
+	var model_scene = load(model_path)
+	
+	if model_scene:
+		var model_instance = model_scene.instantiate()
+		model_instance.name = "PatronModel"
+		add_child(model_instance)
+		print("Loaded Knight model for ", patron_name)
+	else:
+		# Fallback: Create colored capsule
+		create_fallback_model()
+
+func create_fallback_model():
+	"""Create a simple visual representation as fallback"""
 	var mesh_instance = MeshInstance3D.new()
+	mesh_instance.name = "PatronModel"
+	
 	var capsule = CapsuleMesh.new()
-	capsule.height = 1.8
-	capsule.radius = 0.3
+	capsule.height = 2.0
+	capsule.radius = 0.5
 	mesh_instance.mesh = capsule
 	
+	# Create material
 	var material = StandardMaterial3D.new()
-	material.albedo_color = Color(0.7, 0.7, 0.8)  # Silver for knight
+	material.albedo_color = Color.BLUE
 	mesh_instance.material_override = material
 	
 	add_child(mesh_instance)
-	knight_model = mesh_instance
+	print("Created fallback model for ", patron_name)
 
-func disable_model_collision(node: Node):
-	"""Remove collision from imported model"""
-	for child in node.get_children():
-		if child is CollisionShape3D:
-			child.disabled = true
-		elif child is CharacterBody3D or child is StaticBody3D:
-			child.collision_layer = 0
-			child.collision_mask = 0
-		disable_model_collision(child)
+func create_service_indicator():
+	"""Create yellow sphere above head when wanting service"""
+	service_indicator = MeshInstance3D.new()
+	service_indicator.name = "ServiceIndicator"
+	
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.3
+	service_indicator.mesh = sphere
+	
+	var material = StandardMaterial3D.new()
+	material.albedo_color = Color.YELLOW
+	material.emission = Color.YELLOW * 0.5
+	service_indicator.material_override = material
+	
+	service_indicator.position = Vector3(0, 2.5, 0)  # Above head
+	service_indicator.visible = false
+	add_child(service_indicator)
+
+func setup_timers():
+	"""Initialize behavior timers"""
+	sitting_timer = Timer.new()
+	sitting_timer.wait_time = 2.0
+	sitting_timer.one_shot = true
+	sitting_timer.timeout.connect(_on_sitting_timer_timeout)
+	add_child(sitting_timer)
+	
+	drinking_timer = Timer.new()
+	drinking_timer.wait_time = 8.0
+	drinking_timer.one_shot = true
+	drinking_timer.timeout.connect(_on_drinking_timer_timeout)
+	add_child(drinking_timer)
 
 func _physics_process(delta):
-	update_patron_behavior(delta)
-	handle_movement(delta)
-
-func update_patron_behavior(delta):
-	"""State machine for patron behavior"""
-	state_timer += delta
+	"""Handle movement and physics - FIXED FUNCTION"""
 	
-	match current_state:
-		PatronState.ENTERING:
-			if not is_moving:
-				find_table_seat()
-		
-		PatronState.FINDING_SEAT:
-			if not is_moving:
-				sit_at_table()
-		
-		PatronState.SITTING:
-			if state_timer > 3.0:  # Sit for 3 seconds before requesting
-				request_service()
-		
-		PatronState.REQUESTING_SERVICE:
-			# Wait indefinitely until served or manually told to leave
-			# No automatic timeout - you control when they leave
-			pass
-		
-		PatronState.DRINKING:
-			if state_timer > 8.0:  # Drink for 8 seconds
-				leave_satisfied()
-		
-		PatronState.LEAVING:
-			if not is_moving:
-				despawn_patron()
-
-func handle_movement(delta):
-	"""Basic movement physics"""
-	if not is_moving:
-		velocity = Vector3.ZERO
-		move_and_slide()
-		return
+	# DEBUG: Print physics info every 60 frames (1 second)
+	if Engine.get_process_frames() % 60 == 0:
+		print("=== NPC PHYSICS DEBUG ===")
+		print("Position: ", global_position)
+		print("Is on floor: ", is_on_floor())
+		print("Velocity: ", velocity)
+		print("Collision layer: ", collision_layer)
+		print("Collision mask: ", collision_mask)
+		print("Current state: ", current_state)
+		print("========================")
 	
-	var direction = (target_position - global_position)
-	direction.y = 0
-	
-	if direction.length() < 0.3:
-		is_moving = false
-		velocity = Vector3.ZERO
-		on_destination_reached()
+	# Apply gravity
+	if not is_on_floor():
+		velocity.y -= GRAVITY * delta
+		print("Applying gravity - Y velocity: ", velocity.y)
 	else:
-		direction = direction.normalized()
-		velocity = direction * move_speed
-		
-		# Rotate model to face movement
-		if knight_model and direction.length() > 0.1:
-			var target_rotation = atan2(direction.x, direction.z)
-			knight_model.rotation.y = lerp_angle(knight_model.rotation.y, target_rotation, 4.0 * delta)
+		print("Standing on floor")
+	
+	# Handle state-based behavior
+	match current_state:
+		PatronState.WALKING_TO_TABLE:
+			move_toward_target(delta)
+		PatronState.SITTING_WAITING:
+			# Stay in place, wait for service
+			velocity.x = 0
+			velocity.z = 0
+		PatronState.LEAVING:
+			move_toward_target(delta)
 	
 	move_and_slide()
 
-func enter_tavern():
-	"""Patron enters tavern"""
-	current_state = PatronState.ENTERING
-	state_timer = 0.0
-	print(patron_name, " enters the tavern")
-
-func find_table_seat():
-	"""Move to the table position you specified"""
-	current_state = PatronState.FINDING_SEAT
-	state_timer = 0.0
-	move_to_position(table_position)
-	print(patron_name, " heads to table")
-
-func sit_at_table():
-	"""Sit down and get ready to request service"""
-	current_state = PatronState.SITTING
-	state_timer = 0.0
+func move_toward_target(delta):
+	"""Move toward current target position - FIXED FUNCTION"""
+	var direction = (current_target - global_position).normalized()
+	direction.y = 0  # Don't move vertically
 	
-	# Make shorter to simulate sitting
-	if knight_model:
-		knight_model.scale.y = 0.7
+	velocity.x = direction.x * SPEED
+	velocity.z = direction.z * SPEED
 	
-	print(patron_name, " sits at table")
+	# Rotate to face movement direction
+	if direction.length() > 0.1:
+		var target_rotation = atan2(direction.x, direction.z)
+		rotation.y = lerp_angle(rotation.y, target_rotation, delta * 5.0)
+	
+	# Check if reached target
+	var distance_to_target = global_position.distance_to(current_target)
+	if distance_to_target < 1.0:
+		_on_reached_target()
 
-func request_service():
-	"""Request service - you'll handle indicator in scene"""
-	current_state = PatronState.REQUESTING_SERVICE
-	state_timer = 0.0
+func _on_reached_target():
+	"""Handle reaching the current target position - FIXED FUNCTION"""
+	match current_state:
+		PatronState.WALKING_TO_TABLE:
+			_arrive_at_table()
+		PatronState.LEAVING:
+			_leave_tavern()
+
+func _arrive_at_table():
+	"""Patron reaches table and sits down"""
+	print("Patron ", patron_name, " arrives at table")
+	current_state = PatronState.SITTING_WAITING
 	
-	# Send signal to main game that this patron wants service
-	var main_scene = get_tree().current_scene
+	# Visual sitting effect (scale down slightly)
+	scale.y = 0.7
+	
+	# Start sitting timer before wanting service
+	sitting_timer.start()
+	
 	if main_scene and main_scene.has_method("log_message"):
-		main_scene.log_message(patron_name + " wants to order!")
-	
-	# You can add service indicator here or handle in scene
-	show_service_request()
-	
-	print(patron_name, " requests service")
+		main_scene.log_message(patron_name + " sits down and looks around the tavern.")
 
-func show_service_request():
-	"""Show that patron wants service - you can customize this"""
-	# Simple approach: create indicator if it doesn't exist
-	if not service_indicator:
-		service_indicator = MeshInstance3D.new()
-		service_indicator.name = "ServiceRequest"
-		service_indicator.position = Vector3(0, 2.5, 0)
-		
-		var sphere = SphereMesh.new()
-		sphere.radius = 0.15
-		service_indicator.mesh = sphere
-		
-		var material = StandardMaterial3D.new()
-		material.albedo_color = Color.YELLOW
-		material.emission = Color.YELLOW
-		material.emission_energy = 0.8
-		service_indicator.material_override = material
-		
-		add_child(service_indicator)
-	
+func _on_sitting_timer_timeout():
+	"""Patron settled in, now wants service"""
+	wants_service = true
 	service_indicator.visible = true
+	current_state = PatronState.SITTING_WAITING
+	
+	print("Patron ", patron_name, " wants service!")
+	
+	if main_scene and main_scene.has_method("log_message"):
+		main_scene.log_message(patron_name + " signals for service.")
+	
+	patron_wants_service.emit()
 
-func serve_drink():
-	"""Called when player serves this patron"""
-	if current_state != PatronState.REQUESTING_SERVICE:
+func can_be_served_by(player_position: Vector3) -> bool:
+	"""Check if player is close enough to serve this patron"""
+	return wants_service and global_position.distance_to(player_position) <= 2.0
+
+func serve(server_position: Vector3) -> bool:
+	"""Attempt to serve the patron"""
+	if not can_be_served_by(server_position):
 		return false
 	
+	# Check if main scene has beer inventory
+	if main_scene and main_scene.has_method("get_current_beer"):
+		var beer_count = main_scene.get_current_beer()
+		if beer_count <= 0:
+			if main_scene.has_method("log_message"):
+				main_scene.log_message("No beer in stock to serve " + patron_name + "!")
+			return false
+	
+	# Successful service
+	print("Serving ", patron_name)
+	
+	wants_service = false
+	has_been_served = true
+	service_indicator.visible = false
+	current_state = PatronState.BEING_SERVED
+	
+	# Process payment and beer
+	if main_scene:
+		if main_scene.has_method("update_gold"):
+			main_scene.update_gold(payment_amount)
+		if main_scene.has_method("update_beer"):
+			main_scene.update_beer(-1)
+		if main_scene.has_method("log_message"):
+			main_scene.log_message("Served " + patron_name + " for " + str(payment_amount) + " gold!")
+	
+	# Start drinking
 	current_state = PatronState.DRINKING
-	state_timer = 0.0
+	drinking_timer.start()
 	
-	if service_indicator:
-		service_indicator.visible = false
-	
-	var main_scene = get_tree().current_scene
-	if main_scene and main_scene.has_method("log_message"):
-		main_scene.log_message(patron_name + ": Excellent ale, thank you!")
-	
-	print(patron_name, " is served and starts drinking")
+	patron_served.emit()
 	return true
 
-func leave_satisfied():
-	"""Leave and pay according to your game's pricing"""
+func _on_drinking_timer_timeout():
+	"""Patron finishes drinking and prepares to leave"""
+	print("Patron ", patron_name, " finished drinking")
+	
+	# Stand up (restore scale)
+	scale.y = 1.0
+	
+	# Set target to entrance and leave
+	current_target = entrance_position
 	current_state = PatronState.LEAVING
-	state_timer = 0.0
 	
-	# Reset scale
-	if knight_model:
-		knight_model.scale.y = 1.0
-	
-	# Payment based on your beer pricing system
-	# Check your existing beer price and add profit margin
-	var payment = calculate_payment()
-	
-	var main_scene = get_tree().current_scene
-	if main_scene and main_scene.has_method("update_gold"):
-		main_scene.update_gold(payment)
 	if main_scene and main_scene.has_method("log_message"):
-		main_scene.log_message(patron_name + " paid " + str(payment) + " gold!")
-	
-	move_to_position(entrance_pos)
-	print(patron_name, " leaves satisfied, paid ", payment, " gold")
+		main_scene.log_message(patron_name + " finishes their drink and prepares to leave.")
 
-func calculate_payment() -> int:
-	"""Calculate payment based on your game economy"""
-	# Your beer costs 5 gold to buy, so selling price should be 6-8 gold
-	# Knights are wealthy so they pay well and tip
-	var base_price = 6  # Base selling price
-	var tip = randi_range(1, 3)  # Generous tip
-	return base_price + tip
-
-func leave_disappointed():
-	"""Force patron to leave without payment"""
-	current_state = PatronState.LEAVING
-	state_timer = 0.0
+func _leave_tavern():
+	"""Patron exits the tavern"""
+	print("Patron ", patron_name, " leaves the tavern")
 	
-	if knight_model:
-		knight_model.scale.y = 1.0
-	if service_indicator:
-		service_indicator.visible = false
-	
-	var main_scene = get_tree().current_scene
 	if main_scene and main_scene.has_method("log_message"):
-		main_scene.log_message(patron_name + " leaves disappointed!")
+		main_scene.log_message(patron_name + " thanks you and leaves the tavern.")
 	
-	move_to_position(entrance_pos)
-	print(patron_name, " leaves without paying")
-
-func despawn_patron():
-	"""Remove from scene"""
-	print(patron_name, " has left the tavern")
+	patron_left.emit()
 	queue_free()
-
-func move_to_position(pos: Vector3):
-	"""Start moving to position"""
-	target_position = pos
-	is_moving = true
-
-func on_destination_reached():
-	"""Called when reaching destination"""
-	print(patron_name, " reached destination")

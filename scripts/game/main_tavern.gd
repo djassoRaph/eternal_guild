@@ -1,5 +1,5 @@
 extends Node3D
-
+#main_tavern.gd
 @onready var game_log = $GameUI/MainArea/TavernView/LogContainer/EventLog
 @onready var log_container = $GameUI/MainArea/TavernView/LogContainer
 @onready var day_label = $GameUI/TopStatsBar/DayLabel

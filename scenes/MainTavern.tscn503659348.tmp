@@ -190,7 +190,7 @@ shape = SubResource("CapsuleShape3D_xw0ls")
 debug_color = Color(0, 0.434, 0.508, 1)
 
 [node name="Rogue" parent="SubViewportContainer/SubViewport/Player" instance=ExtResource("18_n6x1j")]
-transform = Transform3D(-0.990445, 0, 0.137911, 0, 1, 0, -0.137911, 0, -0.990445, 0, -0.5, 0)
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, -0.5, 0)
 
 [node name="Environment" type="Node3D" parent="SubViewportContainer/SubViewport"]
 
@@ -234,14 +234,13 @@ shape = SubResource("BoxShape3D_cwghm")
 debug_color = Color(0, 0.371, 0.436, 1)
 
 [node name="FloorEntrance" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(7.48185, 0, 0, 0, 0.2, 0, 0, 0, 3, 10.7079, 0, 6.32592)
+transform = Transform3D(4, 0, 0, 0, 0.2, 0, 0, 0, 3, 10.7079, 0, 6.32592)
 mesh = SubResource("BoxMesh_dbh4p")
 surface_material_override/0 = SubResource("StandardMaterial3D_6oapo")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/FloorEntrance"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/FloorEntrance/StaticBody3D"]
-transform = Transform3D(1.00619, 0, 0, 0, 1.00619, 0, 0, 0, 1.00619, 0, 0, 0)
 shape = SubResource("BoxShape3D_bianl")
 
 [node name="WallNorth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
