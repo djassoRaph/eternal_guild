@@ -1,4 +1,4 @@
-[gd_scene load_steps=74 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=75 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://scripts/player/player.gd" id="1_cwghm"]
@@ -59,6 +59,9 @@ size = Vector3(0.75, 1, 1)
 size = Vector3(0.763367, 1, 2.61877)
 
 [sub_resource type="BoxMesh" id="BoxMesh_0i7ti"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_behcn"]
+size = Vector3(0.63092, 1, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_2qto8"]
 
@@ -265,9 +268,16 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0102843, 0, 0.161927)
 shape = SubResource("BoxShape3D_rbvb6")
 
 [node name="WallSouth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(10, 0, 0, 0, 4, 0, 0, 0, 0.3, 0, 2, 4.76846)
+transform = Transform3D(11.9854, 0, 0, 0, 4, 0, 0, 0, 0.3, 0.854959, 2, 4.76846)
 visible = false
 mesh = SubResource("BoxMesh_0i7ti")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/WallSouth"]
+transform = Transform3D(1.61422, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/WallSouth/StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 0.999994, 0, 0, 0, 1, -0.00186157, 0, 0)
+shape = SubResource("BoxShape3D_behcn")
 
 [node name="WallEast" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
 transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 8.6, -5, 2, 0.318025)
