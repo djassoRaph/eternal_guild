@@ -1,4 +1,5 @@
 extends PopupPanel
+# recruitment_popup.gd - UPDATED FOR GAMEMANAGER
 
 @onready var main_container = $MainContainer
 
@@ -27,6 +28,9 @@ func create_recruitment_ui():
 	# Guild master greeting	
 	send_log_message("\"Welcome, Guildmaster! These brave souls seek to join your guild.\"")
 	
+	# Guild status display
+	create_guild_status_display()
+	
 	# Available recruits section
 	var recruits_title = Label.new()
 	recruits_title.text = "Available Applicants Today"
@@ -45,7 +49,28 @@ func create_recruitment_ui():
 	
 	# Create recruit cards
 	for recruit in available_recruits:
-		create_recruit_card(recruit, recruits_container)
+		if recruit.get("availability", "Available") == "Available":
+			create_recruit_card(recruit, recruits_container)
+
+func create_guild_status_display():
+	"""Display current guild status and resources"""
+	var status_container = HBoxContainer.new()
+	status_container.add_theme_constant_override("separation", 30)
+	main_container.add_child(status_container)
+	
+	var gold_status = Label.new()
+	gold_status.text = "Gold: " + str(GameManager.get_gold())
+	gold_status.add_theme_font_size_override("font_size", 14)
+	gold_status.add_theme_color_override("font_color", Color.YELLOW)
+	status_container.add_child(gold_status)
+	
+	var roster_status = Label.new()
+	var current_size = GameManager.get_adventurer_count()
+	var max_size = GameManager.get_max_adventurers()
+	roster_status.text = "Roster: " + str(current_size) + "/" + str(max_size)
+	roster_status.add_theme_font_size_override("font_size", 14)
+	roster_status.add_theme_color_override("font_color", Color.CYAN)
+	status_container.add_child(roster_status)
 
 func generate_daily_recruits():
 	"""Generate 3-5 random applicants for the day"""
@@ -59,11 +84,11 @@ func generate_daily_recruits():
 		var recruit = create_recruit_applicant()
 		available_recruits.append(recruit)
 	
-	send_log_message("📋 " + str(num_recruits) + " new applicants have arrived today!")
+	send_log_message(str(num_recruits) + " new applicants have arrived today!")
 
 func create_recruit_applicant() -> Dictionary:
 	"""Create a potential recruit with stats and hiring cost"""
-	var recruit = create_adventurer()  # Use existing function from main
+	var recruit = create_adventurer()  # Use existing function
 	
 	# Add recruitment-specific data
 	recruit["hiring_cost"] = calculate_hiring_cost(recruit)
@@ -207,21 +232,21 @@ func create_recruit_card(recruit: Dictionary, parent: VBoxContainer):
 	
 	# Name and class
 	var name_label = Label.new()
-	name_label.text = "🗡️ " + recruit.name + " the " + recruit.class
+	name_label.text = recruit.name + " the " + recruit.class
 	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.add_theme_color_override("font_color", Color.WHITE)
 	info_container.add_child(name_label)
 	
 	# Stats
 	var stats_label = Label.new()
-	stats_label.text = "💪" + str(recruit.strength) + " | 🏃" + str(recruit.dexterity) + " | 🧠" + str(recruit.intelligence) + " | ❤️" + str(recruit.endurance)
+	stats_label.text = "STR:" + str(recruit.strength) + " | DEX:" + str(recruit.dexterity) + " | INT:" + str(recruit.intelligence) + " | END:" + str(recruit.endurance)
 	stats_label.add_theme_font_size_override("font_size", 12)
 	stats_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
 	info_container.add_child(stats_label)
 	
 	# Personality and background
 	var personality_label = Label.new()
-	personality_label.text = "📖 " + recruit.personality + " • " + recruit.background
+	personality_label.text = recruit.personality + " • " + recruit.background
 	personality_label.add_theme_font_size_override("font_size", 11)
 	personality_label.add_theme_color_override("font_color", Color.CYAN)
 	info_container.add_child(personality_label)
@@ -245,10 +270,10 @@ func create_recruit_card(recruit: Dictionary, parent: VBoxContainer):
 	hire_button.custom_minimum_size = Vector2(120, 35)
 	hiring_container.add_child(hire_button)
 	
-	# Check if we can hire
-	var current_gold = get_current_gold()
-	var current_roster_size = get_current_roster_size()
-	var max_adventurers = get_max_adventurers()
+	# Check if we can hire - USE GAMEMANAGER
+	var current_gold = GameManager.get_gold()
+	var current_roster_size = GameManager.get_adventurer_count()
+	var max_adventurers = GameManager.get_max_adventurers()
 	var can_hire = current_gold >= recruit.hiring_cost and current_roster_size < max_adventurers
 	
 	if can_hire:
@@ -262,13 +287,9 @@ func create_recruit_card(recruit: Dictionary, parent: VBoxContainer):
 		hire_button.disabled = true
 
 func hire_recruit(recruit: Dictionary):
-	"""Hire a recruit and add them to the main adventurers roster"""
-	var main_script = get_tree().current_scene
-	if main_script and main_script.has_method("hire_recruit"):
-		# Call main script to handle the hiring
-		main_script.hire_recruit(recruit)
-		
-		# Mark as hired
+	"""Hire a recruit using GameManager"""
+	if GameManager.hire_adventurer(recruit):
+		# Mark as hired to prevent re-hiring
 		recruit.availability = "Hired"
 		
 		# Close and reopen popup to refresh
@@ -276,42 +297,13 @@ func hire_recruit(recruit: Dictionary):
 		await get_tree().create_timer(0.1).timeout
 		open_recruitment_desk()
 	else:
-		send_log_message("❌ Error: Could not complete hiring process")
-
-func get_current_gold() -> int:
-	"""Get current gold from the main scene"""
-	var gold_label = get_node_or_null("/root/Node3D/GameUI/TopStatsBar/GoldLabel")
-	if gold_label:
-		var parts = gold_label.text.split(" ")
-		return int(parts[1])
-	return 0
-
-func get_current_roster_size() -> int:
-	"""Get current adventurer count from main scene"""
-	var main_script = get_tree().current_scene
-	if main_script and main_script.has_method("get_adventurer_count"):
-		return main_script.get_adventurer_count()
-	return 0
-
-func get_max_adventurers() -> int:
-	"""Get max adventurers from main scene"""
-	var main_script = get_tree().current_scene
-	if main_script and main_script.has_method("get_max_adventurers"):
-		return main_script.get_max_adventurers()
-	return 5  # Default
+		send_log_message("Cannot hire " + recruit.name + " - insufficient funds or roster full!")
 
 func send_log_message(message: String):
-	"""Send message to main game log"""
-	var main_script = get_tree().current_scene
-	if main_script and main_script.has_method("log_message"):
-		await get_tree().process_frame
-		main_script.log_message(message)
-	else:
-		print("LOG: " + message)
-
+	"""Send message to GameManager logging system"""
+	GameManager.log_message(message)
 
 func refresh_daily_recruits():
 	"""Reset recruits for a new day"""
 	available_recruits.clear()
-	var main_script = get_tree().current_scene
-	main_script.log_message("New adventurers have arrived seeking employment!")
+	GameManager.log_message("New adventurers have arrived seeking employment!")

@@ -40,7 +40,15 @@ func _ready():
 
 
 func _input(event):
+	
 	if event.is_action_pressed("interact"):
+		var player = get_node("/root/Node3D/SubViewportContainer/SubViewport/Player")
+		if player and player.has_method("try_serve_nearby_patron"):
+			var served_patron = player.try_serve_nearby_patron()
+			if served_patron:
+				print("✅ Served a patron!")
+				return  # Exit early, don't check zone interactions
+				
 		print("🔑 E key detected! player_in_bar: ", player_in_bar)
 		if player_in_bar:
 			print("🍺 Attempting to open beer popup...")

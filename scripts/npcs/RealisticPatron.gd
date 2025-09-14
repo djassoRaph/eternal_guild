@@ -108,6 +108,7 @@ func create_patron_model():
 	if model_scene:
 		var model_instance = model_scene.instantiate()
 		model_instance.name = "PatronModel"
+		model_instance.position.y = -1.0
 		add_child(model_instance)
 		print("Loaded Knight model for ", patron_name)
 	else:
@@ -166,25 +167,6 @@ func setup_timers():
 
 func _physics_process(delta):
 	"""Handle movement and physics - FIXED FUNCTION"""
-	
-	# DEBUG: Print physics info every 60 frames (1 second)
-	if Engine.get_process_frames() % 60 == 0:
-		print("=== NPC PHYSICS DEBUG ===")
-		print("Position: ", global_position)
-		print("Is on floor: ", is_on_floor())
-		print("Velocity: ", velocity)
-		print("Collision layer: ", collision_layer)
-		print("Collision mask: ", collision_mask)
-		print("Current state: ", current_state)
-		print("========================")
-	
-	# Apply gravity
-	if not is_on_floor():
-		velocity.y -= GRAVITY * delta
-		print("Applying gravity - Y velocity: ", velocity.y)
-	else:
-		print("Standing on floor")
-	
 	# Handle state-based behavior
 	match current_state:
 		PatronState.WALKING_TO_TABLE:
@@ -195,7 +177,6 @@ func _physics_process(delta):
 			velocity.z = 0
 		PatronState.LEAVING:
 			move_toward_target(delta)
-	
 	move_and_slide()
 
 func move_toward_target(delta):
@@ -206,14 +187,20 @@ func move_toward_target(delta):
 	velocity.x = direction.x * SPEED
 	velocity.z = direction.z * SPEED
 	
+	if not is_on_floor():
+		velocity.y -= GRAVITY * delta
 	# Rotate to face movement direction
 	if direction.length() > 0.1:
 		var target_rotation = atan2(direction.x, direction.z)
 		rotation.y = lerp_angle(rotation.y, target_rotation, delta * 5.0)
 	
+	if Engine.get_process_frames() % 60 == 0:  # Every second
+		var distance_to_target = global_position.distance_to(current_target)
+		print("Distance to table: ", distance_to_target, " Position: ", global_position)
+	
 	# Check if reached target
 	var distance_to_target = global_position.distance_to(current_target)
-	if distance_to_target < 1.0:
+	if distance_to_target < 2.0:
 		_on_reached_target()
 
 func _on_reached_target():

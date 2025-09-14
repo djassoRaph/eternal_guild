@@ -5,12 +5,12 @@ class_name PatronSpawner
 # Addresses all parse errors and missing functions
 
 # Spawn configuration
-@export var spawn_interval: float = 30.0
+@export var spawn_interval: float = 1.0
 @export var max_patrons: int = 1  # Only one patron at a time
 
 # Position coordinates - FIXED: Much higher Y coordinate for testing
-var entrance_position = Vector3(10.7, 10.0, 6.3)  # Spawn 10 units above ground
-var table_position = Vector3(0, 10.0, 3.059)     # Also higher
+var entrance_position = Vector3(8.7, 1.0, 3.3)  # Spawn 10 units above ground
+var table_position = Vector3(0.5, 1.0, 3.5)     # Also higher
 
 # Current patron tracking - FIXED: All variables declared
 var current_patron: Node3D = null
