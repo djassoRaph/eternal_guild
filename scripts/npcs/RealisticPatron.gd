@@ -76,8 +76,8 @@ func _ready():
 func setup_physics():
 	"""Configure proper collision for patron - FIXED FUNCTION"""
 	# Set collision layers (NPCs use layer 4)
-	collision_layer = 4
-	collision_mask = 2  # Collide with environment (layer 2)
+	collision_layer = 1
+	collision_mask = 1  # Collide with environment (layer 2)
 	
 	# Add collision shape if not present
 	if not get_children().any(func(child): return child is CollisionShape3D):

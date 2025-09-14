@@ -21,6 +21,7 @@ func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if fade_system:
 		fade_system.fade_complete.connect(_on_sleep_complete)
+	
 
 func _input(event):
 	if event.is_action_pressed("ui_cancel"):
@@ -71,6 +72,41 @@ func send_log_message(message: String):
 	var main_script = get_node("/root/Node3D")
 	if main_script and main_script.has_method("log_message"):
 		main_script.log_message(message)
+
+
+
+func fix_floor_collision():
+	# Get all StaticBody3D nodes in Architecture
+	var architecture = get_node("SubViewportContainer/SubViewport/Architecture")
+	
+	# Fix main floor
+	var floor_body = architecture.get_node("Floor/StaticBody3D")
+	if floor_body:
+		floor_body.collision_layer = 2
+		print("Fixed main floor collision_layer = 2")
+	
+	# Fix entrance floor
+	var entrance_body = architecture.get_node("FloorEntrance/StaticBody3D")  
+	if entrance_body:
+		entrance_body.collision_layer = 2
+		print("Fixed entrance floor collision_layer = 2")
+	
+	# Fix all furniture that NPCs might walk into
+	var furniture = get_node("SubViewportContainer/SubViewport/Furniture")
+	
+	# Fix bar counter
+	var bar_body = furniture.get_node("Bar/BarCounter/StaticBody3D")
+	if bar_body:
+		bar_body.collision_layer = 2
+		print("Fixed bar collision_layer = 2")
+	
+	# Fix tables and other furniture
+	var table_bodies = []
+	# Add any other StaticBody3D nodes that need collision_layer = 2
+	
+	print("All floor collision layers fixed!")
+
+
 
 func log_message(message: String):
 	print("log_message function called with: ", message)
