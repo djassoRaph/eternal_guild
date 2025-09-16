@@ -1,6 +1,5 @@
 # GameManager.gd - Autoload Singleton
 extends Node
-
 # === CORE GAME STATE ===
 var gold: int = 30
 var beer_stock: int = 5
@@ -35,11 +34,12 @@ func _on_data_ready():
 
 
 func refresh_missions():
-	# Call the DataManager to get a new set of missions
+	var new_missions = {}
+	print("DEBUG: refresh_missions() called on day ", current_day)
 	available_missions = DataManager.generateAvailableMissions()
-	# Signal the UI to update
-	# You might want a custom signal for this:
-	# mission_board_updated.emit(available_missions)
+	print("DEBUG: Generated missions: ", available_missions.size())
+	print("DEBUG: Mission keys: ", available_missions.keys())
+	log_message("New guild contracts have been posted!")
 
 # === GOLD MANAGEMENT ===
 func add_gold(amount: int):
@@ -90,15 +90,29 @@ func advance_day():
 	"""Advance to next day with all processing"""
 	current_day += 1
 	day_changed.emit(current_day)
-	
 	print("🌅 Day ", current_day, " begins!")
-	
 	# Process all daily events
 	process_mission_returns()
 	process_daily_operations() 
 	process_customer_visits()
 	process_adventurer_recovery()
 	check_tax_deadline()
+	var main_script = get_tree().current_scene
+	if main_script and main_script.has_method("advance_to_next_day"):
+			main_script.advance_to_next_day()
+	
+	if current_day % 2 == 0:
+		refresh_missions()
+		log_message("New guild contracts have been posted!")
+	if current_day % 1 == 0:  # Every day, change to 2 for every 2 days
+		refresh_daily_recruits()
+
+func refresh_daily_recruits():
+	# This will signal recruitment popup to generate new recruits
+	# You'll need to connect this to your recruitment system
+	log_message("New adventurers seek to join your guild!")
+
+
 
 func get_day() -> int:
 	"""Get current day number"""

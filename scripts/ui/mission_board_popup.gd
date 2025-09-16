@@ -3,18 +3,34 @@ extends PopupPanel
 @onready var main_container = $MainContainer
 
 # Mission data from your prototype
-var missions = [
-	{"name": "Clear Slimes", "danger": 1, "reward_range": [5, 10], "party_required": false},
-	{"name": "Escort Merchant", "danger": 5, "reward_range": [40, 60], "party_required": true},
-	{"name": "Scavenge Herbs in Forest", "danger": 3, "reward_range": [10, 20], "party_required": true},
-	{"name": "Defend the Grain Warehouse", "danger": 2, "reward_range": [15, 25], "party_required": true}
-]
+var missions = []
 var assigned_missions = []
 
 func _ready():
 	print("Mission Board Popup ready")
+	load_current_missions()
+
+func load_current_missions():
+	"""Load missions from GameManager's current state"""
+	missions.clear()
+
+# Get missions from GameManager (which gets them from DataManager)
+	var mission_data = GameManager.available_missions
+
+# Convert DataManager format to popup format
+	for mission_key in mission_data:
+		var mission_info = mission_data[mission_key]
+		var converted_mission = {
+			"name": mission_info.get("display_name", mission_key),
+			"danger": mission_info.get("danger_level", 1), 
+			"reward_range": mission_info.get("reward_range", [5, 10]),
+			"party_required": mission_info.get("party_required", false)
+		}
+		missions.append(converted_mission)
+
 
 func open_mission_board():
+	load_current_missions() 
 	populate_popup_content()
 	popup_centered()
 
@@ -322,6 +338,13 @@ func send_log_message(message: String):
 	else:
 		print("LOG: " + message)
 
+
+func refresh_missions():
+	var mission_data = GameManager.available_missions
+	# Convert format and display
+func display_current_missions_available():
+	var mission_data
+	pass
 	
 func refresh_daily_missions():
 	"""Reset missions for a new day"""

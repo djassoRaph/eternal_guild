@@ -188,3 +188,26 @@ func generateSingleAdventurer(number: int) -> Dictionary:
 	print("Generated adventurer: ", adventurer_data)
 	
 	return adventurer_data
+
+
+func get_missions_by_category(category: String) -> Dictionary:
+	var filtered_missions = {}
+	for mission_id in mission_types:
+		var mission_data = mission_types[mission_id]
+		if mission_data.get("category", "general") == category:
+			filtered_missions[mission_id] = mission_data
+	return filtered_missions
+	
+	
+
+func get_random_missions(category: String, count: int) -> Dictionary:
+	var category_missions = get_missions_by_category(category)
+	var random_missions = {}
+	var mission_keys = category_missions.keys()
+	
+	for i in range(min(count, mission_keys.size())):
+		var random_key = mission_keys[randi() % mission_keys.size()]
+		random_missions[random_key] = category_missions[random_key]
+		mission_keys.erase(random_key)  # Avoid duplicates
+	
+	return random_missions

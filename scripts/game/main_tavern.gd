@@ -51,7 +51,6 @@ func advance_to_next_day():
 
 func _on_sleep_complete():
 	"""Called when fade completes - trigger GameManager day advancement"""
-	GameManager.advance_day()
 	log_message("Ready for another day of guild management!")
 
 # === LEGACY SUPPORT FUNCTIONS (for existing popups) ===

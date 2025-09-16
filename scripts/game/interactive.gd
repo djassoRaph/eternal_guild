@@ -136,8 +136,6 @@ func send_log_message(message: String):
 func advance_day_interaction():
 	"""Handle the bedroom day advancement interaction"""
 	if player_in_bedroomarea:
-		var main_script = get_tree().current_scene
-		if main_script and main_script.has_method("advance_to_next_day"):
-			main_script.advance_to_next_day()
-		else:
-			send_log_message("Error: Could not advance day")
+		GameManager.advance_day()
+		send_log_message("Day advanced successfully!")
+		
