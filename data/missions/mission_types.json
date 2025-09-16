@@ -1,0 +1,46 @@
+{
+	"slime_clearing": {
+		"display_name": "Clear Slimes",
+		"description": "Clean out slimes from the local area",
+		"danger_level": 1,
+		"reward_range": [5, 10],
+		"required_stats": {"strength": 2},
+		"party_required": false,
+		"mission_type": "combat",
+		"success_text": "The slimes were cleared successfully!",
+		"failure_text": "The adventurer was overwhelmed by slimes."
+	},
+	"merchant_escort": {
+		"display_name": "Escort Merchant",
+		"description": "Protect a merchant on their trade route",
+		"danger_level": 5,
+		"reward_range": [40, 60],
+		"required_stats": {"strength": 4, "dexterity": 3},
+		"party_required": true,
+		"mission_type": "escort",
+		"success_text": "The merchant arrived safely at their destination.",
+		"failure_text": "Bandits attacked the caravan!"
+	},
+	"herb_gathering": {
+		"display_name": "Scavenge Herbs in Forest",
+		"description": "Gather rare herbs from the dangerous forest",
+		"danger_level": 3,
+		"reward_range": [10, 20],
+		"required_stats": {"intelligence": 2, "dexterity": 2},
+		"party_required": true,
+		"mission_type": "gathering",
+		"success_text": "Valuable herbs were collected successfully.",
+		"failure_text": "The party encountered dangerous forest creatures."
+	},
+	"warehouse_defense": {
+		"display_name": "Defend the Grain Warehouse",
+		"description": "Guard the town's grain supplies from thieves",
+		"danger_level": 2,
+		"reward_range": [15, 25],
+		"required_stats": {"strength": 3, "endurance": 3},
+		"party_required": true,
+		"mission_type": "defense",
+		"success_text": "The warehouse was defended successfully!",
+		"failure_text": "Thieves managed to steal some grain."
+	}
+}

@@ -1,0 +1,26 @@
+{
+	"beer": {
+		"display_name": "Beer",
+		"description": "Essential tavern stock for serving patrons",
+		"base_cost": 5,
+		"stack_size": 99,
+		"category": "consumable",
+		"sell_price": 6
+	},
+	"bread": {
+		"display_name": "Bread",
+		"description": "Basic food for tavern guests",
+		"base_cost": 2,
+		"stack_size": 50,
+		"category": "consumable",
+		"sell_price": 3
+	},
+	"equipment_basic": {
+		"display_name": "Basic Equipment",
+		"description": "Simple gear for new adventurers",
+		"base_cost": 25,
+		"stack_size": 1,
+		"category": "equipment",
+		"stat_bonus": {"strength": 1}
+	}
+}

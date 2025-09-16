@@ -153,7 +153,6 @@ func log_message(message: String):
 			vbar.value = vbar.max_value
 			print("Final scroll position: ", vbar.value)
 
-# === COLLISION FIXES ===
 func fix_floor_collision():
 	# Get all StaticBody3D nodes in Architecture
 	var architecture = get_node("SubViewportContainer/SubViewport/Architecture")

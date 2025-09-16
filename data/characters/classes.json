@@ -1,0 +1,67 @@
+{
+	"Fighter": {
+		"display_name": "Fighter",
+		"description": "Strong warrior with high endurance",
+		"stat_bonuses": {
+			"strength": 2,
+			"endurance": 1,
+			"dexterity": 0,
+			"intelligence": 0
+		},
+		"preferred_missions": ["combat", "escort", "defense"],
+		"base_cost": 15,
+		"model_path": "res://assets/characters/models/kaykit_adventurers/Knight.glb"
+	},
+	"Rogue": {
+		"display_name": "Rogue",
+		"description": "Agile scout with stealth abilities",
+		"stat_bonuses": {
+			"strength": 0,
+			"endurance": 0,
+			"dexterity": 2,
+			"intelligence": 1
+		},
+		"preferred_missions": ["stealth", "reconnaissance", "treasure"],
+		"base_cost": 12,
+		"model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb"
+	},
+	"Mage": {
+		"display_name": "Mage",
+		"description": "Magical practitioner with high intelligence",
+		"stat_bonuses": {
+			"strength": 0,
+			"endurance": 0,
+			"dexterity": 0,
+			"intelligence": 2
+		},
+		"preferred_missions": ["magical", "research", "enchanting"],
+		"base_cost": 20,
+		"model_path": "res://assets/characters/models/kaykit_adventurers/Mage.glb"
+	},
+	"Healer": {
+		"display_name": "Healer",
+		"description": "Support character with healing abilities",
+		"stat_bonuses": {
+			"strength": 0,
+			"endurance": 1,
+			"dexterity": 0,
+			"intelligence": 1
+		},
+		"preferred_missions": ["support", "rescue", "escort"],
+		"base_cost": 18,
+		"model_path": "res://assets/characters/models/kaykit_adventurers/Cleric.glb"
+	},
+	"Barbarian": {
+		"display_name": "Barbarian", 
+		"description": "Wild warrior with fierce combat skills",
+		"stat_bonuses": {
+			"strength": 3,
+			"endurance": 2,
+			"dexterity": 0,
+			"intelligence": -1
+		},
+		"preferred_missions": ["combat", "intimidation", "wilderness"],
+		"base_cost": 16,
+		"model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb"
+	}
+}

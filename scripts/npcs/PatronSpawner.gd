@@ -71,19 +71,7 @@ func spawn_patron():
 	shape.height = 2.0
 	shape.radius = 0.5
 	collision.shape = shape
-	current_patron.add_child(collision)
-	print("Added collision shape to patron")
-	
-	# DEBUG: Verify collision setup
-	print("=== COLLISION DEBUG ===")
-	print("Patron collision_layer: ", current_patron.collision_layer)
-	print("Patron collision_mask: ", current_patron.collision_mask)
-	print("CollisionShape3D exists: ", current_patron.get_children().any(func(child): return child is CollisionShape3D))
-	print("Shape height: ", shape.height)
-	print("Shape radius: ", shape.radius)
-	print("======================")
-
-	
+	current_patron.add_child(collision)	
 	# Load and attach the script AFTER basic setup
 	var patron_script = preload("res://scripts/npcs/RealisticPatron.gd")
 	current_patron.set_script(patron_script)

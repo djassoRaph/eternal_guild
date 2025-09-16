@@ -1,0 +1,41 @@
+{
+	"service_request": {
+		"default": [
+			"Could I get some ale, friend?",
+			"A tankard of your finest, if you please.",
+			"I'm parched! Any beer available?",
+			"Barkeep! Service when you're ready.",
+			"I'll take whatever's on tap."
+		],
+		"happy": [
+			"This place has the best atmosphere!",
+			"Your ale never disappoints!",
+			"Keep the drinks coming!"
+		],
+		"impatient": [
+			"How long does it take to pour ale?",
+			"Service is slower than usual today...",
+			"I don't have all day!"
+		]
+	},
+	"payment": {
+		"default": [
+			"Here's your payment, thanks!",
+			"Worth every copper piece.",
+			"Keep the change!",
+			"Excellent service as always."
+		]
+	},
+	"leaving": {
+		"satisfied": [
+			"Thanks for the great service!",
+			"I'll be back tomorrow!",
+			"Best tavern in town!"
+		],
+		"dismissed": [
+			"Fine, I'll find somewhere else...",
+			"Poor service!",
+			"This place used to be better."
+		]
+	}
+}

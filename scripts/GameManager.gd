@@ -1,7 +1,4 @@
 # GameManager.gd - Autoload Singleton
-# Save as: res://scripts/GameManager.gd
-# Add to Project Settings > Autoload with name "GameManager"
-
 extends Node
 
 # === CORE GAME STATE ===
@@ -10,7 +7,7 @@ var beer_stock: int = 5
 var current_day: int = 1
 var max_adventurers: int = 5
 var adventurers: Array = []
-
+var available_missions: Dictionary = {}
 # === ECONOMIC SETTINGS ===
 var tax_due_day: int = 30
 var daily_operating_cost: int = 1
@@ -21,35 +18,28 @@ signal beer_changed(new_amount: int)
 signal day_changed(new_day: int)
 signal adventurer_roster_changed()
 
+
+
+
 # === INITIALIZATION ===
 func _ready():
 	print("🎮 GameManager singleton initialized")
 	print("Initial state - Gold: ", gold, " Beer: ", beer_stock, " Day: ", current_day)
+	DataManager.data_ready.connect(_on_data_ready)
 	
-	# Create starting adventurer (Brom)
-	initialize_starting_adventurer()
 
-func initialize_starting_adventurer():
-	"""Create Brom the Fighter as starting adventurer"""
-	var brom = {
-		"id": 1,
-		"name": "Brom",
-		"class": "Fighter", 
-		"status": "Ready",
-		"recovery": 0,
-		"strength": 6,
-		"dexterity": 3,
-		"intelligence": 2,
-		"endurance": 5,
-		"missions_completed": 0,
-		"missions_failed": 0,
-		"gold_earned": 0,
-		"injuries_sustained": 0
-	}
-	
-	adventurers.append(brom)
-	adventurer_roster_changed.emit()
-	print("✅ Brom the Fighter joins your guild!")
+
+func _on_data_ready():
+	refresh_missions()
+
+
+
+func refresh_missions():
+	# Call the DataManager to get a new set of missions
+	available_missions = DataManager.generateAvailableMissions()
+	# Signal the UI to update
+	# You might want a custom signal for this:
+	# mission_board_updated.emit(available_missions)
 
 # === GOLD MANAGEMENT ===
 func add_gold(amount: int):
@@ -309,3 +299,64 @@ func load_save_data(data: Dictionary):
 	adventurer_roster_changed.emit()
 	
 	print("✅ Game state loaded successfully")
+
+# === DATA-DRIVEN ENHANCEMENTS ===
+
+
+func generate_unique_id() -> String:
+	return str(Time.get_unix_time_from_system()) + "_" + str(randi_range(100, 999))
+	# Example: "1703123456_847"
+
+
+func generate_recruit() -> Dictionary:
+	"""Generate a recruit using DataManager for variety"""
+	var classes = ["Fighter", "Rogue", "Mage", "Healer", "Barbarian"]
+	var selected_class = classes[randi() % classes.size()]
+	
+	# Use DataManager for name
+	var recruit_name = DataManager.get_random_character_name()
+	
+	# Get class data for bonuses and costs
+	var class_data = DataManager.get_character_class_data(selected_class)
+	
+	var recruit = {
+		"id": generate_unique_id,
+		"name": recruit_name,
+		"class": selected_class,
+		"status": "Available",
+		"strength": randi_range(1, 6),
+		"dexterity": randi_range(1, 6),
+		"intelligence": randi_range(1, 6),
+		"endurance": randi_range(1, 6),
+		"hiring_cost": class_data.get("base_cost", randi_range(8, 25)),
+		"personality": ["Brave", "Careful", "Greedy", "Lucky"][randi() % 4],
+		"background": class_data.get("description", "A skilled adventurer seeking work"),
+		"model_path": class_data.get("model_path", ""),
+		"availability": 3,
+		"missions_completed": 0,
+		"missions_failed": 0,
+		"gold_earned": 0,
+		"injuries_sustained": 0
+	}
+	
+	# Apply class stat bonuses from JSON
+	var stat_bonuses = class_data.get("stat_bonuses", {})
+	recruit.strength += stat_bonuses.get("strength", 0)
+	recruit.dexterity += stat_bonuses.get("dexterity", 0)
+	recruit.intelligence += stat_bonuses.get("intelligence", 0)
+	recruit.endurance += stat_bonuses.get("endurance", 0)
+	
+	return recruit
+
+# Test function
+func test_datamanager():
+	"""Test DataManager integration"""
+	print("Testing DataManager...")
+	print("Available classes: ", DataManager.character_classes.keys())
+	print("Character names loaded: ", DataManager.character_names.size())
+	
+	# Test recruit generation
+	var test_recruit = generate_recruit()
+	print("Generated recruit: ", test_recruit.name, " the ", test_recruit.class)
+	print("Stats: STR:", test_recruit.strength, " DEX:", test_recruit.dexterity, " INT:", test_recruit.intelligence, " END:", test_recruit.endurance)
+	print("Hiring cost: ", test_recruit.hiring_cost)

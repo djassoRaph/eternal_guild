@@ -1,0 +1,36 @@
+{
+	"positive_traits": {
+		"brave": {
+			"display_name": "Brave",
+			"description": "Less likely to fail dangerous missions",
+			"mission_bonus": 0.1,
+			"danger_resistance": 0.15
+		},
+		"lucky": {
+			"display_name": "Lucky",
+			"description": "Higher chance of finding extra rewards",
+			"reward_bonus": 0.2,
+			"crit_chance": 0.1
+		},
+		"experienced": {
+			"display_name": "Experienced",
+			"description": "Bonus to all mission types",
+			"mission_bonus": 0.05,
+			"all_stats": 1
+		}
+	},
+	"negative_traits": {
+		"reckless": {
+			"display_name": "Reckless",
+			"description": "More likely to get injured",
+			"injury_chance": 0.2,
+			"mission_bonus": -0.05
+		},
+		"greedy": {
+			"display_name": "Greedy",
+			"description": "Takes extra payment but works harder",
+			"cost_multiplier": 1.5,
+			"reward_bonus": 0.1
+		}
+	}
+}
