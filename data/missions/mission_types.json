@@ -1,53 +1,334 @@
 {
-	"slime_clearing": {
-		"display_name": "Clear Slimes",
-		"category": "recurring",
-		"refresh_frequency": "daily",
-		"description": "Clean out slimes from the local area",
-		"danger_level": 1,
-		"reward_range": [5, 10],
-		"required_stats": {"strength": 2},
-		"party_required": false,
-		"mission_type": "combat",
-		"success_text": "The slimes were cleared successfully!",
-		"failure_text": "The adventurer was overwhelmed by slimes."
+  "mission_categories": {
+	"combat": {
+	  "name": "Combat Operations",
+	  "description": "Dangerous missions requiring fighting prowess",
+	  "icon": "⚔️"
 	},
-	"merchant_escort": {
-		"display_name": "Escort Merchant",
-		"refresh_frequency": "random",
-		"description": "Protect a merchant on their trade route",
-		"danger_level": 5,
-		"reward_range": [40, 60],
-		"required_stats": {"strength": 4, "dexterity": 3},
-		"party_required": true,
-		"mission_type": "escort",
-		"success_text": "The merchant arrived safely at their destination.",
-		"failure_text": "Bandits attacked the caravan!"
+	"escort": {
+	  "name": "Escort & Protection",
+	  "description": "Guard duty and safe passage missions",
+	  "icon": "🛡️"
 	},
-	"herb_gathering": {
-		"display_name": "Scavenge Herbs in Forest",
-		"description": "Gather rare herbs from the dangerous forest",
-		"category": "recurring",
-		"refresh_frequency": "daily",
-		"danger_level": 3,
-		"reward_range": [10, 20],
-		"required_stats": {"intelligence": 2, "dexterity": 2},
-		"party_required": true,
-		"mission_type": "gathering",
-		"success_text": "Valuable herbs were collected successfully.",
-		"failure_text": "The party encountered dangerous forest creatures."
+	"gathering": {
+	  "name": "Resource Gathering",
+	  "description": "Collection and harvesting missions",
+	  "icon": "🌿"
 	},
-	"warehouse_defense": {
-		"display_name": "Defend the Grain Warehouse",
-		"category": "recurring",
-		"refresh_frequency": "every_2_days",
-		"description": "Guard the town's grain supplies from thieves",
-		"danger_level": 2,
-		"reward_range": [15, 25],
-		"required_stats": {"strength": 3, "endurance": 3},
-		"party_required": true,
-		"mission_type": "defense",
-		"success_text": "The warehouse was defended successfully!",
-		"failure_text": "Thieves managed to steal some grain."
+	"investigation": {
+	  "name": "Investigation & Scouting",
+	  "description": "Information gathering and reconnaissance",
+	  "icon": "🔍"
+	},
+	"delivery": {
+	  "name": "Delivery & Transport",
+	  "description": "Moving goods and messages safely",
+	  "icon": "📦"
+	},
+	"construction": {
+	  "name": "Construction & Repair",
+	  "description": "Building and maintenance work",
+	  "icon": "🔨"
 	}
+  },
+
+  "mission_templates": [
+	{
+	  "id": "slime_extermination",
+	  "name": "Clear Slime Infestation",
+	  "category": "combat",
+	  "danger": 1,
+	  "reward_range": [5, 10],
+	  "party_required": false,
+	  "duration_days": 1,
+	  "description": "A local farm has been overrun by slimes. Clear them out before they damage the crops.",
+	  "success_factors": ["strength", "endurance"],
+	  "failure_consequences": ["minor_injury"]
+	},
+	{
+	  "id": "goblin_patrol",
+	  "name": "Goblin Patrol Elimination",
+	  "category": "combat", 
+	  "danger": 2,
+	  "reward_range": [15, 25],
+	  "party_required": false,
+	  "duration_days": 1,
+	  "description": "Goblin scouts have been spotted near the trade road. Eliminate the patrol before they establish a camp.",
+	  "success_factors": ["strength", "dexterity"],
+	  "failure_consequences": ["injury", "equipment_damage"]
+	},
+	{
+	  "id": "bandit_camp",
+	  "name": "Destroy Bandit Hideout",
+	  "category": "combat",
+	  "danger": 4,
+	  "reward_range": [50, 80],
+	  "party_required": true,
+	  "duration_days": 2,
+	  "description": "A well-fortified bandit camp threatens merchant caravans. Coordinate an assault to eliminate the threat.",
+	  "success_factors": ["strength", "intelligence", "teamwork"],
+	  "failure_consequences": ["serious_injury", "equipment_loss"]
+	},
+	{
+	  "id": "dragon_reconnaissance", 
+	  "name": "Dragon Lair Scouting",
+	  "category": "investigation",
+	  "danger": 5,
+	  "reward_range": [80, 120],
+	  "party_required": true,
+	  "duration_days": 3,
+	  "description": "Ancient dragon movements have been detected. Scout the suspected lair and report findings without engaging.",
+	  "success_factors": ["dexterity", "intelligence", "stealth"],
+	  "failure_consequences": ["severe_injury", "permanent_trauma"]
+	},
+
+	{
+	  "id": "merchant_escort_short",
+	  "name": "Escort Merchant to Market",
+	  "category": "escort",
+	  "danger": 2,
+	  "reward_range": [20, 30],
+	  "party_required": false,
+	  "duration_days": 1,
+	  "description": "A traveling merchant needs protection on the road to the next town's market day.",
+	  "success_factors": ["strength", "dexterity"],
+	  "failure_consequences": ["injury", "reputation_loss"]
+	},
+	{
+	  "id": "noble_caravan",
+	  "name": "Guard Noble's Caravan", 
+	  "category": "escort",
+	  "danger": 3,
+	  "reward_range": [40, 60],
+	  "party_required": true,
+	  "duration_days": 2,
+	  "description": "A wealthy noble requires armed escort through dangerous territory. Discretion and professionalism required.",
+	  "success_factors": ["strength", "intelligence", "charisma"],
+	  "failure_consequences": ["injury", "political_consequences"]
+	},
+	{
+	  "id": "refugee_escort",
+	  "name": "Escort Refugee Families",
+	  "category": "escort",
+	  "danger": 3,
+	  "reward_range": [25, 40],
+	  "party_required": true,
+	  "duration_days": 2,
+	  "description": "Families fleeing the demon advance need safe passage to the protected settlements.",
+	  "success_factors": ["endurance", "charisma", "compassion"],
+	  "failure_consequences": ["injury", "civilian_casualties"]
+	},
+
+	{
+	  "id": "herb_collection",
+	  "name": "Gather Healing Herbs",
+	  "category": "gathering",
+	  "danger": 1,
+	  "reward_range": [8, 15],
+	  "party_required": false,
+	  "duration_days": 1,
+	  "description": "The local healer needs rare herbs found only in the forest's deeper sections.",
+	  "success_factors": ["intelligence", "survival"],
+	  "failure_consequences": ["minor_injury", "plant_poisoning"]
+	},
+	{
+	  "id": "rare_ore_mining",
+	  "name": "Mine Precious Ore",
+	  "category": "gathering", 
+	  "danger": 3,
+	  "reward_range": [35, 55],
+	  "party_required": true,
+	  "duration_days": 3,
+	  "description": "A vein of mithril ore has been discovered in abandoned mines. Extract what you can before cave-ins occur.",
+	  "success_factors": ["strength", "endurance", "mining"],
+	  "failure_consequences": ["injury", "cave_in", "equipment_loss"]
+	},
+	{
+	  "id": "ancient_artifact",
+	  "name": "Retrieve Ancient Artifact",
+	  "category": "gathering",
+	  "danger": 4,
+	  "reward_range": [60, 100],
+	  "party_required": true,
+	  "duration_days": 3,
+	  "description": "Scholars have located a powerful artifact in ruins guarded by ancient traps and creatures.",
+	  "success_factors": ["intelligence", "dexterity", "magic_resistance"],
+	  "failure_consequences": ["curse", "severe_injury", "magical_backlash"]
+	},
+
+	{
+	  "id": "spy_network",
+	  "name": "Investigate Spy Network",
+	  "category": "investigation",
+	  "danger": 3,
+	  "reward_range": [30, 50],
+	  "party_required": false,
+	  "duration_days": 3,
+	  "description": "Enemy agents may be operating in the city. Investigate suspicious activities without raising alarm.",
+	  "success_factors": ["intelligence", "charisma", "stealth"],
+	  "failure_consequences": ["blown_cover", "political_trouble"]
+	},
+	{
+	  "id": "missing_caravan",
+	  "name": "Find Missing Caravan",
+	  "category": "investigation",
+	  "danger": 2,
+	  "reward_range": [25, 40],
+	  "party_required": true,
+	  "duration_days": 2,
+	  "description": "A supply caravan has vanished on a well-traveled route. Find what happened and recover any survivors.",
+	  "success_factors": ["intelligence", "survival", "tracking"],
+	  "failure_consequences": ["injury", "disturbing_discovery"]
+	},
+	{
+	  "id": "demon_cult_investigation",
+	  "name": "Investigate Demon Cult",
+	  "category": "investigation",
+	  "danger": 5,
+	  "reward_range": [70, 110],
+	  "party_required": true,
+	  "duration_days": 4,
+	  "description": "Rumors of demon worship threaten the kingdom's stability. Gather evidence while avoiding detection.",
+	  "success_factors": ["intelligence", "willpower", "divine_protection"],
+	  "failure_consequences": ["corruption", "severe_injury", "madness"]
+	},
+
+	{
+	  "id": "urgent_message",
+	  "name": "Deliver Urgent Message",
+	  "category": "delivery",
+	  "danger": 1,
+	  "reward_range": [10, 18],
+	  "party_required": false,
+	  "duration_days": 1,
+	  "description": "Time-sensitive correspondence must reach its destination before sunset.",
+	  "success_factors": ["endurance", "speed"],
+	  "failure_consequences": ["late_delivery", "message_interception"]
+	},
+	{
+	  "id": "supply_run",
+	  "name": "Emergency Supply Transport",
+	  "category": "delivery",
+	  "danger": 3,
+	  "reward_range": [35, 50],
+	  "party_required": true,
+	  "duration_days": 2,
+	  "description": "A remote outpost is running low on critical supplies. Deliver goods through hostile territory.",
+	  "success_factors": ["strength", "endurance", "tactics"],
+	  "failure_consequences": ["injury", "supply_loss", "outpost_abandonment"]
+	},
+	{
+	  "id": "diplomatic_package",
+	  "name": "Deliver Diplomatic Package",
+	  "category": "delivery",
+	  "danger": 2,
+	  "reward_range": [40, 65],
+	  "party_required": false,
+	  "duration_days": 2,
+	  "description": "Sensitive diplomatic materials must be delivered intact to prevent international incident.",
+	  "success_factors": ["intelligence", "charisma", "discretion"],
+	  "failure_consequences": ["diplomatic_crisis", "political_fallout"]
+	},
+
+	{
+	  "id": "bridge_repair",
+	  "name": "Repair Strategic Bridge", 
+	  "category": "construction",
+	  "danger": 2,
+	  "reward_range": [20, 35],
+	  "party_required": true,
+	  "duration_days": 3,
+	  "description": "A bridge critical to trade routes has been damaged. Oversee repairs while defending against raiders.",
+	  "success_factors": ["strength", "engineering", "leadership"],
+	  "failure_consequences": ["injury", "construction_delays"]
+	},
+	{
+	  "id": "watchtower_construction",
+	  "name": "Construct Border Watchtower",
+	  "category": "construction",
+	  "danger": 3,
+	  "reward_range": [45, 70],
+	  "party_required": true,
+	  "duration_days": 5,
+	  "description": "Build a fortified watchtower to monitor demon army movements along the border.",
+	  "success_factors": ["strength", "engineering", "tactics"],
+	  "failure_consequences": ["injury", "demon_raid", "construction_sabotage"]
+	},
+	{
+	  "id": "fortress_reinforcement",
+	  "name": "Reinforce Fortress Defenses",
+	  "category": "construction",
+	  "danger": 4,
+	  "reward_range": [60, 95],
+	  "party_required": true,
+	  "duration_days": 7,
+	  "description": "A key fortress needs urgent reinforcement before the next demon offensive.",
+	  "success_factors": ["strength", "engineering", "military_knowledge"],
+	  "failure_consequences": ["injury", "fortress_vulnerability", "strategic_failure"]
+	}
+  ],
+
+  "settlement_modifiers": {
+	"frontier": {
+	  "combat_bonus": 0.3,
+	  "danger_increase": 1,
+	  "reward_multiplier": 1.2,
+	  "available_categories": ["combat", "escort", "construction"]
+	},
+	"trading_hub": {
+	  "escort_bonus": 0.4,
+	  "delivery_bonus": 0.3,
+	  "reward_multiplier": 1.1,
+	  "available_categories": ["escort", "delivery", "investigation"]
+	},
+	"scholarly": {
+	  "investigation_bonus": 0.5,
+	  "gathering_bonus": 0.2,
+	  "reward_multiplier": 1.3,
+	  "available_categories": ["investigation", "gathering", "delivery"]
+	},
+	"military": {
+	  "combat_bonus": 0.2,
+	  "construction_bonus": 0.3,
+	  "danger_decrease": 1,
+	  "available_categories": ["combat", "escort", "construction"]
+	}
+  },
+
+  "seasonal_events": {
+	"harvest_season": {
+	  "affects": ["gathering"],
+	  "reward_bonus": 0.2,
+	  "description": "Harvest season increases demand for gathering missions"
+	},
+	"trading_season": {
+	  "affects": ["delivery", "escort"],
+	  "reward_bonus": 0.15,
+	  "spawn_rate_bonus": 0.3,
+	  "description": "Peak trading season brings more escort and delivery contracts"
+	},
+	"demon_activity": {
+	  "affects": ["combat", "investigation"],
+	  "danger_increase": 1,
+	  "reward_bonus": 0.4,
+	  "description": "Increased demon activity creates urgent military contracts"
+	}
+  },
+
+  "mission_chains": [
+	{
+	  "chain_id": "bandit_investigation",
+	  "name": "The Bandit Problem",
+	  "missions": ["spy_network", "bandit_camp", "supply_run"],
+	  "description": "A connected series investigating and eliminating bandit threats",
+	  "completion_bonus": 50
+	},
+	{
+	  "chain_id": "demon_threat",
+	  "name": "Rising Darkness",
+	  "missions": ["demon_cult_investigation", "dragon_reconnaissance", "fortress_reinforcement"],
+	  "description": "Missions related to the growing demon threat",
+	  "completion_bonus": 100
+	}
+  ]
 }

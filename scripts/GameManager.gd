@@ -1,12 +1,14 @@
 # GameManager.gd - Autoload Singleton
 extends Node
+
 # === CORE GAME STATE ===
 var gold: int = 30
 var beer_stock: int = 5
 var current_day: int = 1
 var max_adventurers: int = 5
 var adventurers: Array = []
-var available_missions: Dictionary = {}
+var available_missions: Array = []  # Changed from Dictionary to Array
+
 # === ECONOMIC SETTINGS ===
 var tax_due_day: int = 30
 var daily_operating_cost: int = 1
@@ -16,29 +18,26 @@ signal gold_changed(new_amount: int)
 signal beer_changed(new_amount: int)  
 signal day_changed(new_day: int)
 signal adventurer_roster_changed()
+signal missions_changed
+signal recruitment_pool_changed
 
-
-
+var mission_refresh_day: int = 1
+var recruit_refresh_day: int = 1
+var daily_recruits: Array = []
 
 # === INITIALIZATION ===
 func _ready():
 	print("🎮 GameManager singleton initialized")
 	print("Initial state - Gold: ", gold, " Beer: ", beer_stock, " Day: ", current_day)
 	DataManager.data_ready.connect(_on_data_ready)
-	
-
 
 func _on_data_ready():
 	refresh_missions()
 
-
-
 func refresh_missions():
-	var new_missions = {}
 	print("DEBUG: refresh_missions() called on day ", current_day)
 	available_missions = DataManager.generateAvailableMissions()
 	print("DEBUG: Generated missions: ", available_missions.size())
-	print("DEBUG: Mission keys: ", available_missions.keys())
 	log_message("New guild contracts have been posted!")
 
 # === GOLD MANAGEMENT ===
@@ -86,63 +85,9 @@ func get_beer() -> int:
 	return beer_stock
 
 # === DAY MANAGEMENT ===
-func advance_day():
-	"""Advance to next day with all processing"""
-	current_day += 1
-	day_changed.emit(current_day)
-	print("🌅 Day ", current_day, " begins!")
-	# Process all daily events
-	process_mission_returns()
-	process_daily_operations() 
-	process_customer_visits()
-	process_adventurer_recovery()
-	check_tax_deadline()
-	var main_script = get_tree().current_scene
-	if main_script and main_script.has_method("advance_to_next_day"):
-			main_script.advance_to_next_day()
-	
-	if current_day % 2 == 0:
-		refresh_missions()
-		log_message("New guild contracts have been posted!")
-	if current_day % 1 == 0:  # Every day, change to 2 for every 2 days
-		refresh_daily_recruits()
-
-func refresh_daily_recruits():
-	# This will signal recruitment popup to generate new recruits
-	# You'll need to connect this to your recruitment system
-	log_message("New adventurers seek to join your guild!")
-
-
-
 func get_day() -> int:
 	"""Get current day number"""
 	return current_day
-
-# === ADVENTURER MANAGEMENT ===
-func hire_adventurer(recruit: Dictionary) -> bool:
-	"""Hire an adventurer if funds and space available"""
-	var hiring_cost = recruit.get("hiring_cost", 10)
-	
-	if not spend_gold(hiring_cost):
-		return false
-		
-	if adventurers.size() >= max_adventurers:
-		print("❌ Roster full! Cannot hire ", recruit.name)
-		add_gold(hiring_cost)  # Refund
-		return false
-	
-	# Clean recruit data and add to roster
-	var new_adventurer = recruit.duplicate()
-	new_adventurer.erase("hiring_cost")
-	new_adventurer.erase("personality")
-	new_adventurer.erase("background") 
-	new_adventurer.erase("availability")
-	
-	adventurers.append(new_adventurer)
-	adventurer_roster_changed.emit()
-	
-	print("🎉 Hired ", recruit.name, " the ", recruit.class, " for ", hiring_cost, " gold!")
-	return true
 
 func get_adventurer_count() -> int:
 	"""Get total number of adventurers"""
@@ -285,7 +230,211 @@ func log_message(message: String):
 	if main_scene and main_scene.has_method("log_message"):
 		main_scene.log_message(message)
 
-# === SAVE/LOAD SYSTEM (Future) ===
+# === RECRUITMENT SYSTEM ===
+func generate_daily_recruits(count: int = 3):
+	"""Generate new recruits for the day"""
+	daily_recruits.clear()
+	
+	print("🔄 Generating ", count, " new recruits for day ", current_day)
+	daily_recruits = generate_fallback_recruits(count)
+	recruit_refresh_day = current_day
+	
+	# Log the new recruits
+	log_message("📢 New adventurers seeking employment at the guild!")
+	for recruit in daily_recruits:
+		var cost = recruit.get("hiring_cost", 10)
+		log_message("• " + recruit.name + " the " + recruit.class + " (Hiring cost: " + str(cost) + " gold)")
+
+func generate_fallback_recruits(count: int) -> Array:
+	"""Generate recruits when DataManager is not available"""
+	var recruits = []
+	var classes = ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"]
+	var names = ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"]
+	
+	for i in count:
+		var recruit = {
+			"id": generate_recruit_id(),
+			"name": names[randi() % names.size()],
+			"class": classes[randi() % classes.size()],
+			"status": "Ready",
+			"recovery": 0,
+			"missions_completed": 0,
+			"missions_failed": 0,
+			"gold_earned": 0,
+			"injuries_sustained": 0
+		}
+		
+		# Generate random stats
+		recruit.strength = randi_range(2, 8)
+		recruit.dexterity = randi_range(2, 8) 
+		recruit.intelligence = randi_range(2, 8)
+		recruit.endurance = randi_range(2, 8)
+		
+		# Class-based stat adjustments
+		match recruit.class:
+			"Fighter":
+				recruit.strength += 2
+				recruit.endurance += 1
+			"Rogue":
+				recruit.dexterity += 2
+				recruit.intelligence += 1
+			"Mage":
+				recruit.intelligence += 2
+				recruit.dexterity += 1
+			"Ranger":
+				recruit.dexterity += 1
+				recruit.endurance += 1
+				recruit.intelligence += 1
+			"Cleric":
+				recruit.intelligence += 1
+				recruit.endurance += 2
+		
+		# Calculate hiring cost based on stats
+		var stat_total = recruit.strength + recruit.dexterity + recruit.intelligence + recruit.endurance
+		recruit.hiring_cost = max(8, stat_total * 2 + randi_range(-5, 10))
+		
+		# Add personality and background flavor
+		var personalities = ["Brave", "Cautious", "Greedy", "Noble", "Mysterious", "Cheerful", "Grim", "Ambitious"]
+		var backgrounds = ["Former soldier", "Ex-bandit", "Scholar's apprentice", "Village hero", "Wandering mercenary", "Fallen noble", "Guild dropout", "Self-taught warrior"]
+		
+		recruit.personality = personalities[randi() % personalities.size()]
+		recruit.background = backgrounds[randi() % backgrounds.size()]
+		recruit.availability = randi_range(3, 7)  # Days they'll stay available
+		
+		recruits.append(recruit)
+	
+	return recruits
+
+func generate_recruit_id() -> int:
+	"""Generate unique recruit ID"""
+	return Time.get_unix_time_from_system() + randi_range(1000, 9999)
+
+func get_available_recruits() -> Array:
+	"""Get current list of available recruits"""
+	var current_recruits = []
+	for recruit in daily_recruits:
+		var days_since_generation = current_day - recruit_refresh_day
+		if days_since_generation < recruit.get("availability", 5):
+			current_recruits.append(recruit)
+		else:
+			print("Recruit ", recruit.name, " is no longer available (expired)")
+	
+	return current_recruits
+
+func remove_hired_recruit(recruit: Dictionary):
+	"""Remove a recruit from the available pool after hiring"""
+	for i in range(daily_recruits.size()):
+		if daily_recruits[i].get("id") == recruit.get("id"):
+			daily_recruits.remove_at(i)
+			print("✅ Removed hired recruit: ", recruit.name)
+			break
+
+# Enhanced advance_day function
+func advance_day():
+	"""Enhanced day advancement with recruitment refresh"""
+	current_day += 1
+	day_changed.emit(current_day)
+	
+	print("🌅 Day ", current_day, " begins!")
+	
+	# Process all daily events
+	process_mission_returns()
+	process_daily_operations() 
+	process_customer_visits()
+	process_adventurer_recovery()
+	check_tax_deadline()
+	
+	# Check if recruits need refreshing (every 2-3 days)
+	var days_since_recruit_refresh = current_day - recruit_refresh_day
+	if days_since_recruit_refresh >= 2 or daily_recruits.size() == 0:
+		generate_daily_recruits(randi_range(2, 4))  # 2-4 new recruits
+	
+	# Check if missions need refreshing (every 2 days)
+	if current_day % 2 == 0:
+		refresh_available_missions()
+		log_message("📋 New guild contracts have been posted!")
+
+func refresh_available_missions():
+	"""Refresh the mission pool"""
+	if DataManager and DataManager.has_method("generate_daily_missions"):
+		var new_missions = DataManager.generate_daily_missions(6)  # Generate 6 new missions
+		available_missions.clear()
+		for mission in new_missions:
+			available_missions.append(mission)
+		mission_refresh_day = current_day
+		missions_changed.emit()
+		print("✅ Refreshed available missions: ", available_missions.size(), " missions loaded")
+	else:
+		# Fallback mission refresh
+		var fallback_missions = generate_fallback_missions()
+		available_missions.clear()
+		for mission in fallback_missions:
+			available_missions.append(mission)
+		print("⚠️ Using fallback missions: ", available_missions.size(), " missions loaded")
+
+func generate_fallback_missions() -> Array:
+	"""Generate fallback missions when DataManager is not available"""
+	var base_missions = [
+		{"name": "Clear Slimes", "danger": 1, "reward_range": [5, 10], "party_required": false, "category": "combat"},
+		{"name": "Escort Merchant", "danger": 2, "reward_range": [15, 25], "party_required": true, "category": "escort"},
+		{"name": "Gather Herbs", "danger": 1, "reward_range": [8, 15], "party_required": false, "category": "gathering"},
+		{"name": "Investigate Bandits", "danger": 3, "reward_range": [25, 40], "party_required": true, "category": "investigation"},
+		{"name": "Deliver Supplies", "danger": 2, "reward_range": [12, 22], "party_required": false, "category": "delivery"},
+		{"name": "Repair Fortifications", "danger": 3, "reward_range": [30, 50], "party_required": true, "category": "construction"}
+	]
+	
+	# Add variety to prevent identical missions
+	var selected_missions = []
+	base_missions.shuffle()
+	
+	for i in min(4, base_missions.size()):
+		var mission = base_missions[i].duplicate()
+		
+		# Add location variety
+		var locations = ["(Northern Route)", "(Eastern Frontier)", "(Mountain Pass)", "(Coastal Road)", "(Ancient Ruins)", "(Border Region)"]
+		mission.name += " " + locations[randi() % locations.size()]
+		
+		# Add slight reward variation
+		var variance = randi_range(-2, 3)
+		mission.reward_range[0] = max(3, mission.reward_range[0] + variance)
+		mission.reward_range[1] = max(5, mission.reward_range[1] + variance)
+		
+		selected_missions.append(mission)
+	
+	return selected_missions
+
+# Enhanced hiring function
+func hire_adventurer(recruit: Dictionary) -> bool:
+	"""Enhanced adventurer hiring with recruit pool management"""
+	var hiring_cost = recruit.get("hiring_cost", 10)
+	
+	if not spend_gold(hiring_cost):
+		log_message("❌ Insufficient gold to hire " + recruit.name + " (Need " + str(hiring_cost) + " gold)")
+		return false
+		
+	if adventurers.size() >= max_adventurers:
+		print("❌ Roster full! Cannot hire ", recruit.name)
+		add_gold(hiring_cost)  # Refund
+		log_message("❌ Roster full! Cannot hire more adventurers (Maximum: " + str(max_adventurers) + ")")
+		return false
+	
+	# Clean recruit data and add to roster
+	var new_adventurer = recruit.duplicate()
+	new_adventurer.erase("hiring_cost")
+	new_adventurer.erase("personality")
+	new_adventurer.erase("background") 
+	new_adventurer.erase("availability")
+	
+	adventurers.append(new_adventurer)
+	remove_hired_recruit(recruit)  # Remove from available pool
+	adventurer_roster_changed.emit()
+	
+	log_message("🎉 Hired " + recruit.name + " the " + recruit.class + " for " + str(hiring_cost) + " gold!")
+	log_message("📊 Current roster: " + str(adventurers.size()) + "/" + str(max_adventurers) + " adventurers")
+	
+	return true
+
+# === SAVE/LOAD SYSTEM ===
 func get_save_data() -> Dictionary:
 	"""Get all data for saving"""
 	return {
@@ -313,64 +462,3 @@ func load_save_data(data: Dictionary):
 	adventurer_roster_changed.emit()
 	
 	print("✅ Game state loaded successfully")
-
-# === DATA-DRIVEN ENHANCEMENTS ===
-
-
-func generate_unique_id() -> String:
-	return str(Time.get_unix_time_from_system()) + "_" + str(randi_range(100, 999))
-	# Example: "1703123456_847"
-
-
-func generate_recruit() -> Dictionary:
-	"""Generate a recruit using DataManager for variety"""
-	var classes = ["Fighter", "Rogue", "Mage", "Healer", "Barbarian"]
-	var selected_class = classes[randi() % classes.size()]
-	
-	# Use DataManager for name
-	var recruit_name = DataManager.get_random_character_name()
-	
-	# Get class data for bonuses and costs
-	var class_data = DataManager.get_character_class_data(selected_class)
-	
-	var recruit = {
-		"id": generate_unique_id,
-		"name": recruit_name,
-		"class": selected_class,
-		"status": "Available",
-		"strength": randi_range(1, 6),
-		"dexterity": randi_range(1, 6),
-		"intelligence": randi_range(1, 6),
-		"endurance": randi_range(1, 6),
-		"hiring_cost": class_data.get("base_cost", randi_range(8, 25)),
-		"personality": ["Brave", "Careful", "Greedy", "Lucky"][randi() % 4],
-		"background": class_data.get("description", "A skilled adventurer seeking work"),
-		"model_path": class_data.get("model_path", ""),
-		"availability": 3,
-		"missions_completed": 0,
-		"missions_failed": 0,
-		"gold_earned": 0,
-		"injuries_sustained": 0
-	}
-	
-	# Apply class stat bonuses from JSON
-	var stat_bonuses = class_data.get("stat_bonuses", {})
-	recruit.strength += stat_bonuses.get("strength", 0)
-	recruit.dexterity += stat_bonuses.get("dexterity", 0)
-	recruit.intelligence += stat_bonuses.get("intelligence", 0)
-	recruit.endurance += stat_bonuses.get("endurance", 0)
-	
-	return recruit
-
-# Test function
-func test_datamanager():
-	"""Test DataManager integration"""
-	print("Testing DataManager...")
-	print("Available classes: ", DataManager.character_classes.keys())
-	print("Character names loaded: ", DataManager.character_names.size())
-	
-	# Test recruit generation
-	var test_recruit = generate_recruit()
-	print("Generated recruit: ", test_recruit.name, " the ", test_recruit.class)
-	print("Stats: STR:", test_recruit.strength, " DEX:", test_recruit.dexterity, " INT:", test_recruit.intelligence, " END:", test_recruit.endurance)
-	print("Hiring cost: ", test_recruit.hiring_cost)
