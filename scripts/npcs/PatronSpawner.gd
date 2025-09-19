@@ -9,10 +9,19 @@ class_name PatronSpawner
 
 # Multiple table positions for patron management
 var table_positions = [
-	Vector3(0.5, 0.0, 3.5),    # Original table
-	Vector3(-2.0, 0.0, 4.0),   # Second table
-	Vector3(2.5, 0.0, 2.0)     # Third table
+	Vector3(-0.587034, 0.398272, 3.51529),  # Chair3
+	Vector3(-1.41856, 0.431921, 2.69633),   # Chair4 (updated position)
+	Vector3(0.809535, 0.378464, 3.47442),   # Chair5
 ]
+
+var patron_scenes = [
+	"res://scenes/npcs/PatronKnight.tscn",     # Knight patron with specific behavior
+	"res://scenes/npcs/PatronRogue.tscn",      # Rogue patron with different personality
+	"res://scenes/npcs/PatronMage.tscn",       # Mage patron with unique dialogue
+	"res://scenes/npcs/PatronFarmer.tscn",     # Local farmer patron
+]
+
+
 
 var entrance_position = Vector3(8.7, 0.0, 3.3)
 
@@ -116,6 +125,11 @@ func get_available_table() -> int:
 
 func spawn_patron():
 	"""Create and spawn a patron at an available table"""
+	# Select a random patron scene from the array
+	var patron_path = patron_scenes[randi() % patron_scenes.size()]
+	# Load and instantiate the selected scene
+	var patron_scene_resource = load(patron_path)
+	var patron = patron_scene_resource.instantiate()
 	var table_index = get_available_table()
 	if table_index == -1:
 		print("❌ No available tables for patron spawning")
@@ -124,7 +138,6 @@ func spawn_patron():
 	print("🆕 Spawning patron at table ", table_index)
 	
 	# Create patron
-	var patron = CharacterBody3D.new()
 	patron.name = "Patron_" + str(Time.get_unix_time_from_system()) + "_" + str(table_index)
 	
 	# Set collision properties
@@ -148,7 +161,6 @@ func spawn_patron():
 	
 	# Add to scene first
 	add_child(patron)
-	
 	# Set patron's target table
 	patron.table_position = table_positions[table_index]
 	patron.set("table_index", table_index)
@@ -156,10 +168,11 @@ func spawn_patron():
 	# Connect signals
 	patron.patron_left.connect(_on_patron_left.bind(patron))
 	patron.patron_served.connect(_on_patron_served.bind(patron))
-	
+	patron.patron_left.connect(_on_patron_left.bind(patron, table_index))
 	# Track patron and table
 	current_patrons.append(patron)
 	occupied_tables[table_index] = patron
+	
 	
 	# Initialize patron with settlement-specific data
 	setup_patron_for_settlement(patron)
@@ -200,6 +213,8 @@ func _on_patron_left(patron):
 	var patron_index = current_patrons.find(patron)
 	if patron_index != -1:
 		current_patrons.remove_at(patron_index)
+	if patron in current_patrons:
+		current_patrons.erase(patron)  # ADD THIS LINE
 	
 	print("📊 Current patrons: ", current_patrons.size(), "/", max_patrons)
 
