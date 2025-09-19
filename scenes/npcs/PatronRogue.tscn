@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://bqw2naqcb5nty"]
+
+[ext_resource type="PackedScene" uid="uid://rmodh1bhe68t" path="res://assets/characters/models/kaykit_adventurers/Rogue.glb" id="1_ymxf8"]
+
+[node name="PatronRogue" type="Node3D"]
+
+[node name="Rogue" parent="." instance=ExtResource("1_ymxf8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.03485, 4.06111, -3.76978)
