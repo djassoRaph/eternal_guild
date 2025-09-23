@@ -62,6 +62,9 @@ func setup_patron_tracking():
 func _input(event):
 	if event.is_action_pressed("interact"):
 		handle_interaction_priority()
+	elif event is InputEventKey and event.pressed:
+		if event.keycode == KEY_F9:  # Debug patron recruitment
+			debug_patron_recruitment()
 
 func handle_interaction_priority():
 	"""Handle E key with priority: Patrons > Zone interactions"""
@@ -126,7 +129,8 @@ func find_nearby_patrons(player_position: Vector3) -> Array:
 
 func search_tree_for_nearby_patrons(node: Node, player_pos: Vector3, max_distance: float, result_array: Array):
 	"""Recursively search for patron nodes near player"""
-	if node.has_method("get_global_position"):
+	# Only check 3D nodes that could be patrons
+	if node is Node3D and node.has_method("get_global_position"):
 		var distance = player_pos.distance_to(node.global_position)
 		if distance <= max_distance and is_patron_node(node):
 			result_array.append(node)
@@ -145,10 +149,10 @@ func is_patron_node(node: Node) -> bool:
 
 func initiate_patron_conversation(patron) -> void:
 	"""Start conversation with patron for potential recruitment"""
-	print("💬 Starting conversation with ", patron.get("patron_name", "Patron"))
+	print("💬 Starting conversation with ", patron.patron_name if patron.has_method("get") else "Unknown Patron")
 	
-	# Roll for recruitment interest (30% chance)
-	if randf() < 0.3:
+	# Roll for recruitment interest (100% chance for testing)
+	if randf() < 1.0:  # Changed from 0.3 to 1.0 for testing
 		make_patron_recruitment_interested(patron)
 	else:
 		show_casual_patron_chat(patron)
@@ -168,11 +172,14 @@ func make_patron_recruitment_interested(patron):
 	send_log_message("\"Your guild intrigues me... Perhaps we could discuss employment?\"")
 	send_log_message("💡 Visit the recruitment desk to hire interested patrons!")
 
+
+
+
 func create_recruitment_candidate_from_patron(patron) -> Dictionary:
 	"""Convert patron to recruitment candidate with discount"""
 	var candidate = {
 		"id": randi() % 10000 + 2000,  # Different ID range
-		"name": patron.get("patron_name", generate_random_name()),
+		"name": patron.patron_name if patron.has_property("patron_name") else generate_random_name(),
 		"class": get_random_class(),
 		"source": "patron_conversion",
 		"loyalty_discount": 0.25,  # 25% discount for patron loyalty
@@ -247,8 +254,7 @@ func open_recruitment_desk():
 	print("👥 Opening recruitment desk...")
 	var recruitment_popup = get_node("/root/Node3D/GameUI/PopupManager/RecruitmentPopup")
 	if recruitment_popup:
-		# Pass patron recruitment pool to popup (future enhancement)
-		recruitment_popup.open_recruitment_desk()
+		recruitment_popup.open_recruitment_desk()  # Call the popup's function
 		send_log_message("Reviewing potential recruits")
 	else:
 		print("❌ Recruitment popup not found!")

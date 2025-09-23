@@ -73,6 +73,10 @@ func _ready():
 	
 	print("Patron '", patron_name, "' ready - walking to table")
 
+func can_chat() -> bool:
+	"""Check if patron is available for conversation"""
+	return has_been_served and current_state == PatronState.DRINKING
+
 func setup_physics():
 	"""Configure proper collision for patron - FIXED FUNCTION"""
 	# Set collision layers (NPCs use layer 4)
@@ -200,7 +204,7 @@ func move_toward_target(delta):
 	
 	# Check if reached target
 	var distance_to_target = global_position.distance_to(current_target)
-	if distance_to_target < 2.0:
+	if distance_to_target < 4.0:
 		_on_reached_target()
 
 func _on_reached_target():

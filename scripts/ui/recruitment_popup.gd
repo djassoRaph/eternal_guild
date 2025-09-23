@@ -377,30 +377,30 @@ func send_log_message(message: String):
 # ENHANCED PORTRAIT SYSTEM (Future expansion)
 func get_character_portrait_texture(character: Dictionary) -> Texture2D:
 	"""Get portrait texture for character - works with or without portrait files"""
-	var class_name = character.get("class", "Fighter")
+	var npc_class_name = character.get("class", "Fighter")
 	var gender = character.get("gender", "male")
 	
 	# Try to load class-specific portrait
-	var portrait_path = "res://assets/portraits/" + class_name.to_lower() + ".png"
+	var portrait_path = "res://assets/portraits/" + npc_class_name.to_lower() + ".png"
 	
 	if FileAccess.file_exists(portrait_path):
 		return load(portrait_path)
 	
 	# Try generic class portrait
-	portrait_path = "res://assets/portraits/" + class_name.to_lower() + ".png"
+	portrait_path = "res://assets/portraits/" + npc_class_name.to_lower() + ".png"
 	if FileAccess.file_exists(portrait_path):
 		return load(portrait_path)
 	
 	# Generate colored portrait based on class
-	return generate_placeholder_portrait(class_name, gender)
+	return generate_placeholder_portrait(npc_class_name, gender)
 
-func generate_placeholder_portrait(class_name: String, gender: String) -> ImageTexture:
+func generate_placeholder_portrait(npc_class_name: String, gender: String) -> ImageTexture:
 	"""Generate a colored placeholder portrait"""
 	var image = Image.create(64, 64, false, Image.FORMAT_RGB8)
 	
 	# Class-based colors
 	var color = Color.GRAY
-	match class_name.to_lower():
+	match npc_class_name.to_lower():
 		"fighter": color = Color.RED
 		"rogue": color = Color.GREEN
 		"mage": color = Color.BLUE
