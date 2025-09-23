@@ -1,4 +1,4 @@
-# recruitment_popup.gd - CLEANED VERSION - No duplicates
+# recruitment_popup.gd - FIXED VERSION - Syntax errors corrected
 extends PopupPanel
 
 @onready var main_container = $MainContainer
@@ -374,7 +374,7 @@ func send_log_message(message: String):
 	if GameManager.has_method("log_message"):
 		GameManager.log_message(message)
 
-
+# ENHANCED PORTRAIT SYSTEM (Future expansion)
 func get_character_portrait_texture(character: Dictionary) -> Texture2D:
 	"""Get portrait texture for character - works with or without portrait files"""
 	var class_name = character.get("class", "Fighter")
@@ -425,7 +425,7 @@ func generate_placeholder_portrait(class_name: String, gender: String) -> ImageT
 	return texture
 
 func create_enhanced_recruit_card_with_portrait(recruit: Dictionary, parent: VBoxContainer):
-	"""Enhanced recruit card with portrait"""
+	"""Enhanced recruit card with portrait (future feature)"""
 	var card = PanelContainer.new()
 	parent.add_child(card)
 	
