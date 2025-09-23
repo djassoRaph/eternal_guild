@@ -125,11 +125,6 @@ func get_available_table() -> int:
 
 func spawn_patron():
 	"""Create and spawn a patron at an available table"""
-	# Select a random patron scene from the array
-	var patron_path = patron_scenes[randi() % patron_scenes.size()]
-	# Load and instantiate the selected scene
-	var patron_scene_resource = load(patron_path)
-	var patron = patron_scene_resource.instantiate()
 	var table_index = get_available_table()
 	if table_index == -1:
 		print("❌ No available tables for patron spawning")
@@ -137,49 +132,60 @@ func spawn_patron():
 	
 	print("🆕 Spawning patron at table ", table_index)
 	
-	# Create patron
-	patron.name = "Patron_" + str(Time.get_unix_time_from_system()) + "_" + str(table_index)
+	# Load patron scene
+	var patron_path = patron_scenes[randi() % patron_scenes.size()]
+	var patron_scene_resource = load(patron_path)
+	var patron_instance = patron_scene_resource.instantiate()
 	
-	# Set collision properties
-	patron.collision_layer = 4
-	patron.collision_mask = 2
+	# Find the CharacterBody3D in the scene (should be immediate child now)
+	var patron_body = null
+	for child in patron_instance.get_children():
+		if child is CharacterBody3D:
+			patron_body = child
+			break
 	
-	# Create collision shape
-	var collision = CollisionShape3D.new()
-	var shape = CapsuleShape3D.new()
-	shape.height = 2.0
-	shape.radius = 0.5
-	collision.shape = shape
-	patron.add_child(collision)
+	if not patron_body:
+		print("❌ No CharacterBody3D found in patron scene!")
+		patron_instance.queue_free()
+		return
+	
+	# Set up patron properties
+	patron_instance.name = "Patron_" + str(Time.get_unix_time_from_system()) + "_" + str(table_index)
+	
+	# Set collision properties on the CharacterBody3D
+	patron_body.collision_layer = 4
+	patron_body.collision_mask = 2
 	
 	# Position at entrance
-	patron.position = entrance_position
+	patron_instance.position = entrance_position
 	
-	# Add patron script
+	# Add patron script to the CharacterBody3D (not the root)
 	var patron_script = preload("res://scripts/npcs/RealisticPatron.gd")
-	patron.set_script(patron_script)
+	patron_body.set_script(patron_script)
 	
-	# Add to scene first
-	add_child(patron)
-	# Set patron's target table
-	patron.table_position = table_positions[table_index]
-	patron.set("table_index", table_index)
+	# Add to scene
+	add_child(patron_instance)
 	
-	# Connect signals
-	patron.patron_left.connect(_on_patron_left.bind(patron))
-	patron.patron_served.connect(_on_patron_served.bind(patron))
-	patron.patron_left.connect(_on_patron_left.bind(patron, table_index))
-	# Track patron and table
-	current_patrons.append(patron)
-	occupied_tables[table_index] = patron
+	# Set patron's target table (on the CharacterBody3D)
+	patron_body.table_position = table_positions[table_index]
+	patron_body.set("table_index", table_index)
 	
+	# Connect signals from the CharacterBody3D
+	if patron_body.has_signal("patron_left"):
+		patron_body.patron_left.connect(_on_patron_left.bind(patron_body, table_index))
+	if patron_body.has_signal("patron_served"):
+		patron_body.patron_served.connect(_on_patron_served.bind(patron_body))
+	
+	# Track patron and table (store the CharacterBody3D reference)
+	current_patrons.append(patron_body)
+	occupied_tables[table_index] = patron_body
 	
 	# Initialize patron with settlement-specific data
-	setup_patron_for_settlement(patron)
+	setup_patron_for_settlement(patron_body)
 	
 	# Log spawn
 	if main_scene and main_scene.has_method("log_message"):
-		main_scene.log_message("🚪 A " + patron.character_type + " enters seeking table " + str(table_index + 1))
+		main_scene.log_message("🚪 A patron enters seeking table " + str(table_index + 1))
 
 func setup_patron_for_settlement(patron):
 	"""Configure patron based on settlement type"""
@@ -199,24 +205,24 @@ func setup_patron_for_settlement(patron):
 		"military":
 			patron.payment_amount = randi_range(7, 11)  # Reliable payment
 
-func _on_patron_left(patron):
-	"""Handle individual patron leaving"""
-	print("👋 Patron ", patron.name, " has left")
+func _on_patron_left(patron_body, table_index):
+	"""Handle patron leaving"""
+	print("Patron has left the tavern")
 	
 	# Free up the table
-	var table_index = patron.get("table_index")
-	if table_index != null and occupied_tables.has(table_index):
+	if occupied_tables.has(table_index):
 		occupied_tables.erase(table_index)
-		print("📋 Table ", table_index, " is now available")
 	
 	# Remove from tracking
-	var patron_index = current_patrons.find(patron)
-	if patron_index != -1:
-		current_patrons.remove_at(patron_index)
-	if patron in current_patrons:
-		current_patrons.erase(patron)  # ADD THIS LINE
+	if patron_body in current_patrons:
+		current_patrons.erase(patron_body)
 	
-	print("📊 Current patrons: ", current_patrons.size(), "/", max_patrons)
+	# Free the entire scene (patron_body's parent)
+	var patron_scene = patron_body.get_parent()
+	if patron_scene:
+		patron_scene.queue_free()
+	
+	print("Current patrons: ", current_patrons.size(), "/", max_patrons)
 
 func _on_patron_served(patron):
 	"""Handle patron being served"""
