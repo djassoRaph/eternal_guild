@@ -1,9 +1,7 @@
 extends CharacterBody3D
 class_name RealisticPatron
 
-# Complete patron behavior system - FIXED VERSION
 # Addresses all the parse errors from the console
-
 # Movement and physics constants
 const SPEED = 2.0
 const GRAVITY = 9.8

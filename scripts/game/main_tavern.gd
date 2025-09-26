@@ -178,15 +178,3 @@ func fix_floor_collision():
 		print("Fixed bar collision_layer = 2")
 	
 	print("All floor collision layers fixed!")
-
-# === REMOVED OLD FUNCTIONS ===
-# All the old daily processing functions are now handled by GameManager
-# - process_mission_returns()
-# - process_daily_operations()
-# - process_customer_visits()
-# - process_adventurer_recovery()
-# - check_tax_deadline()
-# - handle_tax_payment()
-# - calculate_tax_owed()
-
-# These are now in GameManager and called automatically during GameManager.advance_day()
