@@ -8,6 +8,7 @@ var current_day: int = 1
 var max_adventurers: int = 5
 var adventurers: Array = []
 var available_missions: Array = []  # Changed from Dictionary to Array
+var recruitment_manager = null
 
 # === ECONOMIC SETTINGS ===
 var tax_due_day: int = 30

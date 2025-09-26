@@ -1,30 +1,108 @@
+# recruitment_popup.gd - FIXED VERSION - Syntax errors corrected
 extends PopupPanel
-# recruitment_popup.gd - UPDATED FOR GAMEMANAGER
 
 @onready var main_container = $MainContainer
 
-# Available recruits for the day
+# Available recruits for the day (fallback system)
 var available_recruits = []
 
 func _ready():
 	print("Recruitment Popup ready")
 
 func open_recruitment_desk():
-	generate_daily_recruits()
-	populate_popup_content()
+	"""Main entry point - always use enhanced system"""
+	# Try enhanced system first (when RecruitmentManager is ready)
+	if GameManager.has_method("recruitment_manager") and GameManager.recruitment_manager:
+		populate_enhanced_recruitment_content()
+	else:
+		# Fallback to basic system for now
+		populate_basic_recruitment_content()
+	
 	popup_centered()
 
-func populate_popup_content():
+# ENHANCED SYSTEM (Future - when RecruitmentManager is implemented)
+func populate_enhanced_recruitment_content():
+	"""Enhanced recruitment with patron conversions"""
 	# Clear existing content
 	for child in main_container.get_children():
 		child.queue_free()
 	
 	await get_tree().process_frame
-	
-	# Create the recruitment interface
-	create_recruitment_ui()
+	create_enhanced_recruitment_ui()
 
-func create_recruitment_ui():
+func create_enhanced_recruitment_ui():
+	# Enhanced guild master greeting
+	var greeting_context = get_recruitment_context()
+	send_log_message("\"" + greeting_context + "\"")
+	
+	create_guild_status_display()
+	
+	# TWO SECTIONS: Daily Applicants + Patron Conversions
+	create_daily_applicants_section()
+	create_patron_conversions_section()
+
+func get_recruitment_context() -> String:
+	"""Dynamic greeting based on current situation"""
+	# FUTURE: When RecruitmentManager is ready
+	# var daily_count = GameManager.recruitment_manager.get_daily_applicants().size()
+	# var patron_count = GameManager.recruitment_manager.get_patron_opportunities().size()
+	
+	# For now, basic greeting
+	return "Welcome back! Several brave souls seek to join your guild today."
+
+func create_daily_applicants_section():
+	"""Section for regular daily applicants"""
+	# FUTURE: Replace with actual RecruitmentManager data
+	generate_daily_recruits()  # Fallback generation
+	
+	if available_recruits.size() > 0:
+		var daily_title = Label.new()
+		daily_title.text = "Available Applicants (" + str(available_recruits.size()) + ")"
+		daily_title.add_theme_font_size_override("font_size", 16)
+		daily_title.add_theme_color_override("font_color", Color.CYAN)
+		daily_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		main_container.add_child(daily_title)
+		
+		var daily_scroll = ScrollContainer.new()
+		daily_scroll.custom_minimum_size = Vector2(600, 300)
+		main_container.add_child(daily_scroll)
+		
+		var daily_container = VBoxContainer.new()
+		daily_scroll.add_child(daily_container)
+		daily_container.add_theme_constant_override("separation", 10)
+		
+		for applicant in available_recruits:
+			if applicant.get("availability", "Available") == "Available":
+				create_recruit_card(applicant, daily_container)
+
+func create_patron_conversions_section():
+	"""Section for patrons who expressed interest"""
+	# FUTURE: When RecruitmentManager is implemented
+	# var patron_opportunities = GameManager.recruitment_manager.get_patron_opportunities()
+	# 
+	# if patron_opportunities.size() > 0:
+	#     ... create patron conversion cards
+	
+	# For now, just a placeholder
+	var placeholder = Label.new()
+	placeholder.text = "Patron recruitment system coming soon..."
+	placeholder.add_theme_font_size_override("font_size", 12)
+	placeholder.add_theme_color_override("font_color", Color.GRAY)
+	placeholder.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_container.add_child(placeholder)
+
+# BASIC SYSTEM (Current working version)
+func populate_basic_recruitment_content():
+	"""Basic recruitment system (current working version)"""
+	# Clear existing content
+	for child in main_container.get_children():
+		child.queue_free()
+	
+	await get_tree().process_frame
+	create_basic_recruitment_ui()
+
+func create_basic_recruitment_ui():
+	"""Basic recruitment interface that works now"""
 	# Guild master greeting	
 	send_log_message("\"Welcome, Guildmaster! These brave souls seek to join your guild.\"")
 	
@@ -37,6 +115,9 @@ func create_recruitment_ui():
 	recruits_title.add_theme_font_size_override("font_size", 16)
 	recruits_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	main_container.add_child(recruits_title)
+	
+	# Generate daily recruits
+	generate_daily_recruits()
 	
 	# Recruits container
 	var recruits_scroll = ScrollContainer.new()
@@ -171,36 +252,20 @@ func get_random_background(character_class: String) -> String:
 	"""Get a background story based on class"""
 	var backgrounds = {
 		"Fighter": [
-			"Former city guard",
-			"Retired soldier", 
-			"Village protector",
-			"Tournament fighter",
-			"Mercenary veteran",
-			"Blacksmith's apprentice"
+			"Former city guard", "Retired soldier", "Village protector",
+			"Tournament fighter", "Mercenary veteran", "Blacksmith's apprentice"
 		],
 		"Rogue": [
-			"Reformed thief",
-			"Scout from the borderlands",
-			"Former spy",
-			"Treasure hunter",
-			"Street informant",
-			"Circus performer"
+			"Reformed thief", "Scout from the borderlands", "Former spy",
+			"Treasure hunter", "Street informant", "Circus performer"
 		],
 		"Mage": [
-			"Academy dropout",
-			"Wandering scholar",
-			"Court wizard's apprentice",
-			"Self-taught spellcaster",
-			"Library researcher",
-			"Ancient tome collector"
+			"Academy dropout", "Wandering scholar", "Court wizard's apprentice",
+			"Self-taught spellcaster", "Library researcher", "Ancient tome collector"
 		],
 		"Healer": [
-			"Temple acolyte",
-			"Traveling physician",
-			"Herbalist from the forest",
-			"Military medic",
-			"Village wise woman",
-			"Monastery refugee"
+			"Temple acolyte", "Traveling physician", "Herbalist from the forest",
+			"Military medic", "Village wise woman", "Monastery refugee"
 		]
 	}
 	var class_backgrounds = backgrounds.get(character_class, ["Unknown origin"])
@@ -299,11 +364,191 @@ func hire_recruit(recruit: Dictionary):
 	else:
 		send_log_message("Cannot hire " + recruit.name + " - insufficient funds or roster full!")
 
-func send_log_message(message: String):
-	"""Send message to GameManager logging system"""
-	GameManager.log_message(message)
-
 func refresh_daily_recruits():
 	"""Reset recruits for a new day"""
 	available_recruits.clear()
-	GameManager.log_message("New adventurers have arrived seeking employment!")
+	send_log_message("New adventurers have arrived seeking employment!")
+
+func send_log_message(message: String):
+	"""Send message to GameManager logging system"""
+	if GameManager.has_method("log_message"):
+		GameManager.log_message(message)
+
+# ENHANCED PORTRAIT SYSTEM (Future expansion)
+func get_character_portrait_texture(character: Dictionary) -> Texture2D:
+	"""Get portrait texture for character - works with or without portrait files"""
+	var npc_class_name = character.get("class", "Fighter")
+	var gender = character.get("gender", "male")
+	
+	# Try to load class-specific portrait
+	var portrait_path = "res://assets/portraits/" + npc_class_name.to_lower() + ".png"
+	
+	if FileAccess.file_exists(portrait_path):
+		return load(portrait_path)
+	
+	# Try generic class portrait
+	portrait_path = "res://assets/portraits/" + npc_class_name.to_lower() + ".png"
+	if FileAccess.file_exists(portrait_path):
+		return load(portrait_path)
+	
+	# Generate colored portrait based on class
+	return generate_placeholder_portrait(npc_class_name, gender)
+
+func generate_placeholder_portrait(npc_class_name: String, gender: String) -> ImageTexture:
+	"""Generate a colored placeholder portrait"""
+	var image = Image.create(64, 64, false, Image.FORMAT_RGB8)
+	
+	# Class-based colors
+	var color = Color.GRAY
+	match npc_class_name.to_lower():
+		"fighter": color = Color.RED
+		"rogue": color = Color.GREEN
+		"mage": color = Color.BLUE
+		"healer": color = Color.YELLOW
+		"barbarian": color = Color.ORANGE
+		"ranger": color = Color.DARK_GREEN
+	
+	# Lighter color for female characters
+	if gender == "female":
+		color = color.lightened(0.3)
+	
+	image.fill(color)
+	
+	# Add simple border
+	for x in range(64):
+		for y in range(64):
+			if x < 2 or x > 61 or y < 2 or y > 61:
+				image.set_pixel(x, y, Color.BLACK)
+	
+	var texture = ImageTexture.new()
+	texture.create_from_image(image)
+	return texture
+
+func create_enhanced_recruit_card_with_portrait(recruit: Dictionary, parent: VBoxContainer):
+	"""Enhanced recruit card with portrait (future feature)"""
+	var card = PanelContainer.new()
+	parent.add_child(card)
+	
+	# Style the card
+	var card_style = StyleBoxFlat.new()
+	card_style.bg_color = Color(0.1, 0.2, 0.1, 0.9)
+	card_style.border_width_left = 2
+	card_style.border_width_right = 2
+	card_style.border_width_top = 2
+	card_style.border_width_bottom = 2
+	card_style.border_color = Color(0.4, 0.8, 0.4, 1.0)
+	card.add_theme_stylebox_override("panel", card_style)
+	
+	var card_content = HBoxContainer.new()
+	card.add_child(card_content)
+	card_content.add_theme_constant_override("separation", 15)
+	
+	# LEFT: Portrait
+	var portrait_container = VBoxContainer.new()
+	card_content.add_child(portrait_container)
+	
+	var portrait = TextureRect.new()
+	portrait.custom_minimum_size = Vector2(64, 64)
+	portrait.texture = get_character_portrait_texture(recruit)
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait_container.add_child(portrait)
+	
+	# Portrait name label
+	var portrait_name = Label.new()
+	portrait_name.text = recruit.name
+	portrait_name.add_theme_font_size_override("font_size", 12)
+	portrait_name.add_theme_color_override("font_color", Color.WHITE)
+	portrait_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	portrait_container.add_child(portrait_name)
+	
+	# MIDDLE: Character info
+	var info_container = VBoxContainer.new()
+	card_content.add_child(info_container)
+	info_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	# Class and description
+	var class_label = Label.new()
+	class_label.text = recruit.class + " • " + recruit.get("gender", "").capitalize()
+	class_label.add_theme_font_size_override("font_size", 16)
+	class_label.add_theme_color_override("font_color", Color.CYAN)
+	info_container.add_child(class_label)
+	
+	# Stats
+	var stats_label = Label.new()
+	stats_label.text = "STR:" + str(recruit.strength) + " | DEX:" + str(recruit.dexterity) + " | INT:" + str(recruit.intelligence) + " | END:" + str(recruit.endurance)
+	stats_label.add_theme_font_size_override("font_size", 12)
+	stats_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	info_container.add_child(stats_label)
+	
+	# Personality and background
+	var personality_label = Label.new()
+	personality_label.text = recruit.get("personality", "Balanced") + " • " + recruit.get("motivation", "Adventure")
+	personality_label.add_theme_font_size_override("font_size", 11)
+	personality_label.add_theme_color_override("font_color", Color.YELLOW)
+	info_container.add_child(personality_label)
+	
+	var background_label = Label.new()
+	background_label.text = recruit.get("background", "Unknown origin")
+	background_label.add_theme_font_size_override("font_size", 10)
+	background_label.add_theme_color_override("font_color", Color.GRAY)
+	info_container.add_child(background_label)
+	
+	# RIGHT: Hiring section
+	var hiring_container = VBoxContainer.new()
+	card_content.add_child(hiring_container)
+	hiring_container.custom_minimum_size = Vector2(120, 0)
+	hiring_container.add_theme_constant_override("separation", 5)
+	
+	# Cost label
+	var cost_label = Label.new()
+	cost_label.text = str(recruit.hiring_cost) + " gold"
+	cost_label.add_theme_font_size_override("font_size", 14)
+	cost_label.add_theme_color_override("font_color", Color.YELLOW)
+	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hiring_container.add_child(cost_label)
+	
+	# Source indicator
+	var source_label = Label.new()
+	var source_text = "Daily Applicant" if recruit.get("source") == "daily_applicant" else "Patron Convert"
+	source_label.text = source_text
+	source_label.add_theme_font_size_override("font_size", 9)
+	source_label.add_theme_color_override("font_color", Color.GRAY)
+	source_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hiring_container.add_child(source_label)
+	
+	# Hire button
+	var hire_button = Button.new()
+	hire_button.custom_minimum_size = Vector2(100, 35)
+	hiring_container.add_child(hire_button)
+	
+	# Check if we can hire
+	var current_gold = GameManager.get_gold()
+	var current_roster_size = GameManager.get_adventurer_count()
+	var max_adventurers = GameManager.get_max_adventurers()
+	var can_hire = current_gold >= recruit.hiring_cost and current_roster_size < max_adventurers
+	
+	if can_hire:
+		hire_button.text = "Hire"
+		hire_button.pressed.connect(func(): hire_enhanced_recruit(recruit))
+	else:
+		if current_gold < recruit.hiring_cost:
+			hire_button.text = "Too Expensive"
+		else:
+			hire_button.text = "Roster Full"
+		hire_button.disabled = true
+
+func hire_enhanced_recruit(recruit: Dictionary):
+	"""Hire recruit using enhanced system"""
+	if GameManager.hire_adventurer(recruit):
+		# Remove from DataManager pools
+		if DataManager.has_method("remove_recruited_character"):
+			DataManager.remove_recruited_character(recruit.get("id", ""))
+		
+		send_log_message("Successfully hired " + recruit.name + " the " + recruit.class + "!")
+		
+		# Refresh popup
+		hide()
+		await get_tree().create_timer(0.1).timeout
+		open_recruitment_desk()
+	else:
+		send_log_message("Cannot hire " + recruit.name + " - insufficient funds or roster full!")

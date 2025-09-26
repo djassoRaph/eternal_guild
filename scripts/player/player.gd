@@ -86,11 +86,9 @@ func handle_interaction():
 	"""Handle interaction with NPCs and environment"""
 	if Input.is_action_just_pressed("ui_select"):  # E key by default
 		print("E key pressed - looking for patrons to serve...")
-		try_serve_nearby_patron()
 
-
-func try_serve_nearby_patron():
-	"""Attempt to serve any nearby patrons - FIXED FUNCTION"""
+func try_serve_nearby_patron() -> RealisticPatron:
+	"""Attempt to serve any nearby patrons - FIXED WITH RETURN VALUE"""
 	# Find all nearby patrons that want service
 	var serveable_patrons = find_serveable_patrons()
 	
@@ -98,7 +96,7 @@ func try_serve_nearby_patron():
 	
 	if serveable_patrons.size() == 0:
 		print("No patrons nearby wanting service")
-		return
+		return null  # Return null when no patrons served
 	
 	# Serve the closest patron
 	var closest_patron = serveable_patrons[0]
@@ -114,10 +112,10 @@ func try_serve_nearby_patron():
 	var success = closest_patron.serve(global_position)
 	if success:
 		print("Successfully served patron!")
+		return closest_patron  # Return the served patron
 	else:
 		print("Failed to serve patron (no beer?)")
-
-
+		return null  # Return null if service failed
 
 func find_serveable_patrons() -> Array[RealisticPatron]:
 	"""Find all patrons within serving range that want service - FIXED FUNCTION"""
