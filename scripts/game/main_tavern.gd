@@ -72,9 +72,9 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 	"""Legacy function - redirect to GameManager"""
 	GameManager.complete_mission(adventurer, mission, success)
 
-func complete_party_mission(party: Array, mission: Dictionary, success: bool, healer_count: int):
+func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 	"""Legacy function - redirect to GameManager"""
-	GameManager.complete_party_mission(party, mission, success, healer_count)
+	GameManager.complete_party_mission(party, mission, success)
 
 func hire_recruit(recruit: Dictionary):
 	"""Legacy function - redirect to GameManager"""

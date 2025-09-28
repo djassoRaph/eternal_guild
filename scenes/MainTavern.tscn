@@ -697,6 +697,18 @@ grow_vertical = 2
 layout_mode = 2
 text = "Main Menu"
 
+[node name="Load" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Load Game"
+
+[node name="Save" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Save Game"
+
+[node name="Save&Exit" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Save & Exit"
+
 [node name="QuitButton" type="Button" parent="PauseMenu/VBoxContainer"]
 layout_mode = 2
 text = "Quit game GTG!"

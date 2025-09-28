@@ -368,7 +368,7 @@ func execute_party_mission(party: Array, mission: Dictionary):
 	var healer_count = party.filter(func(adv): return adv.class == "Healer").size()
 	
 	# Use GameManager's party mission completion system
-	GameManager.complete_party_mission(party, mission, roll <= success_chance, healer_count)
+	GameManager.complete_party_mission(party, mission, roll <= success_chance)
 	
 	# Close the popup after assignment
 	hide()

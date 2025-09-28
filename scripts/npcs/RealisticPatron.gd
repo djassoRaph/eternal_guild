@@ -15,6 +15,9 @@ enum PatronState {
 	LEAVING
 }
 
+# === OBJECT POOLING SUPPORT ===
+signal patron_finished(patron_body: Node)
+
 # State variables - FIXED: All declared
 var current_state = PatronState.WALKING_TO_TABLE
 var current_target: Vector3
@@ -26,16 +29,19 @@ var entrance_position = Vector3(10.7, 3.0, 6.3)
 # Service system variables - FIXED: All declared  
 var wants_service = false
 var has_been_served = false
+var service_requested = false  # Added missing variable
 var service_indicator: MeshInstance3D
 var payment_amount: int
 
 # Character data - FIXED: All declared
 var patron_name: String
 var character_type: String = "Knight"
+var drinking_duration: int = 8  # Added missing variable
 
 # Timers - FIXED: Declared
 var sitting_timer: Timer
 var drinking_timer: Timer
+var departure_timer: Timer  # Added missing variable
 
 # Scene references - FIXED: Declared
 var main_scene: Node
@@ -92,18 +98,65 @@ func setup_physics():
 		print("Added collision shape to patron")
 
 func generate_patron_data():
-	"""Generate random patron characteristics"""
-	var names = ["Gareth", "Elara", "Thorin", "Lydia", "Marcus", "Sera"]
-	patron_name = names[randi() % names.size()]
+	"""Generate new random patron data - ENHANCED FOR POOLING"""
+	var names = ["Gareth", "Elara", "Thorin", "Lydia", "Marcus", "Sera", "Bjorn", "Isla", "Caius", "Vera"]
+	var surnames = ["the Bold", "Ironforge", "Swiftblade", "Nightwhisper", "Goldbeard", "Stormwind"]
 	
-	# Payment: 6 base + 1-3 tip = 7-9 gold total
-	payment_amount = randi_range(7, 9)
+	# Generate full name
+	patron_name = names[randi() % names.size()] + " " + surnames[randi() % surnames.size()]
 	
-	print("Generated patron: ", patron_name, " will pay ", payment_amount, " gold")
+	# Payment varies by settlement and time of day
+	var base_payment = randi_range(6, 9)
+	var time_bonus = 0
+	
+	# Time-based payment variation
+	var game_time = GameManager.current_day % 7  # Weekly cycle
+	if game_time == 0 or game_time == 6:  # Weekend premium
+		time_bonus = randi_range(1, 3)
+	
+	payment_amount = base_payment + time_bonus
+	
+	# Settlement trait affects payment
+	var settlement_trait = get_meta("settlement_trait", "")
+	match settlement_trait:
+		"Merchant":
+			payment_amount += randi_range(2, 4)  # Wealthy merchants tip well
+		"Scout", "Hunter":
+			payment_amount += randi_range(0, 1)  # Modest frontier folk
+		"Scholar":
+			payment_amount += randi_range(1, 2)  # Appreciative but not wealthy
+		"Knight", "Officer":
+			payment_amount += randi_range(1, 3)  # Honor-bound to pay fairly
+	
+	print("Generated patron: ", patron_name, " (", settlement_trait, ") will pay ", payment_amount, " gold")
 
+func enhanced_departure():
+	"""Enhanced departure with pooling return"""
+	print(patron_name, " thanks you and prepares to leave")
+	
+	# Create departure movement
+	var exit_position = Vector3(8.7, 0.0, 3.3)  # Entrance/exit
+	var departure_tween = create_tween()
+	departure_tween.tween_property(self, "global_position", exit_position, 2.0)
+	departure_tween.tween_callback(complete_departure)
+
+func complete_departure():
+	"""Complete departure and signal for pool return"""
+	print("Patron ", patron_name, " has left the tavern")
+	
+	# Emit signal for PatronSpawner to handle pool return
+	patron_finished.emit(self)
+
+# === ENHANCED INTERACTION WITH POOLING AWARENESS ===
 func create_patron_model():
-	"""Create visual representation of the patron"""
-	# Try to load KayKit Knight model
+	"""Create visual representation - POOLING OPTIMIZED"""
+	# Check if model already exists (from pooling)
+	var existing_model = get_node_or_null("PatronModel")
+	if existing_model:
+		print("Reusing existing patron model for ", patron_name)
+		return
+	
+	# Create new model if needed
 	var model_path = "res://assets/characters/models/kaykit_adventurers/Knight.glb"
 	var model_scene = load(model_path)
 	
@@ -112,28 +165,87 @@ func create_patron_model():
 		model_instance.name = "PatronModel"
 		model_instance.position.y = -1.0
 		add_child(model_instance)
-		print("Loaded Knight model for ", patron_name)
+		print("Created new model for ", patron_name)
 	else:
-		# Fallback: Create colored capsule
 		create_fallback_model()
 
 func create_fallback_model():
-	"""Create a simple visual representation as fallback"""
-	var mesh_instance = MeshInstance3D.new()
-	mesh_instance.name = "PatronModel"
+	"""Create fallback model - POOLING AWARE"""
+	var existing_mesh = get_node_or_null("FallbackMesh")
+	if existing_mesh:
+		# Reuse existing fallback
+		var material = existing_mesh.get_surface_override_material(0)
+		if material:
+			# Change color for visual variety
+			var colors = [Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.PURPLE]
+			material.albedo_color = colors[randi() % colors.size()]
+		return
 	
+	# Create new fallback
+	var mesh_instance = MeshInstance3D.new()
+	mesh_instance.name = "FallbackMesh"
 	var capsule = CapsuleMesh.new()
 	capsule.height = 2.0
-	capsule.radius = 0.5
+	capsule.top_radius = 0.3
+	capsule.bottom_radius = 0.3
 	mesh_instance.mesh = capsule
 	
-	# Create material
 	var material = StandardMaterial3D.new()
-	material.albedo_color = Color.BLUE
-	mesh_instance.material_override = material
+	var colors = [Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.PURPLE]
+	material.albedo_color = colors[randi() % colors.size()]
+	mesh_instance.set_surface_override_material(0, material)
 	
 	add_child(mesh_instance)
 	print("Created fallback model for ", patron_name)
+
+func cleanup_patron_resources():
+	"""Clean up patron-specific resources before pool return"""
+	# Remove any temporary nodes
+	var temp_nodes = get_children().filter(func(child): return child.name.begins_with("temp_"))
+	for node in temp_nodes:
+		node.queue_free()
+	
+	# Clean up any pending signals
+	if has_signal("patron_finished"):
+		# Disconnect any extra connections
+		pass
+	
+	print("Cleaned up resources for ", patron_name)
+
+# === SETTLEMENT INTEGRATION - FIXED ===
+func apply_settlement_behavior():
+	"""Apply settlement-specific behavior patterns"""
+	var settlement_trait = get_meta("settlement_trait", "")  # Fixed variable name
+	
+	match settlement_trait:  # Fixed to use correct variable
+		"Merchant":
+			# Merchants stay longer, tip better
+			drinking_duration = randi_range(10, 15)
+		"Scout", "Hunter":
+			# Quick drinkers, always alert
+			drinking_duration = randi_range(5, 8)
+		"Scholar":
+			# Contemplative, moderate stay
+			drinking_duration = randi_range(8, 12)
+		"Knight", "Officer":
+			# Disciplined, consistent timing
+			drinking_duration = 10
+		_:
+			# Default behavior
+			drinking_duration = randi_range(6, 10)
+
+# === DEBUG FUNCTIONS FOR POOLING ===
+func get_pooling_debug_info() -> Dictionary:
+	"""Get debug information about patron pooling state"""
+	return {
+		"patron_name": patron_name,
+		"current_state": PatronState.keys()[current_state],
+		"has_been_served": has_been_served,
+		"payment_amount": payment_amount,
+		"settlement_trait": get_meta("settlement_trait", "none"),
+		"table_index": get_meta("table_index", -1),
+		"pool_id": get_meta("pool_id", -1)
+	}
 
 func create_service_indicator():
 	"""Create yellow sphere above head when wanting service"""
@@ -303,3 +415,36 @@ func _leave_tavern():
 	
 	patron_left.emit()
 	queue_free()
+
+func reset_patron_state():
+	"""Reset patron to initial state for object pooling reuse"""
+	# Reset core state
+	current_state = PatronState.WALKING_TO_TABLE
+	has_been_served = false
+	service_requested = false
+	
+	# Reset timers
+	if drinking_timer and drinking_timer.is_valid():
+		drinking_timer.stop()
+	if departure_timer and departure_timer.is_valid():
+		departure_timer.stop()
+	
+	# Reset visual indicators
+	if service_indicator:
+		service_indicator.queue_free()
+		service_indicator = null
+	
+	# Reset model position and rotation
+	rotation = Vector3.ZERO
+	
+	# Clear any existing tweens
+	if get_tree():
+		var tweens = get_tree().get_processed_tweens()
+		for tween in tweens:
+			if tween.is_valid():
+				tween.kill()
+	
+	# Reset collision
+	setup_physics()
+	
+	print("Patron state reset for pooling reuse")
