@@ -9,8 +9,9 @@ extends Node3D
 @onready var fade_system = %FadeToBlack
 
 func _ready():
-	log_message("Game started successfully!")
 	
+	log_message("Game started successfully!")
+
 	# Allow this node to process input even when paused
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
@@ -22,6 +23,7 @@ func _ready():
 	GameManager.gold_changed.connect(_on_gold_changed)
 	GameManager.beer_changed.connect(_on_beer_changed)
 	GameManager.day_changed.connect(_on_day_changed)
+	GameManager.game_over_triggered.connect(_on_game_over_triggered)
 	
 	# Initialize UI with current GameManager values
 	_on_gold_changed(GameManager.get_gold())
@@ -178,3 +180,12 @@ func fix_floor_collision():
 		print("Fixed bar collision_layer = 2")
 	
 	print("All floor collision layers fixed!")
+
+
+func _on_game_over_triggered(reason: String):
+	"""Handle game over event"""
+	var game_over_screen = get_node("GameUI/GameOverScreen")
+	if game_over_screen:
+		game_over_screen.show_game_over(reason)
+	else:
+		print("GameOverScreen not found!")

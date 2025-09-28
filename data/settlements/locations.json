@@ -1,2 +1,11 @@
 {
-}
+  "settlements": {
+	"mountain_pass": {
+		  "name": "Ironhold Pass",
+		  "biome": "mountain",
+		  "economy": "mining",
+		  "population": "small",
+		  "unique_features": ["dwarf_traders", "ore_deposits", "harsh_winters"],
+			}
+	}
+}	

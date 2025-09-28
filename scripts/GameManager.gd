@@ -9,6 +9,7 @@ var max_adventurers: int = 5
 var adventurers: Array = []
 var available_missions: Array = []  # Changed from Dictionary to Array
 var recruitment_manager = null
+var patron_recruitment_pool = []  # Patrons interested in joining
 
 # === ECONOMIC SETTINGS ===
 var tax_due_day: int = 30
@@ -21,10 +22,12 @@ signal day_changed(new_day: int)
 signal adventurer_roster_changed()
 signal missions_changed
 signal recruitment_pool_changed
+signal game_over_triggered(reason: String)
 
 var mission_refresh_day: int = 1
 var recruit_refresh_day: int = 1
 var daily_recruits: Array = []
+var game_over_active: bool = false
 
 # === INITIALIZATION ===
 func _ready():
@@ -165,12 +168,25 @@ func process_mission_returns():
 
 func process_daily_operations():
 	"""Handle daily costs and maintenance"""
-	var total_cost = daily_operating_cost + adventurers.size()
+	var base_cost = daily_operating_cost
+	var adventurer_wages = adventurers.size() * 1  # 1 gold per adventurer per day
+	var total_cost = base_cost + adventurer_wages
+	
+	# Beer consumption by adventurers
+	var beer_needed = adventurers.size() * 1  # 1 beer per adventurer per day
 	
 	if spend_gold(total_cost):
-		log_message("Paid " + str(total_cost) + " gold in daily operating costs")
+		log_message("Paid " + str(total_cost) + " gold in daily costs (" + str(base_cost) + " operations + " + str(adventurer_wages) + " wages)")
 	else:
 		log_message("WARNING: Could not afford operating costs!")
+	
+	# Adventurers consume beer
+	if beer_needed > 0:
+		if consume_beer(beer_needed):
+			log_message("Adventurers consumed " + str(beer_needed) + " beer")
+		else:
+			log_message("WARNING: Insufficient beer for adventurers! Morale will suffer.")
+			# Apply morale penalty (implement this later)
 
 func process_customer_visits():
 	"""Handle tavern customers and beer sales"""
@@ -211,7 +227,7 @@ func check_tax_deadline():
 		handle_tax_payment()
 
 func handle_tax_payment():
-	"""Process tax payment"""
+	"""Process tax payment with proper game over"""
 	var tax_amount = 50 + (adventurers.size() * 5)
 	
 	if spend_gold(tax_amount):
@@ -219,8 +235,10 @@ func handle_tax_payment():
 		log_message("Successfully paid " + str(tax_amount) + " gold in taxes")
 		log_message("Next tax payment due on day " + str(tax_due_day))
 	else:
-		log_message("FAILURE: Could not pay taxes! Game Over!")
-
+		# Trigger game over instead of just logging
+		trigger_game_over("bankruptcy", "Could not pay taxes of " + str(tax_amount) + " gold")
+		
+		
 # === LOGGING SYSTEM ===
 func log_message(message: String):
 	"""Send message to game log"""
@@ -404,6 +422,13 @@ func generate_fallback_missions() -> Array:
 	
 	return selected_missions
 
+func cleanup_expired_recruitment_candidates():
+	"""Remove expired patron recruitment candidates"""
+	patron_recruitment_pool = patron_recruitment_pool.filter(func(candidate): 
+		candidate.availability_window -= 1
+		return candidate.availability_window > 0
+	)
+
 # Enhanced hiring function
 func hire_adventurer(recruit: Dictionary) -> bool:
 	"""Enhanced adventurer hiring with recruit pool management"""
@@ -463,3 +488,67 @@ func load_save_data(data: Dictionary):
 	adventurer_roster_changed.emit()
 	
 	print("✅ Game state loaded successfully")
+	
+	
+func get_patron_recruitment_pool() -> Array:
+	"""Get current patron recruitment candidates"""
+	return patron_recruitment_pool
+
+func clear_patron_recruitment_pool():
+	"""Clear all patron recruitment candidates (for testing)"""
+	patron_recruitment_pool.clear()
+	print("Patron recruitment pool cleared")
+
+
+# In GameManager.gd
+func check_additional_failure_conditions():
+	"""Check for other game over conditions"""
+	
+	# No adventurers and no gold to hire new ones
+	if adventurers.size() == 0 and gold < 20:
+		pass
+		trigger_game_over("no_adventurers", "No adventurers and insufficient gold to hire new ones")
+	
+	# Extended period without income
+	if beer_stock == 0 and gold < 5 and current_day > 10:
+		pass
+		trigger_game_over("abandoned_tavern", "Tavern abandoned - no customers for too long")
+
+func trigger_game_over(failure_type: String, reason: String):
+	"""Trigger game over state and stop all game processes"""
+	if game_over_active:
+		return  # Prevent multiple game overs
+		
+	game_over_active = true
+	log_message("FAILURE: " + reason)
+	log_message("GAME OVER!")
+	
+	# Stop all game processes
+	set_process_mode(Node.PROCESS_MODE_DISABLED)
+	
+	# Emit signal to show game over screen
+	game_over_triggered.emit("Tax Bankruptcy: " + reason)
+
+
+func reset_game_state():
+	"""Reset GameManager to initial state"""
+	gold = 30
+	beer_stock = 5
+	current_day = 1
+	tax_due_day = 30
+	daily_operating_cost = 1
+	adventurers.clear()
+	available_missions.clear()
+	daily_recruits.clear()
+	game_over_active = false
+	
+	# Re-enable processing
+	set_process_mode(Node.PROCESS_MODE_INHERIT)
+	
+	# Emit all signals to refresh UI
+	gold_changed.emit(gold)
+	beer_changed.emit(beer_stock)
+	day_changed.emit(current_day)
+	adventurer_roster_changed.emit()
+	
+	print("Game state reset to initial values")

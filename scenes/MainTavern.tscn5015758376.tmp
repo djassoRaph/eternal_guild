@@ -713,18 +713,6 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("15_in5p4")
 
-[node name="GameOverScreen" type="CanvasLayer" parent="."]
-visible = false
-
-[node name="ColorRect" type="ColorRect" parent="GameOverScreen"]
-visible = false
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.22194, 0.41288, 0.321845, 1)
-
 [node name="Barbarian" parent="." instance=ExtResource("3_rbvb6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.72067, 4.05291, -3.75201)
 

@@ -198,7 +198,6 @@ func move_toward_target(delta):
 	
 	if Engine.get_process_frames() % 60 == 0:  # Every second
 		var distance_to_target = global_position.distance_to(current_target)
-		print("Distance to table: ", distance_to_target, " Position: ", global_position)
 	
 	# Check if reached target
 	var distance_to_target = global_position.distance_to(current_target)

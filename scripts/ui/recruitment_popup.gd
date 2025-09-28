@@ -1,4 +1,4 @@
-# recruitment_popup.gd - FIXED VERSION - Syntax errors corrected
+# recruitment_popup.gd - No recruits s
 extends PopupPanel
 
 @onready var main_container = $MainContainer
@@ -52,12 +52,11 @@ func get_recruitment_context() -> String:
 
 func create_daily_applicants_section():
 	"""Section for regular daily applicants"""
-	# FUTURE: Replace with actual RecruitmentManager data
-	generate_daily_recruits()  # Fallback generation
+	var gamemanager_recruits = GameManager.get_available_recruits()  # Fixed: Use get_available_recruits()
 	
-	if available_recruits.size() > 0:
+	if gamemanager_recruits.size() > 0:
 		var daily_title = Label.new()
-		daily_title.text = "Available Applicants (" + str(available_recruits.size()) + ")"
+		daily_title.text = "Available Applicants (" + str(gamemanager_recruits.size()) + ")"  # Fixed: Use correct count
 		daily_title.add_theme_font_size_override("font_size", 16)
 		daily_title.add_theme_color_override("font_color", Color.CYAN)
 		daily_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -71,9 +70,8 @@ func create_daily_applicants_section():
 		daily_scroll.add_child(daily_container)
 		daily_container.add_theme_constant_override("separation", 10)
 		
-		for applicant in available_recruits:
-			if applicant.get("availability", "Available") == "Available":
-				create_recruit_card(applicant, daily_container)
+		for applicant in gamemanager_recruits:  # Fixed: Proper indentation
+			create_recruit_card(applicant, daily_container)
 
 func create_patron_conversions_section():
 	"""Section for patrons who expressed interest"""
@@ -117,7 +115,7 @@ func create_basic_recruitment_ui():
 	main_container.add_child(recruits_title)
 	
 	# Generate daily recruits
-	generate_daily_recruits()
+	var gamemanager_recruits = GameManager.get_available_recruits()
 	
 	# Recruits container
 	var recruits_scroll = ScrollContainer.new()
@@ -129,8 +127,7 @@ func create_basic_recruitment_ui():
 	recruits_container.add_theme_constant_override("separation", 10)
 	
 	# Create recruit cards
-	for recruit in available_recruits:
-		if recruit.get("availability", "Available") == "Available":
+	for recruit in gamemanager_recruits:
 			create_recruit_card(recruit, recruits_container)
 
 func create_guild_status_display():
@@ -153,19 +150,6 @@ func create_guild_status_display():
 	roster_status.add_theme_color_override("font_color", Color.CYAN)
 	status_container.add_child(roster_status)
 
-func generate_daily_recruits():
-	"""Generate 3-5 random applicants for the day"""
-	if available_recruits.size() > 0:
-		return  # Already generated for today
-		
-	available_recruits.clear()
-	var num_recruits = randi() % 3 + 3  # 3-5 recruits
-	
-	for i in range(num_recruits):
-		var recruit = create_recruit_applicant()
-		available_recruits.append(recruit)
-	
-	send_log_message(str(num_recruits) + " new applicants have arrived today!")
 
 func create_recruit_applicant() -> Dictionary:
 	"""Create a potential recruit with stats and hiring cost"""

@@ -1,5 +1,6 @@
-extends CharacterBody3D
 #player.gd
+extends CharacterBody3D
+
 @export var speed: float = 5.0
 @export var jump_velocity: float = 4.5
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
