@@ -1,0 +1,64 @@
+[gd_scene load_steps=3 format=3 uid="uid://sl4bu1nvg32j"]
+
+[ext_resource type="Texture2D" uid="uid://cugcewpp5pn5n" path="res://assets/portraits/fighter.png" id="1_8hkqs"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1ylne"]
+bg_color = Color(0.227451, 0.227451, 0.227451, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.352941, 0.352941, 0.352941, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="AdventurerCard" type="PanelContainer"]
+custom_minimum_size = Vector2(320, 100)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -1600.0
+offset_bottom = -972.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_1ylne")
+
+[node name="CardContent" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Portrait" type="TextureRect" parent="CardContent"]
+clip_contents = true
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+texture = ExtResource("1_8hkqs")
+
+[node name="InfoContainer" type="VBoxContainer" parent="CardContent"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="CardContent/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "Adventurer Name"
+
+[node name="ClassLabel" type="Label" parent="CardContent/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.309804, 0.764706, 0.968627, 1)
+theme_override_font_sizes/font_size = 16
+text = "Fighter (Level 1)"
+
+[node name="StatusLabel" type="Label" parent="CardContent/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.298039, 0.686275, 0.313726, 1)
+theme_override_font_sizes/font_size = 16
+text = "Status: Ready"
+
+[node name="WageLabel" type="Label" parent="CardContent/InfoContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
+theme_override_font_sizes/font_size = 16
+text = "Daily Cost: 1 gold"

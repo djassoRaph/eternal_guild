@@ -565,9 +565,9 @@ func check_additional_failure_conditions():
 	"""Check for other game over conditions"""
 	
 	# No adventurers and no gold to hire new ones
-	if adventurers.size() == 0 and gold < 20:
-		pass
-		trigger_game_over("no_adventurers", "No adventurers and insufficient gold to hire new ones")
+	#if adventurers.size() == 0 and gold < 20:
+	#	pass
+	#	trigger_game_over("no_adventurers", "No adventurers and insufficient gold to hire new ones")
 	
 	# Extended period without income
 	if beer_stock == 0 and gold < 5 and current_day > 10:
@@ -1022,7 +1022,7 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 	# Check for guild collapse
 	if adventurers.size() == 0:
 		log_message("🏚️ ALL ADVENTURERS HAVE PERISHED!")
-		trigger_game_over("total_party_kill", "All adventurers have died")
+		log_message("💡 Visit the recruitment desk immediately to rebuild your guild!")
 
 func handle_adventurer_injury(adventurer: Dictionary, mission: Dictionary):
 	"""Handle injury with extended recovery time"""

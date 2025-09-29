@@ -7,6 +7,9 @@ extends Node3D
 @onready var gold_label = $GameUI/TopStatsBar/GoldLabel
 @onready var beer_label = $GameUI/TopStatsBar/BeerLabel
 @onready var fade_system = %FadeToBlack
+@onready var game_over_screen = %GameOverScreen
+@onready var pause_menu = %PauseMenu
+
 
 func _ready():
 	
@@ -111,8 +114,7 @@ func _input(event):
 		toggle_pause_menu()
 
 func toggle_pause_menu():
-	print("Toggle called!")
-	var pause_menu = get_node("PauseMenu")
+	
 	print("Found pause menu: ", pause_menu)
 	pause_menu.visible = !pause_menu.visible
 	get_tree().paused = pause_menu.visible
@@ -184,7 +186,7 @@ func fix_floor_collision():
 
 func _on_game_over_triggered(reason: String):
 	"""Handle game over event"""
-	var game_over_screen = get_node("GameUI/GameOverScreen")
+	var game_over_screen = get_node("GameOverScreen")  # Changed path
 	if game_over_screen:
 		game_over_screen.show_game_over(reason)
 	else:

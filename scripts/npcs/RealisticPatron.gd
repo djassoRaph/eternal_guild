@@ -63,8 +63,14 @@ func _ready():
 	# Generate patron data
 	generate_patron_data()
 	
-	# Set initial target
-	current_target = table_position
+	
+	if has_meta("target_table"):
+		current_target = get_meta("target_table")
+		table_position = current_target  # Update the stored position too
+	else:
+		current_target = table_position  # Use default for first spawn
+	
+	print("Patron target table: ", current_target)
 	
 	# Create visual representation
 	create_patron_model()
