@@ -11,6 +11,9 @@ var available_missions: Array = []  # Changed from Dictionary to Array
 var recruitment_manager = null
 var patron_recruitment_pool = []  # Patrons interested in joining
 
+# === Mission Tier SETTINGS ===
+var mission_tier_unlocked: int = 1
+
 # === ECONOMIC SETTINGS ===
 var tax_due_day: int = 30
 var daily_operating_cost: int = 1
@@ -30,6 +33,18 @@ var daily_recruits: Array = []
 var game_over_active: bool = false
 var beer_shortage_days: int = 0
 var adventurer_morale: Dictionary = {}  # adventurer_id -> morale level (1-3)
+
+# === Progression Tracking ===
+var total_missions_completed: int = 0
+var tavern_reputation: int = 0
+var taxes_paid_count: int = 0
+
+# Tier unlock conditions
+var tier_requirements = {
+	1: {"always_unlocked": true},  # Starting tier
+	2: {"taxes_paid": 1, "description": "Pay first tax (Day 30)"},
+	3: {"reputation": 50, "day": 60, "missions_completed": 10, "description": "Build reputation and experience"}
+}
 
 
 # === INITIALIZATION ===
@@ -145,6 +160,10 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		# SUCCESS: Adventurer needs rest (1 day minimum)
 		adventurer.status = "Resting"
 		adventurer.recovery = 1  # Always need at least 1 day rest after mission
+		
+		total_missions_completed += 1
+		tavern_reputation += 2  # +2 reputation per successful mission
+		GameManager.check_tier_unlocks()
 		
 		#check_adventurer_level_up(adventurer)
 		log_message("✅ SUCCESS! " + adventurer.name + " completed " + mission.name + " and earned " + str(reward) + " gold!")
@@ -274,6 +293,7 @@ func handle_tax_payment():
 		tax_due_day += 30
 		log_message("Successfully paid " + str(tax_amount) + " gold in taxes")
 		log_message("Next tax payment due on day " + str(tax_due_day))
+		GameManager.check_tier_unlocks()
 	else:
 		# Trigger game over instead of just logging
 		trigger_game_over("bankruptcy", "Could not pay taxes of " + str(tax_amount) + " gold")
@@ -432,24 +452,6 @@ func advance_day():
 	var availability_report = get_guild_availability_report()
 	log_message("💰 Gold: " + str(gold) + " | 🍺 Beer: " + str(beer_stock) + " pints | 👥 Available: " + str(availability_report["ready"]) + "/" + str(adventurers.size()))
 
-
-func refresh_available_missions():
-	"""Refresh the mission pool"""
-	if DataManager and DataManager.has_method("generate_daily_missions"):
-		var new_missions = DataManager.generate_daily_missions(6)  # Generate 6 new missions
-		available_missions.clear()
-		for mission in new_missions:
-			available_missions.append(mission)
-		mission_refresh_day = current_day
-		missions_changed.emit()
-		print("✅ Refreshed available missions: ", available_missions.size(), " missions loaded")
-	else:
-		# Fallback mission refresh
-		var fallback_missions = generate_fallback_missions()
-		available_missions.clear()
-		for mission in fallback_missions:
-			available_missions.append(mission)
-		print("⚠️ Using fallback missions: ", available_missions.size(), " missions loaded")
 
 func generate_fallback_missions() -> Array:
 	"""Generate fallback missions when DataManager is not available"""
@@ -724,7 +726,7 @@ func apply_extended_shortage():
 	if adventurers.size() > 0:
 		var leaving = adventurers.pop_back()
 		adventurer_morale.erase(leaving.get("id", leaving.name))
-		log_message("💔 " + leaving.name + " (" + leaving.character_class + ") abandoned the guild!")
+		log_message("💔 " + leaving.name + " (" + leaving.class + ") abandoned the guild!")
 		
 		var harsh_messages = [
 			"\"" + leaving.name + " packed their belongings in disgust.\"",
@@ -1034,3 +1036,76 @@ func handle_adventurer_injury(adventurer: Dictionary, mission: Dictionary):
 	
 	log_message("🏥 " + adventurer.name + " survived but is badly injured")
 	log_message("⏰ " + adventurer.name + " needs " + str(injury_severity) + " day(s) to recover")
+
+
+
+func check_tier_unlocks():
+	"""Check and unlock new mission tiers based on progression"""
+	var previous_tier = mission_tier_unlocked
+	
+	# Check Tier 2 unlock
+	if mission_tier_unlocked == 1 and taxes_paid_count >= 1:
+		mission_tier_unlocked = 2
+		log_message("🎉 TIER 2 MISSIONS UNLOCKED!")
+		log_message("New contract types are now available at the mission board.")
+	
+	# Check Tier 3 unlock
+	elif mission_tier_unlocked == 2 and tavern_reputation >= 50 and current_day >= 60 and total_missions_completed >= 10:
+		mission_tier_unlocked = 3
+		log_message("🎉 TIER 3 MISSIONS UNLOCKED!")
+		log_message("Elite contracts are now available - high risk, high reward!")
+	
+	# Refresh missions if tier changed
+	if mission_tier_unlocked > previous_tier:
+		refresh_available_missions()
+
+
+
+func get_tier_unlock_status(tier: int) -> Dictionary:
+	"""Get unlock status for a specific tier"""
+	if tier == 1:
+		return {"unlocked": true, "description": "Basic guild contracts"}
+	
+	var requirements = tier_requirements.get(tier, {})
+	var status = {"unlocked": false, "missing": [], "description": requirements.get("description", "")}
+	
+	if tier == 2:
+		if taxes_paid_count >= requirements.get("taxes_paid", 1):
+			status.unlocked = true
+		else:
+			status.missing.append("Pay first tax (Day " + str(tax_due_day) + ")")
+	
+	elif tier == 3:
+		status.unlocked = true  # Start assuming unlocked
+		
+		if tavern_reputation < requirements.get("reputation", 50):
+			status.unlocked = false
+			status.missing.append("Reputation: " + str(tavern_reputation) + "/" + str(requirements.get("reputation", 50)))
+		
+		if current_day < requirements.get("day", 60):
+			status.unlocked = false
+			status.missing.append("Day: " + str(current_day) + "/" + str(requirements.get("day", 60)))
+		
+		if total_missions_completed < requirements.get("missions_completed", 10):
+			status.unlocked = false
+			status.missing.append("Missions: " + str(total_missions_completed) + "/" + str(requirements.get("missions_completed", 10)))
+	
+	return status
+
+func refresh_available_missions():
+	"""Refresh the mission pool with tier restrictions"""
+	if DataManager and DataManager.has_method("generate_daily_missions_with_tiers"):
+		var new_missions = DataManager.generate_daily_missions_with_tiers(6, mission_tier_unlocked)
+		available_missions.clear()
+		for mission in new_missions:
+			available_missions.append(mission)
+		mission_refresh_day = current_day
+		missions_changed.emit()
+		print("✅ Refreshed missions (Tier ", mission_tier_unlocked, "): ", available_missions.size(), " missions loaded")
+	else:
+		# Fallback
+		var fallback_missions = generate_fallback_missions()
+		available_missions.clear()
+		for mission in fallback_missions:
+			available_missions.append(mission)
+		print("⚠️ Using fallback missions")

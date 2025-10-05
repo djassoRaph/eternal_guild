@@ -7,7 +7,7 @@ var mission_types: Dictionary = {}
 var items: Dictionary = {}
 var dialogue_lines: Dictionary = {}
 var settlements: Dictionary = {}
-
+var mission_tier_unlocked: int = 1 
 
 signal data_ready
 signal data_loaded(data_type: String)
@@ -26,7 +26,19 @@ var recruitment_config = {
 	"guild_reputation_factor": 0.001
 }
 
+# Progression tracking
+var total_missions_completed: int = 0
+var tavern_reputation: int = 0
+var taxes_paid_count: int = 0
 
+# Tier unlock conditions
+var tier_requirements = {
+	1: {"always_unlocked": true},  # Starting tier
+	2: {"taxes_paid": 1, "description": "Pay first tax (Day 30)"},
+	3: {"reputation": 50, "day": 60, "missions_completed": 10, "description": "Build reputation and experience"}
+}
+
+@onready var log_container = $GameUI/MainArea/TavernView/LogContainer
 
 func _ready():
 	print("DataManager initialized")
@@ -421,6 +433,37 @@ func get_next_chain_mission(chain_id: String, completed_missions: Array) -> Dict
 			break
 	
 	return {}
+
+func generate_daily_missions_with_tiers(count: int = 6, max_tier: int = 1) -> Array:
+	"""Generate missions respecting tier unlock restrictions"""
+	var selected_missions = []
+	
+	if not mission_types.has("mission_templates"):
+		print("❌ Mission templates not loaded!")
+		return get_fallback_missions(count)
+	
+	var templates = mission_types["mission_templates"]
+	
+	# Filter missions by tier availability
+	var available_templates = templates.filter(func(m): 
+		return m.get("tier", 1) <= max_tier
+	)
+	
+	if available_templates.size() == 0:
+		print("⚠️ No missions available for current tier level!")
+		return []
+	
+	# Shuffle and select missions
+	available_templates.shuffle()
+	
+	for i in range(min(count, available_templates.size())):
+		var mission = available_templates[i].duplicate()
+		add_mission_variety(mission)
+		selected_missions.append(mission)
+	
+	print("✅ Generated ", selected_missions.size(), " missions (Max Tier: ", max_tier, ")")
+	return selected_missions
+
 
 
 func create_default_dialogue() -> Dictionary:

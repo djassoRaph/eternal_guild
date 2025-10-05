@@ -14,6 +14,8 @@ var player_in_mission = false
 var player_in_recruitment = false
 
 
+
+
 func _ready():
 	setup_interaction_areas()
 	send_log_message("Enhanced Interactive areas connected!")
