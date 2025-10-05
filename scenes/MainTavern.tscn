@@ -1,4 +1,4 @@
-[gd_scene load_steps=86 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=85 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://scripts/player/player.gd" id="1_cwghm"]
@@ -25,13 +25,11 @@
 [ext_resource type="ArrayMesh" uid="uid://d4l47mtaeuiqs" path="res://assets/environment/decorations/torch_mounted.obj" id="18_xtcff"]
 [ext_resource type="ArrayMesh" uid="uid://cvvfdn73jvyxa" path="res://assets/environment/decorations/trunk_large_A.obj" id="19_drhcq"]
 [ext_resource type="PackedScene" uid="uid://2h0mi3lo1n2x" path="res://assets/environment/furniture/TavernCounterCircular.glb" id="20_ekigb"]
-[ext_resource type="Script" uid="uid://cp4sfhc6n2ady" path="res://scenes/tavern_management_interaction_info.gd" id="21_g0upg"]
+[ext_resource type="Script" uid="uid://c224083vogih2" path="res://scripts/game/InteractiveAreaGlow.gd" id="21_g0upg"]
 [ext_resource type="ArrayMesh" uid="uid://cy4lxqehvoo17" path="res://assets/environment/furniture/stairs_wide.obj" id="21_q5prt"]
 [ext_resource type="ArrayMesh" uid="uid://bn0hj2aib4mw8" path="res://assets/environment/decorations/barrier.obj" id="22_ayemd"]
-[ext_resource type="Script" uid="uid://ws1e5reqyb1" path="res://scenes/recruit_interaction_info.gd" id="22_xtcff"]
 [ext_resource type="ArrayMesh" uid="uid://mraxhqsusknw" path="res://assets/environment/decorations/barrier_colum_half.obj" id="23_behcn"]
-[ext_resource type="Script" uid="uid://c6feyw4j7ulrg" path="res://scenes/next_day_interaction_info.gd" id="23_drhcq"]
-[ext_resource type="Script" uid="uid://8p555aginoc4" path="res://scenes/mission_board_interaction_info.gd" id="24_3qmei"]
+[ext_resource type="Script" uid="uid://bkmu2w0hiyj1n" path="res://scenes/game_over_screen.gd" id="33_xtcff"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_xw0ls"]
 margin = 0.05
@@ -150,6 +148,8 @@ radius = 1.74752
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_qlm8p"]
 size = Vector3(1.99072, 2.62048, 1.96149)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xtcff"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_0nrlt"]
 size = Vector3(1.43359, 1, 1)
@@ -654,6 +654,7 @@ script = ExtResource("8_x2ury")
 
 [node name="BarArea" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38041, 0)
+script = ExtResource("21_g0upg")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/BarArea"]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 4.88368, -0.118891, -9.14556)
@@ -667,10 +668,10 @@ visible = false
 mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
-script = ExtResource("21_g0upg")
 
 [node name="RecruitmentDesk" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.8142, 0.953636, 0)
+script = ExtResource("21_g0upg")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/RecruitmentDesk"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12936, 0, -4.94593)
@@ -683,10 +684,10 @@ visible = false
 mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
-script = ExtResource("22_xtcff")
 
 [node name="NextDayArea" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.47227, 0, -3.43201)
+script = ExtResource("21_g0upg")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/NextDayArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.3573, 1.30703, -10.4262)
@@ -696,13 +697,14 @@ shape = SubResource("BoxShape3D_qlm8p")
 unique_name_in_owner = true
 transform = Transform3D(1.79427, 0, 0, 0, 1, 0, 0, 0, 1, 0.0952024, -1.10367, 0.51317)
 visible = false
+material_override = SubResource("StandardMaterial3D_xtcff")
 mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
-script = ExtResource("23_drhcq")
 
 [node name="MissionBoard" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.86048, 1.81339, -1.04096)
+script = ExtResource("21_g0upg")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/MissionBoard"]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -2.03751, -9.53674e-07, -13.1502)
@@ -715,7 +717,6 @@ visible = false
 mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
-script = ExtResource("24_3qmei")
 
 [node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport"]
 transform = Transform3D(0.707107, -0.353553, 0.612373, 0, 0.866026, 0.5, -0.707107, -0.353553, 0.612373, 12.7284, 8, 6.82844)
@@ -761,7 +762,7 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 52.0
-offset_top = -269.0
+offset_top = -470.0
 offset_right = 552.0
 offset_bottom = -69.0
 grow_vertical = 0
@@ -777,7 +778,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -12.0
-offset_top = -84.0
+offset_top = -2.0
 offset_right = -4.0
 offset_bottom = 31.0
 grow_horizontal = 2
@@ -790,24 +791,27 @@ horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
 [node name="EventLog" type="RichTextLabel" parent="GameUI/MainArea/TavernView/LogContainer"]
-custom_minimum_size = Vector2(500, 315)
+custom_minimum_size = Vector2(500, 430)
 layout_mode = 2
 theme_override_colors/default_color = Color(0, 0, 0, 1)
 theme_override_styles/fill = SubResource("StyleBoxFlat_rus88")
 bbcode_enabled = true
-text = "Welcome to the Eternal Guild of the Spotless Mind. 
+text = "Welcome to the Adventurer's Guild Management Game!
 
-Manage a Tavern, Recruit adventurers and send them on missions. 
+You are the guildmaster of a humble tavern where adventurers gather.
+Each day, you must manage your resources wisely:
+- Recruit adventurers.
+- Assign them to missions based on their class.
 
-Pay taxes to improve your tavern."
+- Restock beer to attract guests and earn gold.
+
+- Try not to run out of money, beer, or adventurers.
+
+- Tax day comes every 30 days! Be ready, it's 1000 gold coins ! Gold and beer are your lifelines. When you're out of both  or it’s over.
+
+Good luck, Guildmaster!"
 scroll_following = true
 tab_size = 10
-
-[node name="VScrollBar" type="VScrollBar" parent="GameUI/MainArea/TavernView/LogContainer/EventLog"]
-layout_mode = 2
-offset_left = 482.0
-offset_right = 535.0
-offset_bottom = 317.0
 
 [node name="PopupManager" type="Control" parent="GameUI"]
 layout_mode = 3
@@ -996,6 +1000,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 56.0
+offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
 horizontal_scroll_mode = 0
@@ -1054,6 +1060,7 @@ layout_mode = 2
 text = "Quit game GTG!"
 
 [node name="UIOverlay" type="CanvasLayer" parent="."]
+visible = false
 
 [node name="FadeToBlack" type="Control" parent="UIOverlay"]
 unique_name_in_owner = true
@@ -1072,6 +1079,7 @@ script = ExtResource("15_in5p4")
 [node name="GameOverScreen" type="CanvasLayer" parent="."]
 unique_name_in_owner = true
 visible = false
+script = ExtResource("33_xtcff")
 
 [node name="ColorRect" type="ColorRect" parent="GameOverScreen"]
 visible = false

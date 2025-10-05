@@ -157,9 +157,7 @@ func log_message(message: String):
 			var vbar = log_container.get_v_scroll_bar()
 			# Wait for scrollbar to update
 			await get_tree().process_frame
-			print("After update - VScrollBar max: ", vbar.max_value)
 			vbar.value = vbar.max_value
-			print("Final scroll position: ", vbar.value)
 
 func fix_floor_collision():
 	# Get all StaticBody3D nodes in Architecture
@@ -196,3 +194,6 @@ func _on_game_over_triggered(reason: String):
 		game_over_screen.show_game_over(reason)
 	else:
 		print("GameOverScreen not found!")
+		
+		
+		
