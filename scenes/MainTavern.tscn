@@ -1,4 +1,4 @@
-[gd_scene load_steps=87 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=86 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://scripts/player/player.gd" id="1_cwghm"]
@@ -20,19 +20,18 @@
 [ext_resource type="Script" uid="uid://dcb6ql0i352xc" path="res://scripts/ui/recruitment_popup.gd" id="13_rus88"]
 [ext_resource type="Script" uid="uid://cbgy3d1lp4gi4" path="res://scripts/ui/mission_board_popup.gd" id="13_td5e2"]
 [ext_resource type="Script" uid="uid://bid6sqlhv351d" path="res://scripts/ui/fade_to_black.gd" id="15_in5p4"]
-[ext_resource type="PackedScene" uid="uid://sl4bu1nvg32j" path="res://scenes/ui/AdventurerCard.tscn" id="18_6dl45"]
 [ext_resource type="Script" uid="uid://bic7krwe7qf12" path="res://scenes/ui/adventurer_roster_panel.gd" id="18_c1wdj"]
 [ext_resource type="PackedScene" uid="uid://rmodh1bhe68t" path="res://assets/characters/models/kaykit_adventurers/Rogue.glb" id="18_n6x1j"]
 [ext_resource type="ArrayMesh" uid="uid://d4l47mtaeuiqs" path="res://assets/environment/decorations/torch_mounted.obj" id="18_xtcff"]
 [ext_resource type="ArrayMesh" uid="uid://cvvfdn73jvyxa" path="res://assets/environment/decorations/trunk_large_A.obj" id="19_drhcq"]
 [ext_resource type="PackedScene" uid="uid://2h0mi3lo1n2x" path="res://assets/environment/furniture/TavernCounterCircular.glb" id="20_ekigb"]
-[ext_resource type="Script" uid="uid://bsljajdvfp30v" path="res://scenes/tavern_management_interaction_info.gd" id="21_g0upg"]
+[ext_resource type="Script" uid="uid://cp4sfhc6n2ady" path="res://scenes/tavern_management_interaction_info.gd" id="21_g0upg"]
 [ext_resource type="ArrayMesh" uid="uid://cy4lxqehvoo17" path="res://assets/environment/furniture/stairs_wide.obj" id="21_q5prt"]
 [ext_resource type="ArrayMesh" uid="uid://bn0hj2aib4mw8" path="res://assets/environment/decorations/barrier.obj" id="22_ayemd"]
-[ext_resource type="Script" uid="uid://b7vvlesm5yvbe" path="res://scenes/recruit_interaction_info.gd" id="22_xtcff"]
+[ext_resource type="Script" uid="uid://ws1e5reqyb1" path="res://scenes/recruit_interaction_info.gd" id="22_xtcff"]
 [ext_resource type="ArrayMesh" uid="uid://mraxhqsusknw" path="res://assets/environment/decorations/barrier_colum_half.obj" id="23_behcn"]
-[ext_resource type="Script" uid="uid://p28v7g3xj61" path="res://scenes/next_day_interaction_info.gd" id="23_drhcq"]
-[ext_resource type="Script" uid="uid://wnbjyrmedv1v" path="res://scenes/mission_board_interaction_info.gd" id="24_3qmei"]
+[ext_resource type="Script" uid="uid://c6feyw4j7ulrg" path="res://scenes/next_day_interaction_info.gd" id="23_drhcq"]
+[ext_resource type="Script" uid="uid://8p555aginoc4" path="res://scenes/mission_board_interaction_info.gd" id="24_3qmei"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_xw0ls"]
 margin = 0.05
@@ -745,16 +744,16 @@ tooltip_text = "Status and info"
 
 [node name="DayLabel" type="Label" parent="GameUI/TopStatsBar"]
 layout_mode = 2
-text = "Day: 1"
+text = "Day"
 
 [node name="GoldLabel" type="Label" parent="GameUI/TopStatsBar"]
 layout_mode = 2
-text = "Gold: 30
+text = "potato
 "
 
 [node name="BeerLabel" type="Label" parent="GameUI/TopStatsBar"]
 layout_mode = 2
-text = "Beer: 5
+text = "Beer:
 "
 
 [node name="MainArea" type="HSplitContainer" parent="GameUI"]
@@ -768,7 +767,7 @@ offset_bottom = -69.0
 grow_vertical = 0
 
 [node name="TavernView" type="Panel" parent="GameUI/MainArea"]
-custom_minimum_size = Vector2(500, 200)
+custom_minimum_size = Vector2(500, 315)
 layout_mode = 2
 
 [node name="LogContainer" type="ScrollContainer" parent="GameUI/MainArea/TavernView"]
@@ -777,6 +776,10 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -12.0
+offset_top = -84.0
+offset_right = -4.0
+offset_bottom = 31.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = SubResource("Theme_0nrlt")
@@ -787,20 +790,24 @@ horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
 [node name="EventLog" type="RichTextLabel" parent="GameUI/MainArea/TavernView/LogContainer"]
-custom_minimum_size = Vector2(500, 200)
+custom_minimum_size = Vector2(500, 315)
 layout_mode = 2
 theme_override_colors/default_color = Color(0, 0, 0, 1)
 theme_override_styles/fill = SubResource("StyleBoxFlat_rus88")
 bbcode_enabled = true
-text = "It was the visible text area remember that! custom minimum size needs to be configred"
+text = "Welcome to the Eternal Guild of the Spotless Mind. 
+
+Manage a Tavern, Recruit adventurers and send them on missions. 
+
+Pay taxes to improve your tavern."
 scroll_following = true
 tab_size = 10
 
 [node name="VScrollBar" type="VScrollBar" parent="GameUI/MainArea/TavernView/LogContainer/EventLog"]
 layout_mode = 2
-offset_left = 483.0
-offset_right = 502.0
-offset_bottom = 202.0
+offset_left = 482.0
+offset_right = 535.0
+offset_bottom = 317.0
 
 [node name="PopupManager" type="Control" parent="GameUI"]
 layout_mode = 3
@@ -998,9 +1005,6 @@ layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="VScrollBar" type="VScrollBar" parent="GameUI/AdventurerRosterPanel/RosterScrollContainer/RosterList"]
-layout_mode = 2
-
-[node name="AdventurerCard" parent="GameUI/AdventurerRosterPanel/RosterScrollContainer/RosterList" instance=ExtResource("18_6dl45")]
 layout_mode = 2
 
 [node name="PauseMenu" type="CanvasLayer" parent="GameUI/AdventurerRosterPanel"]

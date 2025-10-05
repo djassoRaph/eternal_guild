@@ -34,7 +34,7 @@ var taxes_paid_count: int = 0
 # Tier unlock conditions
 var tier_requirements = {
 	1: {"always_unlocked": true},  # Starting tier
-	2: {"taxes_paid": 1, "description": "Pay first tax (Day 30)"},
+	2: {"taxes_paid": 1, "description": "Pay first tax (Day 1000)"},
 	3: {"reputation": 50, "day": 60, "missions_completed": 10, "description": "Build reputation and experience"}
 }
 

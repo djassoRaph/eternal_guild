@@ -2,7 +2,7 @@
 extends Node
 
 # === CORE GAME STATE ===
-var gold: int = 30
+var gold: int = 10
 var beer_stock: int = 5
 var current_day: int = 1
 var max_adventurers: int = 5
@@ -16,7 +16,7 @@ var mission_tier_unlocked: int = 1
 
 # === ECONOMIC SETTINGS ===
 var tax_due_day: int = 30
-var daily_operating_cost: int = 1
+var daily_operating_cost: int = 5
 
 # === UI UPDATE SIGNALS ===
 signal gold_changed(new_amount: int)
@@ -287,7 +287,7 @@ func check_tax_deadline():
 
 func handle_tax_payment():
 	"""Process tax payment with proper game over"""
-	var tax_amount = 50 + (adventurers.size() * 5)
+	var tax_amount = 1000 + (adventurers.size() * 5)
 	
 	if spend_gold(tax_amount):
 		tax_due_day += 30
@@ -536,7 +536,7 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary):
 	"""Load game state from save data"""
-	gold = data.get("gold", 30)
+	gold = data.get("gold", 10)
 	beer_stock = data.get("beer_stock", 5) 
 	current_day = data.get("current_day", 1)
 	tax_due_day = data.get("tax_due_day", 30)
@@ -594,8 +594,8 @@ func trigger_game_over(failure_type: String, reason: String):
 
 func reset_game_state():
 	"""Reset GameManager to initial state"""
-	gold = 30
-	beer_stock = 5
+	gold = 10
+	beer_stock = 0
 	current_day = 1
 	tax_due_day = 30
 	daily_operating_cost = 1
