@@ -19,11 +19,12 @@ func _ready():
 	
 	if player:
 		print("✓ Camera found player: ", player.name)
-		# Set camera to isometric view
 		projection = PROJECTION_ORTHOGONAL
 		size = 15
 		rotation_degrees = Vector3(-30, 45, 0)
-		target_zoom = size  # Add this line!
+		target_zoom = size 
+		cull_mask = 3  # Binary: 0b00000011 (bits 0 and 1 = layers 1 and 2)
+		print("✅ Camera cull_mask set to see layers 1 and 2")
 	else:
 		print("❌ Camera could not find player!")
 
@@ -36,6 +37,17 @@ func _input(event):
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			# Zoom out (larger size = farther view)  
 			target_zoom = min(max_zoom, target_zoom + zoom_speed)
+			
+# In camera_3d.gd, change _input to _unhandled_input
+func _unhandled_input(event):
+	"""Handle mouse wheel zoom - uses unhandled to avoid UI conflicts"""
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			target_zoom = max(min_zoom, target_zoom - zoom_speed)
+			get_viewport().set_input_as_handled()  # Mark as handled
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			target_zoom = min(max_zoom, target_zoom + zoom_speed)
+			get_viewport().set_input_as_handled()
 
 func find_player_node() -> CharacterBody3D:
 	"""Search entire scene for CharacterBody3D named Player"""
