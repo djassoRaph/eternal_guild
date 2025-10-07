@@ -17,6 +17,7 @@ var assigned_missions = []
 
 func _ready():
 	print("Mission Board Popup ready")
+	GameManager.adventurer_roster_changed.connect(_refresh_mission_display)
 
 func open_mission_board():
 	# Check if player has adventurers first
@@ -56,6 +57,19 @@ func update_static_ui():
 	
 	# Update tier status
 	update_tier_labels()
+
+func _on_roster_changed():
+	"""Called when adventurer roster changes (missions complete, injuries, etc)"""
+	if visible:
+		# Refresh the entire board to show updated adventurer availability
+		populate_missions()
+		
+
+func _refresh_mission_display():
+	# Clear and rebuild mission cards
+	if visible:
+		populate_missions()
+
 
 func update_tier_labels():
 	"""Update tier unlock status display"""
@@ -285,14 +299,20 @@ func execute_solo_mission(adventurer: Dictionary, mission: Dictionary):
 	send_log_message("🗡️ " + adventurer.name + " departs on: " + mission.name)
 	send_log_message("🎲 Success chance: " + str(success_chance) + "% (Rolled: " + str(roll) + ")")
 	
+		# Complete mission (this will set status to Resting/Injured)
 	GameManager.complete_mission(adventurer, mission, roll <= success_chance)
+	
+	# CRITICAL FIX: Emit roster changed signal to update all UI
+	GameManager.adventurer_roster_changed.emit()
 	hide()
 
 func execute_party_mission(party: Array, mission: Dictionary):
 	assigned_missions.append(mission)
 	var success_chance = calculate_party_success_chance(party, mission)
 	var roll = randi() % 100 + 1
-	
+	for member in party:
+		member.status = "on_mission"
+		member["current_mission"] = mission.name
 	var party_names = ""
 	for i in range(party.size()):
 		if i > 0:
@@ -304,6 +324,7 @@ func execute_party_mission(party: Array, mission: Dictionary):
 	send_log_message("🎲 Success: " + str(success_chance) + "% (Rolled: " + str(roll) + ")")
 	
 	GameManager.complete_party_mission(party, mission, roll <= success_chance)
+	GameManager.adventurer_roster_changed.emit()
 	hide()
 
 func calculate_solo_success_chance(adventurer: Dictionary, mission: Dictionary) -> int:

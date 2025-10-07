@@ -15,12 +15,12 @@
 [ext_resource type="ArrayMesh" uid="uid://bg80fjrhwb35i" path="res://assets/environment/decorations/pillar_decorated.obj" id="9_g0upg"]
 [ext_resource type="ArrayMesh" uid="uid://erofp7rm7hre" path="res://assets/environment/decorations/wall_doorway_door.obj" id="10_lysou"]
 [ext_resource type="ArrayMesh" uid="uid://b06rvskv8d0pb" path="res://assets/environment/decorations/keg.obj" id="11_ocxae"]
-[ext_resource type="Script" uid="uid://dvsvglpbrmgsn" path="res://scripts/ui/beer_management.gd" id="12_qlm8p"]
+[ext_resource type="Script" uid="uid://dvsvglpbrmgsn" path="res://scripts/ui/tavern_management.gd" id="12_qlm8p"]
 [ext_resource type="Script" uid="uid://blrj1xbsnxh50" path="res://scripts/npcs/PatronSpawner.gd" id="13_ghpec"]
 [ext_resource type="Script" uid="uid://dcb6ql0i352xc" path="res://scripts/ui/recruitment_popup.gd" id="13_rus88"]
 [ext_resource type="Script" uid="uid://cbgy3d1lp4gi4" path="res://scripts/ui/mission_board_popup.gd" id="13_td5e2"]
 [ext_resource type="Script" uid="uid://bid6sqlhv351d" path="res://scripts/ui/fade_to_black.gd" id="15_in5p4"]
-[ext_resource type="Script" uid="uid://bic7krwe7qf12" path="res://scenes/ui/adventurer_roster_panel.gd" id="18_c1wdj"]
+[ext_resource type="Script" uid="uid://bic7krwe7qf12" path="res://scenes/ui/AdventurerRosterPanel.gd" id="18_c1wdj"]
 [ext_resource type="PackedScene" uid="uid://rmodh1bhe68t" path="res://assets/characters/models/kaykit_adventurers/Rogue.glb" id="18_n6x1j"]
 [ext_resource type="ArrayMesh" uid="uid://d4l47mtaeuiqs" path="res://assets/environment/decorations/torch_mounted.obj" id="18_xtcff"]
 [ext_resource type="ArrayMesh" uid="uid://cvvfdn73jvyxa" path="res://assets/environment/decorations/trunk_large_A.obj" id="19_drhcq"]
@@ -843,11 +843,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="BeerManagementPopup" type="PopupPanel" parent="GameUI/PopupManager"]
+[node name="TavernManagementPopup" type="PopupPanel" parent="GameUI/PopupManager"]
+unique_name_in_owner = true
 size = Vector2i(400, 400)
 script = ExtResource("12_qlm8p")
 
-[node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/BeerManagementPopup"]
+[node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/TavernManagementPopup"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -859,7 +860,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
 
-[node name="PaddingContainer" type="MarginContainer" parent="GameUI/PopupManager/BeerManagementPopup/MainContainer"]
+[node name="PaddingContainer" type="MarginContainer" parent="GameUI/PopupManager/TavernManagementPopup/MainContainer"]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 10

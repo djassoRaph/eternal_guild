@@ -161,6 +161,7 @@ func spawn_patron():
 	# Configure patron for this spawn
 	setup_patron_for_spawn(patron_body, table_index)
 	
+	
 	# Activate the patron instance
 	patron_instance.visible = true
 	patron_instance.set_process_mode(Node.PROCESS_MODE_INHERIT)
@@ -171,6 +172,13 @@ func spawn_patron():
 	
 	print("🍺 Active patrons: ", active_patrons.size(), "/", max_patrons)
 	print("🪑 Available tables: ", table_positions.size() - occupied_tables.size())
+	print("=== PATRON SPAWN DEBUG ===")
+	print("Patron position: ", patron_body.global_position)
+	print("Target table: ", table_positions[table_index])
+	print("Distance: ", patron_body.global_position.distance_to(table_positions[table_index]))
+	print("========================")
+
+
 
 func get_patron_from_pool():
 	"""Get an inactive patron from the pool"""
@@ -182,14 +190,17 @@ func get_patron_from_pool():
 	return patron_scene_pool.pop_back()
 
 func setup_patron_for_spawn(patron_body: Node, table_index: int):
-	"""Configure patron for spawning at specific table"""
-	# Reset patron position
-	patron_body.global_position = entrance_position
+	if patron_body.has_method("_ready"):
+		patron_body._ready()
+		"""Configure patron for spawning at specific table"""
+		# Reset patron position
+		patron_body.global_position = entrance_position
 	
 	# Set target table
 	var target_position = table_positions[table_index]
 	patron_body.set_meta("target_table", target_position)
 	patron_body.set_meta("table_index", table_index)
+	patron_body.set_meta("entrance_position", entrance_position)
 	
 	# Reset patron state
 	if patron_body.has_method("reset_patron_state"):
@@ -201,6 +212,7 @@ func setup_patron_for_spawn(patron_body: Node, table_index: int):
 	
 	# Apply settlement-specific traits
 	apply_settlement_traits(patron_body)
+	
 
 func apply_settlement_traits(patron_body: Node):
 	"""Apply settlement-specific traits to patron"""
@@ -295,20 +307,29 @@ func _on_spawn_timer_timeout():
 
 func can_spawn_patron() -> bool:
 	"""Check if patron can spawn"""
+	print("=== CAN_SPAWN_PATRON CHECK ===")
+	print("Active patrons: ", active_patrons.size(), "/", max_patrons)
+	print("Available table: ", get_available_table())
+	print("Beer stock: ", GameManager.get_beer())
+	
 	if active_patrons.size() >= max_patrons:
+		print("❌ Max patrons reached")
 		return false
 	
 	if get_available_table() == -1:
-		return false
-	
-	if GameManager.get_beer() <= 0:
+		print("❌ No available tables")
 		return false
 	
 	var spawn_chance = get_settlement_modifier("spawn_chance")
 	if spawn_chance == null:
 		spawn_chance = 0.8
 	
-	return randf() <= spawn_chance
+	var roll = randf()
+	print("Spawn chance: ", spawn_chance, " Roll: ", roll)
+	print("Result: ", roll <= spawn_chance)
+	print("==============================")
+	
+	return roll <= spawn_chance
 
 func get_available_table() -> int:
 	"""Find available table index"""

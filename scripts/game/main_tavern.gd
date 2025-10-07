@@ -35,6 +35,7 @@ func _ready():
 	
 	print("UI connected to GameManager signals")
 
+
 # === UI UPDATE FUNCTIONS (Connected to GameManager signals) ===
 func _on_gold_changed(new_amount: int):
 	"""Update gold display when GameManager gold changes"""
@@ -116,6 +117,20 @@ func _input(event):
 	if event is InputEventKey and event.keycode == KEY_F10 and event.pressed:
 		GameManager.reset_game_state()
 		print("Game state reset!")
+		
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_F9:
+			# Force status refresh
+			GameManager.adventurer_roster_changed.emit()
+			print("Force refreshed roster")
+		
+		elif event.keycode == KEY_F10:
+			# Print all adventurer statuses
+			print("=== ADVENTURER STATUS DEBUG ===")
+			for adv in GameManager.adventurers:
+				print(adv.name, " - Status: ", adv.status, " - Recovery: ", adv.get("recovery", 0))
+
+
 
 
 func toggle_pause_menu():

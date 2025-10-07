@@ -1,4 +1,4 @@
-# adventurer_roster_panel.gd
+# AdventurerRosterPanel.gd
 extends Control
 
 @onready var roster_list = $RosterScrollContainer/RosterList
@@ -8,6 +8,9 @@ var adventurer_card_scene = preload("res://scenes/ui/AdventurerCard.tscn")
 
 # Track spawned cards
 var adventurer_cards: Dictionary = {}
+
+# CRITICAL FIX: Prevent overlapping refresh calls
+var is_refreshing: bool = false
 
 func _ready():
 	print("🎯 Adventurer Roster Panel initialized")
@@ -46,21 +49,80 @@ func toggle_panel():
 
 func refresh_roster():
 	"""Rebuild entire roster from GameManager"""
+	# CRITICAL FIX: Prevent overlapping refreshes
+	if is_refreshing:
+		print("⚠️ Refresh already in progress, skipping...")
+		return
+	
+	is_refreshing = true
 	print("🔄 Refreshing adventurer roster...")
 	
-	# Clear existing cards
-	for card in adventurer_cards.values():
-		card.queue_free()
+	# Clear ALL children from roster_list
+	for child in roster_list.get_children():
+		child.queue_free()
+	
+	# Clear the tracking dictionary
 	adventurer_cards.clear()
+	
+	# Wait for nodes to actually be freed
+	await get_tree().process_frame
 	
 	# Get adventurers from GameManager
 	var adventurers = GameManager.adventurers
-	
 	print("Found ", adventurers.size(), " adventurers to display")
 	
-	# Create card for each adventurer
-	for adventurer in adventurers:
-		create_adventurer_card(adventurer)
+	if adventurers.size() == 0:
+		_show_empty_roster_message()
+	else:
+		# Create card for each adventurer
+		for adventurer in adventurers:
+			create_adventurer_card(adventurer)
+	
+	# CRITICAL FIX: Release the lock after refresh completes
+	is_refreshing = false
+	print("✅ Roster refresh complete")
+
+func _show_empty_roster_message():
+	"""Display message when no adventurers hired"""
+	var empty_label = Label.new()
+	empty_label.text = "No adventurers in guild\nVisit recruitment desk to hire"
+	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	empty_label.add_theme_font_size_override("font_size", 12)
+	empty_label.add_theme_color_override("font_color", Color.GRAY)
+	roster_list.add_child(empty_label)  # FIXED: Use roster_list
+
+func _get_adventurer_level(adventurer: Dictionary) -> int:
+	"""Calculate level based on completed missions"""
+	var missions = adventurer.get("missions_completed", 0)
+	if missions < 3:
+		return 1
+	elif missions < 8:
+		return 2
+	elif missions < 15:
+		return 3
+	elif missions < 25:
+		return 4
+	elif missions < 40:
+		return 5
+	else:
+		return 6
+
+func _get_status_display(adventurer: Dictionary) -> String:
+	"""Get human-readable status text"""
+	match adventurer.status:
+		"Ready":
+			return "Ready"
+		"on_mission":
+			var mission_name = adventurer.get("current_mission", "Unknown Mission")
+			return "On Mission: " + mission_name
+		"Injured":
+			var days = adventurer.get("recovery", 0)
+			return "Injured (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
+		"Resting":
+			var days = adventurer.get("recovery", 0)
+			return "Resting (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
+		_:
+			return "Unknown"
 
 func create_adventurer_card(adventurer: Dictionary):
 	"""Spawn and populate a single adventurer card"""
@@ -83,26 +145,20 @@ func create_adventurer_card(adventurer: Dictionary):
 	
 	# Class and level
 	var adv_class = adventurer.get("class", "Adventurer")
-	var level = adventurer.get("level", 1)
+	var level = _get_adventurer_level(adventurer)  # FIXED: Use the function
 	class_label.text = adv_class + " (Level " + str(level) + ")"
 	
 	# Status with color coding
 	var status = adventurer.get("status", "Ready")
-	status_label.text = "Status: " + status
+	status_label.text = "Status: " + _get_status_display(adventurer)  # FIXED: Use the function
 	
 	match status:
 		"Ready":
 			status_label.add_theme_color_override("font_color", Color.GREEN)
 		"Resting":
 			status_label.add_theme_color_override("font_color", Color.YELLOW)
-			var recovery = adventurer.get("recovery", 0)
-			if recovery > 0:
-				status_label.text += " (" + str(recovery) + " days)"
 		"Injured":
 			status_label.add_theme_color_override("font_color", Color.RED)
-			var recovery = adventurer.get("recovery", 0)
-			if recovery > 0:
-				status_label.text += " (" + str(recovery) + " days)"
 		"on_mission":
 			status_label.add_theme_color_override("font_color", Color.CYAN)
 	

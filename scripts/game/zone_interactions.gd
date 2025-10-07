@@ -1,4 +1,4 @@
-# interactive.gd - ENHANCED VERSION with Patron-Recruitment Bridge
+# zone_interactions.gd - old file: interactive.gd
 # Supports procedural world choice system and modding architecture
 extends Node3D
 
@@ -77,7 +77,7 @@ func handle_zone_interactions():
 	print("🔑 E key detected! Checking zones...")
 	
 	if player_in_bar:
-		open_beer_management()
+		open_tavern_management()
 	elif player_in_mission:
 		open_mission_board()
 	elif player_in_recruitment:
@@ -86,13 +86,13 @@ func handle_zone_interactions():
 		advance_day()
 		
 
-func open_beer_management():
+func open_tavern_management():
 	"""Open beer management popup"""
 	print("🍺 Attempting to open beer popup...")
-	var beer_popup = get_node("/root/Node3D/GameUI/PopupManager/BeerManagementPopup")
-	if beer_popup:
-		print("✅ Calling open_beer_management...")
-		beer_popup.open_beer_management()
+	var tavern_popup = get_node("/root/Node3D/GameUI/PopupManager/TavernManagementPopup")
+	if tavern_popup:
+		print("✅ Calling open_tavern_management...")
+		tavern_popup.open_tavern_management()
 		send_log_message("Looking at your stock")
 	else:
 		print("❌ Beer popup not found!")

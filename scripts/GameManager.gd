@@ -53,6 +53,7 @@ func _ready():
 	print("Initial state - Gold: ", gold, " Beer: ", beer_stock, " Day: ", current_day)
 	DataManager.data_ready.connect(_on_data_ready)
 
+
 func _on_data_ready():
 	refresh_missions()
 
@@ -172,8 +173,19 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		adventurer.missions_failed += 1
 		log_message("💥 FAILED! " + adventurer.name + " failed the mission: " + mission.name)
 		
+	if adventurer.get("injured", false):
+		adventurer.status = "Injured"
+		adventurer.recovery = randi_range(2, 5)
+	else:
+		adventurer.status = "Resting"
+		adventurer.recovery = 1
+		
 		# FAILURE: Handle mortality and injury (sets own recovery time)
 		handle_party_failure_consequences(adventurer, mission)
+	# Clear mission tracking
+	adventurer.erase("current_mission")
+	# CRITICAL FIX: Emit signal so UI updates
+	adventurer_roster_changed.emit()
 
 
 
@@ -195,9 +207,10 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 		log_message("😴 Party members rest for 1 day after their successful mission")
 	else:
 		log_message("💥 PARTY FAILED! Mission " + mission.name + " was catastrophic")
-		
 		for adventurer in party:
 			handle_party_failure_consequences(adventurer, mission)
+			# CRITICAL FIX: Emit signal so UI updates
+			adventurer_roster_changed.emit()
 
 
 

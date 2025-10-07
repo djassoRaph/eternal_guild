@@ -1,12 +1,12 @@
 extends PopupPanel
-# beer_management.gd - PINT-BASED SYSTEM UPDATE
+# tavern_management.gd - PINT-BASED SYSTEM UPDATE
 
 @onready var main_container = $MainContainer
 
 func _ready():
-	print("Beer Management Popup ready (Pint System)")
+	print("Tavern Management Popup ready")
 
-func open_beer_management():
+func open_tavern_management():
 	populate_popup_content()
 	popup_centered()
 
@@ -25,7 +25,7 @@ func create_beer_ui():
 	
 	# Purchase section title
 	var purchase_title = Label.new()
-	purchase_title.text = "Beer Purchase Options (Per Pint)"
+	purchase_title.text = "Tavern Management Options"
 	purchase_title.add_theme_font_size_override("font_size", 16)
 	purchase_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	main_container.add_child(purchase_title)
@@ -129,7 +129,7 @@ func buy_beer_pints(pints: int, cost: int):
 		# Close and reopen popup to refresh display
 		hide()
 		await get_tree().create_timer(0.1).timeout
-		open_beer_management()
+		open_tavern_management()
 		
 	else:
 		# Purchase failed - insufficient funds
