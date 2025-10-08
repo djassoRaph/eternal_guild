@@ -45,8 +45,7 @@ func create_prompt_ui():
 
 func connect_to_zones():
 	"""Find and connect to all interaction zones"""
-	var interactive_parent = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/Interactive")
-	
+	var interactive_parent = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/TavernNavigation/Interactive")
 	if not interactive_parent:
 		print("ERROR: Could not find Interactive parent node")
 		return

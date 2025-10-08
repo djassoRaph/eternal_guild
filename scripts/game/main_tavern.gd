@@ -14,7 +14,7 @@ extends Node3D
 func _ready():
 	
 	log_message("Game started successfully!")
-	call_deferred("enable_navigation_debug")
+
 	# Allow this node to process input even when paused
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	
@@ -71,41 +71,6 @@ func get_ready_adventurers() -> Array:
 func get_max_adventurers() -> int:
 	"""Legacy function - redirect to GameManager"""
 	return GameManager.get_max_adventurers()
-
-
-
-
-func enable_navigation_debug():
-	# Show navigation mesh in game
-	var nav_region = find_child("TavernNavigation", true, false)
-	if nav_region:
-		print("🔍 NavigationRegion3D found")
-		
-		# Check if mesh exists
-		if nav_region.navigation_mesh:
-			print("✅ NavigationMesh assigned")
-			
-			# Check if baked (has vertices)
-			var vertices = nav_region.navigation_mesh.get_vertices()
-			print("📊 NavigationMesh vertices: ", vertices.size())
-			
-			if vertices.size() == 0:
-				print("❌ NavigationMesh NOT BAKED! Has 0 vertices!")
-			else:
-				print("✅ NavigationMesh is baked with ", vertices.size(), " vertices")
-		else:
-			print("❌ NavigationMesh is NULL!")
-	else:
-		print("❌ TavernNavigation node not found!")
-	
-	# Enable visual debug (shows paths in-game)
-	RenderingServer.set_debug_generate_wireframes(true)
-	get_viewport().debug_draw = Viewport.DEBUG_DRAW_NAVIGATION
-
-
-
-
-
 
 func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool):
 	"""Legacy function - redirect to GameManager"""

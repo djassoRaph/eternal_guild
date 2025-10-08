@@ -5,8 +5,8 @@ extends CharacterBody3D
 @export var jump_velocity: float = 4.5
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
-var target_rotation = 0.0
 
+var target_rotation = 0.0
 
 var nearby_patrons: Array[RealisticPatron] = []
 var interaction_range = 2.5
@@ -15,6 +15,7 @@ const SPEED = 6.0
 const JUMP_VELOCITY = 4.5
 const ROTATION_SPEED = 10.0
 
+@onready var game_manager = get_node("/root/GameManager")
 
 # Reference to the Rogue model for rotation
 @onready var rogue_model = $Rogue
@@ -31,6 +32,25 @@ func _ready():
 	
 	# Disable any conflicting collision in Rogue model
 	disable_rogue_collision_recursive(rogue_model)
+
+
+func _unhandled_input(event):
+	if event.is_action_pressed("ui_accept"):
+		# Get the closest patron in range
+		var closest_patron = get_closest_patron_in_range()
+
+		# Check if a patron was found and if they can be served
+		if closest_patron and closest_patron.has_method("can_be_served_by") and closest_patron.can_be_served_by(global_position):
+			# Now call the serve_patron function
+			closest_patron.serve_patron()
+			game_manager.serve_customer_beer()
+			print("✅ Player served a patron!")
+		else:
+			# Handle other interactions, such as buying beer at the bar
+			var bar_area = get_node_or_null("TavernNavigation/Interactive/BarArea")
+			if bar_area and bar_area.has_method("interact_with_player"):
+				bar_area.interact_with_player()
+
 
 func _physics_process(delta: float) -> void:
 	# Get input as 2D vector first
@@ -83,100 +103,20 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 
-func handle_interaction():
-	"""Handle interaction with NPCs and environment"""
-	if Input.is_action_just_pressed("ui_select"):  # E key by default
-		print("E key pressed - looking for patrons to serve...")
+func get_closest_patron_in_range() -> RealisticPatron:
+	var closest_patron: RealisticPatron = null
+	var min_distance = INF
 
-func try_serve_nearby_patron() -> RealisticPatron:
-	"""Attempt to serve any nearby patrons - FIXED WITH RETURN VALUE"""
-	# Find all nearby patrons that want service
-	var serveable_patrons = find_serveable_patrons()
-	
-	print("Found ", serveable_patrons.size(), " serveable patrons")
-	
-	if serveable_patrons.size() == 0:
-		print("No patrons nearby wanting service")
-		return null  # Return null when no patrons served
-	
-	# Serve the closest patron
-	var closest_patron = serveable_patrons[0]
-	var closest_distance = global_position.distance_to(closest_patron.global_position)
-	
-	for patron in serveable_patrons:
+	for patron in nearby_patrons:
 		var distance = global_position.distance_to(patron.global_position)
-		if distance < closest_distance:
+		if distance < min_distance:
+			min_distance = distance
 			closest_patron = patron
-			closest_distance = distance
-	
-	# Attempt to serve the patron
-	var success = closest_patron.serve(global_position)
-	if success:
-		print("Successfully served patron!")
-		return closest_patron  # Return the served patron
-	else:
-		print("Failed to serve patron (no beer?)")
-		return null  # Return null if service failed
 
-func find_serveable_patrons() -> Array[RealisticPatron]:
-	"""Find all patrons within serving range that want service - FIXED FUNCTION"""
-	var serveable: Array[RealisticPatron] = []
-	
-	# Method 1: Check PatronSpawner children
-	var patron_spawner = get_node_or_null("../PatronSpawner")
-	if patron_spawner:
-		print("Found PatronSpawner, checking children...")
-		for child in patron_spawner.get_children():
-			if child is RealisticPatron:
-				var patron = child as RealisticPatron
-				var distance = global_position.distance_to(patron.global_position)
-				print("Checking patron at distance: ", distance)
-				
-				if patron.can_be_served_by(global_position):
-					serveable.append(patron)
-					print("Added serveable patron!")
-	else:
-		print("PatronSpawner not found at ../PatronSpawner")
-	
-	# Method 2: Search entire scene tree for patrons (fallback)
-	if serveable.size() == 0:
-		print("Searching entire scene tree for patrons...")
-		search_tree_for_patrons(get_tree().current_scene, serveable)
-	
-	return serveable
-
-
-func search_tree_for_patrons(node: Node, serveable_array: Array[RealisticPatron]):
-	"""Recursively search scene tree for RealisticPatron nodes"""
-	if node is RealisticPatron:
-		var patron = node as RealisticPatron
-		if patron.can_be_served_by(global_position):
-			serveable_array.append(patron)
-			print("Found serveable patron in scene tree!")
-	
-	# Search children recursively
-	for child in node.get_children():
-		search_tree_for_patrons(child, serveable_array)
-
-
-func _on_area_3d_body_entered(body):
-	"""Handle entering interaction range with NPCs"""
-	if body is RealisticPatron:
-		nearby_patrons.append(body)
-		print("Patron entered interaction range")
+	if closest_patron and min_distance <= interaction_range:
+		return closest_patron
+	return null
 		
-		
-		
-func _on_area_3d_body_exited(body):
-	"""Handle leaving interaction range with NPCs"""
-	if body is RealisticPatron and body in nearby_patrons:
-		nearby_patrons.erase(body)
-		print("Patron left interaction range")
-		
-
-
-
-
 func align_rogue_to_collision():
 	"""Align Rogue model to collision shape"""
 	if rogue_model:
@@ -203,37 +143,3 @@ func disable_rogue_collision_recursive(node: Node):
 		
 		# Recurse into children
 		disable_rogue_collision_recursive(child)
-
-func _input(event):
-	"""Debug controls"""
-	if event.is_action_pressed("ui_accept"):  # Spacebar
-		debug_positions()
-		
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_F7:  # Debug key
-			print_debug_info()
-		
-
-func print_debug_info():
-	"""Print debug information about player state"""
-	print("=== PLAYER DEBUG ===")
-	print("Position: ", global_position)
-	print("Velocity: ", velocity)
-	print("On floor: ", is_on_floor())
-	print("Nearby patrons: ", nearby_patrons.size())
-	print("==================")
-
-func get_player_position() -> Vector3:
-	return global_position
-
-
-
-func debug_positions():
-	"""Debug position alignment"""
-	print("=== DEBUG INFO ===")
-	print("Player global position: ", global_position)
-	print("Player velocity: ", velocity)
-	print("On floor: ", is_on_floor())
-	if rogue_model:
-		print("Rogue local position: ", rogue_model.position)
-		print("Rogue global position: ", rogue_model.global_position)

@@ -35,9 +35,10 @@
 margin = 0.05
 height = 1.5
 
-[sub_resource type="Environment" id="Environment_kr071"]
-ambient_light_color = Color(0.4, 0.5, 0.7, 1)
-ambient_light_energy = 0.3
+[sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
+vertices = PackedVector3Array(2.96572, 0.498779, -11.4361, 6.21572, 0.498779, -12.9361, 6.21572, 0.498779, -13.6861, 0.965715, 0.498779, -13.6861, 1.96572, 0.498779, -8.1861, -4.28428, 0.498779, -15.9361, -4.28428, 0.498779, -5.4361, -2.78428, 0.498779, -5.4361, -2.53428, 0.498779, -4.9361, 2.46572, 0.498779, -6.4361, 1.96572, 0.498779, -6.6861, 0.715715, 0.498779, -15.4361, 14.2157, 0.498779, -15.9361, 12.4657, 0.498779, -8.1861, 12.7157, 0.498779, -6.9361, 14.2157, 0.498779, -6.9361, 14.2157, 0.498779, -13.6861, 12.4657, 0.498779, -9.9361, 9.71572, 0.498779, -5.6861, 10.4657, 0.498779, -6.4361, 10.9657, 0.498779, -8.1861, 10.9657, 0.498779, -8.4361, 9.46572, 0.498779, -12.9361, 5.96572, 0.498779, -10.9361, 4.96572, 0.498779, -9.9361, 4.71572, 0.498779, -7.6861, 6.21572, 0.498779, -5.6861, 7.21572, 0.498779, -5.1861, 10.2157, 0.498779, -9.9361, 8.46572, 0.498779, -11.1861, 11.9657, 0.498779, -8.4361, 10.4657, 0.498779, -12.4361, 12.2157, 0.498779, -5.4361, 10.7157, 0.498779, -3.9361, 7.46572, 0.498779, 4.3139, 7.21572, 0.498779, 7.3139, 14.2157, 0.498779, 7.3139, 9.71572, 0.498779, -3.4361, 6.71572, 0.498779, -3.4361, 6.71572, 0.498779, 4.0639, 4.71572, 0.498779, -4.1861, 3.21572, 0.498779, -6.1861, -2.28428, 0.498779, -0.9361, -4.28428, 0.498779, -0.6861, -4.28428, 0.498779, 4.0639, -4.28428, 1.49878, -1.6861, -3.28428, 1.49878, -1.6861, -3.53428, 1.49878, -4.4361, -4.28428, 1.49878, -4.4361)
+polygons = [PackedInt32Array(1, 0, 2), PackedInt32Array(2, 0, 3), PackedInt32Array(0, 4, 3), PackedInt32Array(3, 4, 7), PackedInt32Array(3, 7, 6), PackedInt32Array(3, 6, 5), PackedInt32Array(10, 9, 8), PackedInt32Array(8, 7, 10), PackedInt32Array(10, 7, 4), PackedInt32Array(12, 11, 5), PackedInt32Array(5, 11, 3), PackedInt32Array(14, 13, 15), PackedInt32Array(15, 13, 17), PackedInt32Array(15, 17, 16), PackedInt32Array(20, 19, 21), PackedInt32Array(21, 19, 18), PackedInt32Array(1, 2, 22), PackedInt32Array(22, 2, 16), PackedInt32Array(25, 24, 23), PackedInt32Array(26, 18, 27), PackedInt32Array(21, 29, 28), PackedInt32Array(21, 30, 20), PackedInt32Array(20, 30, 13), PackedInt32Array(31, 22, 16), PackedInt32Array(16, 17, 31), PackedInt32Array(30, 17, 13), PackedInt32Array(23, 29, 25), PackedInt32Array(25, 29, 26), PackedInt32Array(26, 29, 18), PackedInt32Array(18, 29, 21), PackedInt32Array(32, 14, 15), PackedInt32Array(32, 15, 33), PackedInt32Array(33, 15, 34), PackedInt32Array(34, 15, 35), PackedInt32Array(35, 15, 36), PackedInt32Array(34, 37, 33), PackedInt32Array(39, 38, 34), PackedInt32Array(34, 38, 37), PackedInt32Array(41, 40, 9), PackedInt32Array(9, 40, 8), PackedInt32Array(8, 40, 42), PackedInt32Array(44, 43, 42), PackedInt32Array(38, 39, 40), PackedInt32Array(40, 39, 42), PackedInt32Array(42, 39, 44), PackedInt32Array(48, 47, 45), PackedInt32Array(45, 47, 46)]
+geometry_parsed_geometry_type = 1
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kr071"]
 albedo_color = Color(0.529412, 0.392157, 0.254902, 1)
@@ -76,9 +77,9 @@ size = Vector3(0.63092, 1, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_6306u"]
 
-[sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
-geometry_parsed_geometry_type = 1
-agent_height = 2.0
+[sub_resource type="Environment" id="Environment_kr071"]
+ambient_light_color = Color(0.4, 0.5, 0.7, 1)
+ambient_light_energy = 0.3
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x2ury"]
 albedo_color = Color(0.349295, 0.212264, 0.0891526, 1)
@@ -371,323 +372,332 @@ debug_color = Color(0, 0.434, 0.508, 1)
 [node name="Rogue" parent="SubViewportContainer/SubViewport/Player" instance=ExtResource("18_n6x1j")]
 transform = Transform3D(-0.990445, 0, 0.137911, 0, 1, 0, -0.137911, 0, -0.990445, 0, -0.5, 0)
 
-[node name="Environment" type="Node3D" parent="SubViewportContainer/SubViewport"]
+[node name="TavernNavigation" type="NavigationRegion3D" parent="SubViewportContainer/SubViewport"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.53674e-07, 1.19209e-07, -2.38419e-06)
+navigation_mesh = SubResource("NavigationMesh_g0upg")
+navigation_layers = 3
 
-[node name="DeskLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+[node name="Architecture" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
+
+[node name="Floor" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(20, 0, 0, 0, 0.2, 0, 0, 0, 21.4665, 5, 0, -5.85423)
+material_override = SubResource("StandardMaterial3D_kr071")
+mesh = SubResource("BoxMesh_6oapo")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Floor"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Floor/StaticBody3D"]
+shape = SubResource("BoxShape3D_cwghm")
+debug_color = Color(0, 0.371, 0.436, 1)
+
+[node name="FloorEntrance" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(7.48185, 0, 0, 0, 0.2, 0, 0, 0, 3, 10.7079, 0, 6.32592)
+mesh = SubResource("BoxMesh_dbh4p")
+surface_material_override/0 = SubResource("StandardMaterial3D_6oapo")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/FloorEntrance"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/FloorEntrance/StaticBody3D"]
+transform = Transform3D(1.00619, 0, 0, 0, 1.00619, 0, 0, 0, 1.00619, 0, 0, 0)
+shape = SubResource("BoxShape3D_bianl")
+
+[node name="WallNorth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(20, 0, 0, 0, 4, 0, 0, 0, 0.3, 5, 2, -16.7861)
+mesh = SubResource("BoxMesh_b7xp1")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallNorth"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallNorth/StaticBody3D"]
+shape = SubResource("BoxShape3D_2ks6e")
+
+[node name="IndoorNorthwall" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(17.9227, 0, 0, 0, 4, 0, 0, 0, 0.3, 8.12218, 2, -14.6575)
+mesh = SubResource("BoxMesh_bianl")
+skeleton = NodePath("../WallNorth")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/IndoorNorthwall"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/IndoorNorthwall/StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0102843, 0, 0.161927)
+shape = SubResource("BoxShape3D_rbvb6")
+
+[node name="WallSouth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(11.9854, 0, 0, 0, 4, 0, 0, 0, 0.3, 0.854959, 2, 4.76846)
+visible = false
+mesh = SubResource("BoxMesh_0i7ti")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallSouth"]
+transform = Transform3D(1.61422, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallSouth/StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 0.999994, 0, 0, 0, 1, -0.00186157, 0, 0)
+shape = SubResource("BoxShape3D_behcn")
+
+[node name="WallEast" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 21.5961, -5, 2, -5.85944)
+mesh = SubResource("BoxMesh_2qto8")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallEast"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallEast/StaticBody3D"]
+shape = SubResource("BoxShape3D_for0f")
+
+[node name="WallWest" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 21.2957, 14.9943, 2, -5.94013)
+visible = false
+mesh = SubResource("BoxMesh_m4lj6")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallWest"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallWest/StaticBody3D"]
+shape = SubResource("BoxShape3D_6306u")
+
+[node name="TavernCounterCircular" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture" instance=ExtResource("20_ekigb")]
+transform = Transform3D(0.37316, 0, 0.417292, 0, 0.423669, 0, -0.449457, 0, 0.346455, 7.74015, 0.0243584, -8.21504)
+
+[node name="StairsWide" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(0.000424165, 0, -0.998847, 0, 0.746212, 0, 0.307622, 0, 0.00137726, 1.42999, 0.1, -15.6464)
+mesh = ExtResource("21_q5prt")
+skeleton = NodePath("../../../../..")
+
+[node name="Barrier" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(0.958778, 0, 0, 0, 1, 0, 0, 0, 0.487843, 4.97565, 3.6009, -14.6711)
+mesh = ExtResource("22_ayemd")
+skeleton = NodePath("../../../../..")
+
+[node name="BarrierColumHalf" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(1, 0, 0, 0, 0.993189, 0, 0, 0, 0.479008, 1.7564, 3.60991, -14.67)
+mesh = ExtResource("23_behcn")
+skeleton = NodePath("../../../../..")
+
+[node name="CoinStackMedium" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(0.453998, 0, 0, 0, 0.570365, 0, 0, 0, 0.409077, 10.2353, 1.00244, -4.60566)
+mesh = ExtResource("8_wqxad")
+skeleton = NodePath("../../../../..")
+
+[node name="PillarDecorated" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6425, 0.1, -14.4359)
+mesh = ExtResource("9_g0upg")
+skeleton = NodePath("../../../../..")
+
+[node name="WallDoorwayDoor" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.7531, 0.151736, -14.412)
+mesh = ExtResource("10_lysou")
+skeleton = NodePath("../../../../..")
+
+[node name="Keg" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.95467, 0.0999992, -11.1322)
+mesh = ExtResource("11_ocxae")
+
+[node name="Environment" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
+
+[node name="DeskLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9191, 1.58766, -4.71662)
 light_color = Color(1, 0.9, 0.6, 1)
 light_energy = 1.5
 omni_range = 4.0
 
-[node name="Outdoors Light" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+[node name="Outdoors Light" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
 transform = Transform3D(0.766044, 0.45452, -0.45452, 0, 0.707107, 0.707107, 0.642788, -0.541675, 0.541675, 9, 3, 8.01709)
 light_color = Color(1, 0.8, 0.5, 1)
 light_energy = 1.5
 
-[node name="TavernLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+[node name="TavernLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.0983, 4.10605, -13.4522)
 light_color = Color(0.6, 0.8, 1, 1)
 light_energy = 2.0
 omni_range = 15.0
 
-[node name="BarLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/Environment"]
+[node name="BarLight" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.06924, 2.08058, -3.57674)
 light_color = Color(1, 0.9, 0.6, 1)
 light_energy = 1.5
 omni_range = 4.0
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/Environment"]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
 environment = SubResource("Environment_kr071")
 
-[node name="Architecture" type="Node3D" parent="SubViewportContainer/SubViewport"]
+[node name="Furniture" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
 
-[node name="Floor" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(20, 0, 0, 0, 0.2, 0, 0, 0, 21.4665, 5, 0, -5.85423)
-material_override = SubResource("StandardMaterial3D_kr071")
-mesh = SubResource("BoxMesh_6oapo")
+[node name="Bar" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/Floor"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/Floor/StaticBody3D"]
-shape = SubResource("BoxShape3D_cwghm")
-debug_color = Color(0, 0.371, 0.436, 1)
-
-[node name="FloorEntrance" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(7.48185, 0, 0, 0, 0.2, 0, 0, 0, 3, 10.7079, 0, 6.32592)
-mesh = SubResource("BoxMesh_dbh4p")
-surface_material_override/0 = SubResource("StandardMaterial3D_6oapo")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/FloorEntrance"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/FloorEntrance/StaticBody3D"]
-transform = Transform3D(1.00619, 0, 0, 0, 1.00619, 0, 0, 0, 1.00619, 0, 0, 0)
-shape = SubResource("BoxShape3D_bianl")
-
-[node name="WallNorth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(20, 0, 0, 0, 4, 0, 0, 0, 0.3, 5, 2, -16.7861)
-mesh = SubResource("BoxMesh_b7xp1")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/WallNorth"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/WallNorth/StaticBody3D"]
-shape = SubResource("BoxShape3D_2ks6e")
-
-[node name="IndoorNorthwall" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(17.9227, 0, 0, 0, 4, 0, 0, 0, 0.3, 8.12218, 2, -14.6575)
-mesh = SubResource("BoxMesh_bianl")
-skeleton = NodePath("../WallNorth")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/IndoorNorthwall"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/IndoorNorthwall/StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0102843, 0, 0.161927)
-shape = SubResource("BoxShape3D_rbvb6")
-
-[node name="WallSouth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(11.9854, 0, 0, 0, 4, 0, 0, 0, 0.3, 0.854959, 2, 4.76846)
-visible = false
-mesh = SubResource("BoxMesh_0i7ti")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/WallSouth"]
-transform = Transform3D(1.61422, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/WallSouth/StaticBody3D"]
-transform = Transform3D(1, 0, 0, 0, 0.999994, 0, 0, 0, 1, -0.00186157, 0, 0)
-shape = SubResource("BoxShape3D_behcn")
-
-[node name="WallEast" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 21.5961, -5, 2, -5.85944)
-mesh = SubResource("BoxMesh_2qto8")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/WallEast"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/WallEast/StaticBody3D"]
-shape = SubResource("BoxShape3D_for0f")
-
-[node name="WallWest" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 21.2957, 14.9943, 2, -5.94013)
-visible = false
-mesh = SubResource("BoxMesh_m4lj6")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Architecture/WallWest"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Architecture/WallWest/StaticBody3D"]
-shape = SubResource("BoxShape3D_6306u")
-
-[node name="TavernCounterCircular" parent="SubViewportContainer/SubViewport/Architecture" instance=ExtResource("20_ekigb")]
-transform = Transform3D(0.37316, 0, 0.417292, 0, 0.423669, 0, -0.449457, 0, 0.346455, 7.74015, 0.0243584, -8.21504)
-
-[node name="StairsWide" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(0.000424165, 0, -0.998847, 0, 0.746212, 0, 0.307622, 0, 0.00137726, 1.42999, 0.1, -15.6464)
-mesh = ExtResource("21_q5prt")
-skeleton = NodePath("../../../..")
-
-[node name="Barrier" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(0.958778, 0, 0, 0, 1, 0, 0, 0, 0.487843, 4.97565, 3.6009, -14.6711)
-mesh = ExtResource("22_ayemd")
-skeleton = NodePath("../../../..")
-
-[node name="BarrierColumHalf" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(1, 0, 0, 0, 0.993189, 0, 0, 0, 0.479008, 1.7564, 3.60991, -14.67)
-mesh = ExtResource("23_behcn")
-skeleton = NodePath("../../../..")
-
-[node name="CoinStackMedium" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(0.453998, 0, 0, 0, 0.570365, 0, 0, 0, 0.409077, 10.2353, 1.00244, -4.60566)
-mesh = ExtResource("8_wqxad")
-skeleton = NodePath("../../../..")
-
-[node name="PillarDecorated" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6425, 0.1, -14.4359)
-mesh = ExtResource("9_g0upg")
-skeleton = NodePath("../../../..")
-
-[node name="WallDoorwayDoor" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.7531, 0.151736, -14.412)
-mesh = ExtResource("10_lysou")
-skeleton = NodePath("../../../..")
-
-[node name="Keg" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Architecture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.95467, 0.0999992, -11.1322)
-mesh = ExtResource("11_ocxae")
-
-[node name="TavernNavigation" type="NavigationRegion3D" parent="SubViewportContainer/SubViewport"]
-navigation_mesh = SubResource("NavigationMesh_g0upg")
-
-[node name="Furniture" type="Node3D" parent="SubViewportContainer/SubViewport"]
-
-[node name="Bar" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
-
-[node name="BarCounter" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Bar"]
+[node name="BarCounter" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar"]
 transform = Transform3D(-1.12722, 0, -0.959472, 0, -0.2, 0, 3.83789, 0, -0.281806, 3.54761, 1.4, -8.90147)
 material_override = SubResource("StandardMaterial3D_x2ury")
 mesh = SubResource("BoxMesh_cwghm")
 skeleton = NodePath("../..")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Furniture/Bar/BarCounter"]
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar/BarCounter"]
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Furniture/Bar/BarCounter/StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar/BarCounter/StaticBody3D"]
 shape = SubResource("BoxShape3D_n6x1j")
 
-[node name="CounterFoot" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Bar/BarCounter"]
+[node name="CounterFoot" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar/BarCounter"]
 transform = Transform3D(0.125, 0, 0, 0, -3.5, 0, 0, 0, 0.5, 0.353604, 3.5, 0)
 material_override = SubResource("StandardMaterial3D_0nrlt")
 mesh = SubResource("CylinderMesh_bianl")
 skeleton = NodePath("../../..")
 
-[node name="Desk" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+[node name="Desk" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 
-[node name="MissionDesk" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk"]
+[node name="MissionDesk" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk"]
 transform = Transform3D(2, 0, 0, 0, 0.2, 0, 0, 0, 1.2, 10.8892, 0.9, -4.42437)
 material_override = SubResource("StandardMaterial3D_qlm8p")
 mesh = SubResource("BoxMesh_x2ury")
 skeleton = NodePath("../..")
 
-[node name="CounterFoot4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+[node name="CounterFoot4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk/MissionDesk"]
 transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, -0.401, -2, -0.341)
 material_override = SubResource("StandardMaterial3D_rus88")
 mesh = SubResource("CylinderMesh_bianl")
 skeleton = NodePath("../CounterFoot")
 
-[node name="CounterFoot" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+[node name="CounterFoot" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk/MissionDesk"]
 transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, -0.4, -2, 0.3)
 material_override = SubResource("StandardMaterial3D_rus88")
 mesh = SubResource("CylinderMesh_bianl")
 skeleton = NodePath("../../../Bar/BarCounter/CounterFoot")
 
-[node name="CounterFoot2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+[node name="CounterFoot2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk/MissionDesk"]
 transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, 0.4, -2, 0.3)
 material_override = SubResource("StandardMaterial3D_rus88")
 mesh = SubResource("CylinderMesh_bianl")
 skeleton = NodePath("../CounterFoot")
 
-[node name="CounterFoot3" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+[node name="CounterFoot3" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk/MissionDesk"]
 transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, 0.403, -2, -0.353)
 material_override = SubResource("StandardMaterial3D_rus88")
 mesh = SubResource("CylinderMesh_bianl")
 skeleton = NodePath("../CounterFoot")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Furniture/Desk/MissionDesk"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk/MissionDesk"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00461149, 9.53674e-07, 0.001809)
 shape = SubResource("BoxShape3D_in5p4")
 debug_color = Color(0.829, 0.218, 0.81, 0.928)
 
-[node name="Chairs" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+[node name="Chairs" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 
-[node name="Chair3" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+[node name="Chair3" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Chairs"]
 transform = Transform3D(0.5, 0, 0, 0, 0.8, 0, 0, 0, 0.5, -3.84707, 0.398272, -0.91467)
 material_override = SubResource("StandardMaterial3D_in5p4")
 mesh = ExtResource("4_bianl")
-skeleton = NodePath("../../../../..")
+skeleton = NodePath("../../../../../..")
 
-[node name="Chair4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+[node name="Chair4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Chairs"]
 transform = Transform3D(0.450629, 0, -0.216641, 0, 0.8, 0, 0.216641, 0, 0.450629, -3.93609, 0.431921, -5.12194)
 material_override = SubResource("StandardMaterial3D_rbvb6")
 mesh = ExtResource("4_bianl")
 skeleton = NodePath("../..")
 
-[node name="Chair5" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+[node name="Chair5" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Chairs"]
 transform = Transform3D(0.499959, -0.0102902, 0, 0.00643136, 0.799934, 0, 0, 0, 0.5, -2.71518, 0.378464, -3.50569)
 material_override = SubResource("StandardMaterial3D_7d3yx")
 mesh = ExtResource("4_bianl")
 skeleton = NodePath("../..")
 
-[node name="Chair6" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+[node name="Chair6" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Chairs"]
 transform = Transform3D(-0.482748, 0, 0.13021, 0, 1, 0, -0.13021, 0, -0.482748, 10.7196, 0.690094, -3.47401)
 mesh = ExtResource("5_x2ury")
 
-[node name="Chair7" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Chairs"]
+[node name="Chair7" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Chairs"]
 transform = Transform3D(-0.0435779, 0, -0.498097, 0, 1, 0, 0.498097, 0, -0.0435779, -2.10159, 0.846973, -2.45834)
 material_override = SubResource("StandardMaterial3D_n6x1j")
 mesh = ExtResource("5_x2ury")
 
-[node name="Fireplace" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+[node name="Fireplace" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -12.1191)
 
-[node name="FireplaceBack" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Fireplace"]
+[node name="FireplaceBack" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Fireplace"]
 transform = Transform3D(1, 0, 0, 0, 2, 0, 0, 0, 2, -4.37572, 0.85344, 2.95584)
 material_override = SubResource("StandardMaterial3D_for0f")
 mesh = SubResource("BoxMesh_7d3yx")
 skeleton = NodePath("../..")
 
-[node name="FireplaceBase" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Fireplace"]
+[node name="FireplaceBase" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Fireplace"]
 transform = Transform3D(1.5, 0, 0, 0, 0.5, 0, 0, 0, 2.5, -4.14807, 0.245816, 2.95802)
 material_override = SubResource("StandardMaterial3D_2ks6e")
 mesh = SubResource("BoxMesh_rbvb6")
 skeleton = NodePath("../..")
 
-[node name="Mantel" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/Fireplace"]
+[node name="Mantel" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Fireplace"]
 transform = Transform3D(1.1, 0, 0, 0, 1.23, 0, 0, 0, 2.2, -4.29858, 1.84693, 2.92972)
 mesh = SubResource("BoxMesh_kr071")
 
-[node name="MissionBoard" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
+[node name="MissionBoard" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 
-[node name="MissionBoard" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Furniture/MissionBoard"]
+[node name="MissionBoard" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/MissionBoard"]
 transform = Transform3D(3, 0, 0, 0, 2, 0, 0, 0, 0.5, 3.97379, 2.40069, -14.2987)
 material_override = SubResource("StandardMaterial3D_td5e2")
 mesh = SubResource("BoxMesh_in5p4")
 skeleton = NodePath("../..")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Furniture/MissionBoard/MissionBoard"]
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/MissionBoard/MissionBoard"]
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Furniture/MissionBoard/MissionBoard/StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/MissionBoard/MissionBoard/StaticBody3D"]
 
-[node name="bench2" parent="SubViewportContainer/SubViewport/Furniture" instance=ExtResource("1_m4lj6")]
+[node name="bench2" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("1_m4lj6")]
 transform = Transform3D(0.0432881, 0, -0.999063, 0, 1, 0, 0.999063, 0, 0.0432881, -2.12044, -0.0188675, 4.44282)
 
-[node name="table2" parent="SubViewportContainer/SubViewport/Furniture" instance=ExtResource("2_0exie")]
+[node name="table1" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("2_0exie")]
+unique_name_in_owner = true
 transform = Transform3D(-1.49659, 0, -0.101056, 0, 1.5, 0, 0.101056, 0, -1.49659, -3.89152, 0, -3.01679)
 
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/Furniture/table2"]
+[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/table1"]
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Furniture/table2/StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/table1/StaticBody3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0217896, 0.258972, 0.0111992)
 shape = SubResource("BoxShape3D_7d3yx")
 
-[node name="barrel5" parent="SubViewportContainer/SubViewport/Furniture" instance=ExtResource("6_0nrlt")]
+[node name="barrel5" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("6_0nrlt")]
 transform = Transform3D(1, 0, 0, 0, 1.27423, 0, 0, 0, 1, 3.96313, -0.25157, -9.01737)
 
-[node name="barrel4" parent="SubViewportContainer/SubViewport/Furniture" instance=ExtResource("6_0nrlt")]
+[node name="barrel4" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("6_0nrlt")]
 transform = Transform3D(1, 0, 0, 0, 1.19363, 0, 0, 0, 1, 4.27461, -0.236148, -10.3816)
 
-[node name="Props" type="Node3D" parent="SubViewportContainer/SubViewport"]
+[node name="Props" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
 
-[node name="barrel2" parent="SubViewportContainer/SubViewport/Props" instance=ExtResource("6_0nrlt")]
+[node name="barrel2" parent="SubViewportContainer/SubViewport/TavernNavigation/Props" instance=ExtResource("6_0nrlt")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.26519, 0.0111728, -7.65725)
 
-[node name="barrel3" parent="SubViewportContainer/SubViewport/Props" instance=ExtResource("6_0nrlt")]
+[node name="barrel3" parent="SubViewportContainer/SubViewport/TavernNavigation/Props" instance=ExtResource("6_0nrlt")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.0062, 0.0810082, -8.34556)
 
-[node name="barrel4" parent="SubViewportContainer/SubViewport/Props" instance=ExtResource("6_0nrlt")]
+[node name="barrel4" parent="SubViewportContainer/SubViewport/TavernNavigation/Props" instance=ExtResource("6_0nrlt")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.03591, 0.0797064, -9.70633)
 
-[node name="TorchMounted" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Props"]
+[node name="TorchMounted" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Props"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.1831, 1.9758, -14.4982)
 mesh = ExtResource("18_xtcff")
-skeleton = NodePath("../../../..")
+skeleton = NodePath("../../../../..")
 
-[node name="TorchMounted2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Props"]
+[node name="TorchMounted2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Props"]
 transform = Transform3D(-0.0779197, 0, 0.99696, 0, 1, 0, -0.99696, 0, -0.0779197, -4.85842, 2.33278, -4.11852)
 mesh = ExtResource("18_xtcff")
-skeleton = NodePath("../../../..")
+skeleton = NodePath("../../../../..")
 
-[node name="TrunkLargeA" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Props"]
+[node name="TrunkLargeA" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Props"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.06592, 0.1, -7.38733)
 mesh = ExtResource("19_drhcq")
-skeleton = NodePath("../../../..")
+skeleton = NodePath("../../../../..")
 
-[node name="Interactive" type="Node3D" parent="SubViewportContainer/SubViewport"]
+[node name="Interactive" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
 script = ExtResource("8_x2ury")
 
-[node name="BarArea" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+[node name="BarArea" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38041, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/BarArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/BarArea"]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 4.88368, -0.118891, -9.14556)
 shape = SubResource("BoxShape3D_x2ury")
 debug_color = Color(0, 0.6, 0.7, 0.668)
 
-[node name="TavernManagementInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Interactive/BarArea/CollisionShape3D"]
+[node name="TavernManagementInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/BarArea/CollisionShape3D"]
 unique_name_in_owner = true
 transform = Transform3D(1.19374, 0, 0, 0, 1, 0, 0, 0, 1, -0.297799, -0.244375, -0.224436)
 visible = false
@@ -697,14 +707,14 @@ mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
 
-[node name="RecruitmentDesk" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+[node name="RecruitmentDesk" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.8142, 0.953636, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/RecruitmentDesk"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/RecruitmentDesk"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12936, 0, -4.94593)
 shape = SubResource("SphereShape3D_x2ury")
 
-[node name="RecruitInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Interactive/RecruitmentDesk/CollisionShape3D"]
+[node name="RecruitInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/RecruitmentDesk/CollisionShape3D"]
 unique_name_in_owner = true
 transform = Transform3D(1.12289, 0, 0, 0, 1, 0, 0, 0, 1.18555, 0.178749, -0.189808, 0.77837)
 visible = false
@@ -713,14 +723,14 @@ mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
 
-[node name="NextDayArea" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+[node name="NextDayArea" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.47227, 0, -3.43201)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/NextDayArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/NextDayArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.3573, 1.30703, -10.4262)
 shape = SubResource("BoxShape3D_qlm8p")
 
-[node name="NextDayInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Interactive/NextDayArea/CollisionShape3D"]
+[node name="NextDayInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/NextDayArea/CollisionShape3D"]
 unique_name_in_owner = true
 transform = Transform3D(1.79427, 0, 0, 0, 1.0414, 0, 0, 0, 1, 0.0952024, -0.953718, 0.51317)
 visible = false
@@ -729,14 +739,14 @@ mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
 
-[node name="MissionBoard" type="Area3D" parent="SubViewportContainer/SubViewport/Interactive"]
+[node name="MissionBoard" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.86048, 1.81339, -1.04096)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/Interactive/MissionBoard"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/MissionBoard"]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -2.03751, -9.53674e-07, -13.1502)
 shape = SubResource("BoxShape3D_0nrlt")
 
-[node name="MissionBoardInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Interactive/MissionBoard/CollisionShape3D"]
+[node name="MissionBoardInteractionInfo" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/MissionBoard/CollisionShape3D"]
 unique_name_in_owner = true
 transform = Transform3D(0.897137, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0.0953214, -0.463653, 0.332062)
 visible = false
@@ -746,18 +756,19 @@ mesh = SubResource("PlaneMesh_wqxad")
 skeleton = NodePath("../../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
 
-[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport"]
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
 transform = Transform3D(0.707107, -0.353553, 0.612373, 0, 0.866026, 0.5, -0.707107, -0.353553, 0.612373, 12.7284, 8, 6.82844)
 projection = 1
 size = 12.0
 script = ExtResource("8_bianl")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/Camera3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Camera3D"]
 extra_cull_margin = 16384.0
 mesh = SubResource("QuadMesh_m4lj6")
 surface_material_override/0 = SubResource("ShaderMaterial_cwghm")
 
-[node name="PatronSpawner" type="Node3D" parent="SubViewportContainer/SubViewport"]
+[node name="PatronSpawner" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
 script = ExtResource("13_ghpec")
 max_patrons = 5
 
