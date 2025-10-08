@@ -1,6 +1,7 @@
-[gd_scene load_steps=112 format=4 uid="uid://dtin5ld8iu8go"]
+[gd_scene load_steps=113 format=4 uid="uid://dtin5ld8iu8go"]
 
 [ext_resource type="Texture2D" uid="uid://b3i7in174x53" path="res://assets/characters/models/kaykit_skeletons/Skeleton_Mage_skeleton_texture.png" id="1_2ne70"]
+[ext_resource type="Script" uid="uid://d0m573083x6b0" path="res://scripts/npcs/RealisticPatron.gd" id="1_08cqf"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_icx0v"]
 height = 1.99489
@@ -69976,6 +69977,9 @@ _data = {
 [node name="PatronFarmer" type="Node3D"]
 
 [node name="CharacterBody3D" type="CharacterBody3D" parent="."]
+script = ExtResource("1_08cqf")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="CharacterBody3D"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CharacterBody3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)

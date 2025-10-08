@@ -1,5 +1,8 @@
 extends Node
 
+@onready var log_container = $GameUI/MainArea/TavernView/LogContainer
+
+
 var character_classes: Dictionary = {}
 var character_names: Array = []
 var character_traits: Dictionary = {}
@@ -37,8 +40,6 @@ var tier_requirements = {
 	2: {"taxes_paid": 1, "description": "Pay first tax (Day 1000)"},
 	3: {"reputation": 50, "day": 60, "missions_completed": 10, "description": "Build reputation and experience"}
 }
-
-@onready var log_container = $GameUI/MainArea/TavernView/LogContainer
 
 func _ready():
 	print("DataManager initialized")

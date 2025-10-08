@@ -1,4 +1,4 @@
-[gd_scene load_steps=92 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=93 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://scripts/player/player.gd" id="1_cwghm"]
@@ -75,6 +75,10 @@ size = Vector3(0.63092, 1, 1)
 [sub_resource type="BoxMesh" id="BoxMesh_m4lj6"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_6306u"]
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
+geometry_parsed_geometry_type = 1
+agent_height = 2.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x2ury"]
 albedo_color = Color(0.349295, 0.212264, 0.0891526, 1)
@@ -507,6 +511,9 @@ skeleton = NodePath("../../../..")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.95467, 0.0999992, -11.1322)
 mesh = ExtResource("11_ocxae")
 
+[node name="TavernNavigation" type="NavigationRegion3D" parent="SubViewportContainer/SubViewport"]
+navigation_mesh = SubResource("NavigationMesh_g0upg")
+
 [node name="Furniture" type="Node3D" parent="SubViewportContainer/SubViewport"]
 
 [node name="Bar" type="Node3D" parent="SubViewportContainer/SubViewport/Furniture"]
@@ -752,8 +759,7 @@ surface_material_override/0 = SubResource("ShaderMaterial_cwghm")
 
 [node name="PatronSpawner" type="Node3D" parent="SubViewportContainer/SubViewport"]
 script = ExtResource("13_ghpec")
-
-[node name="CharacterBody3D" type="CharacterBody3D" parent="SubViewportContainer/SubViewport/PatronSpawner"]
+max_patrons = 5
 
 [node name="GameUI" type="CanvasLayer" parent="."]
 script = ExtResource("21_g0upg")
@@ -1113,5 +1119,20 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.22194, 0.41288, 0.321845, 1)
 
+[node name="CenterContainer" type="CenterContainer" parent="GameOverScreen"]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="GameOverScreen/CenterContainer"]
+layout_mode = 2
+
+[node name="MessageLabel" type="Label" parent="GameOverScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="MainMenuButton" type="Button" parent="GameOverScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Main Menu"
+
 [connection signal="pressed" from="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
 [connection signal="pressed" from="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
+[connection signal="pressed" from="GameOverScreen/CenterContainer/VBoxContainer/MainMenuButton" to="GameOverScreen" method="_on_main_menu_button_pressed"]

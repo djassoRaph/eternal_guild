@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3 uid="uid://blbl3pv1dwxob"]
+
+[ext_resource type="PackedScene" uid="uid://f4xx5yv4p3ni" path="res://assets/characters/models/kaykit_adventurers/Mage.glb" id="1_g66an"]
+[ext_resource type="Script" uid="uid://d0m573083x6b0" path="res://scripts/npcs/RealisticPatron.gd" id="1_swxjw"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_swxjw"]
+
+[node name="RealisticPatron" type="CharacterBody3D"]
+script = ExtResource("1_swxjw")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05059, -0.0223643)
+shape = SubResource("CapsuleShape3D_swxjw")
+
+[node name="Mage" parent="." instance=ExtResource("1_g66an")]
+
+[node name="ServiceIndicator" type="MeshInstance3D" parent="."]
+
+[node name="SittingTimer" type="Timer" parent="."]
+
+[node name="DrinkingTimer" type="Timer" parent="."]

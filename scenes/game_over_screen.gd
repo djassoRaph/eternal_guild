@@ -1,7 +1,8 @@
 extends CanvasLayer
 
 @onready var color_rect = $ColorRect
-@onready var message_label = $CenterContainer/VBoxContainer/MessageLabel  # You'll need to add these UI nodes
+@onready var message_label = $CenterContainer/VBoxContainer/MessageLabel
+@onready var game_over = %GameOverScreen
 
 func show_game_over(reason: String):
 	visible = true
@@ -11,5 +12,10 @@ func show_game_over(reason: String):
 		message_label.text = reason
 
 func _ready():
-	var test_screen = get_node("GameUI/GameOverScreen")
-	print("GameOverScreen found: ", test_screen != null)
+	print("GameOverScreen found: ", game_over != null)
+
+
+func _on_main_menu_button_pressed() -> void:
+	print("GameOverScreen found: ", game_over != null)
+	print('Add code to return to main menu and remove data of current game.')
+	pass # Replace with function body.
