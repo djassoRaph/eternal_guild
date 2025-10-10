@@ -34,6 +34,61 @@ func _ready():
 	disable_rogue_collision_recursive(rogue_model)
 
 
+func handle_interaction():
+	"""Handle E key interaction"""
+	if Input.is_action_just_pressed("ui_select"):  # E key
+		print("🔍 E key pressed - checking for patrons...")
+		try_serve_nearby_patron()
+		
+		
+func try_serve_nearby_patron():
+	"""Find and serve nearby patrons"""
+	# Get all RealisticPatron nodes in the scene
+	var all_patrons = get_tree().get_nodes_in_group("patrons")
+	
+	# If no group, search manually
+	if all_patrons.is_empty():
+		all_patrons = []
+		for node in get_tree().root.get_children():
+			all_patrons.append_array(_find_patrons_recursive(node))
+	
+	if all_patrons.is_empty():
+		print("⚠️ No patrons found in scene")
+		return
+	
+	print("Found ", all_patrons.size(), " total patrons")
+	
+	# Find patrons that want service and are close enough
+	var serveable_patrons = []
+	for patron in all_patrons:
+		if patron.can_be_served_by(global_position):
+			serveable_patrons.append(patron)
+	
+	if serveable_patrons.is_empty():
+		print("No nearby patrons need service")
+		return
+	
+	# Serve the closest one
+	var closest_patron = serveable_patrons[0]
+	var closest_distance = global_position.distance_to(closest_patron.global_position)
+	
+	for patron in serveable_patrons:
+		var dist = global_position.distance_to(patron.global_position)
+		if dist < closest_distance:
+			closest_patron = patron
+			closest_distance = dist
+	
+	# Attempt service
+	print("Attempting to serve ", closest_patron.patron_name, " at distance ", closest_distance)
+	var success = closest_patron.serve_patron()
+	
+	if success:
+		print("✅ Successfully served ", closest_patron.patron_name)
+	else:
+		print("❌ Failed to serve patron")
+
+
+
 func _unhandled_input(event):
 	if event.is_action_pressed("ui_accept"):
 		# Get the closest patron in range
@@ -101,6 +156,20 @@ func _physics_process(delta: float) -> void:
 	
 	# Move the character
 	move_and_slide()
+
+
+func _find_patrons_recursive(node: Node) -> Array:
+	"""Recursively find all RealisticPatron nodes"""
+	var patrons = []
+	
+	if node is RealisticPatron:
+		patrons.append(node)
+	
+	for child in node.get_children():
+		patrons.append_array(_find_patrons_recursive(child))
+	
+	return patrons
+
 
 
 func get_closest_patron_in_range() -> RealisticPatron:
