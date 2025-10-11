@@ -57,6 +57,14 @@ func _ready():
 	
 	main_scene = get_tree().current_scene
 	
+	
+	collision_mask = 0b00000001
+	collision_layer = 0b00000010 
+	
+	print("🛡️ Patron collision: Layer 2, Mask 1 (no NPC-to-NPC collision)")
+	
+	
+	
 	# Get NavigationAgent3D
 	if has_node("NavigationAgent3D"):
 		nav_agent = get_node("NavigationAgent3D")
@@ -72,6 +80,7 @@ func _ready():
 	
 	# Create service indicator (yellow sphere)
 	create_service_indicator()
+
 	
 	# Create timers
 	sitting_timer = Timer.new()
@@ -94,6 +103,8 @@ func _ready():
 		nav_agent.radius = 0.4
 		nav_agent.height = 1.8
 		nav_agent.avoidance_enabled = true
+		nav_agent.avoidance_layers = 0b00000010  # Avoid other NPCs (layer 2)
+		nav_agent.avoidance_mask = 0b00000010   
 		
 		# Connect navigation finished signal
 		nav_agent.navigation_finished.connect(_on_navigation_finished)
