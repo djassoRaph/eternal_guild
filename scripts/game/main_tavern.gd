@@ -121,11 +121,8 @@ func update_beer(change: int):
 func _input(event):
 	if event.is_action_pressed("ui_cancel"):
 		toggle_pause_menu()
-	  # Debug: Reset game state
-	if event is InputEventKey and event.keycode == KEY_F10 and event.pressed:
-		GameManager.reset_game_state()
-		print("Game state reset!")
-		
+	
+	# Debug keys
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_F9:
 			# Force status refresh
@@ -133,13 +130,14 @@ func _input(event):
 			print("Force refreshed roster")
 		
 		elif event.keycode == KEY_F10:
-			# Print all adventurer statuses
-			print("=== ADVENTURER STATUS DEBUG ===")
-			for adv in GameManager.adventurers:
-				print(adv.name, " - Status: ", adv.status, " - Recovery: ", adv.get("recovery", 0))
-
-
-
+			# Reset game state
+			GameManager.reset_game_state()
+			print("Game state reset!")
+		
+		elif event.keycode == KEY_B:
+			# Test game over screen
+			print("🔴 Testing Game Over Screen...")
+			GameManager.trigger_game_over("test_game_over", "TEST: Manual game over triggered with B key")
 
 func toggle_pause_menu():
 	

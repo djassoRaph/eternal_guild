@@ -22,9 +22,13 @@ func update_continue_button_visibility():
 		
 		# Optional: Show save info
 		var save_info = SaveSystem.get_save_info()
-		continue_button.text = "Continue (Day " + str(save_info.get("day", 1)) + ")"
+		var day = save_info.get("day", 1)
+		var gold = save_info.get("gold", 0)
+		continue_button.text = "Continue (Day " + str(day) + " - " + str(gold) + " gold)"
+		print("✅ Save file found - Continue button enabled")
 	else:
 		continue_button.visible = false
+		print("❌ No save file - Continue button hidden")
 
 func _on_start_pressed():
 	"""Start new game"""
@@ -39,35 +43,59 @@ func _on_quit_pressed():
 
 func _on_continue_pressed():
 	"""Load existing save and continue game"""
-	if SaveSystem and SaveSystem.load_game():
-		# Load successful - go to main tavern scene
-		get_tree().change_scene_to_file("res://scenes/MainTavern.tscn")
+	print("📂 Continue button pressed - Loading save...")
+	
+	if SaveSystem:
+		var success = SaveSystem.load_game()
+		
+		if success:
+			print("✅ Save loaded successfully - Starting game...")
+			# Load successful - go to main tavern scene
+			get_tree().change_scene_to_file("res://scenes/MainTavern.tscn")
+		else:
+			print("❌ Save load failed!")
+			show_error_message("Failed to load save file. The save may be corrupted.")
 	else:
-		# Load failed - show error
-		show_error_message("Failed to load save file")
+		print("❌ SaveSystem not found!")
+		show_error_message("Save system not available")
 
 func start_new_game():
 	"""Start fresh game"""
-	# Reset GameManager to initial state
-	if GameManager:
-		GameManager.reset_game_state()
+	print("🎮 Starting new game...")
 	
+	# Reset GameManager to initial state
+	if GameManager and GameManager.has_method("reset_game_state"):
+		GameManager.reset_game_state()
+		print("✅ GameManager reset")
+	
+	# Delete old save file
+	if SaveSystem and SaveSystem.has_save_file():
+		SaveSystem.delete_save_file()
+		print("🗑️ Old save deleted")
+	
+	# Start game
 	get_tree().change_scene_to_file("res://scenes/MainTavern.tscn")
 
 func show_new_game_confirmation():
 	"""Confirm overwriting existing save"""
+	print("⚠️ Showing overwrite confirmation...")
+	
 	var confirmation = ConfirmationDialog.new()
-	confirmation.dialog_text = "Starting a new game will overwrite your existing save. Continue?"
-	confirmation.title = "Overwrite Save?"
+	confirmation.dialog_text = "Starting a new game will delete your existing save file.\n\nCurrent save: Day " + str(SaveSystem.get_save_info().get("day", 1)) + "\n\nAre you sure you want to continue?"
+	confirmation.title = "⚠️ Overwrite Save?"
 	confirmation.confirmed.connect(start_new_game)
+	confirmation.canceled.connect(func(): confirmation.queue_free())
 	add_child(confirmation)
 	confirmation.popup_centered()
 
 func show_error_message(message: String):
 	"""Show error dialog"""
+	print("❌ Error: ", message)
+	
 	var error_dialog = AcceptDialog.new()
 	error_dialog.dialog_text = message
 	error_dialog.title = "Error"
+	error_dialog.confirmed.connect(func(): error_dialog.queue_free())
 	add_child(error_dialog)
 	error_dialog.popup_centered()
 

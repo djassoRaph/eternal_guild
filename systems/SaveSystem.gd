@@ -102,34 +102,63 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	
 	return success
 
+
 func load_game() -> bool:
-	"""Load game from save file"""
+	"""Load game from save file - IMPROVED WITH DEBUG"""
 	if not has_save_file():
-		print("No save file found")
+		print("❌ No save file found at: ", SAVE_FILE)
 		return false
 	
-	print("📂 Loading game state...")
+	print("📂 Loading game state from: ", SAVE_FILE)
 	
 	var save_data = read_save_file(SAVE_FILE)
-	if save_data == null:
-		print("❌ Failed to read save file")
+	if save_data == null or save_data.is_empty():
+		print("❌ Failed to read save file or file is empty")
+		print("   File exists: ", FileAccess.file_exists(SAVE_FILE))
 		return false
+	
+	print("✅ Save file read successfully")
+	print("   Data keys: ", save_data.keys())
 	
 	# Validate save data
 	if not validate_save_data(save_data):
-		print("❌ Save file corrupted or invalid")
+		print("❌ Save file validation failed")
+		print("   Current day: ", save_data.get("current_day", "MISSING"))
+		print("   Gold: ", save_data.get("gold", "MISSING"))
+		print("   Beer: ", save_data.get("beer_stock", "MISSING"))
 		return false
 	
+	print("✅ Save file validated")
+	
 	# Load into GameManager
+	if not GameManager:
+		print("❌ GameManager not found!")
+		return false
+	
 	GameManager.load_save_data(save_data)
 	
-	# Restore beer shortage state
+	# Restore additional state
 	if save_data.has("beer_shortage_days"):
 		GameManager.beer_shortage_days = save_data["beer_shortage_days"]
+		print("   Restored beer_shortage_days: ", GameManager.beer_shortage_days)
+	
 	if save_data.has("adventurer_morale"):
 		GameManager.adventurer_morale = save_data["adventurer_morale"]
+		print("   Restored adventurer_morale")
 	
-	print("✅ Game loaded successfully")
+	# Restore firewood and fuel if saved
+	if save_data.has("firewood_stock"):
+		GameManager.firewood_stock = save_data.get("firewood_stock", 0)
+		GameManager.firewood_changed.emit(GameManager.firewood_stock)
+		print("   Restored firewood: ", GameManager.firewood_stock)
+	
+	if save_data.has("fireplace_fuel"):
+		GameManager.fireplace_fuel = save_data.get("fireplace_fuel", 100.0)
+		GameManager.fireplace_fuel_changed.emit(GameManager.fireplace_fuel)
+		print("   Restored fuel: ", GameManager.fireplace_fuel)
+	
+	print("✅ Game loaded successfully from Day ", save_data.get("current_day", 1))
+	
 	if GameManager.has_method("log_message"):
 		GameManager.log_message("📂 Game loaded from Day " + str(save_data.get("current_day", 1)))
 	
@@ -152,24 +181,45 @@ func write_save_file(filepath: String, data: Dictionary) -> bool:
 	return true
 
 func read_save_file(filepath: String) -> Dictionary:
-	"""Read and parse save file"""
+	"""Read and parse save file - IMPROVED WITH DEBUG"""
+	print("🔍 Attempting to read: ", filepath)
+	
+	if not FileAccess.file_exists(filepath):
+		print("❌ File does not exist: ", filepath)
+		return {}
+	
 	var file = FileAccess.open(filepath, FileAccess.READ)
 	if file == null:
-		print("Cannot open save file for reading: ", filepath)
+		var error = FileAccess.get_open_error()
+		print("❌ Cannot open save file. Error code: ", error)
 		return {}
 	
 	var json_text = file.get_as_text()
 	file.close()
 	
+	if json_text.is_empty():
+		print("❌ Save file is empty")
+		return {}
+	
+	print("✅ File content length: ", json_text.length(), " characters")
+	print("   First 100 chars: ", json_text.substr(0, 100))
+	
 	var json = JSON.new()
 	var parse_result = json.parse(json_text)
 	
 	if parse_result != OK:
-		print("JSON parse error in save file")
+		print("❌ JSON parse error at line ", json.get_error_line())
+		print("   Error message: ", json.get_error_message())
 		return {}
 	
-	return json.data
-
+	var data = json.data
+	
+	if not data is Dictionary:
+		print("❌ Parsed data is not a Dictionary, it's: ", typeof(data))
+		return {}
+	
+	print("✅ JSON parsed successfully")
+	return data
 # === BACKUP SYSTEM ===
 
 func create_save_backup():
@@ -212,26 +262,34 @@ func restore_from_backup(backup_number: int = 1) -> bool:
 
 func validate_save_data(data: Dictionary) -> bool:
 	"""Validate save data integrity"""
+	print("🔍 Validating save data...")
+	
 	var required_fields = ["current_day", "gold", "beer_stock", "adventurers"]
 	
 	for field in required_fields:
 		if not data.has(field):
-			print("Missing required field: ", field)
+			print("❌ Missing required field: ", field)
 			return false
+		print("   ✅ Found: ", field, " = ", data[field])
 	
-	# Validate data types
-	if not data["current_day"] is int or data["current_day"] < 1:
-		print("Invalid day value")
+	# Accept both int and float for numeric values
+	if not (data["current_day"] is int or data["current_day"] is float):
+		print("❌ current_day is not numeric: ", typeof(data["current_day"]))
 		return false
 	
-	if not data["gold"] is int or data["gold"] < 0:
-		print("Invalid gold value")
+	if int(data["current_day"]) < 1:
+		print("❌ Invalid day value: ", data["current_day"])
+		return false
+	
+	if not (data["gold"] is int or data["gold"] is float):
+		print("❌ gold is not numeric: ", typeof(data["gold"]))
 		return false
 	
 	if not data["adventurers"] is Array:
-		print("Invalid adventurers data")
+		print("❌ adventurers is not Array: ", typeof(data["adventurers"]))
 		return false
 	
+	print("✅ Save data validation passed")
 	return true
 
 # === UTILITY FUNCTIONS ===

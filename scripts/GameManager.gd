@@ -582,33 +582,101 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 
 # === SAVE/LOAD SYSTEM ===
 func get_save_data() -> Dictionary:
-	"""Get all data for saving"""
-	return {
+	"""Get all data for saving - COMPLETE VERSION"""
+	print("💾 Gathering save data...")
+	
+	var data = {
+		# Core resources
 		"gold": gold,
 		"beer_stock": beer_stock,
+		
+		# Time tracking
 		"current_day": current_day,
 		"tax_due_day": tax_due_day,
+		
+		# Adventurers
 		"adventurers": adventurers,
-		"max_adventurers": max_adventurers
+		"max_adventurers": max_adventurers,
+		
+		# Beer shortage tracking
+		"beer_shortage_days": beer_shortage_days,
+		"adventurer_morale": adventurer_morale,
+		
+		# Firewood system
+		"firewood_stock": firewood_stock,
+		"fireplace_fuel": fireplace_fuel,
+		
+		# Recruitment
+		"daily_recruits": daily_recruits,
+		"recruit_refresh_day": recruit_refresh_day,
+		
+		# Missions
+		"available_missions": available_missions,
+		
+		# Patron recruitment pool
+		"patron_recruitment_pool": patron_recruitment_pool
 	}
+	
+	print("   Saved: ", data.keys().size(), " fields")
+	print("   Day: ", data.current_day, ", Gold: ", data.gold)
+	
+	return data
 
 func load_save_data(data: Dictionary):
-	"""Load game state from save data"""
-	gold = data.get("gold", 10)
-	beer_stock = data.get("beer_stock", 5) 
-	current_day = data.get("current_day", 1)
-	tax_due_day = data.get("tax_due_day", 30)
-	adventurers = data.get("adventurers", [])
-	max_adventurers = data.get("max_adventurers", 5)
+	"""Load game state from save data - COMPLETE VERSION"""
+	print("📂 Loading save data into GameManager...")
 	
-	# Emit signals to update all UI
+	# Core resources
+	gold = int(data.get("gold", 10))
+	beer_stock = int(data.get("beer_stock", 0))
+	
+	# Time tracking
+	current_day = int(data.get("current_day", 1))
+	tax_due_day = int(data.get("tax_due_day", 30))
+	
+	# Adventurers
+	adventurers = data.get("adventurers", [])
+	max_adventurers = int(data.get("max_adventurers", 5))
+	
+	# Beer shortage tracking
+	beer_shortage_days = int(data.get("beer_shortage_days", 0))
+	adventurer_morale = data.get("adventurer_morale", {})
+	
+	# Firewood system
+	firewood_stock = int(data.get("firewood_stock", 0))
+	fireplace_fuel = data.get("fireplace_fuel", 100.0)
+	
+	# Recruitment
+	daily_recruits = data.get("daily_recruits", [])
+	recruit_refresh_day = int(data.get("recruit_refresh_day", 0))
+	
+	# Missions
+	available_missions = data.get("available_missions", [])
+	
+	# Patron recruitment pool
+	patron_recruitment_pool = data.get("patron_recruitment_pool", [])
+	
+	# Reset game over state
+	game_over_active = false
+	
+	# Re-enable processing
+	set_process_mode(Node.PROCESS_MODE_INHERIT)
+	
+	# Emit all signals to update UI
 	gold_changed.emit(gold)
 	beer_changed.emit(beer_stock)
 	day_changed.emit(current_day)
+	firewood_changed.emit(firewood_stock)
+	fireplace_fuel_changed.emit(fireplace_fuel)
 	adventurer_roster_changed.emit()
 	
 	print("✅ Game state loaded successfully")
-	
+	print("   Day: ", current_day)
+	print("   Gold: ", gold)
+	print("   Beer: ", beer_stock)
+	print("   Adventurers: ", adventurers.size())
+	print("   Firewood: ", firewood_stock)
+	print("   Fuel: ", fireplace_fuel, "%")
 	
 func get_patron_recruitment_pool() -> Array:
 	"""Get current patron recruitment candidates"""
@@ -651,15 +719,37 @@ func trigger_game_over(failure_type: String, reason: String):
 
 
 func reset_game_state():
-	"""Reset GameManager to initial state"""
+	"""Reset GameManager to initial state - COMPLETE VERSION"""
+	print("🔄 Resetting game state...")
+	
+	# Core resources
 	gold = 10
 	beer_stock = 0
+	
+	# Time
 	current_day = 1
 	tax_due_day = 30
 	daily_operating_cost = 1
+	
+	# Adventurers
 	adventurers.clear()
-	available_missions.clear()
+	max_adventurers = 5
+	beer_shortage_days = 0
+	adventurer_morale.clear()
+	
+	# Firewood
+	firewood_stock = 0
+	fireplace_fuel = 100.0
+	
+	# Recruitment
 	daily_recruits.clear()
+	recruit_refresh_day = 0
+	patron_recruitment_pool.clear()
+	
+	# Missions
+	available_missions.clear()
+	
+	# Game state
 	game_over_active = false
 	
 	# Re-enable processing
@@ -669,9 +759,11 @@ func reset_game_state():
 	gold_changed.emit(gold)
 	beer_changed.emit(beer_stock)
 	day_changed.emit(current_day)
+	firewood_changed.emit(firewood_stock)
+	fireplace_fuel_changed.emit(fireplace_fuel)
 	adventurer_roster_changed.emit()
 	
-	print("Game state reset to initial values")
+	print("✅ Game state reset to initial values")
 
 
 

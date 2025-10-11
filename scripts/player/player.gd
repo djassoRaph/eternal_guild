@@ -41,6 +41,7 @@ func handle_interaction():
 		try_serve_nearby_patron()
 		
 		
+		
 func try_serve_nearby_patron():
 	"""Find and serve nearby patrons"""
 	# Get all RealisticPatron nodes in the scene

@@ -33,13 +33,13 @@ func start_sleep_fade():
 	var tween = create_tween()
 	
 	# Fade to black (2 seconds)
-	tween.tween_property(self, "modulate:a", 1.0, 2.0)
+	tween.tween_property(self, "modulate:a", 0, 0.5)
 	
 	# Hold black screen (1 second)
 	tween.tween_interval(1.0)
 	
 	# Fade back to game (2 seconds)
-	tween.tween_property(self, "modulate:a", 0.0, 2.0)
+	tween.tween_property(self, "modulate:a", 0.0, 0.5)
 	
 	# Complete
 	tween.tween_callback(complete_fade)
