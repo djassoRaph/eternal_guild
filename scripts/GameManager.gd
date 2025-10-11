@@ -10,11 +10,11 @@ var adventurers: Array = []
 var available_missions: Array = []  # Changed from Dictionary to Array
 var recruitment_manager = null
 var patron_recruitment_pool = []  # Patrons interested in joining
-
-# === Mission Tier SETTINGS ===
+var firewood_stock: int = 0
+var fireplace_fuel: float = 0.0  # Starts at 0% (fire is out)
+var max_firewood_storage: int = 10
+var daily_patron_visits: int = 0  # Track patrons for fuel drain
 var mission_tier_unlocked: int = 1
-
-# === ECONOMIC SETTINGS ===
 var tax_due_day: int = 30
 var daily_operating_cost: int = 5
 
@@ -26,6 +26,9 @@ signal adventurer_roster_changed()
 signal missions_changed
 signal recruitment_pool_changed
 signal game_over_triggered(reason: String)
+signal firewood_changed(new_amount: int)
+signal fireplace_fuel_changed(new_percentage: float)
+
 
 var mission_refresh_day: int = 1
 var recruit_refresh_day: int = 1
@@ -84,6 +87,29 @@ func spend_gold(amount: int) -> bool:
 func get_gold() -> int:
 	"""Get current gold amount"""
 	return gold
+
+func purchase_firewood(bundles: int, cost: int) -> bool:
+	"""Purchase firewood for the fireplace"""
+	# Check storage capacity
+	if firewood_stock + bundles > max_firewood_storage:
+		log_message("⚠️ Not enough storage space! (Max: " + str(max_firewood_storage) + " bundles)")
+		return false
+	
+	# Check if can afford
+	if not spend_gold(cost):
+		log_message("❌ Insufficient gold to buy firewood (Need " + str(cost) + " gold)")
+		return false
+	
+	# Purchase successful
+	firewood_stock += bundles
+	firewood_changed.emit(firewood_stock)
+	
+	log_message("🪵 Purchased " + str(bundles) + " bundle(s) of firewood for " + str(cost) + " gold")
+	log_message("📦 Firewood stock: " + str(firewood_stock) + "/" + str(max_firewood_storage))
+	
+	return true
+
+
 
 # === BEER MANAGEMENT ===
 func add_beer(amount: int):
@@ -421,15 +447,39 @@ func remove_hired_recruit(recruit: Dictionary):
 			print("✅ Removed hired recruit: ", recruit.name)
 			break
 
-# Enhanced advance_day function
+func despawn_all_patrons():
+	"""Remove all patrons from tavern when day ends"""
+	var patron_spawner = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/TavernNavigation/PatronSpawner")
+	if patron_spawner and patron_spawner.has_method("despawn_all_patrons"):
+		patron_spawner.despawn_all_patrons()
+		log_message("🌙 All patrons have left for the night")
+
+func get_firewood_stock() -> int:
+	return firewood_stock
+
+func get_fireplace_fuel() -> float:
+	return fireplace_fuel
+
+func get_max_firewood_storage() -> int:
+	return max_firewood_storage
+
+
+
 func advance_day():
 	"""Enhanced day advancement with availability reporting"""
 	current_day += 1
 	day_changed.emit(current_day)
-	
+	fireplace_fuel = 0.0  # Fire dies completely
+	fireplace_fuel_changed.emit(fireplace_fuel)
+	log_message("🌅 Day " + str(current_day) + " begins - the fire has gone out overnight")
 	print("🌅 Day ", current_day, " begins!")
 	log_message("=== Day " + str(current_day) + " ===")
-	
+	# If player has firewood, remind them to light it
+	if firewood_stock > 0:
+		log_message("💡 You have " + str(firewood_stock) + " firewood - stoke the fire to warm the tavern!")
+	else:
+		log_message("⚠️ No firewood! Buy some tonight to keep the tavern warm.")
+	daily_patron_visits = 0
 	# Process recovery FIRST (makes adventurers available)
 	process_adventurer_recovery()
 	
@@ -871,14 +921,85 @@ func get_beer_pints() -> int:
 	"""Get current beer stock in pints"""
 	return beer_stock
 
+func count_active_patrons() -> int:
+	"""Count active patrons in tavern for fuel drain calculation"""
+	var patron_spawner = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/TavernNavigation/PatronSpawner")
+	if patron_spawner and patron_spawner.has_method("get_patron_count"):
+		return patron_spawner.get_patron_count()
+	return 0
+
+
+func stoke_fireplace() -> bool:
+	"""Use firewood to increase fire level"""
+	if firewood_stock <= 0:
+		log_message("❌ No firewood available! Buy some from your quarters.")
+		return false
+	
+	# Consume 1 bundle
+	firewood_stock -= 1
+	firewood_changed.emit(firewood_stock)
+	
+	# Add 25% fuel (capped at 100%)
+	var old_fuel = fireplace_fuel
+	fireplace_fuel = min(100.0, fireplace_fuel + 25.0)
+	fireplace_fuel_changed.emit(fireplace_fuel)
+	
+	log_message("🔥 Stoked the fire! (" + str(int(old_fuel)) + "% → " + str(int(fireplace_fuel)) + "%)")
+	
+	return true
+
+func _process(delta):
+	# Only drain fuel if fire is burning
+	if fireplace_fuel > 0:
+		# Base drain rate
+		var drain_rate = 0.15  # 0.15% per second base
+		
+		# Add drain based on active patrons (door opening/closing, warmth used)
+		var active_patrons = count_active_patrons()
+		var patron_drain = active_patrons * 0.05  # 0.05% per patron per second
+		
+		# Total drain
+		var total_drain = (drain_rate + patron_drain) * delta
+		
+		# Apply drain
+		fireplace_fuel -= total_drain
+		fireplace_fuel = max(0.0, fireplace_fuel)
+		
+		# Emit signal if changed significantly (avoid spam)
+		if int(fireplace_fuel) != int(fireplace_fuel + total_drain):
+			fireplace_fuel_changed.emit(fireplace_fuel)
+
+
+
+
+
+func calculate_patron_tip() -> int:
+	"""Calculate tip based on fireplace comfort level"""
+	# Simple linear formula: 100% fuel = 6g, 50% fuel = 3g, 0% fuel = 0g
+	var base_tip = 6.0
+	var comfort_ratio = fireplace_fuel / 100.0
+	var final_tip = int(base_tip * comfort_ratio)
+	
+	return final_tip
+
+
 # === CUSTOMER SERVICE WITH CLEAR ECONOMICS ===
 func serve_customer_beer() -> int:
-	"""Serve beer to customer and return payment (6 gold per pint)"""
+	"""Serve beer to customer with fire-based tip calculation"""
 	if consume_beer_pints(1):
-		var payment = 6  # Fixed 6 gold per pint for clarity
-		add_gold(payment)
-		log_message("Served 1 pint to customer for " + str(payment) + " gold (5g profit)")
-		return payment
+		var payment = 6  # Base payment for beer
+		var tip = calculate_patron_tip()  # Fire-based tip
+		var total = payment + tip
+		
+		add_gold(total)
+		daily_patron_visits += 1  # Track for statistics
+		
+		if tip > 0:
+			log_message("Served 1 pint for " + str(payment) + "g + " + str(tip) + "g tip (Fire: " + str(int(fireplace_fuel)) + "%)")
+		else:
+			log_message("Served 1 pint for " + str(payment) + "g (No tip - fire is out!)")
+		
+		return total
 	else:
 		log_message("Cannot serve customer - no beer available!")
 		return 0

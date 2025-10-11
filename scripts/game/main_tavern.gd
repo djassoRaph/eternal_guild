@@ -9,7 +9,8 @@ extends Node3D
 @onready var fade_system = %FadeToBlack
 @onready var game_over_screen = %GameOverScreen
 @onready var pause_menu = %PauseMenu
-
+@onready var firewood_label = $GameUI/TopStatsBar/FirewoodLabel
+@onready var fuel_label = $GameUI/TopStatsBar/FuelLabel
 
 func _ready():
 	
@@ -17,21 +18,22 @@ func _ready():
 
 	# Allow this node to process input even when paused
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	
-	# Connect fade system
-	if fade_system:
-		fade_system.fade_complete.connect(_on_sleep_complete)
-	
+		
 	# Connect GameManager signals to update UI
 	GameManager.gold_changed.connect(_on_gold_changed)
 	GameManager.beer_changed.connect(_on_beer_changed)
 	GameManager.day_changed.connect(_on_day_changed)
 	GameManager.game_over_triggered.connect(_on_game_over_triggered)
 	
+	GameManager.firewood_changed.connect(_on_firewood_changed)
+	GameManager.fireplace_fuel_changed.connect(_on_fuel_changed)
+	
 	# Initialize UI with current GameManager values
 	_on_gold_changed(GameManager.get_gold())
 	_on_beer_changed(GameManager.get_beer())
 	_on_day_changed(GameManager.get_day())
+	_on_firewood_changed(GameManager.get_firewood_stock())
+	_on_fuel_changed(GameManager.get_fireplace_fuel())
 	
 	print("UI connected to GameManager signals")
 
@@ -49,15 +51,21 @@ func _on_day_changed(new_day: int):
 	"""Update day display when GameManager day changes"""
 	day_label.text = "Day: " + str(new_day)
 
-# === DAY ADVANCEMENT ===
-func advance_to_next_day():
-	"""Handle day advancement - GameManager does the processing"""
-	log_message("Preparing for the next day...")
-	fade_system.start_sleep_fade()
+func advance_day():
+	"""Handle bedroom/sleep interaction - UPDATED FOR BEDROOM POPUP"""
+	print("🌙 Opening bedroom/quarters...")
+	var bedroom_popup = get_node("/root/Node3D/GameUI/PopupManager/BedroomPopup")
+	if bedroom_popup and bedroom_popup.has_method("open_bedroom"):
+		bedroom_popup.open_bedroom()
+		log_message("Reviewing the day before resting...")
+	else:
+		print("❌ Bedroom popup not found!")
+		# Fallback: advance day immediately
+		if GameManager.has_method("advance_day"):
+			GameManager.despawn_all_patrons()
+			GameManager.advance_day()
 
-func _on_sleep_complete():
-	"""Called when fade completes - trigger GameManager day advancement"""
-	log_message("Ready for another day of guild management!")
+
 
 # === LEGACY SUPPORT FUNCTIONS (for existing popups) ===
 func get_adventurer_count() -> int:
@@ -211,4 +219,27 @@ func _on_game_over_triggered(reason: String):
 		print("GameOverScreen not found!")
 		
 		
+func _on_firewood_changed(new_amount: int):
+	"""Update firewood display when stock changes"""
+	if firewood_label:
+		var max_storage = GameManager.get_max_firewood_storage()
+		firewood_label.text = "🪵 Wood: " + str(new_amount) + "/" + str(max_storage)
+
+func _on_fuel_changed(new_percentage: float):
+	"""Update fuel display when fire level changes"""
+	if fuel_label:
+		var fuel_int = int(new_percentage)
+		var color = Color.WHITE
 		
+		# Color code by fuel level
+		if fuel_int >= 75:
+			color = Color.GREEN  # Good fire
+		elif fuel_int >= 50:
+			color = Color.YELLOW  # Moderate fire
+		elif fuel_int >= 25:
+			color = Color.ORANGE  # Low fire
+		else:
+			color = Color.RED  # Dying fire
+		
+		fuel_label.text = "🔥 Fire: " + str(fuel_int) + "%"
+		fuel_label.add_theme_color_override("font_color", color)

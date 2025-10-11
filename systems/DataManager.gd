@@ -1,6 +1,6 @@
 extends Node
 
-@onready var log_container = $GameUI/MainArea/TavernView/LogContainer
+@onready var log_container = %LogContainer
 
 
 var character_classes: Dictionary = {}

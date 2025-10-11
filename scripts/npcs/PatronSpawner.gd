@@ -16,6 +16,8 @@ var table_positions = [
 	Vector3(-3.847, 0.0, -0.915),   # Table 1 - adjust these!
 	Vector3(-2.1, 0.0, -2.5),   # Table 2
 	Vector3(-2.715, 0.0, -3.5),   # Table 3
+	Vector3(-4.2, 0.0, -2.8),       # Table 4 - ADD MORE!
+	Vector3(-1.5, 0.0, -1.2),    
 ]
 
 # State tracking
@@ -139,3 +141,29 @@ func get_patron_count() -> int:
 
 func get_available_table_count() -> int:
 	return table_positions.size() - occupied_tables.size()
+
+func despawn_all_patrons():
+	"""Remove all patrons immediately (called when player sleeps)"""
+	print("🌙 Despawning all patrons for night...")
+	
+	# Store count for logging
+	var patron_count = active_patrons.size()
+	
+	# Remove all patrons
+	for patron in active_patrons.duplicate():  # Use duplicate to avoid modification during iteration
+		# Free their table
+		for table_idx in occupied_tables.keys():
+			if occupied_tables[table_idx] == patron:
+				occupied_tables.erase(table_idx)
+				break
+		
+		# Remove from scene
+		if is_instance_valid(patron):
+			patron.queue_free()
+	
+	# Clear arrays
+	active_patrons.clear()
+	occupied_tables.clear()
+	
+	print("✅ Despawned " + str(patron_count) + " patron(s) for the night")
+	print("📊 Active: 0/" + str(max_patrons) + " | Tables: 0/" + str(table_positions.size()))

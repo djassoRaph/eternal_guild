@@ -33,6 +33,14 @@ var patron_name: String = "Patron"
 var service_indicator: MeshInstance3D  # Created in _ready()
 @onready var patron_body_mesh: Node3D = $Mage
 
+#Add more NPC's here. 
+var character_models = [
+	"res://assets/characters/models/kaykit_adventurers/Mage.glb",
+	"res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+	"res://assets/characters/models/kaykit_adventurers/Knight.glb",
+	# Add more!
+]
+
 # Timers
 var sitting_timer: Timer  # Created in _ready()
 var drinking_timer: Timer  # Created in _ready()
