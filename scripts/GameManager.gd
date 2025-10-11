@@ -464,7 +464,7 @@ func get_max_firewood_storage() -> int:
 	return max_firewood_storage
 
 
-
+# Enhanced advance_day function
 func advance_day():
 	"""Enhanced day advancement with availability reporting"""
 	current_day += 1
@@ -474,12 +474,7 @@ func advance_day():
 	log_message("🌅 Day " + str(current_day) + " begins - the fire has gone out overnight")
 	print("🌅 Day ", current_day, " begins!")
 	log_message("=== Day " + str(current_day) + " ===")
-	# If player has firewood, remind them to light it
-	if firewood_stock > 0:
-		log_message("💡 You have " + str(firewood_stock) + " firewood - stoke the fire to warm the tavern!")
-	else:
-		log_message("⚠️ No firewood! Buy some tonight to keep the tavern warm.")
-	daily_patron_visits = 0
+	
 	# Process recovery FIRST (makes adventurers available)
 	process_adventurer_recovery()
 	

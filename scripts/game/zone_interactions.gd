@@ -7,6 +7,7 @@ extends Node3D
 @onready var recruitment_area = $RecruitmentDesk
 @onready var bedroom_area = $NextDayArea
 
+
 # Player state tracking
 var player_in_bedroom = false
 var player_in_bar = false
@@ -14,11 +15,14 @@ var player_in_mission = false
 var player_in_recruitment = false
 
 
-
-
+func _input(event):
+	# Handle E key for all zone interactions
+	if event.is_action_pressed("interact"):  # This is the E key!
+		handle_interaction_priority()
+		
 func _ready():
 	setup_interaction_areas()
-	send_log_message("Enhanced Interactive areas connected!")
+	
 
 func setup_interaction_areas():
 	"""Connect all interaction area signals"""
@@ -44,13 +48,6 @@ func setup_patron_tracking():
 	else:
 		print("PatronSpawner not found - will search manually for patrons")
 
-func _input(event):
-	if event.is_action_pressed("interact"):
-		handle_interaction_priority()
-	elif event is InputEventKey and event.pressed:
-		if event.keycode == KEY_F9:  # Debug patron recruitment
-			debug_patron_recruitment()
-
 func handle_interaction_priority():
 	"""Handle E key with priority: Patrons > Zone interactions"""
 	if GameManager.game_over_active:
@@ -75,6 +72,7 @@ func try_serve_nearby_patron(player) -> bool:
 func handle_zone_interactions():
 	"""Handle zone-based interactions (existing functionality)"""
 	print("🔑 E key detected! Checking zones...")
+	print("DEBUG: player_in_bedroom =", player_in_bedroom)
 	
 	if player_in_bar:
 		open_tavern_management()
@@ -83,8 +81,15 @@ func handle_zone_interactions():
 	elif player_in_recruitment:
 		open_recruitment_desk()
 	elif player_in_bedroom:
+		print("DEBUG: Calling advance_day()...") 
 		advance_day()
-		
+	else:
+		print("DEBUG: No zone active!")
+	
+
+
+
+
 
 func open_tavern_management():
 	"""Open beer management popup"""
@@ -124,15 +129,28 @@ func open_recruitment_desk():
 		print("❌ Recruitment popup not found!")
 
 func advance_day():
-	"""Handle day advancement"""
-	print("🌙 Advancing to next day...")
-	if GameManager.has_method("advance_day"):
-		GameManager.advance_day()
-		# Clear expired patron recruitment candidates
-		GameManager.cleanup_expired_recruitment_candidates()
-	
-	send_log_message("You rest for the night and prepare for tomorrow's challenges.")
+	"""Open bedroom popup instead of advancing day directly"""
+	print("🌙 Opening bedroom/quarters...")
+	open_bedroom_popup()
 
+
+func open_bedroom_popup():
+	"""Open bedroom management popup"""
+	print("🛏️ Attempting to open bedroom popup...")
+	
+	var bedroom_popup = get_node("/root/Node3D/GameUI/PopupManager/BedroomPopup")
+	if bedroom_popup:
+		print("✅ Calling open_bedroom()...")
+		bedroom_popup.open_bedroom()
+		send_log_message("Reviewing the day before resting...")
+	else:
+		print("❌ Bedroom popup not found!")
+		# Fallback: advance day directly if popup missing
+		if GameManager.has_method("advance_day"):
+			GameManager.despawn_all_patrons()
+			GameManager.advance_day()
+			GameManager.cleanup_expired_recruitment_candidates()
+	
 # === AREA ENTER/EXIT HANDLERS ===
 func _on_bar_entered(body):
 	if body.name == "Player":
@@ -167,7 +185,7 @@ func _on_recruitment_exited(body):
 func _on_nextday_entered(body):
 	if body.name == "Player":
 		player_in_bedroom = true
-		print("Player entered bedroom area")
+		print("✅ Player entered bedroom area - player_in_bedroom =", player_in_bedroom)
 
 func _on_nextday_exited(body):
 	if body.name == "Player":
@@ -180,18 +198,3 @@ func send_log_message(message: String):
 		GameManager.log_message(message)
 	else:
 		print("LOG: ", message)
-
-# === DEBUG FUNCTIONS ===
-func _input_debug(event):
-	"""Debug functions for testing"""
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_F9:  # Debug patron recruitment
-			debug_patron_recruitment()
-
-func debug_patron_recruitment():
-	"""Debug function to test patron recruitment system"""
-	print("=== PATRON RECRUITMENT DEBUG ===")
-	print("Current recruitment pool size: ", GameManager.patron_recruitment_pool.size())
-	for candidate in GameManager.patron_recruitment_pool:
-		print("- ", candidate.name, " (", candidate.class, ") - ", candidate.hiring_cost, "g")
-	print("================================")

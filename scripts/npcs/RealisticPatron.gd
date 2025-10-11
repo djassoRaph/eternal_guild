@@ -1,7 +1,7 @@
 # RealisticPatron.gd - COMPLETE WALKING SYSTEM
 extends CharacterBody3D
 class_name RealisticPatron
-
+@onready var log_container = %LogContainer
 # Movement constants
 const SPEED = 2.5
 const GRAVITY = 9.8
@@ -230,7 +230,8 @@ func on_drinking_timer_timeout():
 	if current_state == PatronState.DRINKING:
 		print("💰 ", patron_name, " finished drinking. Pays ", payment_amount, "g")
 		GameManager.add_gold(payment_amount)
-		
+		GameManager.log_message("• " + patron_name + " finished drinking. Pays " + str(payment_amount) + " gold")
+
 		# Stand up and leave
 		if patron_body_mesh:
 			patron_body_mesh.scale.y = 1.0

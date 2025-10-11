@@ -806,7 +806,6 @@ surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
 
 [node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
 transform = Transform3D(0.707107, -0.353553, 0.612373, 0, 0.866026, 0.5, -0.707107, -0.353553, 0.612373, 12.7284, 8, 6.82844)
-visible = false
 projection = 1
 size = 12.0
 script = ExtResource("8_bianl")
@@ -849,7 +848,7 @@ text = "Wood: 0/10"
 
 [node name="FirewoodLabel" type="Label" parent="GameUI/TopStatsBar"]
 layout_mode = 2
-text = "🔥 Fire: 0%"
+text = "Fire: 0%"
 
 [node name="MainArea" type="HSplitContainer" parent="GameUI"]
 anchors_preset = 2
@@ -1040,27 +1039,117 @@ theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
 [node name="BedroomPopup" type="PopupPanel" parent="GameUI/PopupManager"]
-size = Vector2i(400, 300)
+size = Vector2i(450, 600)
 script = ExtResource("29_ocxae")
 
-[node name="MainContainer" type="VBoxContainer" parent="GameUI/PopupManager/BedroomPopup"]
+[node name="MarginContainer" type="MarginContainer" parent="GameUI/PopupManager/BedroomPopup"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 4.0
 offset_top = 4.0
-offset_right = 396.0
-offset_bottom = 296.0
+offset_right = -4.0
+offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="MainVBox" type="VBoxContainer" parent="GameUI/PopupManager/BedroomPopup/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="DaySummaryContainer" type="VBoxContainer" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/DaySummaryContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.84, 0, 1)
+theme_override_font_sizes/font_size = 24
+text = "🌙 YOUR QUARTERS"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/DaySummaryContainer"]
+layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="PaddingContainer" type="MarginContainer" parent="GameUI/PopupManager/BedroomPopup/MainContainer"]
+[node name="SummaryTitle" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/DaySummaryContainer"]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_colors/font_color = Color(1, 0.84, 0, 1)
+theme_override_font_sizes/font_size = 16
+text = "📊 DAY 1 SUMMARY
+"
+horizontal_alignment = 1
+
+[node name="GoldLabel" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/DaySummaryContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "💰 Gold: 0"
+
+[node name="BeerLabel" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/DaySummaryContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "🍺 Beer: 0 pints"
+
+[node name="AdventurersLabel" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/DaySummaryContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "⚔️ Adventurers: 0"
+
+[node name="HSeparator2" type="HSeparator" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox"]
+layout_mode = 2
+
+[node name="FirewoodContainer" type="VBoxContainer" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FirewoodTitle" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/FirewoodContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.5, 0, 1)
+theme_override_font_sizes/font_size = 18
+text = "🔥 FIREWOOD FOR TOMORROW"
+horizontal_alignment = 1
+
+[node name="StockLabel" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/FirewoodContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "Current stock: 0/10 bundles"
+horizontal_alignment = 1
+
+[node name="InfoLabel" type="Label" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/FirewoodContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 10
+text = "Each bundle adds 25% fuel when used"
+horizontal_alignment = 1
+
+[node name="ButtonsContainer" type="VBoxContainer" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/FirewoodContainer"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Buy3Button" type="Button" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/FirewoodContainer/ButtonsContainer"]
+layout_mode = 2
+text = "Buy 3 bundles - 15 gold"
+
+[node name="Buy5Button" type="Button" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/FirewoodContainer/ButtonsContainer"]
+layout_mode = 2
+text = "Buy 5 bundles - 25 gold"
+
+[node name="Buy10Button" type="Button" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox/FirewoodContainer/ButtonsContainer"]
+layout_mode = 2
+text = "Buy 10 bundles (Max) - 45 gold"
+
+[node name="HSeparator3" type="HSeparator" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox"]
+layout_mode = 2
+
+[node name="SleepButton" type="Button" parent="GameUI/PopupManager/BedroomPopup/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "💤 SLEEP (Advance to Next Day)"
 
 [node name="AdventurerRosterPanel" type="Control" parent="GameUI"]
 layout_mode = 3
