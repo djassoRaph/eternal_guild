@@ -20,6 +20,7 @@ config/icon="res://assets/ui/icons/icon.svg"
 GameManager="*res://scripts/GameManager.gd"
 DataManager="*res://systems/DataManager.gd"
 SaveSystem="*res://systems/SaveSystem.gd"
+WorldManager="*res://systems/WorldManager.gd"
 
 [display]
 

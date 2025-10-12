@@ -1,0 +1,67 @@
+{
+	"dwarf_drow_citadel": {
+		"name": "Khaz'Akar",
+		"faction": "Dwarf/Drow Union",
+		"symbol": "C",
+		"color": "gold",
+		"biome_preference": ["mountain", "high_mountain"],
+		"demon_proximity": "far",
+		"landmark": {
+			"name": "The Orrery of the Silent Sky",
+			"symbol": "R",
+			"description": "A colossal, broken armillary sphere of unknown metal."
+		}
+	},
+	"elven_grove": {
+		"name": "Syl'vanor",
+		"faction": "Elves/Halflings",
+		"symbol": "C",
+		"color": "lightgreen",
+		"biome_preference": ["forest"],
+		"demon_proximity": "far",
+		"landmark": {
+			"name": "The Weeping Monoliths",
+			"symbol": "R",
+			"description": "A circle of towering, moss-covered stones that perpetually drip pure water."
+		}
+	},
+	"human_bastion": {
+		"name": "King's Crossing",
+		"faction": "Human/Beast-Kin Kingdoms",
+		"symbol": "C",
+		"color": "cyan",
+		"biome_preference": ["grassland"],
+		"demon_proximity": "neutral",
+		"landmark": {
+			"name": "The Sunken Archives",
+			"symbol": "R",
+			"description": "The flooded, crystalline dome of a massive Prior library."
+		}
+	},
+	"crystalian_spire": {
+		"name": "S'sthar",
+		"faction": "Crystalian/Reptiles",
+		"symbol": "C",
+		"color": "orange",
+		"biome_preference": ["desert"],
+		"demon_proximity": "close",
+		"landmark": {
+			"name": "The Mirror of Heat",
+			"symbol": "R",
+			"description": "A perfectly smooth, obsidian dish a mile wide that focuses the desert sun."
+		}
+	},
+	"demon_citadel": {
+		"name": "Gorgoroth",
+		"faction": "Evil Folk/Demons",
+		"symbol": "C",
+		"color": "red",
+		"biome_preference": ["volcanic", "deadland"],
+		"demon_proximity": "max",
+		"landmark": {
+			"name": "The Rift of Whispers",
+			"symbol": "R",
+			"description": "A deep, unnatural chasm that glows with a faint, malevolent light."
+		}
+	}
+}
