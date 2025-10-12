@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://cv4nlvgv6ive0"]
+
+[ext_resource type="Script" uid="uid://87nxv5btpkjn" path="res://scenes/world/ASCIIWorldSelection.gd" id="1_g1ual"]
+
+[node name="AsciiWorldSelection" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_g1ual")

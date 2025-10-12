@@ -1,0 +1,15 @@
+OH WE CAN PUT A MINI GAME HERE! To help him light the fire. 
+Each time the player tries to increase the fire we can have a "mini reflex game" 
+OH WE CAN PUT A MINI GAME HERE! To help him light the fire. Each time the player tries to increase the fire we can have a "mini reflex game"
+
+🔮 Future Expansion Ready:
+
+This foundation supports:
+
+🎮 Fire lighting mini-game (reflex-based)
+
+🏪 Automation (hire fire tender)
+
+🌨️ Weather effects (seasonal fuel needs)
+
+📍 Settlement variations (different climates)

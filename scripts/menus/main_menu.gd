@@ -1,104 +1,81 @@
-# MainMenu.gd - FIXED AND ENHANCED
+# main_menu.gd - Simple main menu for Eternal Guild
 extends Control
 
-@onready var start_button = $VBoxContainer/StartButton
-@onready var quit_button = $VBoxContainer/QuitButton
-@onready var continue_button = $VBoxContainer/ContinueButton  # Fixed path
+# Path to your existing tavern scene
+const TAVERN_SCENE = "res://scenes/MainTavern.tscn"
+const ASCII_WORLD_SCENE = "res://scenes/world/ASCIIWorldSelection.tscn"
 
+# UI References from your existing scene
+@onready var start_button = $VBoxContainer/StartButton
+@onready var continue_button = $VBoxContainer/ContinueButton
+@onready var quit_button = $VBoxContainer/QuitButton
+
+# Add a new button for procedural world
+var procedural_button: Button
 
 func _ready():
-	start_button.pressed.connect(_on_start_pressed)
-	quit_button.pressed.connect(_on_quit_pressed)
-	continue_button.pressed.connect(_on_continue_pressed)  # Fixed syntax
+	print("Main Menu Ready")
 	
-	# Show/hide continue button based on save file existence
-	update_continue_button_visibility()
+	# Connect existing buttons
+	start_button.pressed.connect(_on_start_button_pressed)
+	continue_button.pressed.connect(_on_continue_button_pressed)
+	quit_button.pressed.connect(_on_quit_button_pressed)
+	
+	# Add a new button for procedural world selection
+	add_procedural_world_button()
+	
+	# Disable continue if no save exists
+	continue_button.disabled = not has_save_game()
 
-func update_continue_button_visibility():
-	"""Show continue button only if save file exists"""
-	if SaveSystem and SaveSystem.has_save_file():
-		continue_button.visible = true
-		continue_button.disabled = false
-		
-		# Optional: Show save info
-		var save_info = SaveSystem.get_save_info()
-		var day = save_info.get("day", 1)
-		var gold = save_info.get("gold", 0)
-		continue_button.text = "Continue (Day " + str(day) + " - " + str(gold) + " gold)"
-		print("✅ Save file found - Continue button enabled")
+func add_procedural_world_button():
+	"""Add a button for ASCII world selection between Start and Continue"""
+	procedural_button = Button.new()
+	procedural_button.text = "Choose Starting Location (ASCII Map)"
+	
+	# Insert it after the Start button
+	var vbox = $VBoxContainer
+	vbox.add_child(procedural_button)
+	vbox.move_child(procedural_button, 2)  # Place it after Start button
+	
+	procedural_button.pressed.connect(_on_procedural_button_pressed)
+
+func _on_start_button_pressed():
+	"""Original start - goes directly to tavern"""
+	print("Starting classic game...")
+	get_tree().change_scene_to_file(TAVERN_SCENE)
+
+func _on_procedural_button_pressed():
+	"""New option - choose location on ASCII map first"""
+	print("Opening ASCII world selection...")
+	
+	# Check if ASCII scene exists
+	if not FileAccess.file_exists(ASCII_WORLD_SCENE):
+		# If ASCII scene doesn't exist yet, just go to tavern
+		print("ASCII scene not found, loading tavern directly")
+		get_tree().change_scene_to_file(TAVERN_SCENE)
 	else:
-		continue_button.visible = false
-		print("❌ No save file - Continue button hidden")
+		# Load ASCII world selection
+		get_tree().change_scene_to_file(ASCII_WORLD_SCENE)
 
-func _on_start_pressed():
-	"""Start new game"""
-	# Optional: Warn if save file exists
-	if SaveSystem and SaveSystem.has_save_file():
-		show_new_game_confirmation()
-	else:
-		start_new_game()
+func _on_continue_button_pressed():
+	"""Continue saved game"""
+	if load_game_state():
+		get_tree().change_scene_to_file(TAVERN_SCENE)
 
-func _on_quit_pressed():
+func _on_quit_button_pressed():
+	"""Quit game"""
 	get_tree().quit()
 
-func _on_continue_pressed():
-	"""Load existing save and continue game"""
-	print("📂 Continue button pressed - Loading save...")
-	
-	if SaveSystem:
-		var success = SaveSystem.load_game()
-		
-		if success:
-			print("✅ Save loaded successfully - Starting game...")
-			# Load successful - go to main tavern scene
-			get_tree().change_scene_to_file("res://scenes/MainTavern.tscn")
-		else:
-			print("❌ Save load failed!")
-			show_error_message("Failed to load save file. The save may be corrupted.")
-	else:
-		print("❌ SaveSystem not found!")
-		show_error_message("Save system not available")
+func has_save_game() -> bool:
+	"""Check if a save file exists"""
+	return FileAccess.file_exists("user://savegame.dat")
 
-func start_new_game():
-	"""Start fresh game"""
-	print("🎮 Starting new game...")
-	
-	# Reset GameManager to initial state
-	if GameManager and GameManager.has_method("reset_game_state"):
-		GameManager.reset_game_state()
-		print("✅ GameManager reset")
-	
-	# Delete old save file
-	if SaveSystem and SaveSystem.has_save_file():
-		SaveSystem.delete_save_file()
-		print("🗑️ Old save deleted")
-	
-	# Start game
-	get_tree().change_scene_to_file("res://scenes/MainTavern.tscn")
-
-func show_new_game_confirmation():
-	"""Confirm overwriting existing save"""
-	print("⚠️ Showing overwrite confirmation...")
-	
-	var confirmation = ConfirmationDialog.new()
-	confirmation.dialog_text = "Starting a new game will delete your existing save file.\n\nCurrent save: Day " + str(SaveSystem.get_save_info().get("day", 1)) + "\n\nAre you sure you want to continue?"
-	confirmation.title = "⚠️ Overwrite Save?"
-	confirmation.confirmed.connect(start_new_game)
-	confirmation.canceled.connect(func(): confirmation.queue_free())
-	add_child(confirmation)
-	confirmation.popup_centered()
-
-func show_error_message(message: String):
-	"""Show error dialog"""
-	print("❌ Error: ", message)
-	
-	var error_dialog = AcceptDialog.new()
-	error_dialog.dialog_text = message
-	error_dialog.title = "Error"
-	error_dialog.confirmed.connect(func(): error_dialog.queue_free())
-	add_child(error_dialog)
-	error_dialog.popup_centered()
-
-
-func _on_continue_button_pressed() -> void:
-	pass # Replace with function body.
+func load_game_state() -> bool:
+	"""Load the game state"""
+	var save_file = FileAccess.open("user://savegame.dat", FileAccess.READ)
+	if save_file:
+		# Load your game data here
+		# For now, just close the file
+		save_file.close()
+		return true
+	return false
