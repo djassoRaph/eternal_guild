@@ -30,14 +30,9 @@ layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="Portrait" type="TextureRect" parent="CardContent"]
-clip_contents = true
-custom_minimum_size = Vector2(80, 80)
-layout_mode = 2
-texture = ExtResource("1_8hkqs")
-
 [node name="InfoContainer" type="VBoxContainer" parent="CardContent"]
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="NameLabel" type="Label" parent="CardContent/InfoContainer"]
 layout_mode = 2
@@ -62,3 +57,9 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.843137, 0, 1)
 theme_override_font_sizes/font_size = 16
 text = "Daily Cost: 1 gold"
+
+[node name="Portrait" type="TextureRect" parent="CardContent"]
+clip_contents = true
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+texture = ExtResource("1_8hkqs")

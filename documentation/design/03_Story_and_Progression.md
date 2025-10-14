@@ -1,49 +1,75 @@
-# GDD Section 3: Story & Progression
+# 03_Story_and_Progression.md - Eternal Guild Narrative and Progression Design
 
-### **Version: 1.0**
-### **Project: Chronicles of the Eternal Guild**
-
----
-## 1. World & Setting
-The story takes place in the Kingdom of Aethel, a land of breathtaking beauty and lingering shadows, reminiscent of the fantasy worlds of *Studio Ghibli* and *Record of Lodoss War*. It's a world generations removed from the last Great War against the Demon Lords, where overgrown ruins and ancient battlefields dot the landscape. While cities bustle with life and trade, the wildlands remain dangerous, and whispers from the dark corners of the world suggest the long peace is nearing its end.
-
-The player's journey begins in one of the many settlements scattered across Aethel, a choice that will fundamentally shape their entire story.
+## 🎭 **Overview**
+This document outlines the narrative arc and progression system for *Eternal Guild*, guiding players through a procedural "adventure story" of tavern and guild management. The game features a 3-act structure, evolving from a confined tutorial phase to an open-world exploration loop, with replayability enhanced by biome-specific challenges and the "Achievements/Hommage" system. Progression is designed to introduce complexity gradually, avoiding overwhelm, while supporting multiple victory paths (economic, political, exploration) and future modding.
 
 ---
-## 2. Narrative Hook
-The player character is a newcomer to their chosen settlement, having acquired the deed to a run-down, forgotten tavern—the future Eternal Guild. Whether they are a hopeful entrepreneur, a disgraced noble seeking a new start, or a veteran looking for a quiet life, they all share a common problem: the tavern is burdened by a mountain of debt, and the Crown's tax collector is due in 30 days. They must make the tavern profitable, or lose everything.
+
+## 📖 **Three-Act Narrative Structure**
+
+### **Act I: The Tavern Awakening (Days 1-30)**
+**Setting the Stage**: Players begin in **MainTavern.tscn**, managing a newly inherited tavern in a chosen settlement from the **WorldGenerateMenu.tscn** ASCII map. This 30-day tutorial phase establishes core mechanics: serving patrons, recruiting adventurers, assigning missions, and handling economics (beer sales, taxes).
+
+- **Narrative Hook**: A mysterious letter from "The Warden" hints at the tavern’s ancient ties to the "Priors" ruins, setting a lore foundation. Daily procedural "chances" (e.g., 20% chance of a bard rumor or patron story) introduce light narrative beats, keeping management engaging without grind.
+- **Progression Goals**: 
+  - Build initial gold reserves through beer sales and tips (influenced by Fireplace comfort levels).
+  - Recruit a small adventurer roster (2-3 characters) with unique traits from JSON data.
+  - Survive the first tax payment (1000 gold) by Day 30, unlocking the outdoor world.
+- **Procedural Elements**: Random seed-generated settlement data (e.g., biome: plains/river) subtly affects initial conditions (e.g., river towns start with a trade bonus).
+- **Player Experience**: A gentle learning curve with intuitive UI (e.g., E-key interactions, mission board popups), ensuring discoverability without external guides.
+- **Transition**: On Day 30, a tax success event triggers a door unlock in MainTavern.tscn, fading to **MainTown.tscn** for Act II.
+
+### **Act II: The Town Unfolds (Post-Day 30)**
+**Expanding Horizons**: Players exit the tavern to explore **MainTown.tscn**, a procedural outdoor map reflecting their chosen settlement’s biome and features (e.g., river with bridge, central plaza/fountain, fields). This act introduces a fluid indoor-outdoor loop, deepening the guild’s story through town interactions.
+
+- **Narrative Development**: The "Warden’s Commission" questline begins—players discover clues to the "Priors" ruins (e.g., herb gathering near rivers reveals lore fragments). Procedural town events (e.g., 30% chance of a plaza festival) tie to settlement factors, creating unique stories per playthrough.
+- **Progression Goals**: 
+  - Explore the town, interact with NPCs to unlock adventurer quests (e.g., "Defend the bridge" or "Gather herbs for brewing").
+  - Forage resources (hops/herbs in fields/rivers, 5-10 nodes respawning daily) to craft custom beer, wine, or cider (post-MVP upgrades via tavern renovations).
+  - Build town relations (e.g., trade with merchants in plazas) to unlock faction-specific missions (Nobles, Assassins).
+- **Procedural Elements**: MapGen generates unique layouts (noise-based rivers, Voronoi plazas), with biome-specific challenges (e.g., flood events in river towns). Character arcs evolve via shared experiences (e.g., herb quests trigger "Journey Through the Arcana" updates).
+- **Player Experience**: Seamless phasing between MainTavern.tscn and MainTown.tscn (via WorldManager singleton) avoids reload lag, maintaining 60 FPS. Varied routines (exploration vs. management) prevent Stardew-like repetition.
+- **Transition**: Completing initial town quests (e.g., Warden’s first clue) unlocks Act III, with deeper world events.
+
+### **Act III: The Eternal Legacy (Post-Initial Quests)**
+**Endgame Evolution**: Players ascend to guild masters, shaping their legacy through procedural world expansion and community-driven content. This act supports long-term engagement and multiple victory paths.
+
+- **Narrative Climax**: The "Priors" ruins storyline culminates in a settlement-specific finale (e.g., river towns reveal a flooded temple, plains uncover an ancient market). Procedural world events (e.g., demon incursions near ruins) challenge all playstyles.
+- **Progression Goals**: 
+  - Achieve victory via economic dominance (brewery empire), political influence (faction alliances), or exploration mastery (ruin discoveries).
+  - Unlock "Achievements/Hommage" submenu in MainMenu.tscn, replaying maps with bonuses (e.g., "River Trader Legacy" starts with brewing upgrades).
+- **Procedural Elements**: Full isometric world/town gen (Phase 4) creates infinite replay loops, with moddable biomes and features (e.g., custom rivers/plazas via JSON).
+- **Player Experience**: Dynamic challenges (e.g., escalating taxes in Noble territories) keep optimization rewarding. Community mods add variety, avoiding Fort of Chains’ end-game gap.
+- **Transition**: Legacy completion loops back to MainMenu.tscn, encouraging new seeds or "hommage" replays.
 
 ---
-## 3. The Player's Journey: A Three-Act Structure
 
-### Act I: The Crucible (Days 1-30)
-The first act serves as an organic, high-stakes tutorial focused on survival and mastery of the core mechanics.
-
-* **The Confined Space**: The player's world is confined entirely to the tavern's interior. The doors are open for business, but the player cannot yet leave. This focuses their attention on the immediate tasks: serving patrons, managing their first few recruits, and making every coin count.
-* **The Ticking Clock**: The 30-day deadline for the tax payment is the central driving force. It creates a constant, meaningful pressure that forces the player to learn the economic systems quickly.
-* **The Milestone: Judgement Day**: On Day 30, the tax collector arrives. This is a major narrative beat, presented as a tense 2D event scene.
-    * **Success**: Paying the tax is a moment of triumph. The collector, impressed, grants the player a full Guild Charter. The doors to the outside world are now unlocked, and the true adventure begins.
-    * **Failure**: Failing to pay leads to darker, branching consequences—perhaps an adventurer is seized as collateral, or the player is forced into servitude to a shadowy faction, altering the course of their game.
-
-### Act II: The Warden's Commission (Mid-Game)
-With the Guild now established and the world open for exploration, the player's focus shifts from mere survival to building a legacy.
-
-* **Unearthing the Past**: Now able to afford renovations, the player can invest in the tavern's foundation. This leads to the discovery of ruins from a mythical precursor civilization known only as "The Priors." The investigation unfolds in stages:
-    1.  **The Sealed Doorway**: A cellar renovation reveals an impossibly ancient, perfectly sealed stone door.
-    2.  **The Echoing Crypt**: Beyond the door lies a vast crypt, perfect for expanding the guild but hinting at something even larger below.
-    3.  **The Great Hall of the Ancients**: A massive, awe-inspiring hall is uncovered, allowing the Guild to become a major power in the region.
-* **Attracting Attention**: The Guild's rapid success and strange archaeological finds attract the notice of the local ruler. The ruler, concerned about rising monster activity and rumors of a new Demon Lord, formally commissions the Guild. This act, "The Warden's Commission," gives the player their main quest: to investigate and eliminate the Demon Lord's generals, pushing the central plot forward.
-
-### Act III: Echoes of the Past (Late-Game)
-The two main plot threads—the threat of the Demon Lord and the mystery of The Priors—begin to intertwine.
-
-* **The Deep Mystery**: The final excavation beneath the tavern uncovers the ultimate secret of The Priors in that region—perhaps an ancient superweapon, a sealed magical library, or a direct link to the Demon Lords themselves.
-* **The Final Confrontation**: Armed with knowledge or power from the Prior ruins, the player is now equipped to take on the final Demon Lord. The end-game is a culmination of their economic strength, the power of their veteran adventurers (those who have completed their "Journey Through the Arcana"), and the secrets they have unearthed.
+## 🔄 **Procedural Replay Loop**
+- **MainMenu.tscn**: "Achievements/Hommage" button tracks completed settlements, allowing replays with saved seeds and biome-specific bonuses (e.g., forest maps boost herb yields). This fosters replayability across 20-30 procedural towns.
+- **WorldGenerateMenu.tscn**: Seed input generates unique ASCII maps, with town selection locking in narrative/aesthetic variations (e.g., river biomes for trade, ruin-heavy for lore).
+- **Loop Closure**: Each playthrough ends with a legacy summary, feeding into the "hommage" system for iterative storytelling.
 
 ---
-## 4. Storytelling Methods
-The narrative is delivered through several channels to create a rich and immersive experience.
 
-* **2D Event Scenes**: Key story moments, character introductions, and critical choices are presented in paused, text-based scenes with 2D character portraits and backgrounds, allowing for focused, impactful storytelling.
-* **Emergent Narrative**: The core management loop is designed to create unscripted stories of struggle, loss, and victory as adventurers succeed or fail on missions.
-* **Environmental Storytelling**: The design of the tavern, the Prior ruins, and the different settlements will all contain visual clues about the world's history and lore.
+## 🎮 **Gameplay Integration**
+- **Character Depth**: Adventurers gain personalities through town interactions (e.g., a rogue thrives on espionage quests), avoiding stat-only designs.
+- **Resource System**: Post-MVP, gathered herbs/hops unlock brewing upgrades (e.g., cider in orchard biomes), tying economics to exploration.
+- **Difficulty Scaling**: Taxes and events scale with progress, with recovery mechanics (e.g., loan options) to avoid punishing failures.
+
+---
+
+## 🛠 **Modding Support**
+- **Act I**: Modders can add daily event pools in JSON (e.g., `events.json`).
+- **Act II**: Custom town features (rivers, plazas) via `locations.json`.
+- **Act III**: Full world gen mods with API hooks for new biomes/quests.
+
+---
+
+## 💡 **Key Takeaways**
+- Progression balances tutorial depth with open-ended exploration.
+- Procedural "chances" (events, maps) ensure varied, meaningful play.
+- Replayability via "hommage" supports all victory paths, preventing late-game stagnation.
+
+---
+
+**Conclusion**: This 3-act structure evolves from a cozy tavern start to a dynamic world, leveraging procedural generation for a rich, replayable narrative. Future phases will expand modding and isometric visuals, aligning with Eternal Guild’s community-driven vision.

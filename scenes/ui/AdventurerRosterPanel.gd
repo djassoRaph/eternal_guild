@@ -32,20 +32,35 @@ func _input(event):
 	if event.is_action_pressed("ui_focus_next"):  # Tab key
 		toggle_panel()
 
+
 func toggle_panel():
-	"""Slide panel in/out"""
-	var tween = create_tween()
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(Tween.TRANS_CUBIC)
-	
+	"""Toggle panel visibility (used by Tab key)"""
 	if position.x >= 1920:  # Currently hidden
-		# Slide in from right
+		show_panel()
+	else:  # Currently visible
+		hide_panel()
+
+func show_panel():
+	"""Slide panel in from right (only if currently hidden)"""
+	if position.x >= 1920:  # Currently hidden
+		var tween = create_tween()
+		tween.set_ease(Tween.EASE_OUT)
+		tween.set_trans(Tween.TRANS_CUBIC)
 		tween.tween_property(self, "position:x", 1570, 0.3)
 		print("📂 Opening roster panel")
-	else:  # Currently visible
-		# Slide out to right
+	# If already visible, do nothing (keep it shown)
+
+func hide_panel():
+	"""Slide panel out to right (only if currently visible)"""
+	if position.x < 1920:  # Currently visible
+		var tween = create_tween()
+		tween.set_ease(Tween.EASE_OUT)
+		tween.set_trans(Tween.TRANS_CUBIC)
 		tween.tween_property(self, "position:x", 1920, 0.3)
 		print("📁 Closing roster panel")
+	# If already hidden, do nothing
+
+
 
 func refresh_roster():
 	"""Rebuild entire roster from GameManager"""
@@ -188,6 +203,7 @@ func _on_roster_changed():
 	"""Called when GameManager adventurer roster changes"""
 	print("🔔 Roster changed signal received!")
 	refresh_roster()
+	show_panel()
 
 func _on_day_changed(new_day: int):
 	"""Called when day advances - refresh to update recovery timers"""
