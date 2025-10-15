@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://dhq2378awrxj0"]
+
+[ext_resource type="Script" uid="uid://barde2r32nqm0" path="res://control.gd" id="1_r67kn"]
+[ext_resource type="PackedScene" uid="uid://qe4yqmglcecn" path="res://scenes/ui/SingleMissionCard.tscn" id="2_brbbq"]
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_r67kn")
+
+[node name="SingleMissionCard" parent="." instance=ExtResource("2_brbbq")]
+layout_mode = 0
+offset_right = 440.0

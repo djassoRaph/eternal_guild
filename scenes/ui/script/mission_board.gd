@@ -1,4 +1,4 @@
-extends PopupPanel
+extends Control
 
 # UI References - connected to nodes you created in editor
 @onready var title_label = $MainContainer/TitleLabel
@@ -11,13 +11,18 @@ extends PopupPanel
 @onready var tier3_label = $MainContainer/TierRow/Tier3Label
 @onready var progress_label = $MainContainer/ProgressLabel
 @onready var scroll_container = $MainContainer/ScrollContainer
-@onready var missions_container = $MainContainer/ScrollContainer/MissionsContainer
-
+@onready var missionboard = $"."
+@onready var missions_container = $ScrollContainer/MissionsContainer
 var assigned_missions = []
 
 func _ready():
-	print("Mission Board Popup ready")
+	print("Mission Board scene ready")
 	GameManager.adventurer_roster_changed.connect(_refresh_mission_display)
+	missionboard.visible = false
+
+func _input(event):
+	if visible and event.is_action_pressed("ui_cancel"):
+		visible = false
 
 func open_mission_board():
 	# Check if player has adventurers first
@@ -26,11 +31,12 @@ func open_mission_board():
 	if total_adventurers == 0:
 		send_log_message("❌ No adventurers in your guild!")
 		send_log_message("💡 Visit the recruitment desk to hire adventurers first.")
+		visible = false  # Hide if no adventurers
 		return
 	
 	update_static_ui()
 	populate_missions()
-	popup_centered()
+	visible = true  # Show the board
 
 func update_static_ui():
 	"""Update all static UI labels with current game state"""
@@ -110,9 +116,18 @@ func update_tier_labels():
 
 func populate_missions():
 	"""Clear and repopulate mission cards"""
-	# Clear existing mission cards
-	for child in missions_container.get_children():
-		child.queue_free()
+	print("Populating missions - available count: ", GameManager.available_missions.size())  # Add this
+	#for child in missions_container.get_children():
+	#	child.queue_free()
+	
+	for mission in GameManager.available_missions:
+		print("Creating card for mission: ", mission.name)
+		var mission_button = RichTextLabel.new()
+		mission_button.text = "[color=" + get_category_color(mission.category).to_html(false) + "]" + get_category_info(mission.category).icon + " " + mission.name + "[/color]\n" + mission.description + "\nReward: " + str(randi_range(mission.reward_range[0], mission.reward_range[1])) + " gold\nDanger: " + get_danger_description(mission.danger)
+		mission_button.connect("pressed", _on_mission_selected.bind(mission))
+		missions_container.add_child(mission_button)
+	
+	
 	
 	await get_tree().process_frame
 	
@@ -132,6 +147,69 @@ func populate_missions():
 	# Create mission cards by category
 	for category in missions_by_category.keys():
 		create_category_section(category, missions_by_category[category])
+
+
+func _on_mission_selected(mission):
+	"""Handle mission selection and assignment"""
+	print("Mission selected: ", mission.name)
+	var ready_adventurers = GameManager.get_ready_adventurers()
+	var is_party = mission.party_required
+	var required_count = 3 if is_party else 1
+	
+	if ready_adventurers.size() < required_count:
+		send_log_message("❌ Not enough ready adventurers for this mission!")
+		return
+	
+	var assigned = ready_adventurers.slice(0, required_count - 1)
+	var success_chance = calculate_success_chance(mission, assigned)
+	var outcome = GameManager.assign_mission(mission, is_party, assigned)
+	
+	if outcome.success:
+		send_log_message("✅ Mission '" + mission.name + "' assigned! Success chance: " + str(success_chance) + "%")
+		assigned_missions.append(mission)
+		refresh_daily_missions()  # Clear and repopulate to reflect new state
+	else:
+		send_log_message("❌ Failed to assign mission: " + outcome.reason)
+	
+	# Optionally close the board after selection (e.g., visible = false)
+
+func calculate_success_chance(mission, assigned_adventurers):
+	"""Calculate success chance for a mission based on adventurer stats"""
+	var base_chance = 50  # Baseline success probability
+	var total_strength = 0
+	var total_dexterity = 0
+	var total_intelligence = 0
+	var total_endurance = 0
+	var total_experience = 0
+	var synergy_bonus = 0
+	
+	# Aggregate stats from assigned adventurers
+	for adventurer in assigned_adventurers:
+		total_strength += adventurer.get_stat("strength", 0)
+		total_dexterity += adventurer.get_stat("dexterity", 0)
+		total_intelligence += adventurer.get_stat("intelligence", 0)
+		total_endurance += adventurer.get_stat("endurance", 0)
+		total_experience += adventurer.get_stat("experience", 0)
+		# Add synergy if multiple adventurers (simplified)
+		if assigned_adventurers.size() > 1:
+			synergy_bonus += 5
+	
+	var success_factors = mission.success_factors if mission.success_factors else ["strength", "teamwork"]
+	var stat_bonus = 0
+	
+	for factor in success_factors:
+		match factor:
+			"strength": stat_bonus += (total_strength * 2)
+			"dexterity": stat_bonus += (total_dexterity * 2)
+			"intelligence": stat_bonus += (total_intelligence * 2)
+			"endurance": stat_bonus += (total_endurance * 1)
+			"teamwork": stat_bonus += synergy_bonus
+	
+	var experience_bonus = total_experience * 1
+	var danger_penalty = mission.danger * 6
+	var final_chance = base_chance + stat_bonus + experience_bonus - danger_penalty
+	
+	return clampi(final_chance, 15, 95)
 
 func group_missions_by_category(missions: Array) -> Dictionary:
 	"""Group missions by category for organized display"""

@@ -1,5 +1,5 @@
 # fireplace_zone.gd
-# Attach to: TavernNavigation/Interactive/FireplaceZone (Area3D)
+# Attach to: TavernNavigation/Interactive/FireplaceArea (Area3D)
 extends Area3D
 
 var player_nearby: bool = false
@@ -86,7 +86,7 @@ func _update_fire_visuals(fuel_percent: float):
 		
 		# Color shift: Red (low) to Orange (high)
 		var red = 1.0
-		var green = 0.3 + (fuel_percent / 100.0) * 0.5  # 0.3 to 0.8
+		var green = 0.3 + (fuel_percent / 100.0) * 0.8  # 0.3 to 0.8
 		var blue = 0.1
 		fire_light.light_color = Color(red, green, blue)
 	

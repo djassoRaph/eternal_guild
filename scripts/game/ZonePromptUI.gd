@@ -46,6 +46,7 @@ func create_prompt_ui():
 func connect_to_zones():
 	"""Find and connect to all interaction zones"""
 	var interactive_parent = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/TavernNavigation/Interactive")
+	var interactive_fire = get_node_or_null("")
 	if not interactive_parent:
 		print("ERROR: Could not find Interactive parent node")
 		return
@@ -54,28 +55,39 @@ func connect_to_zones():
 		"BarArea": "Press E - Tavern Management",
 		"RecruitmentDesk": "Press E - Recruit Adventurers",
 		"MissionBoard": "Press E - View Missions",
-		"NextDayArea": "Press E - Rest & Plan"
+		"NextDayArea": "Press E - Rest & Plan",
+		"FireplaceArea": "Press E - Engage Fire"
 	}
 	
 	for zone_name in zone_configs.keys():
+		print(zone_name)
+		print(zone_configs)
 		var zone = interactive_parent.get_node_or_null(zone_name)
 		if zone and zone is Area3D:
 			var prompt_text = zone_configs[zone_name]
+			print("Player entered prompt zone: ", prompt_text)
+			print("zone is in area3D = ", zone)
+			print(prompt_text)
 			zone.body_entered.connect(func(body): _on_zone_entered(body, prompt_text))
 			zone.body_exited.connect(_on_zone_exited)
 			print("Connected to zone: ", zone_name)
 		else:
 			print("WARNING: Could not find zone: ", zone_name)
+			
+			
+			
 
 func _on_zone_entered(body: Node3D, prompt_text: String):
 	"""Show prompt when player enters zone"""
 	if body.name == "Player" or body.is_in_group("player"):
 		prompt_label.text = prompt_text
+		print("Player entered prompt zone: ", prompt_text)
 		prompt_label.visible = true
 		active = true
 
 func _on_zone_exited(body: Node3D):
 	"""Hide prompt when player leaves zone"""
 	if body.name == "Player" or body.is_in_group("player"):
+		print("Player exited prompt zone")
 		prompt_label.visible = false
 		active = false

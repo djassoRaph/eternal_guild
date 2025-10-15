@@ -2,7 +2,7 @@
 extends Node
 
 # === CORE GAME STATE ===
-var gold: int = 10
+var gold: int = 1000
 var beer_stock: int = 5
 var current_day: int = 1
 var max_adventurers: int = 5

@@ -1,0 +1,100 @@
+[gd_scene load_steps=2 format=3 uid="uid://bw7suf2mjnf8w"]
+
+[ext_resource type="Script" uid="uid://bcis11n5c2gb1" path="res://scenes/ui/script/mission_board.gd" id="1_us8kd"]
+
+[node name="MissionBoard" type="Control"]
+layout_direction = 1
+layout_mode = 3
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -262.0
+offset_top = 166.0
+offset_right = 18.0
+offset_bottom = -180.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_us8kd")
+
+[node name="MainContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -135.0
+offset_right = 135.0
+offset_bottom = 211.0
+grow_horizontal = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "📋 Guild Mission Board"
+
+[node name="StatsRow" type="HBoxContainer" parent="MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="MissionStatsLabel" type="Label" parent="MainContainer/StatsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.489622, 0.489622, 0.489622, 1)
+theme_override_font_sizes/font_size = 12
+text = "📊 Loading missions.."
+
+[node name="ReadinessLabel" type="Label" parent="MainContainer/StatsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 0, 1)
+theme_override_font_sizes/font_size = 12
+text = "🗡️ Adventurers: 0"
+
+[node name="TierRow" type="HBoxContainer" parent="MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Tier1Label" type="Label" parent="MainContainer/TierRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 1, 0, 1)
+theme_override_font_sizes/font_size = 11
+text = "✅ Tier 1"
+
+[node name="Tier2Label" type="Label" parent="MainContainer/TierRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.427493, 0.427493, 0.427493, 1)
+theme_override_font_sizes/font_size = 11
+text = "🔒 Progress to Next Tier"
+
+[node name="Tier3Label" type="Label" parent="MainContainer/TierRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.427451, 0.427451, 0.427451, 1)
+theme_override_font_sizes/font_size = 11
+text = "🔒 Tier 3"
+
+[node name="ProgressLabel" type="Label" parent="MainContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 0, 1)
+theme_override_font_sizes/font_size = 10
+text = "Progress to Next Tier"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 400)
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -146.0
+offset_top = 142.0
+offset_right = 132.0
+offset_bottom = -66.0
+grow_horizontal = 2
+grow_vertical = 2
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="MissionsContainer" type="VBoxContainer" parent="ScrollContainer"]
+layout_mode = 2
+theme_override_constants/separation = 15
