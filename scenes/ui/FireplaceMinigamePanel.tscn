@@ -1,0 +1,259 @@
+[gd_scene load_steps=3 format=3 uid="uid://dvmoigie6bxh5"]
+
+[ext_resource type="Script" uid="uid://dpariyaksvo72" path="res://scenes/ui/script/FireplaceMinigamePanel.gd" id="1_5t0kt"]
+[ext_resource type="Texture2D" uid="uid://gy3s1j10m0ff" path="res://assets/ui/fire/log.png" id="1_qv0mq"]
+
+[node name="FireplaceMinigamePanel" type="Control"]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_5t0kt")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.631373)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MinigameContainer" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(900, 600)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/MinigameContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="MainVBox" type="VBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "🔥 Tend the Fire"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+
+[node name="ContentHBox" type="HBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 30
+
+[node name="LogStackArea" type="VBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="StackTitle" type="Label" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/LogStackArea"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Logs Available"
+horizontal_alignment = 1
+
+[node name="LogContainer" type="VBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/LogStackArea"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="Log1" type="TextureRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/LogStackArea/LogContainer"]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+texture = ExtResource("1_qv0mq")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Log2" type="TextureRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/LogStackArea/LogContainer"]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+texture = ExtResource("1_qv0mq")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Log3" type="TextureRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/LogStackArea/LogContainer"]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+texture = ExtResource("1_qv0mq")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Log4" type="TextureRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/LogStackArea/LogContainer"]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+texture = ExtResource("1_qv0mq")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Log5" type="TextureRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/LogStackArea/LogContainer"]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+texture = ExtResource("1_qv0mq")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FireplaceArea" type="PanelContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox"]
+custom_minimum_size = Vector2(400, 300)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/FireplaceArea"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="FireplaceBackground" type="ColorRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/FireplaceArea/MarginContainer"]
+layout_mode = 2
+color = Color(0.2, 0.15, 0.1, 1)
+
+[node name="DropZone" type="Control" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/FireplaceArea/MarginContainer"]
+layout_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+
+[node name="WindPumpSection" type="VBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PumpLabel" type="Label" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "💨 Wind Pump Gauge"
+
+[node name="PumpGaugeContainer" type="Control" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+
+[node name="GaugeBackground" type="ColorRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection/PumpGaugeContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="RedZone" type="ColorRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection/PumpGaugeContainer"]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 200.0
+grow_vertical = 2
+color = Color(0.8, 0.2, 0.2, 1)
+
+[node name="GreenZone" type="ColorRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection/PumpGaugeContainer"]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 350.0
+offset_right = 450.0
+grow_vertical = 2
+color = Color(0.2, 0.8, 0.2, 1)
+
+[node name="YellowZone" type="ColorRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection/PumpGaugeContainer"]
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -200.0
+grow_horizontal = 0
+grow_vertical = 2
+color = Color(0.9, 0.9, 0.2, 1)
+
+[node name="PumpIndicator" type="ColorRect" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection/PumpGaugeContainer"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 8.0
+grow_vertical = 2
+
+[node name="ClickArea" type="Button" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/WindPumpSection/PumpGaugeContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+flat = true
+
+[node name="LungCapacitySection" type="VBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="LungsLabel" type="Label" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/LungCapacitySection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "💨 Air in Lungs"
+
+[node name="LungsProgressBar" type="ProgressBar" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/LungCapacitySection"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+value = 100.0
+
+[node name="IgnitionProgressSection" type="VBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="IgnitionLabel" type="Label" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/IgnitionProgressSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "🔥 Fire Ignition Progress"
+
+[node name="IgnitionProgressBar" type="ProgressBar" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/IgnitionProgressSection"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+show_percentage = false
+
+[node name="HSeparator3" type="HSeparator" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Place at least 2 logs to begin pumping"
+horizontal_alignment = 1
+
+[node name="ButtonContainer" type="HBoxContainer" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="CloseButton" type="Button" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer"]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+text = "Give Up"
+
+[node name="StartPumpingButton" type="Button" parent="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer"]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+disabled = true
+text = "Start Pumping!"
+
+[connection signal="pressed" from="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer/CloseButton" to="." method="_on_close_button_pressed"]
+[connection signal="button_down" from="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer/StartPumpingButton" to="." method="_on_start_pumping_button_button_down"]
+[connection signal="button_up" from="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer/StartPumpingButton" to="." method="_on_start_pumping_button_button_up"]

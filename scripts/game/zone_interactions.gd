@@ -8,9 +8,7 @@ extends Node3D
 @onready var bedroom_area = $NextDayArea
 @onready var fireplace_area = %FireplaceArea
 
-
 var MissionBoardScene = preload("res://scenes/ui/MissionBoard.tscn")
-
 
 # Player state tracking
 var player_in_bedroom = false
@@ -19,15 +17,31 @@ var player_in_mission = false
 var player_in_recruitment = false
 var player_in_fireplace = false
 
+# UI open state tracking
+var mission_board_open = false
+var current_mission_board_instance = null
 
-func _input(event):
-	# Handle E key for all zone interactions
-	if event.is_action_pressed("interact"):  # This is the E key!
-		handle_interaction_priority()
-		
 func _ready():
 	setup_interaction_areas()
+
+func _input(event):
+	# CRITICAL: Don't process zone input if ANY UI is open!
+	var mission_boards = get_tree().get_nodes_in_group("mission_board")
+	for board in mission_boards:
+		if board.visible:
+			return  # Let UI handle input
 	
+	var tavern_popup = get_node_or_null("/root/Node3D/GameUI/PopupManager/TavernManagementPopup")
+	if tavern_popup and tavern_popup.visible:
+		return
+	
+	var recruitment_popup = get_node_or_null("/root/Node3D/GameUI/PopupManager/RecruitmentPopup")
+	if recruitment_popup and recruitment_popup.visible:
+		return
+	
+	# Handle E key - ONLY ONCE!
+	if event.is_action_pressed("interact"):
+		handle_interaction_priority()
 
 func setup_interaction_areas():
 	"""Connect all interaction area signals"""
@@ -46,27 +60,20 @@ func setup_interaction_areas():
 	fireplace_area.body_entered.connect(_on_fireplace_entered)
 	fireplace_area.body_exited.connect(_on_fireplace_exited)
 
-func setup_patron_tracking():
-	"""Initialize patron tracking system for recruitment integration"""
-	# Get reference to PatronSpawner if it exists
-	var patron_spawner = get_node_or_null("../PatronSpawner")
-	if patron_spawner:
-		print("Connected to PatronSpawner for enhanced interactions")
-		# Note: In future, connect to patron spawn/despawn signals
-	else:
-		print("PatronSpawner not found - will search manually for patrons")
-
 func handle_interaction_priority():
 	"""Handle E key with priority: Patrons > Zone interactions"""
 	if GameManager.game_over_active:
 		return
-	var player = get_node("/root/Node3D/SubViewportContainer/SubViewport/Player")
+	
+	var player = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/Player")
 	if not player:
 		print("❌ Player not found!")
 		return
+	
 	var served_patron = try_serve_nearby_patron(player)
 	if served_patron:
 		return  
+	
 	handle_zone_interactions()
 
 func try_serve_nearby_patron(player) -> bool:
@@ -75,7 +82,6 @@ func try_serve_nearby_patron(player) -> bool:
 		var served = player.try_serve_nearby_patron()
 		return served != null
 	return false
-
 
 func handle_zone_interactions():
 	"""Handle zone-based interactions (existing functionality)"""	
@@ -88,25 +94,25 @@ func handle_zone_interactions():
 	elif player_in_bedroom:
 		print("DEBUG: Calling advance_day()...") 
 		advance_day()
-	elif player_in_fireplace:  # New: Handle fireplace here for consistency
-		var fireplace_script = get_node_or_null("%FireplaceArea")  # Get the Area3D with script
+	elif player_in_fireplace:
+		var fireplace_script = get_node_or_null("%FireplaceArea")
 		if fireplace_script and fireplace_script.has_method("attempt_stoke_fire"):
 			fireplace_script.attempt_stoke_fire()
 		else:
 			print("WARNING: Fireplace script not found!")
 	else:
 		print("DEBUG: No zone active!")
-	
-
-
-
-
 
 func open_tavern_management():
 	"""Open beer management popup"""
 	print("🍺 Attempting to open beer popup...")
 	var tavern_popup = get_node("/root/Node3D/GameUI/PopupManager/TavernManagementPopup")
 	if tavern_popup:
+		# Check if already visible
+		if tavern_popup.visible:
+			print("⚠️ Tavern popup already open!")
+			return
+		
 		print("✅ Calling open_tavern_management...")
 		tavern_popup.open_tavern_management()
 		send_log_message("Looking at your stock")
@@ -115,62 +121,107 @@ func open_tavern_management():
 
 func open_mission_board():
 	"""Open mission board with adventurer check"""
-	print("📋 Opening mission board...")
-	var mission_board_instance = MissionBoardScene.instantiate()
-	get_tree().root.add_child(mission_board_instance)  # Add to root or a UI layer (e.g., /root/Node3D/GameUI)
-	# Optionally position/center: mission_board_instance.position = get_viewport().size / 2 - mission_board_instance.size / 2
 	
-	# Force mission refresh if empty
+	# DEBOUNCE: Prevent double-opening
+	if mission_board_open:
+		print("⚠️ Mission board already open!")
+		return
+	
+	# Check if there's an existing instance still alive
+	if current_mission_board_instance and is_instance_valid(current_mission_board_instance):
+		if current_mission_board_instance.visible:
+			print("⚠️ Mission board instance already visible!")
+			return
+		else:
+			# Instance exists but not visible - clean it up
+			print("🧹 Cleaning up invisible mission board instance")
+			current_mission_board_instance.queue_free()
+			current_mission_board_instance = null
+	
+	mission_board_open = true
+	print("📋 Opening mission board...")
+	
+	# Create new instance
+	current_mission_board_instance = MissionBoardScene.instantiate()
+	get_tree().root.add_child(current_mission_board_instance)
+	
+	# Force refresh if needed
 	if GameManager.available_missions.is_empty():
 		GameManager.refresh_available_missions()
 		print("Forced mission refresh on open")
 	
-	# Check adventurers and handle UI internally
+	# Check adventurers
 	var adventurer_count = GameManager.get_adventurer_count()
 	if adventurer_count == 0:
 		send_log_message("❌ You need to hire adventurers before checking the mission board!")
 		send_log_message("💡 Visit the recruitment desk first.")
-		mission_board_instance.queue_free()  # Clean up if no adventurers
+		current_mission_board_instance.queue_free()
+		current_mission_board_instance = null
+		mission_board_open = false
 		return
 	
 	send_log_message("Reviewing available contracts")
 	send_log_message("Reviewing available missions")
-	# Let the instance handle its own open logic
-	mission_board_instance.open_mission_board()
+	
+	# Open the board
+	current_mission_board_instance.open_mission_board()
+	
+	# CRITICAL: Connect BOTH signals to reset flag
+	current_mission_board_instance.board_closed.connect(func():
+		mission_board_open = false
+		print("🔓 Mission board flag reset via board_closed signal")
+	)
+	
+	current_mission_board_instance.tree_exited.connect(func(): 
+		mission_board_open = false
+		current_mission_board_instance = null
+		print("🗑️ Mission board instance destroyed")
+	)
 
 func open_recruitment_desk():
-	"""Open recruitment desk with patron integration"""
+	"""Open recruitment desk with duplicate prevention"""
 	print("👥 Opening recruitment desk...")
-	var recruitment_popup = get_node("/root/Node3D/GameUI/PopupManager/RecruitmentPopup")
-	if recruitment_popup:
-		recruitment_popup.open_recruitment_desk()  # Call the popup's function
-		send_log_message("Reviewing potential recruits")
-	else:
+	
+	var recruitment_popup = get_node_or_null("/root/Node3D/GameUI/PopupManager/RecruitmentPopup")
+	if not recruitment_popup:
 		print("❌ Recruitment popup not found!")
+		return
+	
+	# DEBOUNCE: Check if already open
+	if recruitment_popup.visible:
+		print("⚠️ Recruitment popup already open!")
+		return
+	
+	recruitment_popup.open_recruitment_desk()
+	send_log_message("Reviewing potential recruits")
 
 func advance_day():
 	"""Open bedroom popup instead of advancing day directly"""
 	print("🌙 Opening bedroom/quarters...")
 	open_bedroom_popup()
 
-
 func open_bedroom_popup():
 	"""Open bedroom management popup"""
 	print("🛏️ Attempting to open bedroom popup...")
 	
-	var bedroom_popup = get_node("/root/Node3D/GameUI/PopupManager/BedroomPopup")
-	if bedroom_popup:
-		print("✅ Calling open_bedroom()...")
-		bedroom_popup.open_bedroom()
-		send_log_message("Reviewing the day before resting...")
-	else:
+	var bedroom_popup = get_node_or_null("/root/Node3D/GameUI/PopupManager/BedroomPopup")
+	if not bedroom_popup:
 		print("❌ Bedroom popup not found!")
-		# Fallback: advance day directly if popup missing
 		if GameManager.has_method("advance_day"):
 			GameManager.despawn_all_patrons()
 			GameManager.advance_day()
 			GameManager.cleanup_expired_recruitment_candidates()
+		return
 	
+	# DEBOUNCE: Check if already open
+	if bedroom_popup.visible:
+		print("⚠️ Bedroom popup already open!")
+		return
+	
+	print("✅ Calling open_bedroom()...")
+	bedroom_popup.open_bedroom()
+	send_log_message("Reviewing the day before resting...")
+
 # === AREA ENTER/EXIT HANDLERS ===
 func _on_bar_entered(body):
 	if body.name == "Player":
@@ -211,18 +262,17 @@ func _on_nextday_exited(body):
 	if body.name == "Player":
 		player_in_bedroom = false
 		print("Player left bedroom area")
-		
 
 func _on_fireplace_entered(body):
 	if body.name == "Player":
 		player_in_fireplace = true
 		print("Player entered fireplace area")
-		
+
 func _on_fireplace_exited(body):
 	if body.name == "Player": 
 		player_in_fireplace = false
 		print("Player left Fireplace area")
-		
+
 func send_log_message(message: String):
 	"""Send message to GameManager logging system"""
 	if GameManager.has_method("log_message"):

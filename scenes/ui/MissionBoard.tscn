@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://bw7suf2mjnf8w"]
+[gd_scene load_steps=3 format=3 uid="uid://bw7suf2mjnf8w"]
 
 [ext_resource type="Script" uid="uid://bcis11n5c2gb1" path="res://scenes/ui/script/mission_board.gd" id="1_us8kd"]
+
+[sub_resource type="Theme" id="Theme_us8kd"]
 
 [node name="MissionBoard" type="Control"]
 layout_direction = 1
@@ -12,21 +14,20 @@ anchor_bottom = 1.0
 offset_left = -262.0
 offset_top = 166.0
 offset_right = 18.0
-offset_bottom = -180.0
+offset_bottom = -184.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_us8kd")
 script = ExtResource("1_us8kd")
 
 [node name="MainContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -135.0
-offset_right = 135.0
-offset_bottom = 211.0
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 335.0
 grow_horizontal = 2
-theme_override_constants/separation = 10
+pivot_offset = Vector2(200, 0)
+theme_override_constants/separation = 15
 alignment = 1
 
 [node name="TitleLabel" type="Label" parent="MainContainer"]
@@ -34,26 +35,31 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 20
 text = "📋 Guild Mission Board"
+horizontal_alignment = 1
 
 [node name="StatsRow" type="HBoxContainer" parent="MainContainer"]
 layout_mode = 2
 theme_override_constants/separation = 15
+alignment = 1
 
 [node name="MissionStatsLabel" type="Label" parent="MainContainer/StatsRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.489622, 0.489622, 0.489622, 1)
 theme_override_font_sizes/font_size = 12
 text = "📊 Loading missions.."
+horizontal_alignment = 1
 
 [node name="ReadinessLabel" type="Label" parent="MainContainer/StatsRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 0, 1)
 theme_override_font_sizes/font_size = 12
 text = "🗡️ Adventurers: 0"
+vertical_alignment = 1
 
 [node name="TierRow" type="HBoxContainer" parent="MainContainer"]
 layout_mode = 2
 theme_override_constants/separation = 10
+alignment = 1
 
 [node name="Tier1Label" type="Label" parent="MainContainer/TierRow"]
 layout_mode = 2
@@ -79,22 +85,21 @@ theme_override_colors/font_color = Color(1, 1, 0, 1)
 theme_override_font_sizes/font_size = 10
 text = "Progress to Next Tier"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="."]
-custom_minimum_size = Vector2(0, 400)
-layout_mode = 1
-anchors_preset = 13
-anchor_left = 0.5
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -146.0
-offset_top = 142.0
-offset_right = 132.0
-offset_bottom = -66.0
-grow_horizontal = 2
-grow_vertical = 2
-follow_focus = true
-horizontal_scroll_mode = 0
-
-[node name="MissionsContainer" type="VBoxContainer" parent="ScrollContainer"]
+[node name="ScrollContainer" type="ScrollContainer" parent="MainContainer"]
+custom_minimum_size = Vector2(650, 400)
 layout_mode = 2
-theme_override_constants/separation = 15
+focus_mode = 1
+mouse_filter = 0
+follow_focus = true
+draw_focus_border = true
+scroll_horizontal_custom_step = 0.0
+scroll_vertical_custom_step = 250.0
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="MissionsContainer" type="VBoxContainer" parent="MainContainer/ScrollContainer"]
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 2
+size_flags_horizontal = 6
+size_flags_vertical = 10
+theme_override_constants/separation = 5

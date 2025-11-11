@@ -1,5 +1,5 @@
 extends Node3D
-#main_tavern.gd - UPDATED FOR GAMEMANAGER
+#main_tavern.gd
 
 @onready var game_log = $GameUI/MainArea/TavernView/LogContainer/EventLog
 @onready var log_container = $GameUI/MainArea/TavernView/LogContainer
@@ -119,23 +119,43 @@ func update_beer(change: int):
 
 # === INPUT HANDLING ===
 func _input(event):
+	# === STEP 1: Handle ESC key (highest priority) ===
 	if event.is_action_pressed("ui_cancel"):
+		# Try to close mission board first
+		var mission_boards = get_tree().get_nodes_in_group("mission_board")
+		for board in mission_boards:
+			if board.visible:
+				print("🚪 Closing mission board with ESC")
+				board.visible = false
+				return  # ESC handled - stop here
+		
+		# No mission board open, toggle pause menu
+		print("⏸️ Toggling pause menu with ESC")
 		toggle_pause_menu()
+		return  # ESC handled - stop here
 	
-	# Debug keys
+	# === STEP 2: Block other input if ANY UI is open ===
+	# Check if mission board is open
+	var mission_boards = get_tree().get_nodes_in_group("mission_board")
+	for board in mission_boards:
+		if board.visible:
+			return  # Block all non-ESC input
+	
+	# Check if pause menu is open
+	if pause_menu and pause_menu.visible:
+		return  # Block all non-ESC input
+	
+	# === STEP 3: Normal game input (only runs if no UI is open) ===
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_F9:
-			# Force status refresh
 			GameManager.adventurer_roster_changed.emit()
 			print("Force refreshed roster")
 		
 		elif event.keycode == KEY_F10:
-			# Reset game state
 			GameManager.reset_game_state()
 			print("Game state reset!")
 		
 		elif event.keycode == KEY_B:
-			# Test game over screen
 			print("🔴 Testing Game Over Screen...")
 			GameManager.trigger_game_over("test_game_over", "TEST: Manual game over triggered with B key")
 

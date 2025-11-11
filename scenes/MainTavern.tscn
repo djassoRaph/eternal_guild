@@ -372,6 +372,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
 stretch = true
 stretch_shrink = 2
 
@@ -855,10 +856,10 @@ text = "Fire: 0%"
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 52.0
-offset_top = -470.0
-offset_right = 552.0
-offset_bottom = -69.0
+offset_left = 42.0
+offset_top = -461.0
+offset_right = 542.0
+offset_bottom = -76.0
 grow_vertical = 0
 
 [node name="TavernView" type="Panel" parent="GameUI/MainArea"]
@@ -867,6 +868,8 @@ layout_mode = 2
 
 [node name="LogContainer" type="ScrollContainer" parent="GameUI/MainArea/TavernView"]
 unique_name_in_owner = true
+light_mask = 2
+z_as_relative = false
 custom_minimum_size = Vector2(500, 200)
 layout_mode = 1
 anchors_preset = 15
@@ -1171,6 +1174,7 @@ layout_mode = 2
 text = "Quit game GTG!"
 
 [node name="MissionBoard" parent="GameUI" instance=ExtResource("30_ocxae")]
+visible = false
 
 [node name="UIOverlay" type="CanvasLayer" parent="."]
 

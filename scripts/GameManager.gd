@@ -42,6 +42,10 @@ var total_missions_completed: int = 0
 var tavern_reputation: int = 0
 var taxes_paid_count: int = 0
 
+var active_missions = []
+
+
+
 # Tier unlock conditions
 var tier_requirements = {
 	1: {"always_unlocked": true},  # Starting tier
@@ -55,6 +59,7 @@ func _ready():
 	print("🎮 GameManager singleton initialized")
 	print("Initial state - Gold: ", gold, " Beer: ", beer_stock, " Day: ", current_day)
 	DataManager.data_ready.connect(_on_data_ready)
+	
 
 
 func _on_data_ready():
@@ -146,7 +151,7 @@ func get_ready_adventurers() -> Array:
 	"""Get adventurers available for missions """
 	var ready = []
 	for adv in adventurers:
-		if adv.status == "Ready":
+		if adv.get("ready", true) and not adv.get("on_mission", false) and adv.get("status", "Ready") == "Ready":
 			ready.append(adv)
 	return ready
 	
@@ -1330,3 +1335,21 @@ func refresh_available_missions():
 		for mission in fallback_missions:
 			available_missions.append(mission)
 		print("⚠️ Using fallback missions")
+
+
+
+func assign_adventurer_to_mission(adventurer: Dictionary, mission: Dictionary):
+	# Mark adventurer as busy
+	adventurer["on_mission"] = true
+	adventurer["current_mission"] = mission
+	
+	if not "active_missions" in self:
+				
+		active_missions.append({
+			"adventurer": adventurer,
+			"mission": mission,
+			"days_left": 1  # placeholder
+		})
+		
+	# Emit roster change so UI updates
+	adventurer_roster_changed.emit()

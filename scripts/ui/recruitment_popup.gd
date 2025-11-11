@@ -1,4 +1,4 @@
-# recruitment_popup.gd - No recruits s
+# recruitment_popup.gd 
 extends PopupPanel
 
 @onready var main_container = $MainContainer
