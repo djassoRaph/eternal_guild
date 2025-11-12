@@ -36,11 +36,12 @@ theme_override_constants/margin_bottom = 8
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 custom_minimum_size = Vector2(500, 200)
 layout_mode = 2
-mouse_filter = 0
+mouse_filter = 2
 theme_override_constants/separation = 5
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
+mouse_filter = 2
 
 [node name="MissionNameLabel" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
@@ -68,6 +69,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(300, 40)
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 2
 text_overrun_behavior = 3
 selected = 0
 fit_to_longest_item = false
@@ -81,6 +83,7 @@ popup/item_2/id = 2
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_horizontal = 4
+mouse_filter = 2
 theme = SubResource("Theme_3ess8")
 theme_override_styles/hover = SubResource("StyleBoxFlat_17ls6")
 text = "🗡️ Send on Mission"

@@ -91,3 +91,4 @@ build/EternalGuild_pre_v0.2_alpha.console.exe
 build/EternalGuild_pre_v0.2_alpha.exe
 export_presets.cfg
 
+./**/.vscode

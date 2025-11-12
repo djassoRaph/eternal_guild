@@ -25,6 +25,12 @@ func _ready():
 	visible = false
 	add_to_group("mission_board")
 	
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	var viewport = get_tree().root.get_node_or_null("Node3D/SubViewportContainer")
+	if viewport:
+		viewport.mouse_filter = Control.MOUSE_FILTER_PASS
+		print("🔧 Emergency fix applied!")
+	
 		
 func _input(event):
 	if not visible:

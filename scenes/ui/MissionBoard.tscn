@@ -27,6 +27,7 @@ anchor_right = 1.0
 offset_bottom = 335.0
 grow_horizontal = 2
 pivot_offset = Vector2(200, 0)
+mouse_filter = 2
 theme_override_constants/separation = 15
 alignment = 1
 
@@ -102,4 +103,5 @@ custom_minimum_size = Vector2(560, 0)
 layout_mode = 2
 size_flags_horizontal = 6
 size_flags_vertical = 10
+mouse_filter = 2
 theme_override_constants/separation = 5

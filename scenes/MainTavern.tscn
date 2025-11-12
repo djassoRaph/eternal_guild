@@ -372,7 +372,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 stretch = true
 stretch_shrink = 2
 
@@ -857,14 +856,16 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 42.0
-offset_top = -461.0
+offset_top = -462.0
 offset_right = 542.0
-offset_bottom = -76.0
+offset_bottom = -77.0
 grow_vertical = 0
+mouse_filter = 2
 
 [node name="TavernView" type="Panel" parent="GameUI/MainArea"]
 custom_minimum_size = Vector2(500, 315)
 layout_mode = 2
+mouse_filter = 2
 
 [node name="LogContainer" type="ScrollContainer" parent="GameUI/MainArea/TavernView"]
 unique_name_in_owner = true
@@ -881,6 +882,7 @@ offset_right = -4.0
 offset_bottom = 31.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 theme = SubResource("Theme_0nrlt")
 theme_override_styles/panel = SubResource("StyleBoxFlat_0nrlt")
 theme_override_styles/focus = SubResource("StyleBoxFlat_qlm8p")
@@ -891,6 +893,7 @@ vertical_scroll_mode = 2
 [node name="EventLog" type="RichTextLabel" parent="GameUI/MainArea/TavernView/LogContainer"]
 custom_minimum_size = Vector2(500, 430)
 layout_mode = 2
+mouse_filter = 2
 theme_override_colors/default_color = Color(0, 0, 0, 1)
 theme_override_styles/fill = SubResource("StyleBoxFlat_rus88")
 bbcode_enabled = true
@@ -912,6 +915,7 @@ scroll_following = true
 tab_size = 10
 
 [node name="PopupManager" type="Control" parent="GameUI"]
+visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -1175,6 +1179,7 @@ text = "Quit game GTG!"
 
 [node name="MissionBoard" parent="GameUI" instance=ExtResource("30_ocxae")]
 visible = false
+mouse_filter = 2
 
 [node name="UIOverlay" type="CanvasLayer" parent="."]
 
