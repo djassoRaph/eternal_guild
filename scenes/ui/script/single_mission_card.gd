@@ -1,4 +1,4 @@
-# single_mission_card.gd - CORRECTED VERSION
+# single_mission_card.gd - FIXED VERSION (No placeholder handling)
 extends PanelContainer
 
 @onready var mission_name_label = $MarginContainer/VBoxContainer/HBoxContainer/MissionNameLabel
@@ -18,13 +18,7 @@ func _ready():
 	print("✅ Mission card _ready() called")
 	print("   Dropdown node path check: ", adventurer_dropdown.get_path())
 	print("   Dropdown is valid: ", is_instance_valid(adventurer_dropdown))
-	gui_input.connect(func(event):
-		print("🎯 GUI INPUT RECEIVED: ", event)
-	)
-	adventurer_dropdown.gui_input.connect(func(event):
-		if event is InputEventMouseButton:
-			print("🖱️ DROPDOWN RECEIVED MOUSE EVENT: ", event)
-	)
+	
 	# Ensure dropdown has focus mode enabled
 	adventurer_dropdown.focus_mode = Control.FOCUS_ALL
 	adventurer_dropdown.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -66,53 +60,58 @@ func populate_adventurer_dropdown():
 	"""Populate dropdown with available adventurers"""
 	print("🔽 Populating dropdown with ", available_adventurers.size(), " adventurers")
 	
-	# Clear existing items
+	# Clear everything
 	adventurer_dropdown.clear()
+	selected_adventurer = {}
 	
 	if available_adventurers.size() == 0:
 		adventurer_dropdown.add_item("⚠️ No adventurers available")
-		adventurer_dropdown.disabled = false
-		send_button.disabled = false
-		print("❌ No adventurers to display")
+		adventurer_dropdown.disabled = true
+		send_button.disabled = true
 		return
 	
-	# Add placeholder
-	#adventurer_dropdown.add_item("-- Select Adventurer --")
-	#adventurer_dropdown.set_item_disabled(0, false)
+	# Add placeholder at index 0 (disabled so user can't select it)
+	adventurer_dropdown.add_item("-- Select Adventurer --")
+	adventurer_dropdown.set_item_disabled(0, true)
 	
-	# Add each adventurer
+	# Add each adventurer starting at index 1
 	for adv in available_adventurers:
 		var text = adv.get("name", "Unknown") + " (" + adv.get("class", "?") + ")"
 		adventurer_dropdown.add_item(text)
 		print("   ✓ Added: ", text)
 	
+	# Start with placeholder selected, button disabled
 	adventurer_dropdown.selected = 0
-	
+	adventurer_dropdown.disabled = false
+	send_button.disabled = true
+	send_button.text = "🗡️ Send on Mission"
 	
 	print("✅ Dropdown ready with ", adventurer_dropdown.item_count, " items")
 
+		
 func _on_adventurer_selected(index: int):
 	"""Handle adventurer selection from dropdown"""
 	print("🎯 Adventurer selected - Index: ", index)
 	
 	if index == 0:
-		# Placeholder selected
+		print("   → Placeholder selected, disabling button")
 		selected_adventurer = {}
 		send_button.disabled = true
 		send_button.text = "🗡️ Send on Mission"
 		return
-	
+		
 	var adv_index = index - 1
-	
 	if adv_index >= 0 and adv_index < available_adventurers.size():
+		var chance = calculate_success_chance()
 		selected_adventurer = available_adventurers[adv_index]
 		send_button.disabled = false
-		
-		var chance = calculate_success_chance()
 		send_button.text = "🗡️ Send (" + str(chance) + "% success)"
 		print("✅ Selected: ", selected_adventurer.get("name"))
 	else:
-		print("❌ Invalid adventurer index: ", adv_index)
+		print("❌ Invalid adventurer index: ", index)
+		selected_adventurer = {}
+		send_button.disabled = true
+		send_button.text = "🗡️ Send on Mission"
 
 func _on_send_button_pressed():
 	"""Handle send button press"""
@@ -159,23 +158,3 @@ func get_danger_color(danger: int) -> Color:
 		4: return Color.RED
 		5: return Color.PURPLE
 		_: return Color.WHITE
-
-
-func _on_send_button_mouse_entered() -> void:
-	print("mouse hover on send button"+ send_button.value())
-
-
-func _on_send_button_mouse_exited() -> void:
-	print("mouse exit send button"+ send_button.value())
-
-
-func _on_adventurer_dropdown_pressed() -> void:
-	print("_on_adventurer_dropdown_pressed pressed")
-
-
-func _on_adventurer_dropdown_focus_entered() -> void:
-	print("_on_adventurer_dropdown_focus_entered enter")
-
-
-func _on_adventurer_dropdown_focus_exited() -> void:
-	print("_on_adventurer_dropdown_focus_exited exited")

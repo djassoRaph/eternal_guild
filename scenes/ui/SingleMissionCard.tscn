@@ -69,21 +69,17 @@ layout_mode = 2
 custom_minimum_size = Vector2(300, 40)
 layout_mode = 2
 size_flags_vertical = 3
-mouse_filter = 2
 text_overrun_behavior = 3
 selected = 0
 fit_to_longest_item = false
-item_count = 3
+item_count = 1
 popup/item_0/text = "Select Adventurer..."
 popup/item_0/id = 0
-popup/item_1/id = 1
-popup/item_2/id = 2
 
 [node name="SendButton" type="Button" parent="MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_horizontal = 4
-mouse_filter = 2
 theme = SubResource("Theme_3ess8")
 theme_override_styles/hover = SubResource("StyleBoxFlat_17ls6")
 text = "🗡️ Send on Mission"

@@ -54,11 +54,8 @@ func try_serve_nearby_patron():
 			all_patrons.append_array(_find_patrons_recursive(node))
 	
 	if all_patrons.is_empty():
-		print("⚠️ No patrons found in scene")
 		return
-	
-	print("Found ", all_patrons.size(), " total patrons")
-	
+
 	# Find patrons that want service and are close enough
 	var serveable_patrons = []
 	for patron in all_patrons:

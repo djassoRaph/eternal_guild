@@ -45,8 +45,8 @@ func _input(event):
 func close_board():
 	"""Properly close the mission board"""
 	print("🚪 Closing mission board")
-	visible = false
 	board_closed.emit()
+	queue_free()
 
 func open_mission_board():
 	"""Open and populate the mission board"""
@@ -235,8 +235,7 @@ func execute_solo_mission(adventurer: Dictionary, mission: Dictionary):
 	# Emit roster changed to update UI
 	GameManager.adventurer_roster_changed.emit()
 	
-	# Close the mission board
-	hide()
+	queue_free()
 
 func calculate_solo_success_chance(adventurer: Dictionary, mission: Dictionary) -> int:
 	"""Calculate success chance for solo mission"""
