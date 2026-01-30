@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://cdl8akmt3ucn0"]
+
+[ext_resource type="Script" uid="uid://bgpjrumryu7no" path="res://scripts/player/player.gd" id="1_gfjak"]
+[ext_resource type="PackedScene" uid="uid://rmodh1bhe68t" path="res://assets/characters/models/kaykit_adventurers/Rogue.glb" id="2_4kuee"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_xw0ls"]
+margin = 0.05
+height = 1.5
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_gfjak")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_xw0ls")
+debug_color = Color(0, 0.434, 0.508, 1)
+
+[node name="Rogue" parent="." instance=ExtResource("2_4kuee")]
+transform = Transform3D(-0.990445, 0, 0.137911, 0, 1, 0, -0.137911, 0, -0.990445, 0, -0.5, 0)

@@ -22,6 +22,8 @@ DataManager="*res://systems/DataManager.gd"
 SaveSystem="*res://systems/SaveSystem.gd"
 WorldManager="*res://systems/WorldManager.gd"
 GlobalControl="*res://control.gd"
+ZonePromptUI="*res://scripts/game/ZonePromptUI.gd"
+PlayerManager="*res://scripts/autoload/PlayerManager.gd"
 
 [display]
 

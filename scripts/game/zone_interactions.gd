@@ -1,5 +1,6 @@
 # zone_interactions.gd 
 # Supports procedural world choice system and modding architecture
+# Handles interior tavern zone interactions
 extends Node3D
 
 @onready var bar_area = $BarArea
@@ -11,20 +12,66 @@ extends Node3D
 var MissionBoardScene = preload("res://scenes/ui/MissionBoard.tscn")
 
 # Player state tracking
-var player_in_bedroom = false
-var player_in_bar = false
-var player_in_mission = false
-var player_in_recruitment = false
-var player_in_fireplace = false
+var player_in_bedroom := false
+var player_in_bar := false
+var player_in_mission := false
+var player_in_recruitment := false
+var player_in_fireplace := false
+var player_in_exit_zone := false  # NEW: Track exit zone
 
 # UI open state tracking
-var mission_board_open = false
+var mission_board_open := false
 var current_mission_board_instance = null
 
-func _ready():
-	setup_interaction_areas()
 
-func _input(event):
+func _ready() -> void:
+	setup_interaction_areas()
+	_connect_exit_zone()
+
+
+func _connect_exit_zone() -> void:
+	"""Find and connect to exit zone to avoid input conflicts"""
+	await get_tree().process_frame
+	
+	# Try to find exit zone in scene
+	var exit_zone = get_tree().root.get_node_or_null("Node3D/SubViewportContainer/SubViewport/TavernNavigation/Architecture/FloorEntrance/exit area")
+	if not exit_zone:
+		# Try alternative paths
+		exit_zone = _find_node_by_name(get_tree().current_scene, "exit area")
+	
+	if exit_zone and exit_zone is Area3D:
+		exit_zone.body_entered.connect(_on_exit_zone_entered)
+		exit_zone.body_exited.connect(_on_exit_zone_exited)
+		print("✅ zone_interactions: Connected to exit zone")
+	else:
+		print("⚠️ zone_interactions: Exit zone not found (this is OK if not in tavern)")
+
+
+func _find_node_by_name(root: Node, target: String) -> Node:
+	if root.name == target:
+		return root
+	for child in root.get_children():
+		var found = _find_node_by_name(child, target)
+		if found:
+			return found
+	return null
+
+
+func _on_exit_zone_entered(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
+		player_in_exit_zone = true
+
+
+func _on_exit_zone_exited(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
+		player_in_exit_zone = false
+
+
+func _input(event: InputEvent) -> void:
+	# CRITICAL: Skip if player is in exit zone (let exit_zone handle it)
+	if player_in_exit_zone:
+		return
+	
 	# CRITICAL: Don't process zone input if ANY UI is open!
 	var mission_boards = get_tree().get_nodes_in_group("mission_board")
 	for board in mission_boards:
@@ -39,11 +86,16 @@ func _input(event):
 	if recruitment_popup and recruitment_popup.visible:
 		return
 	
+	var bedroom_popup = get_node_or_null("/root/Node3D/GameUI/PopupManager/BedroomPopup")
+	if bedroom_popup and bedroom_popup.visible:
+		return
+	
 	# Handle E key - ONLY ONCE!
 	if event.is_action_pressed("interact"):
 		handle_interaction_priority()
 
-func setup_interaction_areas():
+
+func setup_interaction_areas() -> void:
 	"""Connect all interaction area signals"""
 	bar_area.body_entered.connect(_on_bar_entered)
 	bar_area.body_exited.connect(_on_bar_exited)
@@ -60,12 +112,17 @@ func setup_interaction_areas():
 	fireplace_area.body_entered.connect(_on_fireplace_entered)
 	fireplace_area.body_exited.connect(_on_fireplace_exited)
 
-func handle_interaction_priority():
+
+func handle_interaction_priority() -> void:
 	"""Handle E key with priority: Patrons > Zone interactions"""
 	if GameManager.game_over_active:
 		return
 	
-	var player = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/Player")
+	var player = get_tree().get_first_node_in_group("player")
+	if not player:
+		# Fallback path
+		player = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/Player")
+	
 	if not player:
 		print("❌ Player not found!")
 		return
@@ -76,6 +133,7 @@ func handle_interaction_priority():
 	
 	handle_zone_interactions()
 
+
 func try_serve_nearby_patron(player) -> bool:
 	"""Try to serve patrons needing service"""
 	if player and player.has_method("try_serve_nearby_patron"):
@@ -83,7 +141,8 @@ func try_serve_nearby_patron(player) -> bool:
 		return served != null
 	return false
 
-func handle_zone_interactions():
+
+func handle_zone_interactions() -> void:
 	"""Handle zone-based interactions (existing functionality)"""	
 	if player_in_bar:
 		open_tavern_management()
@@ -103,12 +162,12 @@ func handle_zone_interactions():
 	else:
 		print("DEBUG: No zone active!")
 
-func open_tavern_management():
+
+func open_tavern_management() -> void:
 	"""Open beer management popup"""
 	print("🍺 Attempting to open beer popup...")
 	var tavern_popup = get_node("/root/Node3D/GameUI/PopupManager/TavernManagementPopup")
 	if tavern_popup:
-		# Check if already visible
 		if tavern_popup.visible:
 			print("⚠️ Tavern popup already open!")
 			return
@@ -119,21 +178,19 @@ func open_tavern_management():
 	else:
 		print("❌ Beer popup not found!")
 
-func open_mission_board():
+
+func open_mission_board() -> void:
 	"""Open mission board with adventurer check"""
 	
-	# DEBOUNCE: Prevent double-opening
 	if mission_board_open:
 		print("⚠️ Mission board already open!")
 		return
 	
-	# Check if there's an existing instance still alive
 	if current_mission_board_instance and is_instance_valid(current_mission_board_instance):
 		if current_mission_board_instance.visible:
 			print("⚠️ Mission board instance already visible!")
 			return
 		else:
-			# Instance exists but not visible - clean it up
 			print("🧹 Cleaning up invisible mission board instance")
 			current_mission_board_instance.queue_free()
 			current_mission_board_instance = null
@@ -141,16 +198,13 @@ func open_mission_board():
 	mission_board_open = true
 	print("📋 Opening mission board...")
 	
-	# Create new instance
 	current_mission_board_instance = MissionBoardScene.instantiate()
 	get_tree().root.add_child(current_mission_board_instance)
 	
-	# Force refresh if needed
 	if GameManager.available_missions.is_empty():
 		GameManager.refresh_available_missions()
 		print("Forced mission refresh on open")
 	
-	# Check adventurers
 	var adventurer_count = GameManager.get_adventurer_count()
 	if adventurer_count == 0:
 		send_log_message("❌ You need to hire adventurers before checking the mission board!")
@@ -163,10 +217,8 @@ func open_mission_board():
 	send_log_message("Reviewing available contracts")
 	send_log_message("Reviewing available missions")
 	
-	# Open the board
 	current_mission_board_instance.open_mission_board()
 	
-	# CRITICAL: Connect BOTH signals to reset flag
 	current_mission_board_instance.board_closed.connect(func():
 		mission_board_open = false
 		print("🔓 Mission board flag reset via board_closed signal")
@@ -178,7 +230,8 @@ func open_mission_board():
 		print("🗑️ Mission board instance destroyed")
 	)
 
-func open_recruitment_desk():
+
+func open_recruitment_desk() -> void:
 	"""Open recruitment desk with duplicate prevention"""
 	print("👥 Opening recruitment desk...")
 	
@@ -187,7 +240,6 @@ func open_recruitment_desk():
 		print("❌ Recruitment popup not found!")
 		return
 	
-	# DEBOUNCE: Check if already open
 	if recruitment_popup.visible:
 		print("⚠️ Recruitment popup already open!")
 		return
@@ -195,12 +247,14 @@ func open_recruitment_desk():
 	recruitment_popup.open_recruitment_desk()
 	send_log_message("Reviewing potential recruits")
 
-func advance_day():
+
+func advance_day() -> void:
 	"""Open bedroom popup instead of advancing day directly"""
 	print("🌙 Opening bedroom/quarters...")
 	open_bedroom_popup()
 
-func open_bedroom_popup():
+
+func open_bedroom_popup() -> void:
 	"""Open bedroom management popup"""
 	print("🛏️ Attempting to open bedroom popup...")
 	
@@ -213,7 +267,6 @@ func open_bedroom_popup():
 			GameManager.cleanup_expired_recruitment_candidates()
 		return
 	
-	# DEBOUNCE: Check if already open
 	if bedroom_popup.visible:
 		print("⚠️ Bedroom popup already open!")
 		return
@@ -222,58 +275,69 @@ func open_bedroom_popup():
 	bedroom_popup.open_bedroom()
 	send_log_message("Reviewing the day before resting...")
 
+
 # === AREA ENTER/EXIT HANDLERS ===
-func _on_bar_entered(body):
-	if body.name == "Player":
+func _on_bar_entered(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_bar = true
 		print("Player entered bar area")
 
-func _on_bar_exited(body):
-	if body.name == "Player":
+
+func _on_bar_exited(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_bar = false
 		print("Player left bar area")
 
-func _on_mission_entered(body):
-	if body.name == "Player":
+
+func _on_mission_entered(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_mission = true
 		print("Player entered mission area")
 
-func _on_mission_exited(body):
-	if body.name == "Player":
+
+func _on_mission_exited(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_mission = false
 		print("Player left mission area")
 
-func _on_recruitment_entered(body):
-	if body.name == "Player":
+
+func _on_recruitment_entered(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_recruitment = true
 		print("Player entered recruitment area")
 
-func _on_recruitment_exited(body):
-	if body.name == "Player":
+
+func _on_recruitment_exited(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_recruitment = false
 		print("Player left recruitment area")
 
-func _on_nextday_entered(body):
-	if body.name == "Player":
+
+func _on_nextday_entered(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_bedroom = true
 		print("✅ Player entered bedroom area - player_in_bedroom =", player_in_bedroom)
 
-func _on_nextday_exited(body):
-	if body.name == "Player":
+
+func _on_nextday_exited(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_bedroom = false
 		print("Player left bedroom area")
 
-func _on_fireplace_entered(body):
-	if body.name == "Player":
+
+func _on_fireplace_entered(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_fireplace = true
 		print("Player entered fireplace area")
 
-func _on_fireplace_exited(body):
-	if body.name == "Player": 
+
+func _on_fireplace_exited(body: Node3D) -> void:
+	if body.name == "Player" or body.is_in_group("player"):
 		player_in_fireplace = false
 		print("Player left Fireplace area")
 
-func send_log_message(message: String):
+
+func send_log_message(message: String) -> void:
 	"""Send message to GameManager logging system"""
 	if GameManager.has_method("log_message"):
 		GameManager.log_message(message)

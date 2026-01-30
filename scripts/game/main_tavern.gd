@@ -12,8 +12,11 @@ extends Node3D
 @onready var firewood_label = $GameUI/TopStatsBar/FirewoodLabel
 @onready var fuel_label = $GameUI/TopStatsBar/FuelLabel
 
+
 func _ready():
-	
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_init_zone_prompts()
 	log_message("Game started successfully!")
 
 	# Allow this node to process input even when paused
@@ -261,3 +264,12 @@ func _on_fuel_changed(new_percentage: float):
 		
 		fuel_label.text = "🔥 Fire: " + str(fuel_int) + "%"
 		fuel_label.add_theme_color_override("font_color", color)
+		
+func _init_zone_prompts():
+	"""Initialize ZonePromptUI for tavern zones"""
+	if ZonePromptUI:
+		# This will find and connect all tavern interaction zones
+		ZonePromptUI.connect_tavern_zones()
+		print("✅ Tavern zone prompts initialized")
+	else:
+		push_warning("MainTavern: ZonePromptUI not found!")
