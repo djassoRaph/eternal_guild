@@ -11,6 +11,7 @@ func _ready():
 	fade_overlay.color = Color.BLACK
 	fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(fade_overlay)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	# Create sleep message
 	sleep_text = Label.new()

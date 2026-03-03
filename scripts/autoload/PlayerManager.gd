@@ -126,7 +126,8 @@ func _on_node_added(node: Node) -> void:
 
 
 func _on_tree_changed() -> void:
-	# Check if scene changed
+	if not get_tree(): 
+		return
 	var current = get_tree().current_scene
 	if current and current.name != _last_scene_name:
 		print("🔍 Tree changed, new scene: ", current.name)

@@ -14,8 +14,9 @@ extends Control
 @onready var missions_container = $MainContainer/ScrollContainer/MissionsContainer
 
 const MISSION_CARD_SCENE = preload("res://scenes/ui/SingleMissionCard.tscn")
-
+const PARTY_MISSION_CARD_SCENE = preload("res://scenes/ui/PartyMissionCard.tscn")
 var assigned_missions = []
+var _subviewport_container = null
 
 signal board_closed
 
@@ -30,7 +31,11 @@ func _ready():
 	if viewport:
 		viewport.mouse_filter = Control.MOUSE_FILTER_PASS
 		print("🔧 Emergency fix applied!")
-	
+	_subviewport_container = get_tree().root.get_node_or_null("Node3D/SubViewportContainer")
+	if scroll_container:
+		scroll_container.mouse_filter = Control.MOUSE_FILTER_STOP
+		scroll_container.follow_focus = true
+
 		
 func _input(event):
 	if not visible:
@@ -45,6 +50,8 @@ func _input(event):
 func close_board():
 	"""Properly close the mission board"""
 	print("🚪 Closing mission board")
+	if _subviewport_container:
+		_subviewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
 	board_closed.emit()
 	queue_free()
 
@@ -57,7 +64,8 @@ func open_mission_board():
 		send_log_message("💡 Visit the recruitment desk to hire adventurers first.")
 		close_board()
 		return
-	
+	if _subviewport_container:
+		_subviewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	update_static_ui()
 	populate_missions()
 	visible = true
@@ -133,6 +141,7 @@ func populate_missions():
 	for child in missions_container.get_children():
 		child.queue_free()
 	
+	
 	await get_tree().process_frame
 	
 	var available_missions = GameManager.available_missions
@@ -187,39 +196,52 @@ func create_category_section(category: String, missions: Array, ready_adventurer
 		create_mission_card(mission, ready_adventurers)
 
 func create_mission_card(mission: Dictionary, ready_adventurers: Array):
-	"""Instantiate SingleMissionCard scene and setup with data"""
 	print("   Creating card for: ", mission.get("name", "Unknown"))
 	
-	# Instantiate the mission card scene
-	var card_instance = MISSION_CARD_SCENE.instantiate()
+	var party_raw = mission.get("party_required", 0)
+	var is_party_mission: bool
+	if party_raw is bool:
+		is_party_mission = party_raw
+	elif party_raw is int:
+		is_party_mission = party_raw > 1
+	else:
+		is_party_mission = false
+	var card_instance
 	
-	if card_instance == null:
-		print("❌ ERROR: Failed to instantiate mission card!")
-		return
-	
-	# Add to container first
-	missions_container.add_child(card_instance)
-	
-	# Setup the card with mission data and adventurers
-	card_instance.setup(mission, ready_adventurers)
-	
-	# Connect the mission_started signal from the card
-	card_instance.mission_started.connect(_on_mission_card_started)
+	if is_party_mission:
+		card_instance = PARTY_MISSION_CARD_SCENE.instantiate()
+		missions_container.add_child(card_instance)
+		card_instance.setup(mission, ready_adventurers)
+		card_instance.mission_started.connect(_on_party_mission_card_started)  # ← different handler
+	else:
+		card_instance = MISSION_CARD_SCENE.instantiate()
+		missions_container.add_child(card_instance)
+		card_instance.setup(mission, ready_adventurers)
+		card_instance.mission_started.connect(_on_mission_card_started)
 	
 	print("   ✓ Card created for: ", mission.get("name", "Unknown"))
 
 func _on_mission_card_started(mission: Dictionary, adventurer: Dictionary):
-	"""Handle when a mission card's send button is pressed"""
+	"""Handle when a solo mission card's send button is pressed"""
 	print("🎯 Mission started: ", mission.get("name"), " with ", adventurer.get("name"))
-	
-	# Execute the mission
 	execute_solo_mission(adventurer, mission)
-	
-	# Mark as assigned
 	assigned_missions.append(mission)
-	
-	# Refresh the board to show updated state
 	populate_missions()
+
+func _on_party_mission_card_started(mission: Dictionary, adventurers: Array):
+	"""Handle when a party mission card's send button is pressed"""
+	print("🎯 Party mission: ", mission.get("name"), " with ", adventurers.size(), " adventurers")
+	
+	for adventurer in adventurers:
+		var success_chance = calculate_solo_success_chance(adventurer, mission)
+		var roll = randi() % 100 + 1
+		send_log_message("🗡️ " + adventurer.name + " departs on: " + mission.name)
+		send_log_message("🎲 Success chance: " + str(success_chance) + "% (Rolled: " + str(roll) + ")")
+		GameManager.complete_mission(adventurer, mission, roll <= success_chance)
+	
+	assigned_missions.append(mission)
+	GameManager.adventurer_roster_changed.emit()
+	queue_free()
 
 func execute_solo_mission(adventurer: Dictionary, mission: Dictionary):
 	"""Execute a solo mission"""

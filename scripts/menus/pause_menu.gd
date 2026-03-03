@@ -9,6 +9,7 @@ extends CanvasLayer
 
 func _ready():
 	# Start hidden
+	process_mode = Node.PROCESS_MODE_ALWAYS  
 	visible = false
 
 	# Connect buttons
@@ -62,11 +63,9 @@ func _search_for_button(node: Node, button_text: String) -> Button:
 	
 	return null
 
-
 func _input(event):
-	"""Toggle pause menu with ESC key"""
-	if event.is_action_pressed("ui_cancel") and not get_tree().paused:
-		toggle_pause()
+	if event is InputEventMouseButton:
+		print("🖱️ PAUSE MENU GOT CLICK at: ", event.position)
 
 func toggle_pause():
 	"""Toggle pause state"""

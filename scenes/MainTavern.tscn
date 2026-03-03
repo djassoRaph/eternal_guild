@@ -370,6 +370,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 stretch = true
 stretch_shrink = 2
 
@@ -817,8 +818,53 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2
 script = ExtResource("13_ghpec")
 max_patrons = 5
 
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+
+[node name="PauseBackground" type="Control" parent="PauseMenu"]
+modulate = Color(1, 1, 1, 0.7)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PauseMenu"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -65.0
+offset_top = -85.5
+offset_right = 65.0
+offset_bottom = 85.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainMenuButton" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Main Menu"
+
+[node name="Load" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Load Game"
+
+[node name="Save" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Save Game"
+
+[node name="Save&Exit" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Save & Exit"
+
+[node name="QuitButton" type="Button" parent="PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Quit game GTG!"
+
 [node name="GameUI" type="CanvasLayer" parent="."]
-visible = false
 script = ExtResource("21_g0upg")
 
 [node name="TopStatsBar" type="HBoxContainer" parent="GameUI"]
@@ -827,6 +873,7 @@ offset_left = 1.0
 offset_right = 532.0
 offset_bottom = 60.0
 tooltip_text = "Status and info"
+mouse_filter = 0
 
 [node name="DayLabel" type="Label" parent="GameUI/TopStatsBar"]
 layout_mode = 2
@@ -857,7 +904,9 @@ offset_top = -462.0
 offset_right = 542.0
 offset_bottom = -77.0
 grow_vertical = 0
-mouse_filter = 2
+mouse_filter = 0
+mouse_force_pass_scroll_events = false
+mouse_default_cursor_shape = 13
 
 [node name="TavernView" type="Panel" parent="GameUI/MainArea"]
 custom_minimum_size = Vector2(500, 315)
@@ -879,13 +928,10 @@ offset_right = -4.0
 offset_bottom = 31.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 theme = SubResource("Theme_0nrlt")
 theme_override_styles/panel = SubResource("StyleBoxFlat_0nrlt")
 theme_override_styles/focus = SubResource("StyleBoxFlat_qlm8p")
 follow_focus = true
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 2
 
 [node name="EventLog" type="RichTextLabel" parent="GameUI/MainArea/TavernView/LogContainer"]
 custom_minimum_size = Vector2(500, 430)
@@ -918,6 +964,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
 [node name="TavernManagementPopup" type="PopupPanel" parent="GameUI/PopupManager"]
 unique_name_in_owner = true
@@ -930,8 +977,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 4.0
 offset_top = 4.0
-offset_right = 396.0
-offset_bottom = 396.0
+offset_right = -4.0
+offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
@@ -953,8 +1000,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 4.0
 offset_top = 4.0
-offset_right = 396.0
-offset_bottom = 296.0
+offset_right = -4.0
+offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
@@ -976,8 +1023,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 4.0
 offset_top = 4.0
-offset_right = 446.0
-offset_bottom = 596.0
+offset_right = -4.0
+offset_bottom = -4.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 20
@@ -1127,56 +1174,13 @@ theme_override_constants/separation = 10
 [node name="VScrollBar" type="VScrollBar" parent="GameUI/AdventurerRosterPanel/RosterScrollContainer/RosterList"]
 layout_mode = 2
 
-[node name="PauseMenu" type="CanvasLayer" parent="GameUI/AdventurerRosterPanel"]
-unique_name_in_owner = true
-visible = false
-
-[node name="PauseBackground" type="Control" parent="GameUI/AdventurerRosterPanel/PauseMenu"]
-modulate = Color(1, 1, 1, 0.7)
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="GameUI/AdventurerRosterPanel/PauseMenu"]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="MainMenuButton" type="Button" parent="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer"]
-layout_mode = 2
-text = "Main Menu"
-
-[node name="Load" type="Button" parent="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer"]
-layout_mode = 2
-text = "Load Game"
-
-[node name="Save" type="Button" parent="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer"]
-layout_mode = 2
-text = "Save Game"
-
-[node name="Save&Exit" type="Button" parent="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer"]
-layout_mode = 2
-text = "Save & Exit"
-
-[node name="QuitButton" type="Button" parent="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer"]
-layout_mode = 2
-text = "Quit game GTG!"
-
 [node name="MissionBoard" parent="GameUI" instance=ExtResource("30_ocxae")]
-mouse_filter = 2
+offset_left = -469.0
+offset_top = 92.0
+offset_right = 608.0
 
 [node name="UIOverlay" type="CanvasLayer" parent="."]
+visible = false
 
 [node name="FadeToBlack" type="Control" parent="UIOverlay"]
 unique_name_in_owner = true
@@ -1194,6 +1198,7 @@ script = ExtResource("15_in5p4")
 
 [node name="GameOverScreen" type="CanvasLayer" parent="."]
 unique_name_in_owner = true
+visible = false
 script = ExtResource("33_xtcff")
 
 [node name="ColorRect" type="ColorRect" parent="GameOverScreen"]
@@ -1222,6 +1227,6 @@ text = "MessageLabel"
 layout_mode = 2
 text = "Main Menu"
 
-[connection signal="pressed" from="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
-[connection signal="pressed" from="GameUI/AdventurerRosterPanel/PauseMenu/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
+[connection signal="pressed" from="PauseMenu/VBoxContainer/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
+[connection signal="pressed" from="PauseMenu/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
 [connection signal="pressed" from="GameOverScreen/CenterContainer/VBoxContainer/MainMenuButton" to="GameOverScreen" method="_on_main_menu_button_pressed"]

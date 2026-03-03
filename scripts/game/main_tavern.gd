@@ -163,10 +163,12 @@ func _input(event):
 			GameManager.trigger_game_over("test_game_over", "TEST: Manual game over triggered with B key")
 
 func toggle_pause_menu():
-	
-	print("Found pause menu: ", pause_menu)
 	pause_menu.visible = !pause_menu.visible
-	get_tree().paused = pause_menu.visible
+	var svc = get_node_or_null("SubViewportContainer")
+	if svc:
+		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE if pause_menu.visible else Control.MOUSE_FILTER_STOP
+		print("🖱️ SVC mouse_filter is now: ", svc.mouse_filter)  # Should print 2 when paused
+	print("🖱️ PauseMenu visible: ", pause_menu.visible)
 
 func _on_main_menu_button_pressed() -> void:
 	print("on_main_menu_button log")

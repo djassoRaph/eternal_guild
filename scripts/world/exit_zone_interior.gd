@@ -10,7 +10,7 @@ extends Area3D
 # =============================================================================
 @export var prompt_text := "Press E - Exit Tavern"
 @export var exterior_scene_path := "res://scenes/world/ExteriorWorld.tscn"
-@export var exterior_spawn_position := Vector3(-19.584, 2.0, 5.0)
+@export var exterior_spawn_position := Vector3(-19.584, 2.0, 10.0)
 
 
 # =============================================================================
@@ -39,7 +39,7 @@ func _ready() -> void:
 	var zone_ui = get_node_or_null("/root/ZonePromptUI")
 	if zone_ui and zone_ui.has_method("register_zone"):
 		zone_ui.register_zone(self, prompt_text)
-		print("   Registered with ZonePromptUI")
+		print("Registered with ZonePromptUI")
 
 
 # =============================================================================

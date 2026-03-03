@@ -17,8 +17,8 @@ bg_color = Color(0.821374, 0.488238, 0.544076, 1)
 
 [node name="SingleMissionCard" type="PanelContainer"]
 custom_minimum_size = Vector2(520, 0)
-offset_right = 40.0
-offset_bottom = 40.0
+offset_right = 546.0
+offset_bottom = 222.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_lc8ij")
 script = ExtResource("1_3ess8")
 
@@ -69,12 +69,15 @@ layout_mode = 2
 custom_minimum_size = Vector2(300, 40)
 layout_mode = 2
 size_flags_vertical = 3
+toggle_mode = false
 text_overrun_behavior = 3
 selected = 0
-fit_to_longest_item = false
-item_count = 1
+allow_reselect = true
+item_count = 2
 popup/item_0/text = "Select Adventurer..."
 popup/item_0/id = 0
+popup/item_1/text = "test"
+popup/item_1/id = 1
 
 [node name="SendButton" type="Button" parent="MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 40)

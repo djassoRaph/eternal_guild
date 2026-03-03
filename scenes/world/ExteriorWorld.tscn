@@ -1,8 +1,12 @@
-[gd_scene load_steps=16 format=3 uid="uid://c8yad3n2k4p7q"]
+[gd_scene load_steps=21 format=3 uid="uid://c8yad3n2k4p7q"]
 
 [ext_resource type="Script" uid="uid://m1w8a7v1jx7e" path="res://scripts/world/exteriorworld.gd" id="1_gqbs3"]
 [ext_resource type="Script" uid="uid://noiotjjcccpn" path="res://scripts/world/entrance_zone_exterior.gd" id="2_hxdmn"]
 [ext_resource type="Script" uid="uid://m3qqf3byxsem" path="res://scripts/camera/exterior_camera.gd" id="2_o6ei4"]
+[ext_resource type="PackedScene" uid="uid://bhyjmh6v73yat" path="res://assets/environment/nature/Tree_1_B_Color1.fbx" id="4_nkwse"]
+[ext_resource type="PackedScene" uid="uid://brow1qn85ifyk" path="res://assets/environment/nature/Tree_1_C_Color1.fbx" id="5_1iqh6"]
+[ext_resource type="PackedScene" uid="uid://c55i3414ip07o" path="res://assets/environment/nature/Tree_2_D_Color1.fbx" id="6_iim40"]
+[ext_resource type="PackedScene" uid="uid://d1vka8sxyxcrp" path="res://assets/environment/nature/Tree_Bare_2_A_Color1.fbx" id="7_7aysx"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_horizon_color = Color(0.646, 0.656, 0.67, 1)
@@ -19,10 +23,13 @@ ambient_light_color = Color(0.8, 0.75, 0.7, 1)
 ambient_light_energy = 0.8
 
 [sub_resource type="BoxMesh" id="BoxMesh_1"]
-size = Vector3(40, 0.5, 40)
+size = Vector3(40, -0.5, 40)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
-albedo_color = Color(0.4, 0.35, 0.25, 1)
+albedo_color = Color(0, 0.931927, 0.332164, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_hxdmn"]
+size = Vector3(158.952, 1, 158.7)
 
 [sub_resource type="BoxMesh" id="BoxMesh_i36vg"]
 
@@ -37,7 +44,7 @@ albedo_color = Color(0.4, 0.35, 0.25, 1)
 [sub_resource type="BoxMesh" id="BoxMesh_3qumm"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_1"]
-size = Vector3(3, 3, 2)
+size = Vector3(5.49762, 6.78067, 6.42073)
 
 [node name="ExteriorWorld" type="Node3D"]
 script = ExtResource("1_gqbs3")
@@ -59,9 +66,15 @@ far = 200.0
 script = ExtResource("2_o6ei4")
 
 [node name="Ground" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 30, 0, 0, 0)
 mesh = SubResource("BoxMesh_1")
 surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="Ground"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground/StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.1672, 0.108355, -11.6523)
+shape = SubResource("BoxShape3D_hxdmn")
 
 [node name="Buildings" type="Node3D" parent="."]
 
@@ -74,37 +87,40 @@ transform = Transform3D(4, 0, 0, 0, 3, 0, 0, 0, 4, -8, 3.5, 29)
 mesh = SubResource("SphereMesh_6x00i")
 
 [node name="GeneralStoreBuilding" type="MeshInstance3D" parent="Buildings"]
-transform = Transform3D(4.5, 0, 0, 0, 3.5, 0, 0, 0, 5, 8, 5.8, -14)
+transform = Transform3D(4.5, 0, 0, 0, 3.5, 0, 0, 0, 5, -9.27353, 1.94559, -14)
 mesh = SubResource("PrismMesh_6nee7")
 
 [node name="ResidenceBuilding" type="MeshInstance3D" parent="Buildings"]
-transform = Transform3D(3.5, 0, 0, 0, 4, 0, 0, 0, 3.5, -24, 2, -30)
+transform = Transform3D(3.5, 0, 0, 0, 4, 0, 0, 0, 3.5, -24, 2, -5.64104)
 mesh = SubResource("CylinderMesh_jmm5r")
 
 [node name="Props" type="Node3D" parent="."]
 
 [node name="Well" type="MeshInstance3D" parent="Props"]
-transform = Transform3D(2, 0, 0, 0, 1.5, 0, 0, 0, 2, 16, 2.8, 6)
+transform = Transform3D(2, 0, 0, 0, 1.5, 0, 0, 0, 2, -25.8853, 1.0384, 29.2062)
 mesh = SubResource("CylinderMesh_7pjf3")
 
 [node name="FarmingPlot1" type="MeshInstance3D" parent="Props"]
-transform = Transform3D(4, 0, 0, 0, 0.1, 0, 0, 0, 4, -26, 0.55097, -6)
+transform = Transform3D(4, 0, 0, 0, 0.1, 0, 0, 0, 4, -26, -0.0635281, 25.7631)
 mesh = SubResource("BoxMesh_3qumm")
 
 [node name="FarmingPlot2" type="MeshInstance3D" parent="Props"]
-transform = Transform3D(4, 0, 0, 0, 0.1, 0, 0, 0, 4, -10, 0.1, -12)
-mesh = SubResource("BoxMesh_1")
+transform = Transform3D(4, 0, 0, 0, 0.01, 0, 0, 0, 4, -25.5166, 0.155097, 33.2279)
+mesh = SubResource("BoxMesh_3qumm")
+skeleton = NodePath("")
 
 [node name="PlayerSpawnPoint" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.5835, 2.77411, 5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.2456, 1.62198, 7.05838)
+visible = false
 gizmo_extents = 1.0
 
 [node name="TavernEntranceZone" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.5805, 2.493, 7.33998)
 script = ExtResource("2_hxdmn")
+interior_spawn_position = Vector3(6, 0.5, 6)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TavernEntranceZone"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.2719, 0, 4.30819)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.65002, -1.15425, 1.08228)
 shape = SubResource("BoxShape3D_1")
 
 [node name="InteractionPrompt" type="Label3D" parent="TavernEntranceZone"]
@@ -113,3 +129,15 @@ pixel_size = 0.01
 billboard = 1
 text = "Press E to Enter Tavern"
 outline_size = 8
+
+[node name="Tree_1_B_Color1" parent="." instance=ExtResource("4_nkwse")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.1844, -0.310723, 16.4306)
+
+[node name="Tree_1_C_Color1" parent="." instance=ExtResource("5_1iqh6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.3684, 0.367809, 1.93384)
+
+[node name="Tree_2_D_Color1" parent="." instance=ExtResource("6_iim40")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.1053, -0.453855, 12.968)
+
+[node name="Tree_Bare_2_A_Color1" parent="." instance=ExtResource("7_7aysx")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.5439, 0.966704, 11.1906)

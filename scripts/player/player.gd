@@ -154,18 +154,17 @@ func _input_to_isometric(input: Vector2) -> Vector3:
 # =============================================================================
 
 func _play_animation(anim_name: String, blend_time: float = 0.2) -> void:
-	"""Play an animation with optional blend time"""
 	if not animation_player:
 		return
-	
-	# Check if animation exists
 	if not animation_player.has_animation(anim_name):
 		push_warning("Player: Animation not found: ", anim_name)
 		return
-	
-	# Don't restart if already playing
 	if animation_player.current_animation == anim_name:
 		return
+	
+	var anim = animation_player.get_animation(anim_name)
+	if anim:
+		anim.loop_mode = Animation.LOOP_LINEAR
 	
 	animation_player.play(anim_name, blend_time)
 
