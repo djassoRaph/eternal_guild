@@ -12,7 +12,8 @@ extends PanelContainer
 
 var mission_data: Dictionary = {}
 var available_adventurers: Array = []
-var selected_adventurers: Array = []  # Stores selected adventurer dicts
+var selected_adventurers: Array = []
+var adventurer_buttons: Array = []
 
 signal mission_started(mission: Dictionary, adventurers: Array)
 
@@ -43,7 +44,8 @@ func setup(test_mission: Dictionary, adventurers: Array):
 	danger_label.add_theme_color_override("font_color", get_danger_color(danger))
 	
 	# Get required party size
-	var party_size = test_mission.get("party_required", 2)
+	var raw = test_mission.get("party_required", 2)
+	var party_size: int = 2 if raw is bool else maxi(2, int(raw))
 	required_label.text = "👥 Requires: " + str(party_size) + " adventurers"
 	
 	# Create selection buttons for each adventurer
@@ -58,7 +60,7 @@ func populate_adventurer_buttons(party_size: int):
 	# Clear existing buttons
 	for child in adventurer_buttons_container.get_children():
 		child.queue_free()
-	
+	adventurer_buttons.clear() 
 	await get_tree().process_frame
 	
 	if available_adventurers.size() == 0:
@@ -77,29 +79,32 @@ func populate_adventurer_buttons(party_size: int):
 		button.pressed.connect(_on_adventurer_button_toggled.bindv([i, adv]))
 		
 		# Store reference to the button in the adventurer dict for easier tracking
-		adv["_button_ref"] = button
+		adventurer_buttons.append(button)
 		
 		adventurer_buttons_container.add_child(button)
 		print("   ✓ Added button for: ", adv.get("name"))
 	
 	print("✅ Buttons ready - select ", party_size, " to continue")
 
-func _on_adventurer_button_toggled(index: int, adventurer: Dictionary):
-	"""Handle adventurer selection/deselection"""
-	var button = adventurer["_button_ref"]
-	var party_size = mission_data.get("party_required", 2)
+func _on_adventurer_button_toggled(index: int, button: Button):  # ← button passed directly
+	var adv = available_adventurers[index]
+	var party_size = get_party_size()
 	
 	if button.button_pressed:
-		# Add to selected if not already there
-		if adventurer not in selected_adventurers:
-			selected_adventurers.append(adventurer)
-			button.modulate = Color.GREEN  # Visual feedback
-			print("✅ Selected: ", adventurer.get("name"))
+		if adv not in selected_adventurers:
+			selected_adventurers.append(adv)
+			button.modulate = Color.GREEN
 	else:
-		# Remove from selected
-		selected_adventurers.erase(adventurer)
-		button.modulate = Color.WHITE  # Reset color
-		print("❌ Deselected: ", adventurer.get("name"))
+		selected_adventurers.erase(adv)
+		button.modulate = Color.WHITE
+	
+	selection_label.text = "👤 Selected: " + str(selected_adventurers.size()) + " / " + str(party_size)
+	send_button.disabled = selected_adventurers.size() != party_size
+	
+	if selected_adventurers.size() == party_size:
+		send_button.text = "🗡️ Send Party (" + str(selected_adventurers.size()) + ")"
+	else:
+		send_button.text = "🗡️ Send Party"
 	
 	# Update selection label
 	selection_label.text = "👤 Selected: " + str(selected_adventurers.size()) + " / " + str(party_size)
@@ -177,3 +182,8 @@ func get_danger_color(danger: int) -> Color:
 		4: return Color.RED
 		5: return Color.PURPLE
 		_: return Color.WHITE
+
+
+func get_party_size() -> int:
+	var raw = mission_data.get("party_required", 2)
+	return 2 if raw is bool else maxi(2, int(raw))

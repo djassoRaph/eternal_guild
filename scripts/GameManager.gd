@@ -335,6 +335,7 @@ func handle_tax_payment():
 	
 	if spend_gold(tax_amount):
 		tax_due_day += 30
+		taxes_paid_count += 1
 		log_message("Successfully paid " + str(tax_amount) + " gold in taxes")
 		log_message("Next tax payment due on day " + str(tax_due_day))
 		GameManager.check_tier_unlocks()

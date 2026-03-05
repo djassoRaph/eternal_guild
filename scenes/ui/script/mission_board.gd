@@ -155,6 +155,12 @@ func populate_missions():
 		return
 	
 	# Get ready adventurers once (not per mission)
+	var solo = available_missions.filter(func(m): 
+		return not m.get("party_required", false))
+	var party = available_missions.filter(func(m): 
+		var pr = m.get("party_required", false)
+		return pr == true or (pr is int and pr > 1)
+	)
 	var ready_adventurers = GameManager.get_ready_adventurers()
 	print("   Available adventurers: ", ready_adventurers.size())
 	
@@ -168,13 +174,13 @@ func populate_missions():
 func group_missions_by_category(missions: Array) -> Dictionary:
 	"""Group missions by category for organized display"""
 	var grouped = {}
-	
 	for mission in missions:
 		if not is_mission_assigned(mission):
 			var category = mission.get("category", "misc")
 			if not grouped.has(category):
 				grouped[category] = []
 			grouped[category].append(mission)
+			
 	
 	return grouped
 
