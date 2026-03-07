@@ -18,7 +18,7 @@ func _ready():
 	await get_tree().process_frame
 	_init_zone_prompts()
 	log_message("Game started successfully!")
-
+	add_to_group("main_tavern")
 	# Allow this node to process input even when paused
 	process_mode = Node.PROCESS_MODE_ALWAYS
 		
