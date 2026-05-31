@@ -228,23 +228,17 @@ func create_mission_card(mission: Dictionary, ready_adventurers: Array):
 	print("   ✓ Card created for: ", mission.get("name", "Unknown"))
 
 func _on_mission_card_started(mission: Dictionary, adventurer: Dictionary):
-	"""Handle when a solo mission card's send button is pressed"""
-	print("🎯 Mission started: ", mission.get("name"), " with ", adventurer.get("name"))
-	execute_solo_mission(adventurer, mission)
+	"""Handle when a solo mission card's send button is pressed — DEFERRED resolution"""
+	print("🎯 Mission dispatched: ", mission.get("name"), " with ", adventurer.get("name"))
+	GameManager.send_on_mission(adventurer, mission)
 	assigned_missions.append(mission)
-	populate_missions()
+	GameManager.adventurer_roster_changed.emit()
+	queue_free()
 
 func _on_party_mission_card_started(mission: Dictionary, adventurers: Array):
-	"""Handle when a party mission card's send button is pressed"""
-	print("🎯 Party mission: ", mission.get("name"), " with ", adventurers.size(), " adventurers")
-	
-	for adventurer in adventurers:
-		var success_chance = calculate_solo_success_chance(adventurer, mission)
-		var roll = randi() % 100 + 1
-		send_log_message("🗡️ " + adventurer.name + " departs on: " + mission.name)
-		send_log_message("🎲 Success chance: " + str(success_chance) + "% (Rolled: " + str(roll) + ")")
-		GameManager.complete_mission(adventurer, mission, roll <= success_chance)
-	
+	"""Handle when a party mission card's send button is pressed — DEFERRED resolution"""
+	print("🎯 Party mission dispatched: ", mission.get("name"), " with ", adventurers.size(), " adventurers")
+	GameManager.send_party_on_mission(adventurers, mission)
 	assigned_missions.append(mission)
 	GameManager.adventurer_roster_changed.emit()
 	queue_free()

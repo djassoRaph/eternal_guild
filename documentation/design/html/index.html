@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Design Document — Shining Sun GDD</title>
+<style>
+:root {
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #c8a84b;
+    --accent2: #7a9e7e;
+    --text: #e0d8cc;
+    --muted: #888;
+    --heading: #f0e6d0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    line-height: 1.7;
+    padding: 0;
+}
+.layout { display: flex; min-height: 100vh; }
+nav {
+    width: 240px;
+    min-width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+nav h2 { color: var(--accent); font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1.5rem; }
+nav a {
+    display: block;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    transition: color 0.2s, background 0.2s;
+}
+nav a:hover, nav a.active { color: var(--accent); background: rgba(200,168,75,0.08); }
+main {
+    flex: 1;
+    max-width: 860px;
+    padding: 3rem 4rem;
+    margin: 0 auto;
+}
+h1 { color: var(--heading); font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 0; }
+h2 { color: var(--accent); font-size: 1.4rem; margin-top: 2.5rem; margin-bottom: 0.75rem; }
+h3 { color: var(--accent2); font-size: 1.1rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+h4 { color: var(--heading); font-size: 1rem; margin-top: 1.25rem; margin-bottom: 0.4rem; }
+p { margin-bottom: 1rem; }
+ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+li { margin-bottom: 0.3rem; }
+code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88em;
+    color: var(--accent2);
+}
+pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+pre code { background: none; border: none; padding: 0; }
+blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    background: rgba(200,168,75,0.05);
+    color: var(--muted);
+    font-style: italic;
+}
+table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+th { background: var(--surface); color: var(--accent); padding: 0.5rem 0.75rem; text-align: left; border: 1px solid var(--border); }
+td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); }
+tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+a { color: var(--accent2); }
+a:hover { color: var(--accent); }
+@media (max-width: 700px) {
+    .layout { flex-direction: column; }
+    nav { width: 100%; height: auto; position: relative; }
+    main { padding: 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h2>Shining Sun</h2>
+<a href="index.html">Home</a>
+<hr style="margin:0.75rem 0;border-color:#2a2a2a">
+<a href="00_GDD_Master.html">00 GDD Master</a>
+<a href="01_Core_Vision_and_Pillars.html">01 Core Vision and Pillars</a>
+<a href="02_Gameplay_Mechanics.html">02 Gameplay Mechanics</a>
+<a href="03_Story_and_Progression.html">03 Story and Progression</a>
+<a href="04_Art_and_Interaction.html">04 Art and Interaction</a>
+<a href="05_Technical_Architecture.html">05 Technical Architecture</a>
+<a href="06_Character_Design.html">06 Character Design</a>
+<a href="07_World_Design.html">07 World Design</a>
+</nav>
+<main>
+<h1>Shining Sun — Game Design Document</h1>
+<p>A living design document for the Shining Sun RPG project.</p>
+<ul style="margin-top:1.5rem;list-style:none;padding:0;">
+<li style="margin-bottom:0.6rem"><a href="00_GDD_Master.html">00 GDD Master</a></li><li style="margin-bottom:0.6rem"><a href="01_Core_Vision_and_Pillars.html">01 Core Vision and Pillars</a></li><li style="margin-bottom:0.6rem"><a href="02_Gameplay_Mechanics.html">02 Gameplay Mechanics</a></li><li style="margin-bottom:0.6rem"><a href="03_Story_and_Progression.html">03 Story and Progression</a></li><li style="margin-bottom:0.6rem"><a href="04_Art_and_Interaction.html">04 Art and Interaction</a></li><li style="margin-bottom:0.6rem"><a href="05_Technical_Architecture.html">05 Technical Architecture</a></li><li style="margin-bottom:0.6rem"><a href="06_Character_Design.html">06 Character Design</a></li><li style="margin-bottom:0.6rem"><a href="07_World_Design.html">07 World Design</a></li>
+</ul>
+</main>
+</div>
+</body>
+</html>

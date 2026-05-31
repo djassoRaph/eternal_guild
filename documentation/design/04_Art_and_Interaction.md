@@ -32,6 +32,12 @@ The project's visual identity is guided by a curated set of inspirational images
 ### 3.1 Core Interaction Mechanic
 The player controls an avatar in a 3D space. Interaction with key objects (mission board, bar, patrons, fireplace) is handled via proximity detection and a single key press ("E").
 
+### 3.1.1 Mission Board UI Layer
+Activating the mission board opens a compound UI with two panels visible simultaneously:
+* **Left panel — Active Deployments**: Lists all groups currently on missions sorted by soonest expected return. Each row shows the lead adventurer portrait, mission name, and a return countdown with a status pip (🟢 On Track / 🟡 Delayed / 🔴 Overdue).
+* **Right panel — Available Missions**: The standard list of postable contracts.
+* The Guild Book (roster card grid, organized by suit/class with status filters) is accessible from a tab or button within this same screen, keeping all dispatch-related information in one place.
+
 ### 3.2 Organic Tutorial System
 To avoid a traditional, text-heavy tutorial, the game will use a system of clear visual cues to guide the player.
 * **Visual Feedback**: Interactive zones will be highlighted with floating icons and/or glowing runes on the floor when the player is near.

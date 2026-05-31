@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDD Section 2: Gameplay Mechanics — Shining Sun GDD</title>
+<style>
+:root {
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #c8a84b;
+    --accent2: #7a9e7e;
+    --text: #e0d8cc;
+    --muted: #888;
+    --heading: #f0e6d0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    line-height: 1.7;
+    padding: 0;
+}
+.layout { display: flex; min-height: 100vh; }
+nav {
+    width: 240px;
+    min-width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+nav h2 { color: var(--accent); font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1.5rem; }
+nav a {
+    display: block;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    transition: color 0.2s, background 0.2s;
+}
+nav a:hover, nav a.active { color: var(--accent); background: rgba(200,168,75,0.08); }
+main {
+    flex: 1;
+    max-width: 860px;
+    padding: 3rem 4rem;
+    margin: 0 auto;
+}
+h1 { color: var(--heading); font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 0; }
+h2 { color: var(--accent); font-size: 1.4rem; margin-top: 2.5rem; margin-bottom: 0.75rem; }
+h3 { color: var(--accent2); font-size: 1.1rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+h4 { color: var(--heading); font-size: 1rem; margin-top: 1.25rem; margin-bottom: 0.4rem; }
+p { margin-bottom: 1rem; }
+ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+li { margin-bottom: 0.3rem; }
+code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88em;
+    color: var(--accent2);
+}
+pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+pre code { background: none; border: none; padding: 0; }
+blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    background: rgba(200,168,75,0.05);
+    color: var(--muted);
+    font-style: italic;
+}
+table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+th { background: var(--surface); color: var(--accent); padding: 0.5rem 0.75rem; text-align: left; border: 1px solid var(--border); }
+td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); }
+tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+a { color: var(--accent2); }
+a:hover { color: var(--accent); }
+@media (max-width: 700px) {
+    .layout { flex-direction: column; }
+    nav { width: 100%; height: auto; position: relative; }
+    main { padding: 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h2>Shining Sun</h2>
+<a href="index.html">Home</a>
+<hr style="margin:0.75rem 0;border-color:#2a2a2a">
+<a href="00_GDD_Master.html">00 GDD Master</a>
+<a href="01_Core_Vision_and_Pillars.html">01 Core Vision and Pillars</a>
+<a href="02_Gameplay_Mechanics.html" class="active">02 Gameplay Mechanics</a>
+<a href="03_Story_and_Progression.html">03 Story and Progression</a>
+<a href="04_Art_and_Interaction.html">04 Art and Interaction</a>
+<a href="05_Technical_Architecture.html">05 Technical Architecture</a>
+<a href="06_Character_Design.html">06 Character Design</a>
+<a href="07_World_Design.html">07 World Design</a>
+</nav>
+<main>
+<h1 id="gdd-section-2-gameplay-mechanics">GDD Section 2: Gameplay Mechanics</h1>
+<h3 id="version-10"><strong>Version: 1.0</strong></h3>
+<h3 id="project-chronicles-of-the-eternal-guild"><strong>Project: Chronicles of the Eternal Guild</strong></h3>
+<hr />
+<h2 id="1-the-core-loop">1. The Core Loop</h2>
+<p>The gameplay is structured around a repeating and evolving cycle of management and adventure.</p>
+<ol>
+<li><strong>Recruit &amp; Interact</strong>: Meet unique adventurers.</li>
+<li><strong>Prepare &amp; Dispatch</strong>: Assign adventurers to missions.</li>
+<li><strong>Tavern Management</strong>: Serve patrons, manage resources, and maintain the tavern's comfort.</li>
+<li><strong>Mission Resolution</strong>: Missions are auto-resolved, with outcomes influencing adventurer growth.</li>
+<li><strong>Return &amp; Consequences</strong>: Adventurers return changed, and their success can unlock lore and story quests, including those related to "The Priors."</li>
+</ol>
+<hr />
+<h2 id="2-tavern-management">2. Tavern Management</h2>
+<p>The tavern is the player's primary interface for economic and resource management.</p>
+<h3 id="21-patron-service-cycle">2.1 Patron Service Cycle</h3>
+<ul>
+<li>The tavern currently supports up to 5 simultaneous patrons, with plans for future expansion.</li>
+<li>The player must physically move to patrons to serve them, earning gold and managing the flow of customers in real-time.</li>
+</ul>
+<h3 id="22-economy-resources">2.2 Economy &amp; Resources</h3>
+<ul>
+<li><strong>Gold</strong>: The primary currency for all transactions.</li>
+<li><strong>Beer</strong>: The core consumable for tavern income.</li>
+<li><strong>Taxes</strong>: An escalating tax is due every 30 days, serving as the primary economic pressure and a key progression gate. The basic system for this is implemented.</li>
+</ul>
+<h3 id="23-firewood-comfort-system">2.3 Firewood &amp; Comfort System</h3>
+<ul>
+<li><strong>Status</strong>: ✅ <strong>Fully Implemented</strong>.</li>
+<li><strong>Mechanic</strong>: The player manages firewood to keep the tavern fireplace lit. A burning fire generates a "Comfort" level, which acts as a multiplier for tips earned from patrons.</li>
+<li><strong>Planned Feature</strong>: A mini-game is planned for when the fire needs to be relit from 0% fuel.</li>
+</ul>
+<hr />
+<h2 id="3-adventurer-management">3. Adventurer Management</h2>
+<p>Adventurers are the player's key assets for progressing the story and generating significant income.</p>
+<h3 id="31-recruitment-and-roster">3.1 Recruitment and Roster</h3>
+<ul>
+<li>Players hire adventurers from a daily pool of randomly generated applicants.</li>
+<li>Each adventurer has a class, stats, and a hiring cost.</li>
+</ul>
+<h3 id="32-consequences-and-costs">3.2 Consequences and Costs</h3>
+<ul>
+<li><strong>Status</strong>: ✅ <strong>Implemented</strong>.</li>
+<li><strong>Daily Costs</strong>: Adventurers have daily wages and consume resources (beer), creating a constant economic drain.</li>
+<li><strong>Mission Risks</strong>: Missions carry a real risk of injury, which requires a recovery period where the adventurer cannot go on missions, or permanent death.</li>
+</ul>
+<h3 id="33-character-progression-journey-through-the-arcana">3.3 Character Progression: "Journey Through the Arcana"</h3>
+<ul>
+<li>This is the core system for ensuring deep character investment.</li>
+<li><strong>Mechanic</strong>: Core adventurers are represented by evolving Tarot portraits. A character begins with a Minor Arcana card representing their novice state (e.g., "Seven of Swords").</li>
+<li><strong>Evolution</strong>: By completing key personal story quests, they evolve into a Major Arcana, representing their growth into a master or legend (e.g., "The Emperor"). Their portrait, stats, and traits change to reflect this transformation.</li>
+<li><strong>Corruption</strong>: Failure or dark choices can lead a character down a path of corruption, represented by a <strong>Reversed</strong> tarot portrait with negative traits.</li>
+</ul>
+</main>
+</div>
+</body>
+</html>

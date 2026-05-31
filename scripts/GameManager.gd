@@ -28,6 +28,9 @@ signal recruitment_pool_changed
 signal game_over_triggered(reason: String)
 signal firewood_changed(new_amount: int)
 signal fireplace_fuel_changed(new_percentage: float)
+signal mission_dispatched(adventurer, mission)
+signal missions_resolved(reports)
+signal morning_briefing_ready(reports)
 
 
 var mission_refresh_day: int = 1
@@ -42,7 +45,9 @@ var total_missions_completed: int = 0
 var tavern_reputation: int = 0
 var taxes_paid_count: int = 0
 
-var active_missions = []
+var active_missions: Array = []       # Missions currently in progress with countdown timers
+var pending_reports: Array = []       # Resolved mission results waiting to be shown in morning briefing
+var has_pending_briefing: bool = false # Flag for morning briefing UI to check
 
 
 
@@ -181,6 +186,77 @@ func get_max_adventurers() -> int:
 	return max_adventurers
 
 # === MISSION SYSTEM ===
+func send_on_mission(adventurer: Dictionary, mission: Dictionary):
+	"""Dispatch an adventurer on a mission. Does NOT resolve it — just starts the timer."""
+	var duration = mission.get("duration_days", 1)
+
+	adventurer.status = "On Mission"
+	adventurer["current_mission"] = mission.get("name", "Unknown Mission")
+
+	var active_entry = {
+		"adventurer": adventurer,
+		"mission": mission,
+		"days_remaining": duration,
+		"total_duration": duration,
+		"success_chance": calculate_mission_success_chance(adventurer, mission),
+		"sent_day": current_day
+	}
+
+	active_missions.append(active_entry)
+
+	log_message("🗡️ " + adventurer.name + " departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
+
+	adventurer_roster_changed.emit()
+	mission_dispatched.emit(adventurer, mission)
+
+
+func send_party_on_mission(party: Array, mission: Dictionary):
+	"""Dispatch a party on a mission. Does NOT resolve — starts the timer."""
+	var duration = mission.get("duration_days", 1)
+
+	for adventurer in party:
+		adventurer.status = "On Mission"
+		adventurer["current_mission"] = mission.get("name", "Unknown Mission")
+
+	var active_entry = {
+		"party": party,
+		"mission": mission,
+		"days_remaining": duration,
+		"total_duration": duration,
+		"is_party_mission": true,
+		"sent_day": current_day
+	}
+
+	active_missions.append(active_entry)
+
+	var names = ", ".join(party.map(func(a): return a.name))
+	log_message("🗡️ Party departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
+	log_message("   Party: " + names)
+
+	adventurer_roster_changed.emit()
+	mission_dispatched.emit(party[0], mission)
+
+
+func calculate_mission_success_chance(adventurer: Dictionary, mission: Dictionary) -> int:
+	"""Calculate success chance — extracted from mission_board.gd for reuse"""
+	var base_chance = 50
+	var success_factors = mission.get("success_factors", ["strength"])
+	var stat_bonus = 0
+
+	for factor in success_factors:
+		match factor:
+			"strength": stat_bonus += adventurer.get("strength", 0) * 3
+			"dexterity": stat_bonus += adventurer.get("dexterity", 0) * 3
+			"intelligence": stat_bonus += adventurer.get("intelligence", 0) * 3
+			"endurance": stat_bonus += adventurer.get("endurance", 0) * 2
+
+	var experience_bonus = adventurer.get("missions_completed", 0) * 2
+	var danger_penalty = mission.get("danger", 1) * 8
+	var final_chance = base_chance + stat_bonus + experience_bonus - danger_penalty
+
+	return clampi(final_chance, 10, 95)
+
+
 func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool):
 	"""Enhanced mission completion with mandatory recovery period"""
 	if success:
@@ -247,11 +323,113 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 
 # === DAILY PROCESSING ===
 func process_mission_returns():
-	"""Handle adventurers returning from missions"""
-	for adventurer in adventurers:
-		if adventurer.status == "on_mission":
-			adventurer.status = "Ready"
-			log_message(adventurer.name + " returns from their mission")
+	"""Tick down active mission timers. Resolve any that hit 0. Store results for morning briefing."""
+	var resolved_indices = []
+
+	for i in range(active_missions.size()):
+		var entry = active_missions[i]
+		entry.days_remaining -= 1
+
+		if entry.days_remaining <= 0:
+			resolved_indices.append(i)
+			var report = _resolve_mission(entry)
+			pending_reports.append(report)
+		else:
+			var mission_name = entry.mission.get("name", "Unknown")
+			var days_left = entry.days_remaining
+			if entry.get("is_party_mission", false):
+				log_message("📍 Party on " + mission_name + " — " + str(days_left) + " day" + ("s" if days_left > 1 else "") + " remaining")
+			else:
+				var adv_name = entry.adventurer.get("name", "Someone")
+				log_message("📍 " + adv_name + " on " + mission_name + " — " + str(days_left) + " day" + ("s" if days_left > 1 else "") + " remaining")
+
+	resolved_indices.reverse()
+	for idx in resolved_indices:
+		active_missions.remove_at(idx)
+
+	if pending_reports.size() > 0:
+		has_pending_briefing = true
+		morning_briefing_ready.emit(pending_reports)
+
+
+func _resolve_mission(entry: Dictionary) -> Dictionary:
+	"""Roll the dice for a completed mission and return a report dictionary."""
+	if entry.get("is_party_mission", false):
+		return _resolve_party_mission(entry)
+	else:
+		return _resolve_solo_mission(entry)
+
+
+func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
+	"""Resolve a solo mission and apply consequences to the adventurer."""
+	var adventurer = entry.adventurer
+	var mission = entry.mission
+	var success_chance = entry.success_chance
+	var roll = randi() % 100 + 1
+	var success = roll <= success_chance
+
+	complete_mission(adventurer, mission, success)
+
+	return {
+		"type": "solo",
+		"mission_name": mission.get("name", "Unknown"),
+		"adventurer_name": adventurer.get("name", "Unknown"),
+		"adventurer_class": adventurer.get("class", "Unknown"),
+		"success": success,
+		"roll": roll,
+		"success_chance": success_chance,
+		"reward": mission.get("reward_range", [0, 0]),
+		"duration": entry.total_duration,
+		"alive": adventurer.get("status", "") != "Dead",
+		"injured": adventurer.get("status", "") == "Injured",
+		"category": mission.get("category", "combat")
+	}
+
+
+func _resolve_party_mission(entry: Dictionary) -> Dictionary:
+	"""Resolve a party mission and apply consequences."""
+	var party = entry.party
+	var mission = entry.mission
+
+	var total_chance = 0
+	for adv in party:
+		total_chance += calculate_mission_success_chance(adv, mission)
+	var avg_chance = total_chance / party.size()
+
+	var party_bonus = (party.size() - 1) * 5
+	var final_chance = clampi(avg_chance + party_bonus, 10, 95)
+
+	var roll = randi() % 100 + 1
+	var success = roll <= final_chance
+
+	complete_party_mission(party, mission, success)
+
+	var member_names = party.map(func(a): return a.get("name", "?"))
+	var casualties = party.filter(func(a): return a.get("status", "") == "Dead")
+	var injured = party.filter(func(a): return a.get("status", "") == "Injured")
+
+	return {
+		"type": "party",
+		"mission_name": mission.get("name", "Unknown"),
+		"party_members": member_names,
+		"party_size": party.size(),
+		"success": success,
+		"roll": roll,
+		"success_chance": final_chance,
+		"reward": mission.get("reward_range", [0, 0]),
+		"duration": entry.total_duration,
+		"casualties": casualties.map(func(a): return a.get("name", "?")),
+		"injured": injured.map(func(a): return a.get("name", "?")),
+		"category": mission.get("category", "combat")
+	}
+
+
+func get_and_clear_pending_reports() -> Array:
+	"""Called by MorningBriefing UI to consume the pending reports."""
+	var reports = pending_reports.duplicate()
+	pending_reports.clear()
+	has_pending_briefing = false
+	return reports
 
 func process_daily_operations():
 	"""Handle daily costs and maintenance"""

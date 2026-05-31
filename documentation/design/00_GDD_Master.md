@@ -49,6 +49,9 @@ This framework ensures the core gameplay loops appeal to a broad range of player
 
 ### 3.3 Adventurer Management
 * **Recruitment, Consequences & Progression**: The core systems of hiring, daily costs, injury, and death are implemented.
+* **Roster Cap (Economy Soft Limit)**: No hard cap. The practical ceiling is **78 adventurers**, enforced entirely by economic pressure — wages, beer, and bunk upkeep scale with headcount.
+* **Roster Card Grid (Guild Book)**: A collapsible card-grid panel organized by suit/class (Swords, Cups, Wands, Pentacles). Filterable by status: Ready, On Mission, Injured, Resting.
+* **Mission Board — Active Deployment View**: A persistent panel lists every deployed group with expected return time and a status pip (On Track / Delayed / Overdue), sorted by soonest return. Players see total deployed vs. available at a glance.
 * **Character Progression: "Journey Through the Arcana"**: Core adventurers are represented by evolving Tarot portraits. A character's journey from a novice (Minor Arcana) to a master (Major Arcana) is visually and narratively represented through their personal story quests. This system is designed to create deep character investment, a key lesson learned from the shortcomings of other management games.
 
 ---

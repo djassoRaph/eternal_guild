@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dc63566a8n2ox"]
+
+[ext_resource type="Script" uid="uid://0yuhlvuky2s1" path="res://scenes/ui/script/morning_briefing.gd" id="1_ad3bl"]
+
+[node name="MorningBriefing" type="CanvasLayer"]
+script = ExtResource("1_ad3bl")

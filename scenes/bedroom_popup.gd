@@ -132,9 +132,28 @@ func start_sleep_sequence():
 		_on_fade_complete()
 
 func _on_fade_complete():
-	"""Called when fade animation completes - advance the day"""
-	# Advance day in GameManager (includes fire reset, recovery, etc.)
+	"""Called when fade animation completes - advance the day, then show morning briefing"""
+	# Advance day in GameManager (includes mission resolution, recovery, etc.)
 	GameManager.advance_day()
-	
+
 	print("✅ New day started through bedroom sequence")
 	GameManager.log_message("🌅 A new day dawns at the Eternal Guild!")
+
+	if GameManager.has_pending_briefing:
+		_show_morning_briefing()
+
+
+func _show_morning_briefing():
+	"""Create and display the morning briefing UI"""
+	var briefing_scene = load("res://scenes/ui/MorningBriefing.tscn")
+	if briefing_scene:
+		var briefing = briefing_scene.instantiate()
+		get_tree().root.add_child(briefing)
+		briefing.show_reports(GameManager.get_and_clear_pending_reports())
+	else:
+		var reports = GameManager.get_and_clear_pending_reports()
+		for report in reports:
+			if report.success:
+				GameManager.log_message("📜 REPORT: " + report.mission_name + " — SUCCESS")
+			else:
+				GameManager.log_message("📜 REPORT: " + report.mission_name + " — FAILED")

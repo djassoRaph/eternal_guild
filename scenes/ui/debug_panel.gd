@@ -174,10 +174,15 @@ func _refresh_state_tab() -> void:
 		_state_labels["mission_detail"].text = "(no active missions)"
 	else:
 		var lines: Array = []
-		for m in gm.active_missions:
-			var title: String = m.get("name", m.get("title", "Unknown Mission"))
-			var assigned: Array = m.get("assigned_adventurers", [])
-			lines.append("• %s  (%d adventurer(s))" % [title, assigned.size()])
+		for entry in gm.active_missions:
+			var mission_name: String = entry.mission.get("name", "Unknown")
+			var days_left: int = entry.days_remaining
+			if entry.get("is_party_mission", false):
+				var names = ", ".join(entry.party.map(func(a): return a.get("name", "?")))
+				lines.append("• [PARTY] %s — %dd remaining (%s)" % [mission_name, days_left, names])
+			else:
+				var adv_name: String = entry.adventurer.get("name", "?")
+				lines.append("• %s → %s — %dd remaining" % [adv_name, mission_name, days_left])
 		_state_labels["mission_detail"].text = "\n".join(lines)
 
 func _sl(key: String, value: String) -> void:

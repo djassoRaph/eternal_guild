@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDD Section 6: Character Design — Shining Sun GDD</title>
+<style>
+:root {
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #c8a84b;
+    --accent2: #7a9e7e;
+    --text: #e0d8cc;
+    --muted: #888;
+    --heading: #f0e6d0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    line-height: 1.7;
+    padding: 0;
+}
+.layout { display: flex; min-height: 100vh; }
+nav {
+    width: 240px;
+    min-width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+nav h2 { color: var(--accent); font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1.5rem; }
+nav a {
+    display: block;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    transition: color 0.2s, background 0.2s;
+}
+nav a:hover, nav a.active { color: var(--accent); background: rgba(200,168,75,0.08); }
+main {
+    flex: 1;
+    max-width: 860px;
+    padding: 3rem 4rem;
+    margin: 0 auto;
+}
+h1 { color: var(--heading); font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 0; }
+h2 { color: var(--accent); font-size: 1.4rem; margin-top: 2.5rem; margin-bottom: 0.75rem; }
+h3 { color: var(--accent2); font-size: 1.1rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+h4 { color: var(--heading); font-size: 1rem; margin-top: 1.25rem; margin-bottom: 0.4rem; }
+p { margin-bottom: 1rem; }
+ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+li { margin-bottom: 0.3rem; }
+code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88em;
+    color: var(--accent2);
+}
+pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+pre code { background: none; border: none; padding: 0; }
+blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    background: rgba(200,168,75,0.05);
+    color: var(--muted);
+    font-style: italic;
+}
+table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+th { background: var(--surface); color: var(--accent); padding: 0.5rem 0.75rem; text-align: left; border: 1px solid var(--border); }
+td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); }
+tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+a { color: var(--accent2); }
+a:hover { color: var(--accent); }
+@media (max-width: 700px) {
+    .layout { flex-direction: column; }
+    nav { width: 100%; height: auto; position: relative; }
+    main { padding: 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h2>Shining Sun</h2>
+<a href="index.html">Home</a>
+<hr style="margin:0.75rem 0;border-color:#2a2a2a">
+<a href="00_GDD_Master.html">00 GDD Master</a>
+<a href="01_Core_Vision_and_Pillars.html">01 Core Vision and Pillars</a>
+<a href="02_Gameplay_Mechanics.html">02 Gameplay Mechanics</a>
+<a href="03_Story_and_Progression.html">03 Story and Progression</a>
+<a href="04_Art_and_Interaction.html">04 Art and Interaction</a>
+<a href="05_Technical_Architecture.html">05 Technical Architecture</a>
+<a href="06_Character_Design.html" class="active">06 Character Design</a>
+<a href="07_World_Design.html">07 World Design</a>
+</nav>
+<main>
+<h1 id="gdd-section-6-character-design">GDD Section 6: Character Design</h1>
+<h3 id="version-10"><strong>Version: 1.0</strong></h3>
+<h3 id="project-chronicles-of-the-eternal-guild"><strong>Project: Chronicles of the Eternal Guild</strong></h3>
+<hr />
+<h2 id="1-design-philosophy-characters-as-the-core">1. Design Philosophy: Characters as the Core</h2>
+<p>A core lesson learned from analyzing games like <em>Fort of Chains</em> and <em>RimWorld</em> is that long-term player engagement is directly tied to emotional investment in the characters. Therefore, the central design philosophy for adventurers in this game is to treat them as evolving individuals, not disposable statistics. Every system is built to support this goal, encouraging players to see their guild members as a "found family" whose stories they are actively shaping.</p>
+<hr />
+<h2 id="2-adventurer-archetypes">2. Adventurer Archetypes</h2>
+<h3 id="21-classes">2.1 Classes</h3>
+<p>The game will launch with a set of classic fantasy archetypes, each with unique stat leanings and abilities.
+* <strong>Fighter</strong>: The durable frontline combatant.
+* <strong>Rogue</strong>: The nimble scout and damage dealer.
+* <strong>Mage</strong>: The master of arcane arts.
+* <strong>Healer</strong>: The indispensable support and cleric.
+* <strong>(Planned) Barbarian</strong>: The high-risk, high-reward berserker.</p>
+<h3 id="22-races">2.2 Races</h3>
+<p>To enrich the world and provide visual variety, the adventurer roster will include:
+* <strong>Humans</strong>: The baseline, with varied appearances inspired by the Ghibli/Lodoss War aesthetic.
+* <strong>Beast-kin</strong>: Anthropomorphic characters (foxes, badgers, wolves, cats, etc.) who may have unique traits or be more common in certain regions of the world.</p>
+<hr />
+<h2 id="3-core-progression-system-journey-through-the-arcana">3. Core Progression System: "Journey Through the Arcana"</h2>
+<p>This is the central system that combines narrative, art, and mechanics to bring characters to life.</p>
+<h3 id="31-concept">3.1 Concept</h3>
+<p>Instead of being static archetypes, core adventurers undergo a personal <strong>Hero's Journey</strong>. This journey is visually and symbolically represented by their Tarot portrait. A character <strong>starts</strong> with a Minor Arcana card that reflects their initial, flawed state and <strong>evolves</strong> through the Major Arcana as they overcome their personal demons and grow into a legend.</p>
+<h3 id="32-mechanics">3.2 Mechanics</h3>
+<ul>
+<li><strong>Triggers</strong>: Evolution is triggered by completing specific, pivotal story missions unique to that character.</li>
+<li><strong>Transformation</strong>: Upon completing a trigger mission, the character's:<ul>
+<li><strong>Portrait Changes</strong>: Their Tarot card art evolves to the next stage in their journey.</li>
+<li><strong>Traits Evolve</strong>: A negative starting trait might be removed or replaced with a positive one.</li>
+<li><strong>Stats Grow</strong>: They receive bonuses to stats relevant to their narrative growth (e.g., gaining Intelligence after a moment of wisdom).</li>
+</ul>
+</li>
+</ul>
+<h3 id="33-corruption-paths-the-reversed-arcana">3.3 Corruption Paths: The Reversed Arcana</h3>
+<p>Failure is a part of the story. If a character makes a cowardly or dark choice during a pivotal mission, they can evolve into a <strong>Reversed</strong> tarot card. This is reflected in a corrupted portrait and the acquisition of negative traits, creating unique narrative branches for redemption or a fall from grace.</p>
+<hr />
+<h2 id="4-case-study-the-fighters-journey">4. Case Study: The Fighter's Journey</h2>
+<p>To illustrate the system, here is the full potential arc for "Gareth the Fighter."</p>
+<h3 id="stage-1-the-seven-of-swords-gareth-the-uncertain">Stage 1: The Seven of Swords - "Gareth the Uncertain"</h3>
+<ul>
+<li><strong>Backstory</strong>: A former city guard who deserted when ordered to commit an atrocity. He is haunted by his past and doubts his own courage.</li>
+<li><strong>Portrait</strong>: A young man in tarnished armor, eyes downcast.</li>
+<li><strong>Trait</strong>: "Haunted by Past" (morale penalty in certain missions).</li>
+</ul>
+<h3 id="stage-2-the-chariot-seeking-redemption">Stage 2: The Chariot - "Seeking Redemption"</h3>
+<ul>
+<li><strong>Trigger Mission</strong>: "The Burning Village." Gareth must choose to defend innocent villagers against bandits.</li>
+<li><strong>Narrative</strong>: He overcomes his fear to protect others, finding a new sense of purpose for his martial skill.</li>
+<li><strong>Evolution</strong>: His portrait changes to show him standing tall in repaired armor. His "Haunted by Past" trait is replaced by "Seeking Redemption" (bonus on protection missions).</li>
+</ul>
+<h3 id="stage-3-justice-champion-of-justice">Stage 3: Justice - "Champion of Justice"</h3>
+<ul>
+<li><strong>Trigger Mission</strong>: "Confronting the Captain." Gareth must publicly testify against his corrupt former commander.</li>
+<li><strong>Narrative</strong>: He risks everything to stand for what is right, learning that true strength is about principles, not just power.</li>
+<li><strong>Evolution</strong>: His portrait depicts him in a formal uniform, holding scales of justice. He gains a bonus to Intelligence, and his trait becomes "Champion of Justice."</li>
+</ul>
+<h3 id="stage-4-the-emperor-guild-guardian">Stage 4: The Emperor - "Guild Guardian"</h3>
+<ul>
+<li><strong>Trigger Mission</strong>: "The Last Stand." The Guild faces an overwhelming force, and Gareth must lead the defense.</li>
+<li><strong>Narrative</strong>: He fully masters his past and skills, becoming a tactical leader driven by a desire to protect his new family—the Guild.</li>
+<li><strong>Evolution</strong>: His final portrait shows a mature, confident commander. His trait becomes "Guild Guardian," providing a party-wide defense bonus.</li>
+</ul>
+<hr />
+<h2 id="5-character-tiers">5. Character Tiers</h2>
+<p>To manage narrative scope, adventurers are divided into two tiers.</p>
+<ul>
+<li><strong>Core Adventurers</strong>: A curated cast (e.g., 6-10 characters) who have full, multi-stage "Journey Through the Arcana" personal arcs.</li>
+<li><strong>Supporting Adventurers</strong>: A wider pool of procedurally generated recruits who provide mechanical variety. They do not have deep story arcs and will likely remain represented by Minor Arcana cards, keeping the world feeling large without overwhelming the player with stories to track.</li>
+</ul>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDD Section 7: World Design — Shining Sun GDD</title>
+<style>
+:root {
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --border: #2a2a2a;
+    --accent: #c8a84b;
+    --accent2: #7a9e7e;
+    --text: #e0d8cc;
+    --muted: #888;
+    --heading: #f0e6d0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    line-height: 1.7;
+    padding: 0;
+}
+.layout { display: flex; min-height: 100vh; }
+nav {
+    width: 240px;
+    min-width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+nav h2 { color: var(--accent); font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1.5rem; }
+nav a {
+    display: block;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+    transition: color 0.2s, background 0.2s;
+}
+nav a:hover, nav a.active { color: var(--accent); background: rgba(200,168,75,0.08); }
+main {
+    flex: 1;
+    max-width: 860px;
+    padding: 3rem 4rem;
+    margin: 0 auto;
+}
+h1 { color: var(--heading); font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 0; }
+h2 { color: var(--accent); font-size: 1.4rem; margin-top: 2.5rem; margin-bottom: 0.75rem; }
+h3 { color: var(--accent2); font-size: 1.1rem; margin-top: 1.75rem; margin-bottom: 0.5rem; }
+h4 { color: var(--heading); font-size: 1rem; margin-top: 1.25rem; margin-bottom: 0.4rem; }
+p { margin-bottom: 1rem; }
+ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+li { margin-bottom: 0.3rem; }
+code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88em;
+    color: var(--accent2);
+}
+pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+pre code { background: none; border: none; padding: 0; }
+blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    background: rgba(200,168,75,0.05);
+    color: var(--muted);
+    font-style: italic;
+}
+table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+th { background: var(--surface); color: var(--accent); padding: 0.5rem 0.75rem; text-align: left; border: 1px solid var(--border); }
+td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); }
+tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+a { color: var(--accent2); }
+a:hover { color: var(--accent); }
+@media (max-width: 700px) {
+    .layout { flex-direction: column; }
+    nav { width: 100%; height: auto; position: relative; }
+    main { padding: 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+<h2>Shining Sun</h2>
+<a href="index.html">Home</a>
+<hr style="margin:0.75rem 0;border-color:#2a2a2a">
+<a href="00_GDD_Master.html">00 GDD Master</a>
+<a href="01_Core_Vision_and_Pillars.html">01 Core Vision and Pillars</a>
+<a href="02_Gameplay_Mechanics.html">02 Gameplay Mechanics</a>
+<a href="03_Story_and_Progression.html">03 Story and Progression</a>
+<a href="04_Art_and_Interaction.html">04 Art and Interaction</a>
+<a href="05_Technical_Architecture.html">05 Technical Architecture</a>
+<a href="06_Character_Design.html">06 Character Design</a>
+<a href="07_World_Design.html" class="active">07 World Design</a>
+</nav>
+<main>
+<h1 id="gdd-section-7-world-design">GDD Section 7: World Design</h1>
+<h3 id="version-10"><strong>Version: 1.0</strong></h3>
+<h3 id="project-chronicles-of-the-eternal-guild"><strong>Project: Chronicles of the Eternal Guild</strong></h3>
+<hr />
+<h2 id="1-design-philosophy-the-world-as-the-core-mechanic">1. Design Philosophy: The World as the Core Mechanic</h2>
+<p>The world of Aethel is not merely a backdrop for the tavern; it is the central mechanic that drives the game's immense replayability. The player's single most important strategic choice happens before they ever serve a drink: deciding where to build their guild. This choice fundamentally alters every subsequent aspect of the game, from the economy to the narrative.</p>
+<hr />
+<h2 id="2-the-core-mechanic-the-great-settlement-decision">2. The Core Mechanic: "The Great Settlement Decision"</h2>
+<p>At the start of each new game, the player is presented with a world map showing 20-30 possible settlement locations. Each location is defined by a combination of factors, offering a unique set of strategic advantages, challenges, and stories.</p>
+<hr />
+<h2 id="3-strategic-location-factors">3. Strategic Location Factors</h2>
+<p>Each settlement's identity is a blend of the following attributes:</p>
+<h3 id="31-proximity-to-the-demon-lords-castle">3.1 Proximity to the Demon Lord's Castle</h3>
+<p>This factor determines the game's core risk-versus-reward profile.
+* <strong>Close (High Risk/High Reward)</strong>: Constant high-tier missions, frequent demon raids on the tavern, and a fast track to the endgame. Visually represented by dark, foreboding landscapes.
+* <strong>Far (Safe Growth)</strong>: A peaceful early game, gradual progression, and more time to build a stable foundation before facing major threats.</p>
+<h3 id="32-faction-territories">3.2 Faction Territories</h3>
+<p>The dominant political or cultural power in a region dictates the social and mission landscape.
+* <strong>Assassin's Guild Territory</strong>: Unlocks stealth, espionage, and assassination contracts with high payouts but constant danger.
+* <strong>Noble/Merchant Territory</strong>: Focuses on political intrigue, diplomatic escorts, and a high-tax, high-luxury economy. Visually represented by grand, epic cities.
+* <strong>Succubus/Vice Territory</strong>: Makes corruption mechanics a central part of gameplay, with temptations, moral consequences, and the potential to recruit fallen adventurers.</p>
+<h3 id="33-environmental-biomes">3.3 Environmental Biomes</h3>
+<p>The physical environment dictates available resources, mission types, and unique hazards.
+* <strong>Coastal Locations</strong>: Center on naval missions, pirate hunting, and a fish-based economy, with seasonal storms as a recurring hazard. Visually inspired by high-fantasy coastal towns.
+* <strong>Mountain Locations</strong>: Focus on mining, forging, dwarven connections, and high-stakes dragon lairs.
+* <strong>Forest Locations</strong>: Involve alliances with druids, beast hunting contracts, and navigating mystical fae encounters.</p>
+<h3 id="34-proximity-to-ancient-ruins">3.4 Proximity to Ancient Ruins</h3>
+<p>Settlements built near the ruins of "The Priors" have unique opportunities related to lore and magic.
+* Unlocks archaeological missions, providing lore discoveries and rare crafting materials.
+* May feature awakened guardians who are both a threat and a potential source of great power.</p>
+<hr />
+<h2 id="4-replayability-example-playstyles">4. Replayability &amp; Example Playstyles</h2>
+<p>The combination of these factors creates radically different gameplay experiences with each new start.</p>
+<ul>
+<li><strong>Example 1: The Coastal Merchant Run</strong>: A playthrough focused on trade, naval adventures, and political alliances with merchant guilds in a Coastal, Noble-controlled settlement far from the Demon Lord.</li>
+<li><strong>Example 2: The Demon Border Survivor</strong>: An intense, combat-heavy playthrough in a Mountain settlement close to the Demon Lord's castle, focused on rapid progression, high-risk missions, and managing adventurer corruption.</li>
+<li><strong>Example 3: The Forest Druid Haven</strong>: A mystical playthrough in a deep Forest, dealing with seasonal cycles, beast companions, and fae politics, with a focus on harmony-based reputation.</li>
+</ul>
+<hr />
+<h2 id="5-implementation-roadmap">5. Implementation Roadmap</h2>
+<p>The system will be rolled out in phases to manage development complexity.</p>
+<ul>
+<li><strong>Phase 1 (MVP Foundation)</strong>: A simple 3-location choice (e.g., Safe, Balanced, Dangerous) with different mission pools.</li>
+<li><strong>Phase 2 (Environmental Expansion)</strong>: Introduce the 5 major biome types with unique missions and environmental events.</li>
+<li><strong>Phase 3 (Faction Integration)</strong>: Implement the full faction territory system with unique mechanics and political consequences.</li>
+<li><strong>Phase 4 (Full Procedural System)</strong>: Expand to 20+ locations with multi-layered effects (e.g., a Coastal settlement in Assassin territory near Ancient Ruins).</li>
+</ul>
+<hr />
+<h2 id="6-technical-considerations">6. Technical Considerations</h2>
+<p>The world data will be structured to be easily expandable and moddable.</p>
+<pre><code>gdscript
+# Example Data Structure for a World Location
+class WorldLocation:
+    var location_name: String
+    var biome_type: String # Forest, Mountain, Coast, etc.
+    var demon_proximity: int # 1-5 scale
+    var dungeon_density: int # 1-5 scale
+    var dominant_faction: String # Assassins, Nobles, Neutral, etc.
+    var special_features: Array # Ancient Ruins, Dragon Lair, etc.
+</code></pre>
+</main>
+</div>
+</body>
+</html>
