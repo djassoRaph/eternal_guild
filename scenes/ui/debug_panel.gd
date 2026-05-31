@@ -221,6 +221,47 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 	_btn_full(parent, "🍺  Force Beer Shortage (3d)",   _debug_force_beer_shortage)
 	_btn_full(parent, "♻️  Reset Economy to Start",     _debug_reset_economy)
 
+	parent.add_child(HSeparator.new())
+	_h(parent, "JUMP TO DAY")
+	var day_row := HBoxContainer.new()
+	parent.add_child(day_row)
+	for target_day in [15, 29, 30, 31, 60]:
+		var btn := Button.new()
+		btn.text = "Day " + str(target_day)
+		btn.pressed.connect(func():
+			GameManager.current_day = target_day
+			GameManager.day_changed.emit(target_day)
+			print("🛠️ Debug: jumped to Day ", target_day)
+		)
+		day_row.add_child(btn)
+
+	parent.add_child(HSeparator.new())
+	_h(parent, "TIER UNLOCK (sets all prerequisites)")
+	var tier_row := HBoxContainer.new()
+	parent.add_child(tier_row)
+
+	var t2_btn := Button.new()
+	t2_btn.text = "⬆️ Unlock Tier 2"
+	t2_btn.pressed.connect(func():
+		GameManager.mission_tier_unlocked = 2
+		GameManager.taxes_paid_count = 1
+		GameManager.refresh_available_missions()
+		print("🛠️ Debug: Tier 2 unlocked (taxes_paid_count=1)")
+	)
+	tier_row.add_child(t2_btn)
+
+	var t3_btn := Button.new()
+	t3_btn.text = "⬆️ Unlock Tier 3"
+	t3_btn.pressed.connect(func():
+		GameManager.mission_tier_unlocked = 3
+		GameManager.taxes_paid_count = 2
+		GameManager.tavern_reputation = 50
+		GameManager.total_missions_completed = 10
+		GameManager.refresh_available_missions()
+		print("🛠️ Debug: Tier 3 unlocked (all prerequisites set)")
+	)
+	tier_row.add_child(t3_btn)
+
 func _force_gold(v: int) -> void:
 	GameManager.gold = v
 	GameManager.gold_changed.emit(v)

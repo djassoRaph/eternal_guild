@@ -68,7 +68,7 @@ func _on_quit_button_pressed():
 
 func has_save_game() -> bool:
 	"""Check if a save file exists"""
-	return FileAccess.file_exists("user://savegame.dat")
+	return FileAccess.file_exists(SaveSystem.SAVE_FILE)
 
 func load_game_state() -> bool:
 	"""Load the game state"""

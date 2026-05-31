@@ -72,46 +72,34 @@ func populate_adventurer_buttons(party_size: int):
 	# Create a toggle button for each adventurer
 	for i in range(available_adventurers.size()):
 		var adv = available_adventurers[i]
-		var button = Button.new()
-		button.text = adv.get("name", "Unknown") + "\n(" + adv.get("class", "?") + ")"
-		button.toggle_mode = true
-		button.custom_minimum_size = Vector2(80, 60)
-		button.pressed.connect(_on_adventurer_button_toggled.bindv([i, adv]))
-		
-		# Store reference to the button in the adventurer dict for easier tracking
-		adventurer_buttons.append(button)
-		
-		adventurer_buttons_container.add_child(button)
+		var btn = Button.new()
+		btn.text = adv.get("name", "Unknown") + "\n(" + adv.get("class", "?") + ")"
+		btn.toggle_mode = true
+		btn.custom_minimum_size = Vector2(80, 60)
+		btn.toggled.connect(_on_adventurer_button_toggled.bind(i, btn))
+
+		adventurer_buttons.append(btn)
+		adventurer_buttons_container.add_child(btn)
 		print("   ✓ Added button for: ", adv.get("name"))
 	
 	print("✅ Buttons ready - select ", party_size, " to continue")
 
-func _on_adventurer_button_toggled(index: int, button: Button):  # ← button passed directly
+func _on_adventurer_button_toggled(is_pressed: bool, index: int, btn: Button):
 	var adv = available_adventurers[index]
 	var party_size = get_party_size()
-	
-	if button.button_pressed:
+
+	if is_pressed:
 		if adv not in selected_adventurers:
 			selected_adventurers.append(adv)
-			button.modulate = Color.GREEN
+			btn.modulate = Color.GREEN
 	else:
 		selected_adventurers.erase(adv)
-		button.modulate = Color.WHITE
-	
+		btn.modulate = Color.WHITE
+
+	# Update selection display
 	selection_label.text = "👤 Selected: " + str(selected_adventurers.size()) + " / " + str(party_size)
 	send_button.disabled = selected_adventurers.size() != party_size
-	
-	if selected_adventurers.size() == party_size:
-		send_button.text = "🗡️ Send Party (" + str(selected_adventurers.size()) + ")"
-	else:
-		send_button.text = "🗡️ Send Party"
-	
-	# Update selection label
-	selection_label.text = "👤 Selected: " + str(selected_adventurers.size()) + " / " + str(party_size)
-	
-	# Enable send button only if we have the right number of adventurers
-	send_button.disabled = selected_adventurers.size() != party_size
-	
+
 	if selected_adventurers.size() == party_size:
 		send_button.text = "🗡️ Send Party (" + str(selected_adventurers.size()) + ")"
 		print("✅ Party ready! Can send mission now")

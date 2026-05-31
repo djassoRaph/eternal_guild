@@ -188,34 +188,34 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		add_gold(reward)
 		adventurer.missions_completed += 1
 		adventurer.gold_earned += reward
-		
+
 		# SUCCESS: Adventurer needs rest (1 day minimum)
 		adventurer.status = "Resting"
-		adventurer.recovery = 1  # Always need at least 1 day rest after mission
-		
+		adventurer.recovery = 1
+
 		total_missions_completed += 1
-		tavern_reputation += 2  # +2 reputation per successful mission
+		tavern_reputation += 2
 		GameManager.check_tier_unlocks()
-		
-		#check_adventurer_level_up(adventurer)
+
 		log_message("✅ SUCCESS! " + adventurer.name + " completed " + mission.name + " and earned " + str(reward) + " gold!")
 		log_message("😴 " + adventurer.name + " rests for 1 day to recover their strength")
 	else:
 		adventurer.missions_failed += 1
 		log_message("💥 FAILED! " + adventurer.name + " failed the mission: " + mission.name)
-		
-	if adventurer.get("injured", false):
-		adventurer.status = "Injured"
-		adventurer.recovery = randi_range(2, 5)
-	else:
-		adventurer.status = "Resting"
-		adventurer.recovery = 1
-		
-		# FAILURE: Handle mortality and injury (sets own recovery time)
+
+		# FAILURE ONLY: Handle injury and death consequences
+		if adventurer.get("injured", false):
+			adventurer.status = "Injured"
+			adventurer.recovery = randi_range(2, 5)
+		else:
+			adventurer.status = "Resting"
+			adventurer.recovery = 1
+
 		handle_party_failure_consequences(adventurer, mission)
+
 	# Clear mission tracking
 	adventurer.erase("current_mission")
-	# CRITICAL FIX: Emit signal so UI updates
+	# Emit signal so UI updates
 	adventurer_roster_changed.emit()
 
 
@@ -491,7 +491,6 @@ func advance_day():
 	var beer_adequate = process_adventurer_beer_consumption()
 	process_mission_returns()
 	process_daily_operations_with_beer()
-	process_customer_visits()
 	check_tax_deadline()
 	
 	# Show daily status if beer shortage is active
