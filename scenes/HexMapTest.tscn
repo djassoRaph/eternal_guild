@@ -1,0 +1,35 @@
+[gd_scene load_steps=5 format=3 uid="uid://cysgg0bab4tr7"]
+
+[ext_resource type="Shader" uid="uid://dluc7tau70k3i" path="res://assets/shaders/edge_detection.gdshader" id="2_103ld"]
+[ext_resource type="Script" uid="uid://buk6at5ck0gx7" path="res://scripts/world/HexMapGenerator.gd" id="3_hexgen"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_rsbx5"]
+flip_faces = true
+size = Vector2(2, 2)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5c452"]
+render_priority = 0
+shader = ExtResource("2_103ld")
+shader_parameter/lightIntensity = 1.25
+shader_parameter/lineAlpha = 0.7
+shader_parameter/useLighting = true
+shader_parameter/lineHighlight = 0.2
+shader_parameter/lineShadow = 0.55
+
+[node name="HexMapTest" type="Node3D"]
+script = ExtResource("3_hexgen")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612373, 0, 0.866026, 0.5, -0.707107, -0.353553, 0.612373, 21.65, 14, 21.15)
+projection = 1
+size = 14.0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Camera3D"]
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_rsbx5")
+surface_material_override/0 = SubResource("ShaderMaterial_5c452")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 15, 0)
+light_color = Color(1, 0.95, 0.85, 1)
+shadow_enabled = true

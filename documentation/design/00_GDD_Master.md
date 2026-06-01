@@ -1,159 +1,107 @@
 # Game Design Document: Chronicles of the Eternal Guild (Master Document)
 
-### **Version: 1.0**
-### **Last Updated: October 12, 2025**
+### **Version: 1.1**
+### **Last Updated: June 2026**
+
+> **Version 1.1 note:** Repaired a corruption in Section 6 (the full text of Section 2 had been accidentally pasted into the architecture paragraph). Added World Map dispatch references and updated the roadmap. Encoding cleaned up.
 
 ---
 ## 1. Game Overview
 * **Game Title**: Chronicles of the Eternal Guild
-* **Pitch**: An 80's anime-inspired (*Studio Ghibli*, *Record of Lodoss War*) tavern management sim where you manage unique, evolving adventurers, uncover ancient mysteries, and build a legendary guild in a procedurally generated world.
+* **Pitch**: An 80's anime-inspired (*Studio Ghibli*, *Record of Lodoss War*) tavern management sim where you manage unique, evolving adventurers, uncover ancient mysteries, and build a legendary guild.
 * **Genre**: Management Simulation, Adventure, Strategy, RPG
 * **Platform**: PC (initial)
-* **Target Audience**: Fans of strategy and management sims who crave deeper character stories and replayability (e.g., players of *Rimworld*, *Stardew Valley*, *Dungeon of the Endless*).
+* **Target Audience**: Fans of strategy and management sims who crave deeper character stories and replayability (e.g., players of *Rimworld*, *Stardew Valley*, *Darkest Dungeon*, *Spiritfarer*).
 
 ---
 ## 2. Core Concepts & Vision
 
 ### 2.1 Design Pillars
-* **Curiosity & Discovery**: Players are constantly driven to see what's next, from uncovering "Prior" ruins to encountering unique narrative events in a new settlement.
+* **Curiosity & Discovery**: Players are constantly driven to see what's next, from uncovering "Prior" ruins to encountering unique narrative events.
 * **Meaningful Management**: The design philosophy is "**meaningful pressure creates engaging stories**." Economic hardship and dangerous quests force strategic decisions that lead to emergent narratives.
-* **Deep Character Investment**: Players will care about their adventurers as individuals, not just statistics. This is achieved through unique personalities and personal story arcs.
-* **Massive Replayability**: The game's core innovation, the **Procedural World Choice System**, makes every playthrough a fundamentally different experience.
+* **Deep Character Investment**: Players will care about their adventurers as individuals, not just statistics, through unique personalities and personal story arcs.
+* **Complicity & Consequence**: The player is the enabler of heroes, not the hero. The emotional core is sending younger adventurers into danger and living with the results — surfaced most sharply in the end-of-day reveal.
+* **Massive Replayability**: The long-term **Procedural World Choice System** is intended to make every playthrough fundamentally different.
 
 ### 2.2 Target Audience & Player Motivation (Bartle's Taxonomy)
-This framework ensures the core gameplay loops appeal to a broad range of player motivations.
-
-* **For The Achiever (Acts on the World)**
-    * **Strengths**: The core loop of optimizing the tavern's economy (beer costs, wages, tips) and progressing through increasingly dangerous missions provides a clear ladder of mastery. Tangible goals like paying off taxes and defeating Demon Lord generals are powerful motivators.
-* **For The Explorer (Interacts with the World)**
-    * **Strengths**: The **Procedural World Choice System** is the ultimate feature for Explorers, promising entirely new sets of quests, factions, and secrets with each playthrough. Unlocking new town zones and uncovering the "Journey Through the Arcana" for each character directly rewards their desire to see everything.
-* **For The Socializer (Interacts with Players/Characters)**
-    * **Strengths**: The deep, character-centric design is the main draw. By giving adventurers unique personalities and evolving arcs (the "Journey Through the Arcana"), the game allows Socializers to build a "found family" they care about, even in a single-player context.
-* **For The Killer (Acts on Players/World)**
-    * **Strengths**: While a single-player game, Killers can find an outlet by dominating the game's systems, manipulating factions, and defeating rival NPCs.
+* **Achiever**: Optimizing the tavern economy and progressing through increasingly dangerous missions provides a clear ladder of mastery.
+* **Explorer**: The (future) Procedural World Choice System and the "Journey Through the Arcana" reward the desire to see everything.
+* **Socializer**: The character-centric design lets players build a "found family" they care about.
+* **Killer**: Dominating the game's systems, manipulating factions, and out-competing rival NPCs.
 
 ---
 ## 3. Gameplay Systems
 
 ### 3.1 The Core Loop
 1.  **Recruit & Interact**: Meet unique adventurers.
-2.  **Prepare & Dispatch**: Assign adventurers to missions.
-3.  **Tavern Management**: Serve patrons, manage resources, and maintain the tavern's comfort.
-4.  **Mission Resolution**: Missions are auto-resolved, with outcomes influencing adventurer growth.
-5.  **Return & Consequences**: Adventurers return changed, and their success can unlock lore and story quests, including those related to "The Priors."
+2.  **Prepare & Dispatch**: Open the **World Map** and assign adventurers to missions at surrounding locations.
+3.  **Tavern Management**: Serve patrons, manage resources, and maintain comfort.
+4.  **Mission Resolution**: Missions auto-resolve, influencing adventurer growth.
+5.  **Return & Consequences**: Adventurers return changed, revealed one by one in the end-of-day report; success can unlock lore and story quests.
 
 ### 3.2 Tavern Management
-* **Patron Service Cycle**: The tavern currently supports up to 5 simultaneous patrons, with plans for future expansion.
+* **Patron Service Cycle**: Up to 5 simultaneous patrons, with planned expansion.
 * **Economy & Resources**: Gold, Beer, and an escalating Tax system create the core economic challenge.
-* **Firewood & Comfort System**: ✅ **Fully Implemented**. The player manages firewood to keep the tavern fireplace lit, generating a "Comfort" level that multiplies tips from patrons. A mini-game is planned for when the fire needs to be relit.
+* **Firewood & Comfort System**: ✅ Implemented. Firewood keeps the fireplace lit, generating a "Comfort" level that multiplies tips. A relight mini-game is planned.
 
-### 3.3 Adventurer Management
-* **Recruitment, Consequences & Progression**: The core systems of hiring, daily costs, injury, and death are implemented.
-* **Roster Cap (Economy Soft Limit)**: No hard cap. The practical ceiling is **78 adventurers**, enforced entirely by economic pressure — wages, beer, and bunk upkeep scale with headcount.
-* **Roster Card Grid (Guild Book)**: A collapsible card-grid panel organized by suit/class (Swords, Cups, Wands, Pentacles). Filterable by status: Ready, On Mission, Injured, Resting.
-* **Mission Board — Active Deployment View**: A persistent panel lists every deployed group with expected return time and a status pip (On Track / Delayed / Overdue), sorted by soonest return. Players see total deployed vs. available at a glance.
-* **Character Progression: "Journey Through the Arcana"**: Core adventurers are represented by evolving Tarot portraits. A character's journey from a novice (Minor Arcana) to a master (Major Arcana) is visually and narratively represented through their personal story quests. This system is designed to create deep character investment, a key lesson learned from the shortcomings of other management games.
+### 3.3 Adventurer Management & Dispatch
+* **Recruitment, Consequences & Progression**: Hiring, daily costs, injury, and death are implemented.
+* **World Map Dispatch**: Missions are dispatched through a full-screen hex World Map that replaces the old mission-board popup. Surrounding locations show daily-refreshing mission cards; the roster appears as draggable tokens; on-mission adventurers are greyed out with a return counter. (See Sections 2, 4, 5, 7 of the GDD.)
+* **Character Progression: "Journey Through the Arcana"**: Core adventurers are represented by evolving Tarot portraits, from novice (Minor Arcana) to master (Major Arcana) — or corruption (Reversed). Designed to create deep character investment.
 
 ---
 ## 4. Story, Setting, & Progression
 
 ### 4.1 World & Narrative
-The game is set in an 80's anime-inspired fantasy world. Narrative is delivered through **2D/Text-based event scenes** featuring character dialogue and narration.
+An 80's anime-inspired fantasy world. Narrative is delivered through **2D/Text-based event scenes** with character dialogue and narration.
 
-### 4.2 Progression: The First 30 Days & Unlocking the World
-The game's progression is structured as an organic tutorial.
-* **The Indoor Phase**: For the first 30 days, the player is **confined to the tavern interior**. This forces mastery of the core economic loop before the world opens up.
-* **Unlocking the World**: **Only after successfully surviving the first 30-day tax cycle** does the player unlock the ability to go outside and begin exploring the tavern's surroundings.
+### 4.2 Progression: The First 30 Days
+* **The Indoor Phase**: For the first 30 days, the player is confined to the tavern interior, forcing mastery of the core economic loop.
+* **Unlocking the World**: Surviving the first 30-day tax cycle unlocks exterior exploration.
+* *(Note: player choice of starting settlement is future scope — see §7. The current ASCII generator is a placeholder and does not yet let the player choose where they spawn.)*
 
 ### 4.3 The "Priors" Lore System
-Once the outside world is unlocked, the player can begin investing in major tavern renovations, which uncovers the ruins of the precursor "Prior" civilization, kicking off the game's deeper archaeological mystery and lore.
+Once outside is unlocked, major tavern renovations uncover the ruins of the precursor "Prior" civilization, kicking off the deeper archaeological mystery.
 
 ---
 ## 5. Art & Interaction
 
 ### 5.1 Visual Style
-The game's aesthetic is a 2.5D cinematic style inspired by Studio Ghibli and *Record of Lodoss War*. It is executed using a 3D environment with a custom pixel-art shader. The target art style is a **high-resolution pixel art illustration with sharp volumetric shading, complex dithering, and a rich, detailed color palette**. The tavern decor will feature clean pixel edges with a concept-art rendering style.
+A 2.5D cinematic style inspired by Studio Ghibli and *Record of Lodoss War*, executed via a 3D environment with a custom pixel-art shader — high-resolution pixel art illustration with sharp volumetric shading, complex dithering, and a rich palette. Current direction layers a Hellsing × Hellboy ink treatment over this base.
 
 ### 5.2 Interaction System
-The player controls an avatar in a 3D space, interacting with key objects via proximity. **Visual feedback** (floating icons, glowing runes) guides the player, and this system needs to be implemented for the Fireplace.
+The player controls an avatar in 3D space, interacting via proximity and "E". Visual feedback (floating icons, glowing runes) guides the player; **still needs implementation for the Fireplace.** Mission dispatch is handled through the World Map (§3.3).
+
+### 5.3 Embodied Dispatch (Future, Deferred)
+The atmosphere goal of seeing adventurers sit, rest by the fire, and physically walk out to their missions is deferred cosmetic scope, built as a visual listener on the dispatch event once the core loop is proven. The data model is being built now to keep this option open without a rewrite.
 
 ---
 ## 6. Technical Design & Architecture
 
 ### 6.1 Engine & Architecture
-* **Engine**: Godot 4.3+
-* **Architectural Strategy**: The game uses a system # GDD Section 2: Gameplay Mechanics
-
-### **Version: 1.0**
-### **Project: Chronicles of the Eternal Guild**
-
----
-## 1. The Core Loop
-The gameplay is structured around a repeating and evolving cycle of management and adventure.
-
-1.  **Recruit & Interact**: Meet unique adventurers.
-2.  **Prepare & Dispatch**: Assign adventurers to missions.
-3.  **Tavern Management**: Serve patrons, manage resources, and maintain the tavern's comfort.
-4.  **Mission Resolution**: Missions are auto-resolved, with outcomes influencing adventurer growth.
-5.  **Return & Consequences**: Adventurers return changed, and their success can unlock lore and story quests, including those related to "The Priors."
-
----
-## 2. Tavern Management
-The tavern is the player's primary interface for economic and resource management.
-
-### 2.1 Patron Service Cycle
-* The tavern currently supports up to 5 simultaneous patrons, with plans for future expansion.
-* The player must physically move to patrons to serve them, earning gold and managing the flow of customers in real-time.
-
-### 2.2 Economy & Resources
-* **Gold**: The primary currency for all transactions.
-* **Beer**: The core consumable for tavern income.
-* **Taxes**: An escalating tax is due every 30 days, serving as the primary economic pressure and a key progression gate. The basic system for this is implemented.
-
-### 2.3 Firewood & Comfort System
-* **Status**: ✅ **Fully Implemented**.
-* **Mechanic**: The player manages firewood to keep the tavern fireplace lit. A burning fire generates a "Comfort" level, which acts as a multiplier for tips earned from patrons.
-* **Planned Feature**: A mini-game is planned for when the fire needs to be relit from 0% fuel.
-
----
-## 3. Adventurer Management
-Adventurers are the player's key assets for progressing the story and generating significant income.
-
-### 3.1 Recruitment and Roster
-* Players hire adventurers from a daily pool of randomly generated applicants.
-* Each adventurer has a class, stats, and a hiring cost.
-
-### 3.2 Consequences and Costs
-* **Status**: ✅ **Implemented**.
-* **Daily Costs**: Adventurers have daily wages and consume resources (beer), creating a constant economic drain.
-* **Mission Risks**: Missions carry a real risk of injury, which requires a recovery period where the adventurer cannot go on missions, or permanent death.
-
-### 3.3 Character Progression: "Journey Through the Arcana"
-* This is the core system for ensuring deep character investment.
-* **Mechanic**: Core adventurers are represented by evolving Tarot portraits. A character begins with a Minor Arcana card representing their novice state (e.g., "Seven of Swords").
-* **Evolution**: By completing key personal story quests, they evolve into a Major Arcana, representing their growth into a master or legend (e.g., "The Emperor"). Their portrait, stats, and traits change to reflect this transformation.
-* **Corruption**: Failure or dark choices can lead a character down a path of corruption, represented by a **Reversed** tarot portrait with negative traits.of multiple, focused singleton managers (e.g.,`GameManager` `DataManager`, `TavernManager`, `MissionManager`) to ensure the codebase is organized, maintainable, and scalable. This is a robust and proven design pattern for Separation of Concerns.
+* **Engine**: Godot 4.4.
+* **Architectural Strategy**: A system of multiple focused singleton managers (`GameManager`, `DataManager`, `PlayerManager`, `SaveSystem`, `WorldManager`) for Separation of Concerns, communicating through Godot signals. Dispatch is a single authoritative event that all front-ends (mission board, World Map, briefing, future visuals) listen to.
 
 ### 6.2 Data-Driven Design & Modding
-All game content is driven by external data files (JSON). This is crucial for managing complex progression systems like the "Journey Through the Arcana" and is the foundation for future modding support.
+All content is driven by external JSON files — crucial for systems like "Journey Through the Arcana" and the foundation for future modding. The World Map's `map_locations` is generated once per save and persisted from day one. (See `05_Technical_Architecture.md`.)
 
 ---
 ## 7. Project Status & Roadmap
 
 ### 7.1 Working Systems
-* **Patron System**: Functional, supporting up to 5 patrons.
-* **Economic System**: All core mechanics are operational.
-* **Core Consequences**: Injury, death, and daily costs are implemented.
-* **Tax System**: Basic escalating tax mechanic is implemented.
-* **Firewood System**: Core mechanic is working; **needs a UI indicator**.
-* **Save/Load System**: Functional, but requires polish.
+* **Patron System**: Functional (up to 5 patrons).
+* **Economic System**: Core mechanics operational.
+* **Core Consequences**: Injury, death, daily costs implemented.
+* **Tax System**: Basic escalating tax implemented.
+* **Firewood System**: Working.
+* **Party Mission UI / F12 Debug / Morning Briefing**: Implemented.
+* **Save/Load System**: Functional, needs polish.
 
-### 7.2 Immediate Priorities
-1.  **UI & Feedback Polish**:
-    * Add the in-game UI indicator for the Firewood/Comfort system.
-    * Implement visual interaction feedback for the Fireplace.
-2.  **System Refinement**:
-    * Polish and bug-fix the Save/Load system.
-    * Design and implement the Fireplace lighting mini-game.
-3.  **Begin Core Narrative Implementation**:
-    * Start coding the foundational framework for the "Journey Through the Arcana" system.
+### 7.2 Immediate Priorities (Phase 0 / Phase 1)
+1.  **World Map dispatch screen** — build data layer first (`map_locations`, save/load, per-location mission assignment), then placeholder map, then postits/drag, then KayKit hex tiles. Replaces the mission-board popup.
+2.  **End-of-day mission report** — the emotional centrepiece; one-by-one reveal.
+3.  **Fireplace** — visual interaction feedback + relight mini-game; clean up competing fireplace systems.
+4.  **Exterior world** — NPC flow and "breathing life."
+
+### 7.3 Future Scope (do not build yet)
+Settlement choice at game start; full procedural world (20–30 settlements); faction systems; embodied dispatch (walk-off); modding platform. These remain the north star but must not block the core loop.
