@@ -37,5 +37,63 @@
 			"Poor service!",
 			"This place used to be better."
 		]
+	},
+	"origin_flavor": {
+		"traveler": {
+			"service_request": [
+				"Been on the road since dawn — a drink would do wonders.",
+				"Long journey to get here. You got anything strong?",
+				"First warm place I've seen in two days. I'll take an ale.",
+				"Just passed the bridge. Any chance of a seat and a pint?",
+				"Road dust in my throat. Whatever you're pouring, I'll have it."
+			],
+			"leaving": [
+				"Back on the road tomorrow. This helped.",
+				"Worth the detour.",
+				"I'll remember this place when I'm back this way."
+			]
+		},
+		"local": {
+			"service_request": [
+				"Same as usual, if you don't mind.",
+				"You know what I like. Don't make me ask.",
+				"Evening. The regular, please.",
+				"Good to be back. Rough day in the district.",
+				"Pour one for an old regular, would you?"
+			],
+			"leaving": [
+				"See you tomorrow.",
+				"Same time next week, probably.",
+				"Tell Mira I said hello."
+			]
+		},
+		"soldier": {
+			"service_request": [
+				"Off duty. Don't try to sell me anything, just ale.",
+				"Long shift at the keep. I've earned this one.",
+				"Something to take the edge off. Whatever's cold.",
+				"Keep it quiet tonight, I just want a drink.",
+				"Ale. One. Maybe two."
+			],
+			"leaving": [
+				"Back to the post. Thanks.",
+				"Don't let this place get rowdy.",
+				"Fair enough. Night."
+			]
+		},
+		"trader": {
+			"service_request": [
+				"Docked the wagon an hour ago. First stop: here.",
+				"A drink to close out a good day on the market.",
+				"I've been haggling since sunrise. Ale. Now.",
+				"Seen three towns this week, and none with a decent tavern. You've got potential.",
+				"Merchant prices, merchant thirst. Pour generously."
+			],
+			"leaving": [
+				"I'll spread the word if the trade goes well.",
+				"Good enough to come back to.",
+				"Next caravan stops here. Count on it."
+			]
+		}
 	}
 }

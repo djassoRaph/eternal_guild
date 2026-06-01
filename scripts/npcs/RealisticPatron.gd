@@ -28,6 +28,7 @@ var wants_service = false
 var has_been_served = false
 var payment_amount: int = 8
 var patron_name: String = "Patron"
+var patron_origin: String = ""
 
 # Visuals
 var service_indicator: MeshInstance3D
@@ -283,7 +284,8 @@ func on_drinking_timer_timeout():
 	if current_state == PatronState.DRINKING:
 		print("💰 ", patron_name, " finished drinking. Pays ", payment_amount, "g")
 		GameManager.add_gold(payment_amount)
-		GameManager.log_message("• " + patron_name + " finished drinking. Pays " + str(payment_amount) + " gold")
+		var origin_note = " (from " + patron_origin + ")" if patron_origin != "" else ""
+		GameManager.log_message("• " + patron_name + origin_note + " finished drinking. Pays " + str(payment_amount) + " gold")
 
 		if patron_body_mesh:
 			patron_body_mesh.scale.y = 1.0
@@ -329,6 +331,28 @@ func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int):
 	var surnames = ["Bold", "Ironforge", "Swiftblade", "Goldbeard", "Stormbringer", "Shadowmend"]
 	patron_name = first_names[randi() % first_names.size()] + " " + surnames[randi() % surnames.size()]
 	payment_amount = randi_range(6, 12)
+
+	var origins = [
+		# travelers passing through
+		{"label": "the bridge crossroads", "type": "traveler"},
+		{"label": "the north road", "type": "traveler"},
+		{"label": "the eastern pass", "type": "traveler"},
+		{"label": "the merchant caravan", "type": "trader"},
+		{"label": "the river docks", "type": "trader"},
+		# locals
+		{"label": "the commons", "type": "local"},
+		{"label": "the lower district", "type": "local"},
+		# garrison / keep
+		{"label": "the old keep", "type": "soldier"},
+		{"label": "the guard post", "type": "soldier"},
+		# wilderness
+		{"label": "the forest road", "type": "traveler"},
+		{"label": "the eastern farms", "type": "traveler"},
+	]
+	var picked = origins[randi() % origins.size()]
+	patron_origin = picked["label"]
+	var origin_type: String = picked["type"]
+	print("🗺️ ", patron_name, " is from ", patron_origin, " (", origin_type, ")")
 
 	await get_tree().create_timer(0.1).timeout
 	if nav_agent:

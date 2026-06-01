@@ -154,11 +154,10 @@ func handle_zone_interactions() -> void:
 		print("DEBUG: Calling advance_day()...") 
 		advance_day()
 	elif player_in_fireplace:
-		var fireplace_script = get_node_or_null("%FireplaceArea")
-		if fireplace_script and fireplace_script.has_method("attempt_stoke_fire"):
-			fireplace_script.attempt_stoke_fire()
-		else:
-			print("WARNING: Fireplace script not found!")
+		# Fireplace interaction is handled by fireplace_zone.gd's own _input()
+		# Do NOT duplicate the interaction here — it causes double-handling
+		# fireplace_zone.gd opens the minigame when player presses E nearby
+		pass
 	else:
 		print("DEBUG: No zone active!")
 

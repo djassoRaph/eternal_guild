@@ -984,6 +984,7 @@ offset_right = 532.0
 offset_bottom = 60.0
 tooltip_text = "Status and info"
 mouse_filter = 0
+metadata/_edit_use_anchors_ = true
 
 [node name="DayLabel" type="Label" parent="GameUI/TopStatsBar"]
 layout_mode = 2
@@ -1004,6 +1005,9 @@ text = "Wood: 0/10"
 [node name="FirewoodLabel" type="Label" parent="GameUI/TopStatsBar"]
 layout_mode = 2
 text = "Fire: 0%"
+
+[node name="PhaseLabel" type="Label" parent="GameUI/TopStatsBar"]
+layout_mode = 2
 
 [node name="MainArea" type="HSplitContainer" parent="GameUI"]
 anchors_preset = 2

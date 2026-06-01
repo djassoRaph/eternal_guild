@@ -11,6 +11,7 @@ extends Node3D
 @onready var pause_menu = %PauseMenu
 @onready var firewood_label = $GameUI/TopStatsBar/FirewoodLabel
 @onready var fuel_label = $GameUI/TopStatsBar/FuelLabel
+@onready var phase_label = $GameUI/TopStatsBar/PhaseLabel
 
 
 func _ready():
@@ -53,6 +54,7 @@ func _on_beer_changed(new_amount: int):
 func _on_day_changed(new_day: int):
 	"""Update day display when GameManager day changes"""
 	day_label.text = "Day: " + str(new_day)
+	_update_day_phase_display()
 
 func advance_day():
 	"""Handle bedroom/sleep interaction - UPDATED FOR BEDROOM POPUP"""
@@ -249,23 +251,39 @@ func _on_firewood_changed(new_amount: int):
 		firewood_label.text = "🪵 Wood: " + str(new_amount) + "/" + str(max_storage)
 
 func _on_fuel_changed(new_percentage: float):
-	"""Update fuel display when fire level changes"""
+	"""Update fuel display when fire level changes — show comfort impact"""
 	if fuel_label:
 		var fuel_int = int(new_percentage)
-		var color = Color.WHITE
-		
-		# Color code by fuel level
+		var color: Color
+		var status_text: String
+
 		if fuel_int >= 75:
-			color = Color.GREEN  # Good fire
+			color = Color.GREEN
+			status_text = "🔥 Fire: " + str(fuel_int) + "% — Cozy! +tips"
 		elif fuel_int >= 50:
-			color = Color.YELLOW  # Moderate fire
+			color = Color.YELLOW
+			status_text = "🔥 Fire: " + str(fuel_int) + "% — Warm"
 		elif fuel_int >= 25:
-			color = Color.ORANGE  # Low fire
+			color = Color.ORANGE
+			status_text = "🔥 Fire: " + str(fuel_int) + "% — Chilly"
+		elif fuel_int > 0:
+			color = Color.RED
+			status_text = "🔥 Fire: " + str(fuel_int) + "% — Cold! No tips"
 		else:
-			color = Color.RED  # Dying fire
-		
-		fuel_label.text = "🔥 Fire: " + str(fuel_int) + "%"
+			color = Color.RED
+			status_text = "🔥 Fire: OUT — No tips!"
+
+		fuel_label.text = status_text
 		fuel_label.add_theme_color_override("font_color", color)
+
+func _update_day_phase_display():
+	"""Update the day phase indicator — placeholder until full phase system"""
+	if not phase_label:
+		return
+
+	var day = GameManager.get_day()
+	phase_label.text = "☀️ Day " + str(day) + " — Morning"
+	phase_label.add_theme_color_override("font_color", Color(0.9, 0.8, 0.5))
 		
 func _init_zone_prompts():
 	"""Initialize ZonePromptUI for tavern zones"""

@@ -169,7 +169,7 @@ func _on_minigame_completed(success: bool, quality: float):
 			GameManager.log_message("🔥 Good work! The fire burns steadily.")
 		
 		# Update GameManager fuel level (for tip calculations)
-		GameManager.fireplace_fuel = int(fire_quality)
+		GameManager.set_fireplace_fuel(fire_quality)
 		quality_changed.emit(fire_quality)
 		
 		# Update visuals
@@ -183,8 +183,8 @@ func _on_minigame_completed(success: bool, quality: float):
 		current_state = FireplaceState.COOLDOWN
 		cooldown_remaining = 2.0 * 3600.0  # 2 in-game hours
 		fire_quality = 0.0
-		GameManager.fireplace_fuel = 0
-		
+		GameManager.set_fireplace_fuel(0.0)
+
 		GameManager.log_message("😵 You overexerted yourself! The fire won't light...")
 		GameManager.log_message("💡 Rest for a while before trying again")
 		
@@ -209,7 +209,7 @@ func _process_burning(delta):
 			current_state = FireplaceState.BURNING_LOW
 			burn_time_remaining = 2.0 * 3600.0  # 2 more hours
 			fire_quality *= 0.5
-			GameManager.fireplace_fuel = int(fire_quality)
+			GameManager.set_fireplace_fuel(fire_quality)
 			_update_fire_visuals(fire_quality)
 			state_changed.emit(current_state)
 			GameManager.log_message("🔥 The fire is starting to die down...")
@@ -219,7 +219,7 @@ func _process_burning(delta):
 			current_state = FireplaceState.DYING
 			burn_time_remaining = 30.0 * 60.0  # 30 minutes
 			fire_quality *= 0.3
-			GameManager.fireplace_fuel = int(fire_quality)
+			GameManager.set_fireplace_fuel(fire_quality)
 			_update_fire_visuals(fire_quality)
 			state_changed.emit(current_state)
 			GameManager.log_message("🔥 The fire needs attention soon!")
@@ -232,7 +232,7 @@ func _process_dying(delta):
 		# Fire goes out completely
 		current_state = FireplaceState.DORMANT
 		fire_quality = 0.0
-		GameManager.fireplace_fuel = 0
+		GameManager.set_fireplace_fuel(0.0)
 		_update_fire_visuals(0.0)
 		state_changed.emit(current_state)
 		GameManager.log_message("💨 The fire has gone out completely.")
@@ -249,20 +249,24 @@ func _process_cooldown(delta):
 
 # ===== DAY CYCLE INTEGRATION =====
 func _on_day_changed(new_day: int):
-	"""Reset fireplace state on new day"""
-	print("🔥 New day - Resetting fireplace")
-	
+	"""Reset fireplace state on new day — fire goes out overnight"""
+	print("🔥 New day - Fire has gone out overnight")
+
 	# Reset all state
 	current_state = FireplaceState.DORMANT
 	fire_quality = 0.0
-	GameManager.fireplace_fuel = 0
 	cooldown_remaining = 0.0
 	burn_time_remaining = 0.0
-	
+
+	# Update GameManager through the proper setter
+	GameManager.set_fireplace_fuel(0.0)
+
 	# Update visuals
 	_update_fire_visuals(0.0)
-	
+
 	state_changed.emit(current_state)
+
+	GameManager.log_message("🔥 The fire has gone out overnight. Light it to earn tips!")
 
 # ===== VISUAL EFFECTS =====
 func _play_ignition_effects():

@@ -1191,13 +1191,15 @@ func get_beer_pints() -> int:
 	"""Get current beer stock in pints"""
 	return beer_stock
 
-func count_active_patrons() -> int:
-	"""Count active patrons in tavern for fuel drain calculation"""
-	var patron_spawner = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/TavernNavigation/PatronSpawner")
-	if patron_spawner and patron_spawner.has_method("get_patron_count"):
-		return patron_spawner.get_patron_count()
-	return 0
+# count_active_patrons() removed — fuel drain now handled by fireplace_zone.gd
 
+
+func set_fireplace_fuel(new_value: float):
+	"""Called by fireplace_zone.gd to update fuel level. Single source of truth."""
+	var old_fuel = fireplace_fuel
+	fireplace_fuel = clampf(new_value, 0.0, 100.0)
+	if int(old_fuel) != int(fireplace_fuel):
+		fireplace_fuel_changed.emit(fireplace_fuel)
 
 func stoke_fireplace() -> bool:
 	"""Use firewood to increase fire level"""
@@ -1218,39 +1220,38 @@ func stoke_fireplace() -> bool:
 	
 	return true
 
-func _process(delta):
-	# Only drain fuel if fire is burning
-	if fireplace_fuel > 0:
-		# Base drain rate
-		var drain_rate = 0.15  # 0.15% per second base
-		
-		# Add drain based on active patrons (door opening/closing, warmth used)
-		var active_patrons = count_active_patrons()
-		var patron_drain = active_patrons * 0.05  # 0.05% per patron per second
-		
-		# Total drain
-		var total_drain = (drain_rate + patron_drain) * delta
-		
-		# Apply drain
-		fireplace_fuel -= total_drain
-		fireplace_fuel = max(0.0, fireplace_fuel)
-		
-		# Emit signal if changed significantly (avoid spam)
-		if int(fireplace_fuel) != int(fireplace_fuel + total_drain):
-			fireplace_fuel_changed.emit(fireplace_fuel)
+func _process(_delta):
+	# Fireplace fuel is now managed entirely by fireplace_zone.gd state machine
+	# GameManager only holds the value for tip calculations
+	# See fireplace_zone.gd for the burn state machine (DORMANT → BURNING_HIGH → BURNING_LOW → DYING)
+	pass
 
 
 
 
 
-func calculate_patron_tip() -> int:
-	"""Calculate tip based on fireplace comfort level"""
-	# Simple linear formula: 100% fuel = 6g, 50% fuel = 3g, 0% fuel = 0g
+func calculate_patron_tip() -> Dictionary:
+	"""Calculate tip based on fireplace comfort level. Returns breakdown for UI feedback."""
 	var base_tip = 6.0
 	var comfort_ratio = fireplace_fuel / 100.0
-	var final_tip = int(base_tip * comfort_ratio)
-	
-	return final_tip
+	var tip_amount = int(base_tip * comfort_ratio)
+
+	var comfort_desc = ""
+	if comfort_ratio >= 0.75:
+		comfort_desc = "Cozy atmosphere"
+	elif comfort_ratio >= 0.5:
+		comfort_desc = "Warm enough"
+	elif comfort_ratio >= 0.25:
+		comfort_desc = "A bit chilly"
+	else:
+		comfort_desc = "Freezing cold"
+
+	return {
+		"amount": tip_amount,
+		"comfort_ratio": comfort_ratio,
+		"comfort_desc": comfort_desc,
+		"fire_percent": int(fireplace_fuel)
+	}
 
 
 # === CUSTOMER SERVICE WITH CLEAR ECONOMICS ===
@@ -1258,16 +1259,17 @@ func serve_customer_beer() -> int:
 	"""Serve beer to customer with fire-based tip calculation"""
 	if consume_beer_pints(1):
 		var payment = 6  # Base payment for beer
-		var tip = calculate_patron_tip()  # Fire-based tip
+		var tip_info = calculate_patron_tip()  # Fire-based tip
+		var tip = tip_info.amount
 		var total = payment + tip
-		
+
 		add_gold(total)
 		daily_patron_visits += 1  # Track for statistics
-		
+
 		if tip > 0:
-			log_message("Served 1 pint for " + str(payment) + "g + " + str(tip) + "g tip (Fire: " + str(int(fireplace_fuel)) + "%)")
+			log_message("🍺 Served 1 pint: " + str(payment) + "g + " + str(tip) + "g tip (" + tip_info.comfort_desc + " — Fire: " + str(tip_info.fire_percent) + "%)")
 		else:
-			log_message("Served 1 pint for " + str(payment) + "g (No tip - fire is out!)")
+			log_message("🍺 Served 1 pint: " + str(payment) + "g — No tip! (" + tip_info.comfort_desc + ")")
 		
 		return total
 	else:
