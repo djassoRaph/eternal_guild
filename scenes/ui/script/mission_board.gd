@@ -17,6 +17,7 @@ const MISSION_CARD_SCENE = preload("res://scenes/ui/SingleMissionCard.tscn")
 const PARTY_MISSION_CARD_SCENE = preload("res://scenes/ui/PartyMissionCard.tscn")
 var assigned_missions = []
 var _subviewport_container = null
+var _confirm_panel = null
 
 signal board_closed
 
@@ -228,20 +229,14 @@ func create_mission_card(mission: Dictionary, ready_adventurers: Array):
 	print("   ✓ Card created for: ", mission.get("name", "Unknown"))
 
 func _on_mission_card_started(mission: Dictionary, adventurer: Dictionary):
-	"""Handle when a solo mission card's send button is pressed — DEFERRED resolution"""
-	print("🎯 Mission dispatched: ", mission.get("name"), " with ", adventurer.get("name"))
-	GameManager.send_on_mission(adventurer, mission)
-	assigned_missions.append(mission)
-	GameManager.adventurer_roster_changed.emit()
-	queue_free()
+	"""Handle when a solo mission card's send button is pressed — show confirmation first"""
+	print("🎯 Mission confirmation requested: ", mission.get("name"), " with ", adventurer.get("name"))
+	show_dispatch_confirm(mission, adventurer)
 
 func _on_party_mission_card_started(mission: Dictionary, adventurers: Array):
-	"""Handle when a party mission card's send button is pressed — DEFERRED resolution"""
-	print("🎯 Party mission dispatched: ", mission.get("name"), " with ", adventurers.size(), " adventurers")
-	GameManager.send_party_on_mission(adventurers, mission)
-	assigned_missions.append(mission)
-	GameManager.adventurer_roster_changed.emit()
-	queue_free()
+	"""Handle when a party mission card's send button is pressed — show confirmation first"""
+	print("🎯 Party mission confirmation requested: ", mission.get("name"), " with ", adventurers.size(), " adventurers")
+	show_party_dispatch_confirm(mission, adventurers)
 
 func execute_solo_mission(adventurer: Dictionary, mission: Dictionary):
 	"""Execute a solo mission"""
@@ -314,3 +309,247 @@ func send_log_message(message: String):
 func refresh_daily_missions():
 	"""Reset missions for new day"""
 	assigned_missions.clear()
+
+# === DISPATCH CONFIRMATION PANEL ===
+
+func _remove_confirm_panel():
+	if _confirm_panel != null and is_instance_valid(_confirm_panel):
+		_confirm_panel.queue_free()
+	_confirm_panel = null
+
+func _build_confirm_panel_base(mission: Dictionary) -> PanelContainer:
+	var panel = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.10, 0.09, 0.97)
+	style.border_color = Color(0.8, 0.6, 0.2, 0.8)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.custom_minimum_size = Vector2(420, 0)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+
+	# Mission name
+	var category = mission.get("category", "misc")
+	var cat_info = get_category_info(category)
+	var name_label = Label.new()
+	name_label.text = cat_info.icon + "  " + mission.get("name", "Unknown Mission")
+	name_label.add_theme_font_size_override("font_size", 18)
+	name_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5))
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_label)
+
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	# Duration
+	var duration = mission.get("duration_days", 1)
+	var dur_label = Label.new()
+	dur_label.text = "⏱  Duration: " + str(duration) + " day" + ("s" if duration != 1 else "") + " away"
+	dur_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	vbox.add_child(dur_label)
+
+	# Danger
+	var danger = mission.get("danger", 1)
+	var skulls = ""
+	for _i in danger:
+		skulls += "💀"
+	var danger_label = Label.new()
+	danger_label.text = "⚠  Danger: " + skulls + " (" + str(danger) + ")"
+	danger_label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.2))
+	vbox.add_child(danger_label)
+
+	# Reward
+	var reward = mission.get("reward_range", [0, 0])
+	var reward_label = Label.new()
+	reward_label.text = "💰  Reward: " + str(reward[0]) + "–" + str(reward[1]) + " gold"
+	reward_label.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
+	vbox.add_child(reward_label)
+
+	return panel
+
+func show_dispatch_confirm(mission: Dictionary, adventurer: Dictionary):
+	_remove_confirm_panel()
+
+	var panel = _build_confirm_panel_base(mission)
+	var vbox = panel.get_child(0) as VBoxContainer
+
+	# Success chance
+	var chance = GameManager.calculate_mission_success_chance(adventurer, mission)
+	var chance_label = Label.new()
+	chance_label.text = "🎲  " + str(chance) + "% chance of success"
+	var chance_color: Color
+	if chance >= 70:
+		chance_color = Color(0.3, 0.85, 0.4)
+	elif chance >= 50:
+		chance_color = Color(0.9, 0.8, 0.2)
+	else:
+		chance_color = Color(0.9, 0.35, 0.3)
+	chance_label.add_theme_color_override("font_color", chance_color)
+	chance_label.add_theme_font_size_override("font_size", 16)
+	chance_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(chance_label)
+
+	# Relevant stats
+	var factors = mission.get("success_factors", [])
+	if factors.size() > 0:
+		var stats_header = Label.new()
+		stats_header.text = "📊  Relevant Stats — " + adventurer.get("name", "Adventurer") + ":"
+		stats_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+		vbox.add_child(stats_header)
+		for factor in factors:
+			if factor in ["strength", "dexterity", "intelligence", "endurance"]:
+				var stat_label = Label.new()
+				stat_label.text = "  • " + factor.capitalize() + ": " + str(adventurer.get(factor, 0))
+				stat_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+				vbox.add_child(stat_label)
+
+	# Trait display
+	var personality = adventurer.get("personality", "")
+	if personality != "":
+		var trait_data = GameManager.get_trait_data(personality)
+		if not trait_data.is_empty():
+			var effect_text = ""
+			if trait_data.has("mission_bonus"):
+				var pct = int(trait_data.mission_bonus * 100)
+				effect_text = ("+" if pct > 0 else "") + str(pct) + "% success chance"
+			elif trait_data.has("danger_resistance"):
+				effect_text = "+" + str(int(trait_data.danger_resistance * 100)) + "% on dangerous missions"
+			elif trait_data.has("reward_bonus"):
+				effect_text = "+" + str(int(trait_data.reward_bonus * 100)) + "% gold on success"
+			elif trait_data.has("injury_chance"):
+				effect_text = "Higher injury risk on failure"
+			elif trait_data.has("cost_multiplier"):
+				effect_text = "Costs more daily wages"
+			if effect_text != "":
+				var trait_label = Label.new()
+				trait_label.text = "⚡  Trait: " + personality.capitalize() + " — " + effect_text
+				trait_label.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0))
+				trait_label.add_theme_font_size_override("font_size", 12)
+				vbox.add_child(trait_label)
+
+	var sep2 = HSeparator.new()
+	vbox.add_child(sep2)
+
+	var btn_row = HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 16)
+	vbox.add_child(btn_row)
+
+	var confirm_btn = Button.new()
+	confirm_btn.text = "Send " + adventurer.get("name", "Adventurer")
+	confirm_btn.add_theme_color_override("font_color", Color(0.3, 0.85, 0.4))
+	confirm_btn.pressed.connect(func():
+		_remove_confirm_panel()
+		GameManager.send_on_mission(adventurer, mission)
+		assigned_missions.append(mission)
+		GameManager.adventurer_roster_changed.emit()
+		queue_free()
+	)
+	btn_row.add_child(confirm_btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.add_theme_color_override("font_color", Color(0.9, 0.35, 0.3))
+	cancel_btn.pressed.connect(_remove_confirm_panel)
+	btn_row.add_child(cancel_btn)
+
+	var confirm_layer = CanvasLayer.new()
+	confirm_layer.layer = 10
+	get_tree().root.add_child(confirm_layer)
+
+	var center = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	confirm_layer.add_child(center)
+
+	center.add_child(panel)
+	_confirm_panel = confirm_layer
+
+func show_party_dispatch_confirm(mission: Dictionary, party: Array):
+	_remove_confirm_panel()
+
+	var panel = _build_confirm_panel_base(mission)
+	var vbox = panel.get_child(0) as VBoxContainer
+
+	# Average success chance with party bonus
+	var total_chance = 0
+	for adv in party:
+		total_chance += GameManager.calculate_mission_success_chance(adv, mission)
+	var avg_chance = total_chance / party.size() if party.size() > 0 else 0
+	var party_bonus = (party.size() - 1) * 5
+	var final_chance = clampi(avg_chance + party_bonus, 10, 95)
+
+	var chance_label = Label.new()
+	chance_label.text = "🎲  " + str(final_chance) + "% party chance of success"
+	var chance_color: Color
+	if final_chance >= 70:
+		chance_color = Color(0.3, 0.85, 0.4)
+	elif final_chance >= 50:
+		chance_color = Color(0.9, 0.8, 0.2)
+	else:
+		chance_color = Color(0.9, 0.35, 0.3)
+	chance_label.add_theme_color_override("font_color", chance_color)
+	chance_label.add_theme_font_size_override("font_size", 16)
+	chance_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(chance_label)
+
+	# Party members with relevant stats
+	var factors = mission.get("success_factors", [])
+	var party_header = Label.new()
+	party_header.text = "👥  Party Members:"
+	party_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	vbox.add_child(party_header)
+
+	for adv in party:
+		var stat_parts: Array = []
+		for factor in factors:
+			if factor in ["strength", "dexterity", "intelligence", "endurance"]:
+				stat_parts.append(factor.capitalize()[0] + ": " + str(adv.get(factor, 0)))
+		var adv_line = "  • " + adv.get("name", "?") + " (" + adv.get("class", "?") + ")"
+		if stat_parts.size() > 0:
+			adv_line += " — " + ", ".join(stat_parts)
+		var adv_label = Label.new()
+		adv_label.text = adv_line
+		adv_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		vbox.add_child(adv_label)
+
+	var sep2 = HSeparator.new()
+	vbox.add_child(sep2)
+
+	var btn_row = HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 16)
+	vbox.add_child(btn_row)
+
+	var confirm_btn = Button.new()
+	confirm_btn.text = "Send Party (" + str(party.size()) + ")"
+	confirm_btn.add_theme_color_override("font_color", Color(0.3, 0.85, 0.4))
+	confirm_btn.pressed.connect(func():
+		_remove_confirm_panel()
+		GameManager.send_party_on_mission(party, mission)
+		assigned_missions.append(mission)
+		GameManager.adventurer_roster_changed.emit()
+		queue_free()
+	)
+	btn_row.add_child(confirm_btn)
+
+	var cancel_btn = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.add_theme_color_override("font_color", Color(0.9, 0.35, 0.3))
+	cancel_btn.pressed.connect(_remove_confirm_panel)
+	btn_row.add_child(cancel_btn)
+
+	var confirm_layer = CanvasLayer.new()
+	confirm_layer.layer = 10
+	get_tree().root.add_child(confirm_layer)
+
+	var center = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	confirm_layer.add_child(center)
+
+	center.add_child(panel)
+	_confirm_panel = confirm_layer

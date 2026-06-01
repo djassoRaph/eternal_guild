@@ -100,35 +100,137 @@ func populate_basic_recruitment_content():
 	create_basic_recruitment_ui()
 
 func create_basic_recruitment_ui():
-	"""Basic recruitment interface that works now"""
-	# Guild master greeting	
+	"""Redesigned: Roster section + Applicants section in a shared scroll container"""
 	send_log_message("\"Welcome, Guildmaster! These brave souls seek to join your guild.\"")
-	
-	# Guild status display
+
+	# Status row: gold + roster count
 	create_guild_status_display()
-	
-	# Available recruits section
-	var recruits_title = Label.new()
-	recruits_title.text = "Available Applicants Today"
-	recruits_title.add_theme_font_size_override("font_size", 16)
-	recruits_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main_container.add_child(recruits_title)
-	
-	# Generate daily recruits
-	var gamemanager_recruits = GameManager.get_available_recruits()
-	
-	# Recruits container
-	var recruits_scroll = ScrollContainer.new()
-	recruits_scroll.custom_minimum_size = Vector2(600, 400)
-	main_container.add_child(recruits_scroll)
-	
-	var recruits_container = VBoxContainer.new()
-	recruits_scroll.add_child(recruits_container)
-	recruits_container.add_theme_constant_override("separation", 10)
-	
-	# Create recruit cards
-	for recruit in gamemanager_recruits:
-			create_recruit_card(recruit, recruits_container)
+
+	# Single scroll container wrapping both sections
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(600, 500)
+	main_container.add_child(scroll)
+
+	var content = VBoxContainer.new()
+	content.add_theme_constant_override("separation", 8)
+	scroll.add_child(content)
+
+	# --- Section 1: YOUR GUILD ---
+	var roster = GameManager.adventurers
+	var roster_header = Label.new()
+	roster_header.text = "⚔️ YOUR GUILD (" + str(roster.size()) + "/" + str(GameManager.get_max_adventurers()) + ")"
+	roster_header.add_theme_font_size_override("font_size", 16)
+	roster_header.add_theme_color_override("font_color", Color.ORANGE)
+	roster_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(roster_header)
+
+	if roster.size() == 0:
+		var empty_label = Label.new()
+		empty_label.text = "No adventurers hired yet."
+		empty_label.add_theme_color_override("font_color", Color.GRAY)
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content.add_child(empty_label)
+	else:
+		for adventurer in roster:
+			_create_adventurer_card(adventurer, content)
+
+	var sep = HSeparator.new()
+	content.add_child(sep)
+
+	# --- Section 2: AVAILABLE TODAY ---
+	var recruits = GameManager.get_available_recruits()
+	var applicants_header = Label.new()
+	applicants_header.text = "📋 AVAILABLE TODAY (" + str(recruits.size()) + " applicants)"
+	applicants_header.add_theme_font_size_override("font_size", 16)
+	applicants_header.add_theme_color_override("font_color", Color.CYAN)
+	applicants_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content.add_child(applicants_header)
+
+	if recruits.size() == 0:
+		var no_recruits = Label.new()
+		no_recruits.text = "No applicants available today."
+		no_recruits.add_theme_color_override("font_color", Color.GRAY)
+		no_recruits.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content.add_child(no_recruits)
+	else:
+		for recruit in recruits:
+			create_recruit_card(recruit, content)
+
+func _get_adventurer_level(adventurer: Dictionary) -> int:
+	var mc = adventurer.get("missions_completed", 0)
+	if mc < 3: return 1
+	elif mc < 8: return 2
+	elif mc < 15: return 3
+	elif mc < 25: return 4
+	elif mc < 40: return 5
+	else: return 6
+
+func _create_adventurer_card(adventurer: Dictionary, parent: VBoxContainer):
+	var card = PanelContainer.new()
+	parent.add_child(card)
+
+	var card_style = StyleBoxFlat.new()
+	card_style.bg_color = Color(0.12, 0.15, 0.2, 0.9)
+	card_style.border_width_left = 2
+	card_style.border_width_right = 2
+	card_style.border_width_top = 2
+	card_style.border_width_bottom = 2
+	card_style.border_color = Color(0.5, 0.6, 0.9, 1.0)
+	card.add_theme_stylebox_override("panel", card_style)
+
+	var card_content = HBoxContainer.new()
+	card.add_child(card_content)
+	card_content.add_theme_constant_override("separation", 20)
+
+	# Left: info
+	var info = VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_content.add_child(info)
+
+	var level = _get_adventurer_level(adventurer)
+	var name_label = Label.new()
+	name_label.text = adventurer.get("name", "?") + " the " + adventurer.get("class", "?") + " (Lvl " + str(level) + ")"
+	name_label.add_theme_font_size_override("font_size", 15)
+	name_label.add_theme_color_override("font_color", Color.WHITE)
+	info.add_child(name_label)
+
+	var stats_label = Label.new()
+	stats_label.text = "STR:" + str(adventurer.get("strength", 0)) + " | DEX:" + str(adventurer.get("dexterity", 0)) + " | INT:" + str(adventurer.get("intelligence", 0)) + " | END:" + str(adventurer.get("endurance", 0))
+	stats_label.add_theme_font_size_override("font_size", 12)
+	stats_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	info.add_child(stats_label)
+
+	var status = adventurer.get("status", "Ready")
+	var status_label = Label.new()
+	status_label.text = "Status: " + status
+	status_label.add_theme_font_size_override("font_size", 12)
+	var status_color: Color
+	match status:
+		"Ready":      status_color = Color.GREEN
+		"Resting":    status_color = Color.YELLOW
+		"Injured":    status_color = Color.RED
+		"On Mission": status_color = Color.CYAN
+		_:            status_color = Color.GRAY
+	status_label.add_theme_color_override("font_color", status_color)
+	info.add_child(status_label)
+
+	# Right: dismiss button
+	var dismiss_btn = Button.new()
+	dismiss_btn.text = "Dismiss"
+	dismiss_btn.custom_minimum_size = Vector2(100, 35)
+	dismiss_btn.add_theme_color_override("font_color", Color(0.9, 0.35, 0.3))
+	if status == "On Mission":
+		dismiss_btn.disabled = true
+		dismiss_btn.tooltip_text = "On mission"
+	else:
+		dismiss_btn.pressed.connect(func(): _on_dismiss_pressed(adventurer))
+	card_content.add_child(dismiss_btn)
+
+func _on_dismiss_pressed(adventurer: Dictionary):
+	if GameManager.dismiss_adventurer(adventurer):
+		hide()
+		await get_tree().create_timer(0.1).timeout
+		open_recruitment_desk()
 
 func create_guild_status_display():
 	"""Display current guild status and resources"""

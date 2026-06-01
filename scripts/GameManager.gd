@@ -15,7 +15,9 @@ var fireplace_fuel: float = 0.0  # Starts at 0% (fire is out)
 var max_firewood_storage: int = 10
 var daily_patron_visits: int = 0  # Track patrons for fuel drain
 var mission_tier_unlocked: int = 1
+var next_adventurer_id: int = 1
 var tax_due_day: int = 30
+var tax_grace_days: int = 0  # Days into grace period after missed tax (0 = not in grace)
 var daily_operating_cost: int = 5
 
 # === UI UPDATE SIGNALS ===
@@ -237,6 +239,13 @@ func send_party_on_mission(party: Array, mission: Dictionary):
 	mission_dispatched.emit(party[0], mission)
 
 
+func get_trait_data(personality: String) -> Dictionary:
+	"""Look up trait modifiers from DataManager. Returns empty dict if not found."""
+	var traits = DataManager.character_traits
+	var positive = traits.get("positive_traits", {})
+	var negative = traits.get("negative_traits", {})
+	return positive.get(personality, negative.get(personality, {}))
+
 func calculate_mission_success_chance(adventurer: Dictionary, mission: Dictionary) -> int:
 	"""Calculate success chance — extracted from mission_board.gd for reuse"""
 	var base_chance = 50
@@ -254,6 +263,18 @@ func calculate_mission_success_chance(adventurer: Dictionary, mission: Dictionar
 	var danger_penalty = mission.get("danger", 1) * 8
 	var final_chance = base_chance + stat_bonus + experience_bonus - danger_penalty
 
+	# Apply personality trait modifier
+	var trait_data = get_trait_data(adventurer.get("personality", ""))
+	var trait_bonus = 0
+
+	if trait_data.has("mission_bonus"):
+		trait_bonus += int(trait_data.mission_bonus * 100)
+
+	if trait_data.has("danger_resistance") and mission.get("danger", 1) >= 3:
+		trait_bonus += int(trait_data.danger_resistance * 100)
+
+	final_chance += trait_bonus
+
 	return clampi(final_chance, 10, 95)
 
 
@@ -261,6 +282,15 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 	"""Enhanced mission completion with mandatory recovery period"""
 	if success:
 		var reward = randi_range(mission.reward_range[0], mission.reward_range[1])
+
+		# Lucky trait: bonus reward on success
+		var trait_data = get_trait_data(adventurer.get("personality", ""))
+		if trait_data.has("reward_bonus"):
+			var bonus = int(reward * trait_data.reward_bonus)
+			if bonus > 0:
+				reward += bonus
+				log_message("🍀 " + adventurer.name + "'s luck paid off! +" + str(bonus) + " bonus gold.")
+
 		add_gold(reward)
 		adventurer.missions_completed += 1
 		adventurer.gold_earned += reward
@@ -368,6 +398,12 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 	var roll = randi() % 100 + 1
 	var success = roll <= success_chance
 
+	# Reckless trait: extra injury chance on failure
+	var trait_data = get_trait_data(adventurer.get("personality", ""))
+	if not success and trait_data.has("injury_chance"):
+		if randf() < trait_data.injury_chance:
+			adventurer["injured"] = true
+
 	complete_mission(adventurer, mission, success)
 
 	return {
@@ -434,7 +470,13 @@ func get_and_clear_pending_reports() -> Array:
 func process_daily_operations():
 	"""Handle daily costs and maintenance"""
 	var base_cost = daily_operating_cost
-	var adventurer_wages = adventurers.size() * 1  # 1 gold per adventurer per day
+	var adventurer_wages = 0
+	for adv in adventurers:
+		var base_wage = 1
+		var trait_data = get_trait_data(adv.get("personality", ""))
+		if trait_data.has("cost_multiplier"):
+			base_wage = int(ceil(base_wage * trait_data.cost_multiplier))
+		adventurer_wages += base_wage
 	var total_cost = base_cost + adventurer_wages
 	
 	# Beer consumption by adventurers
@@ -497,29 +539,35 @@ func process_adventurer_recovery():
 
 
 func check_tax_deadline():
-	"""Monitor tax payment deadlines"""
 	var days_until_tax = tax_due_day - current_day
-	
-	if days_until_tax == 5:
-		log_message("NOTICE: Tax payment due in 5 days! Need 50 gold")
+
+	if days_until_tax == 7:
+		log_message("📋 Tax payment due in 7 days. Amount: " + str(1000 + adventurers.size() * 5) + " gold.")
+	elif days_until_tax == 3:
+		log_message("⚠️ Tax payment due in 3 days! Need " + str(1000 + adventurers.size() * 5) + " gold.")
 	elif days_until_tax == 1:
-		log_message("URGENT: Tax payment due TOMORROW! Need 50 gold")
+		log_message("🚨 Tax payment due TOMORROW! Need " + str(1000 + adventurers.size() * 5) + " gold!")
 	elif days_until_tax <= 0:
 		handle_tax_payment()
 
 func handle_tax_payment():
-	"""Process tax payment with proper game over"""
 	var tax_amount = 1000 + (adventurers.size() * 5)
-	
+
 	if spend_gold(tax_amount):
 		tax_due_day += 30
+		tax_grace_days = 0
 		taxes_paid_count += 1
-		log_message("Successfully paid " + str(tax_amount) + " gold in taxes")
-		log_message("Next tax payment due on day " + str(tax_due_day))
-		GameManager.check_tier_unlocks()
+		log_message("✅ Paid " + str(tax_amount) + " gold in taxes. Next due: Day " + str(tax_due_day))
+		check_tier_unlocks()
 	else:
-		# Trigger game over instead of just logging
-		trigger_game_over("bankruptcy", "Could not pay taxes of " + str(tax_amount) + " gold")
+		tax_grace_days += 1
+		log_message("⚠️ OVERDUE: Cannot pay taxes (" + str(tax_amount) + " gold needed). Grace period: " + str(tax_grace_days) + "/3 days.")
+
+		if tax_grace_days >= 3:
+			trigger_game_over("bankruptcy", "Failed to pay taxes after 3-day grace period. The guild is seized.")
+		else:
+			var days_left = 3 - tax_grace_days
+			log_message("💡 " + str(days_left) + " day(s) remaining before the guild is shut down.")
 		
 		
 # === LOGGING SYSTEM ===
@@ -607,9 +655,13 @@ func generate_fallback_recruits(count: int) -> Array:
 	
 	return recruits
 
+func generate_unique_id() -> int:
+	var id = next_adventurer_id
+	next_adventurer_id += 1
+	return id
+
 func generate_recruit_id() -> int:
-	"""Generate unique recruit ID"""
-	return Time.get_unix_time_from_system() + randi_range(1000, 9999)
+	return generate_unique_id()
 
 func get_available_recruits() -> Array:
 	"""Get current list of available recruits"""
@@ -693,6 +745,11 @@ func advance_day():
 	var availability_report = get_guild_availability_report()
 	log_message("💰 Gold: " + str(gold) + " | 🍺 Beer: " + str(beer_stock) + " pints | 👥 Available: " + str(availability_report["ready"]) + "/" + str(adventurers.size()))
 
+	# Soft-lock detection
+	if adventurers.size() == 0 and gold < 8 and daily_recruits.size() == 0:
+		log_message("💀 The guild cannot recover. No adventurers, no funds, no prospects.")
+		trigger_game_over("soft_lock", "The Eternal Guild fades into history — abandoned and forgotten.")
+
 
 func generate_fallback_missions() -> Array:
 	"""Generate fallback missions when DataManager is not available"""
@@ -733,6 +790,23 @@ func cleanup_expired_recruitment_candidates():
 	)
 
 # Enhanced hiring function
+func dismiss_adventurer(adventurer: Dictionary) -> bool:
+	"""Remove an adventurer from the roster. Cannot dismiss if on mission."""
+	if adventurer.get("status", "") == "On Mission":
+		log_message("⚠️ Cannot dismiss " + adventurer.get("name", "?") + " — they are currently on a mission.")
+		return false
+
+	var severance = 5  # Flat severance cost
+	adventurers.erase(adventurer)
+	tavern_reputation = max(0, tavern_reputation - 1)  # Small reputation hit
+	log_message("👋 " + adventurer.get("name", "?") + " has been dismissed from the guild.")
+	if spend_gold(severance):
+		log_message("💰 Paid " + str(severance) + " gold severance.")
+	else:
+		log_message("⚠️ Could not afford severance pay.")
+	adventurer_roster_changed.emit()
+	return true
+
 func hire_adventurer(recruit: Dictionary) -> bool:
 	"""Enhanced adventurer hiring with recruit pool management"""
 	var hiring_cost = recruit.get("hiring_cost", 10)
@@ -797,7 +871,20 @@ func get_save_data() -> Dictionary:
 		"available_missions": available_missions,
 		
 		# Patron recruitment pool
-		"patron_recruitment_pool": patron_recruitment_pool
+		"patron_recruitment_pool": patron_recruitment_pool,
+
+		# Progression
+		"total_missions_completed": total_missions_completed,
+		"tavern_reputation": tavern_reputation,
+		"taxes_paid_count": taxes_paid_count,
+		"mission_tier_unlocked": mission_tier_unlocked,
+		"active_missions": active_missions,
+
+		# ID counter
+		"next_adventurer_id": next_adventurer_id,
+
+		# Tax grace period
+		"tax_grace_days": tax_grace_days
 	}
 	
 	print("   Saved: ", data.keys().size(), " fields")
@@ -838,7 +925,20 @@ func load_save_data(data: Dictionary):
 	
 	# Patron recruitment pool
 	patron_recruitment_pool = data.get("patron_recruitment_pool", [])
-	
+
+	# Progression
+	total_missions_completed = int(data.get("total_missions_completed", 0))
+	tavern_reputation = int(data.get("tavern_reputation", 0))
+	taxes_paid_count = int(data.get("taxes_paid_count", 0))
+	mission_tier_unlocked = int(data.get("mission_tier_unlocked", 1))
+	active_missions = data.get("active_missions", [])
+
+	# ID counter
+	next_adventurer_id = int(data.get("next_adventurer_id", 1))
+
+	# Tax grace period
+	tax_grace_days = int(data.get("tax_grace_days", 0))
+
 	# Reset game over state
 	game_over_active = false
 	

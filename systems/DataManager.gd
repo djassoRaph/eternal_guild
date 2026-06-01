@@ -10,8 +10,6 @@ var mission_types: Dictionary = {}
 var items: Dictionary = {}
 var dialogue_lines: Dictionary = {}
 var settlements: Dictionary = {}
-var mission_tier_unlocked: int = 1 
-
 signal data_ready
 signal data_loaded(data_type: String)
 signal data_modified(data_type: String, data: Dictionary)
@@ -27,18 +25,6 @@ var recruitment_config = {
 	"patron_service_bonus": 0.12,
 	"applicant_stay_duration": [2, 5],
 	"guild_reputation_factor": 0.001
-}
-
-# Progression tracking
-var total_missions_completed: int = 0
-var tavern_reputation: int = 0
-var taxes_paid_count: int = 0
-
-# Tier unlock conditions
-var tier_requirements = {
-	1: {"always_unlocked": true},  # Starting tier
-	2: {"taxes_paid": 1, "description": "Pay first tax (Day 1000)"},
-	3: {"reputation": 50, "day": 60, "missions_completed": 10, "description": "Build reputation and experience"}
 }
 
 func _ready():
