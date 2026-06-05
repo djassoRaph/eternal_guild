@@ -9,7 +9,8 @@ extends Node3D
 @onready var bedroom_area = $NextDayArea
 @onready var fireplace_area = %FireplaceArea
 
-var MissionBoardScene = preload("res://scenes/ui/MissionBoard.tscn")
+# var MissionBoardScene = preload("res://scenes/ui/MissionBoard.tscn")  # kept on disk as fallback
+var WorldMapBoardScene = preload("res://scenes/world/WorldMapBoard.tscn")
 
 # Player state tracking
 var player_in_bedroom := false
@@ -197,7 +198,7 @@ func open_mission_board() -> void:
 	mission_board_open = true
 	print("📋 Opening mission board...")
 	
-	current_mission_board_instance = MissionBoardScene.instantiate()
+	current_mission_board_instance = WorldMapBoardScene.instantiate()
 	get_tree().root.add_child(current_mission_board_instance)
 	
 	if GameManager.available_missions.is_empty():

@@ -1,24 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://83x67lyylyw3"]
+[gd_scene load_steps=3 format=3 uid="uid://83x67lyylyw3"]
 
 [ext_resource type="Script" uid="uid://8ntdfyvxo8jo" path="res://scripts/menus/main_menu.gd" id="1_eiy7p"]
-[ext_resource type="Texture2D" uid="uid://cqwy0fi07s163" path="res://assets/ui/tavernbackgroundimage.webp" id="1_i26rj"]
-
-[sub_resource type="FontFile" id="FontFile_i26rj"]
-cache/0/36/0/ascent = 0.0
-cache/0/36/0/descent = 0.0
-cache/0/36/0/underline_position = 0.0
-cache/0/36/0/underline_thickness = 0.0
-cache/0/36/0/scale = 1.0
-cache/0/16/0/ascent = 0.0
-cache/0/16/0/descent = 0.0
-cache/0/16/0/underline_position = 0.0
-cache/0/16/0/underline_thickness = 0.0
-cache/0/16/0/scale = 1.0
-
-[sub_resource type="LabelSettings" id="LabelSettings_eiy7p"]
-line_spacing = 4.0
-font = SubResource("FontFile_i26rj")
-font_size = 36
+[ext_resource type="Texture2D" uid="uid://c61gfqj0dasrp" path="res://assets/ui/tavernbackgroundimage.png" id="2_0ykhv"]
 
 [node name="Mainmenu" type="Control"]
 layout_mode = 3
@@ -32,11 +15,14 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 1496.0
+offset_left = 135.0
+offset_right = 1631.0
 offset_bottom = 984.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("1_i26rj")
+texture = ExtResource("2_0ykhv")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -49,14 +35,6 @@ offset_right = 1342.08
 offset_bottom = 640.115
 grow_horizontal = 2
 grow_vertical = 2
-
-[node name="Label" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-text = "Chronicles of the Eternal Guild
-"
-label_settings = SubResource("LabelSettings_eiy7p")
-horizontal_alignment = 1
-vertical_alignment = 1
 
 [node name="StartButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -74,5 +52,3 @@ text = "Quit"
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
-
-[connection signal="pressed" from="VBoxContainer/ContinueButton" to="." method="_on_continue_button_pressed"]

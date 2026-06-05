@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cqwy0fi07s163"
-path="res://.godot/imported/tavernbackgroundimage.webp-41efb3bcb22621da344f1cec4d6c1460.ctex"
+uid="uid://4ohrcyoq75cs"
+path="res://.godot/imported/eternal_guild_world_map_dispatch_dataflow.svg-e2934fcdca86036d7be90d5d44eaa61d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/tavernbackgroundimage.webp"
-dest_files=["res://.godot/imported/tavernbackgroundimage.webp-41efb3bcb22621da344f1cec4d6c1460.ctex"]
+source_file="res://documentation/design/eternal_guild_world_map_dispatch_dataflow.svg"
+dest_files=["res://.godot/imported/eternal_guild_world_map_dispatch_dataflow.svg-e2934fcdca86036d7be90d5d44eaa61d.ctex"]
 
 [params]
 
@@ -32,3 +32,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false

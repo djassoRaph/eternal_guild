@@ -10,6 +10,7 @@ extends Node
 var world_map: Array = []
 var capitals: Array = []
 var landmarks: Array = []
+var chosen_center: Dictionary = {}   # the tavern_site hex the player picked
 
 # --- Loaded Game Data ---
 var capital_definitions: Dictionary = {}
@@ -19,6 +20,16 @@ const CAPITALS_DATA_PATH = "res://data/settlements/capitals.json"
 func _ready():
 	print("capitals.json called.")
 	_load_capital_definitions()
+
+# Called by the world map when the player confirms their tavern spot.
+# Stores the generated layout in memory for the session. Saving to disk
+# is a later step (gated on the load-game fix); this just stops the map
+# from being thrown away on scene change.
+func set_generated_world(records: Array, center: Dictionary) -> void:
+	world_map = records.duplicate(true)
+	chosen_center = center.duplicate(true)
+	print("[WorldManager] Stored world: ", world_map.size(), " hexes. Center: ", chosen_center.get("id", "?"))
+
 
 # --- Data Loading ---
 func _load_capital_definitions():

@@ -58,7 +58,6 @@ An 80's anime-inspired fantasy world. Narrative is delivered through **2D/Text-b
 ### 4.2 Progression: The First 30 Days
 * **The Indoor Phase**: For the first 30 days, the player is confined to the tavern interior, forcing mastery of the core economic loop.
 * **Unlocking the World**: Surviving the first 30-day tax cycle unlocks exterior exploration.
-* *(Note: player choice of starting settlement is future scope — see §7. The current ASCII generator is a placeholder and does not yet let the player choose where they spawn.)*
 
 ### 4.3 The "Priors" Lore System
 Once outside is unlocked, major tavern renovations uncover the ruins of the precursor "Prior" civilization, kicking off the deeper archaeological mystery.

@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://6bk5uxb4tvxp"]
+[gd_scene load_steps=23 format=3 uid="uid://6bk5uxb4tvxp"]
 
 [ext_resource type="PackedScene" uid="uid://dbxsu7gs7h745" path="res://assets/environment/hexagons/base/hex_grass.gltf" id="1_1uw4p"]
 [ext_resource type="PackedScene" uid="uid://3v4bqt55jxpi" path="res://assets/environment/hexagons/nature/cloud_big.gltf" id="2_qg4dr"]
@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" uid="uid://dyl40oo87lku6" path="res://assets/environment/hexagons/coast/hex_coast_A.gltf" id="19_1q6y7"]
 [ext_resource type="PackedScene" uid="uid://3chug6fq62ef" path="res://assets/environment/hexagons/coast/hex_coast_B.gltf" id="20_7nj33"]
 [ext_resource type="PackedScene" uid="uid://bitjwvesik0sp" path="res://assets/environment/hexagons/base/hex_water.gltf" id="21_hdtka"]
+[ext_resource type="ArrayMesh" uid="uid://bnlw2d085o1b3" path="res://assets/ui/flag.obj" id="22_1uw4p"]
 [ext_resource type="PackedScene" uid="uid://ch6wvx2hrwsq3" path="res://assets/environment/hexagons/rivers/hex_river_A_curvy.gltf" id="22_gki3i"]
 
 [node name="HexagoneWorld" type="Node3D"]
@@ -137,3 +138,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.56247, -0.0345376, 2.00495
 
 [node name="hex_grass16" parent="." instance=ExtResource("1_1uw4p")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.42291, -0.0345376, 0.13157)
+
+[node name="Flag" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.48666, 0.418864, -1.55331)
+mesh = ExtResource("22_1uw4p")

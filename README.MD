@@ -168,7 +168,7 @@
 ## Roadmap & Future Vision
 
 ### Short-Term (Pre-Alpha → Alpha)
-- [ ] Fix game over state and test it properly
+- [x] Fix game over state and test it properly
 - [ ] Implement save/load system
 - [ ] Balance economy and mission difficulty
 - [ ] Add patron conversation system
@@ -177,7 +177,7 @@
 - [ ] Sound effects and ambient audio
 
 ### Mid-Term (Alpha → Beta)
-- [ ] Adventurer progression and leveling
+- [x] Adventurer progression and leveling
 - [ ] Reputation and faction systems
 - [ ] Tax escalation and economic pressure
 - [ ] Multiple patron types (merchants, nobles, quest-givers)
@@ -185,7 +185,7 @@
 - [ ] Tavern upgrades and renovations
 
 ### Long-Term (Beta → 1.0)
-- [ ] **Procedural world system** - Choose from 20-30 unique settlements
+- [ ] **Procedural world system** - Choose from 10 unique settlements
 - [ ] Settlement-specific content (missions, NPCs, economies)
 - [ ] Multiple victory conditions (economic, military, political)
 - [ ] Faction warfare and guild politics

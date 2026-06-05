@@ -155,7 +155,16 @@ func _handle_new_scene(scene_root: Node) -> void:
 	print("========================================")
 	print("📍 NEW SCENE LOADED: ", scene_root.name)
 	print("========================================")
-	
+
+	# Only manage the player in scenes that opt in. The menu and the hex
+	# map have no floor or spawn point — injecting a player there makes it
+	# fall through the void. Scenes that want a player join the
+	# "player_scene" group (set in the editor on the scene root).
+	if not scene_root.is_in_group("player_scene"):
+		print("⏭️  Scene '", scene_root.name, "' is not a player_scene — PlayerManager standing down.")
+		is_transitioning = false
+		return
+
 	# Find where to put player
 	var parent_node = _find_player_parent(scene_root)
 	print("📍 Player parent: ", parent_node.get_path() if parent_node else "NONE")

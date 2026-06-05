@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://cysgg0bab4tr7"]
+[gd_scene load_steps=6 format=3 uid="uid://cysgg0bab4tr7"]
 
 [ext_resource type="Shader" uid="uid://dluc7tau70k3i" path="res://assets/shaders/edge_detection.gdshader" id="2_103ld"]
+[ext_resource type="Script" uid="uid://cn7n7nkraxile" path="res://scenes/MapControls.gd" id="3_103ld"]
 [ext_resource type="Script" uid="uid://buk6at5ck0gx7" path="res://scripts/world/HexMapGenerator.gd" id="3_hexgen"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_rsbx5"]
@@ -22,7 +23,7 @@ script = ExtResource("3_hexgen")
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(0.707107, -0.353553, 0.612373, 0, 0.866026, 0.5, -0.707107, -0.353553, 0.612373, 21.65, 14, 21.15)
 projection = 1
-size = 14.0
+size = 20.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Camera3D"]
 extra_cull_margin = 16384.0
@@ -33,3 +34,7 @@ surface_material_override/0 = SubResource("ShaderMaterial_5c452")
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 15, 0)
 light_color = Color(1, 0.95, 0.85, 1)
 shadow_enabled = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+script = ExtResource("3_103ld")
+generator_path = NodePath("..")
