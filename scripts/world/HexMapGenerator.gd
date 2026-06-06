@@ -258,6 +258,18 @@ func _align_coast_tile(tile_mesh: Node3D, current_rec: Dictionary) -> void:
 
 # ── Interactive Click Volumes ─────────────────────────────────────────────────
 
+func _add_hover_area(tile: Node3D, rec: Dictionary) -> void:
+	var area := Area3D.new()
+	area.name = "HoverArea"
+	area.set_meta("hex_id", rec["id"])
+	var col := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = 1.0
+	shape.height = 1.0
+	col.shape = shape
+	area.add_child(col)
+	tile.add_child(area)
+
 func _make_tile_clickable(tile: Node3D, rec: Dictionary) -> void:
 	var area := Area3D.new()
 	area.name = "ClickArea"
@@ -329,9 +341,7 @@ func _spawn_tiles_static() -> void:
 				
 		add_child(bt)
 		_biome_tiles.append(bt)
-		
-		if rec.is_center or rec.get("is_zone", false):
-			_make_tile_clickable(bt, rec)
+		_add_hover_area(bt, rec)
 
 # ── Procedural Mathematics Builder ────────────────────────────────────────────
 
@@ -384,7 +394,8 @@ func _build_seeded_records() -> Array:
 				"biome": biome,
 				"is_center": is_center,
 				"is_zone": false,
-				"location_name": ""
+				"location_name": "",
+				"active_mission": null
 			}
 			
 			temp_records.append(rec)

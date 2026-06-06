@@ -1615,6 +1615,7 @@ func refresh_available_missions():
 		for mission in fallback_missions:
 			available_missions.append(mission)
 		print("⚠️ Using fallback missions")
+	WorldManager.assign_missions_to_hexes(available_missions)
 
 
 

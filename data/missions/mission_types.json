@@ -2,33 +2,27 @@
   "mission_categories": {
 	"combat": {
 	  "name": "Combat Operations",
-	  "description": "Dangerous missions requiring fighting prowess",
-	  "icon": "⚔️"
+	  "description": "Dangerous missions requiring fighting prowess"
 	},
 	"escort": {
 	  "name": "Escort & Protection",
-	  "description": "Guard duty and safe passage missions",
-	  "icon": "🛡️"
+	  "description": "Guard duty and safe passage missions"
 	},
 	"gathering": {
 	  "name": "Resource Gathering",
-	  "description": "Collection and harvesting missions",
-	  "icon": "🌿"
+	  "description": "Collection and harvesting missions"
 	},
 	"investigation": {
 	  "name": "Investigation & Scouting",
-	  "description": "Information gathering and reconnaissance",
-	  "icon": "🔍"
+	  "description": "Information gathering and reconnaissance"
 	},
 	"delivery": {
 	  "name": "Delivery & Transport",
-	  "description": "Moving goods and messages safely",
-	  "icon": "📦"
+	  "description": "Moving goods and messages safely"
 	},
 	"construction": {
 	  "name": "Construction & Repair",
-	  "description": "Building and maintenance work",
-	  "icon": "🔨"
+	  "description": "Building and maintenance work"
 	}
   },
 
@@ -41,6 +35,7 @@
 	  "danger": 1,
 	  "reward_range": [3, 8],
 	  "party_required": false,
+	  "required_adventurers": 1,
 	  "duration_days": 1,
 	  "description": "A local farm has been overrun by slimes. Clear them out before they damage the crops.",
 	  "success_factors": ["strength", "endurance"],
@@ -54,6 +49,7 @@
 	  "danger": 1,
 	  "reward_range": [4, 9],
 	  "party_required": false,
+	  "required_adventurers": 1,
 	  "duration_days": 1,
 	  "description": "The local healer needs rare herbs found only in the forest's deeper sections.",
 	  "success_factors": ["intelligence", "survival"],
@@ -67,6 +63,7 @@
 	  "danger": 1,
 	  "reward_range": [5, 10],
 	  "party_required": false,
+	  "required_adventurers": 1,
 	  "duration_days": 1,
 	  "description": "Time-sensitive correspondence must reach its destination before sunset.",
 	  "success_factors": ["endurance", "speed"],
@@ -80,6 +77,7 @@
 	  "danger": 2,
 	  "reward_range": [8, 15],
 	  "party_required": false,
+	  "required_adventurers": 1,
 	  "duration_days": 1,
 	  "description": "Goblin scouts have been spotted near the trade road. Eliminate the patrol before they establish a camp.",
 	  "success_factors": ["strength", "dexterity"],
@@ -93,6 +91,7 @@
 	  "danger": 2,
 	  "reward_range": [12, 22],
 	  "party_required": false,
+	  "required_adventurers": 1,
 	  "duration_days": 1,
 	  "description": "A traveling merchant needs protection on the road to the next town's market day.",
 	  "success_factors": ["strength", "dexterity"],
@@ -106,6 +105,7 @@
 	  "danger": 2,
 	  "reward_range": [15, 28],
 	  "party_required": true,
+	  "required_adventurers": 2,
 	  "duration_days": 2,
 	  "description": "A supply caravan has vanished on a well-traveled route. Find what happened and recover any survivors.",
 	  "success_factors": ["intelligence", "survival", "tracking"],
@@ -119,6 +119,7 @@
 	  "danger": 2,
 	  "reward_range": [14, 25],
 	  "party_required": false,
+	  "required_adventurers": 1,
 	  "duration_days": 2,
 	  "description": "Sensitive diplomatic materials must be delivered intact to prevent international incident.",
 	  "success_factors": ["intelligence", "charisma", "discretion"],
@@ -132,6 +133,7 @@
 	  "danger": 2,
 	  "reward_range": [18, 30],
 	  "party_required": true,
+	  "required_adventurers": 2,
 	  "duration_days": 3,
 	  "description": "A bridge critical to trade routes has been damaged. Oversee repairs while defending against raiders.",
 	  "success_factors": ["strength", "engineering", "leadership"],
@@ -145,6 +147,7 @@
 	  "danger": 3,
 	  "reward_range": [20, 35],
 	  "party_required": true,
+	  "required_adventurers": 2,
 	  "duration_days": 2,
 	  "description": "A wealthy noble requires armed escort through dangerous territory. Discretion and professionalism required.",
 	  "success_factors": ["strength", "intelligence", "charisma"],
@@ -158,6 +161,7 @@
 	  "danger": 3,
 	  "reward_range": [16, 28],
 	  "party_required": true,
+	  "required_adventurers": 2,
 	  "duration_days": 2,
 	  "description": "Families fleeing the demon advance need safe passage to the protected settlements.",
 	  "success_factors": ["endurance", "charisma", "compassion"],
@@ -171,6 +175,7 @@
 	  "danger": 3,
 	  "reward_range": [22, 32],
 	  "party_required": false,
+	  "required_adventurers": 1,
 	  "duration_days": 3,
 	  "description": "Enemy agents may be operating in the city. Investigate suspicious activities without raising alarm.",
 	  "success_factors": ["intelligence", "charisma", "stealth"],
@@ -184,6 +189,7 @@
 	  "danger": 3,
 	  "reward_range": [18, 30],
 	  "party_required": true,
+	  "required_adventurers": 2,
 	  "duration_days": 2,
 	  "description": "A remote outpost is running low on critical supplies. Deliver goods through hostile territory.",
 	  "success_factors": ["strength", "endurance", "tactics"],
@@ -197,6 +203,7 @@
 	  "danger": 3,
 	  "reward_range": [25, 40],
 	  "party_required": true,
+	  "required_adventurers": 3,
 	  "duration_days": 3,
 	  "description": "A vein of mithril ore has been discovered in abandoned mines. Extract what you can before cave-ins occur.",
 	  "success_factors": ["strength", "endurance", "mining"],
@@ -210,6 +217,7 @@
 	  "danger": 3,
 	  "reward_range": [28, 42],
 	  "party_required": true,
+	  "required_adventurers": 3,
 	  "duration_days": 5,
 	  "description": "Build a fortified watchtower to monitor demon army movements along the border.",
 	  "success_factors": ["strength", "engineering", "tactics"],
@@ -223,6 +231,7 @@
 	  "danger": 4,
 	  "reward_range": [30, 50],
 	  "party_required": true,
+	  "required_adventurers": 3,
 	  "duration_days": 2,
 	  "description": "A well-fortified bandit camp threatens merchant caravans. Coordinate an assault to eliminate the threat.",
 	  "success_factors": ["strength", "intelligence", "teamwork"],
@@ -236,6 +245,7 @@
 	  "danger": 4,
 	  "reward_range": [35, 55],
 	  "party_required": true,
+	  "required_adventurers": 3,
 	  "duration_days": 3,
 	  "description": "Scholars have located a powerful artifact in ruins guarded by ancient traps and creatures.",
 	  "success_factors": ["intelligence", "dexterity", "magic_resistance"],
@@ -249,6 +259,7 @@
 	  "danger": 4,
 	  "reward_range": [40, 60],
 	  "party_required": true,
+	  "required_adventurers": 3,
 	  "duration_days": 7,
 	  "description": "A key fortress needs urgent reinforcement before the next demon offensive.",
 	  "success_factors": ["strength", "engineering", "military_knowledge"],
@@ -262,6 +273,7 @@
 	  "danger": 5,
 	  "reward_range": [45, 70],
 	  "party_required": true,
+	  "required_adventurers": 3,
 	  "duration_days": 3,
 	  "description": "Ancient dragon movements have been detected. Scout the suspected lair and report findings without engaging.",
 	  "success_factors": ["dexterity", "intelligence", "stealth"],
@@ -275,6 +287,7 @@
 	  "danger": 5,
 	  "reward_range": [50, 80],
 	  "party_required": true,
+	  "required_adventurers": 3,
 	  "duration_days": 4,
 	  "description": "Rumors of demon worship threaten the kingdom's stability. Gather evidence while avoiding detection.",
 	  "success_factors": ["intelligence", "willpower", "divine_protection"],

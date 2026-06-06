@@ -31,6 +31,23 @@ func set_generated_world(records: Array, center: Dictionary) -> void:
 	print("[WorldManager] Stored world: ", world_map.size(), " hexes. Center: ", chosen_center.get("id", "?"))
 
 
+func assign_missions_to_hexes(missions: Array) -> void:
+	if world_map.is_empty():
+		return
+	for hex in world_map:
+		hex["active_mission"] = null
+	var eligible: Array = []
+	for hex in world_map:
+		if hex["is_center"] or hex["is_zone"]:
+			continue
+		eligible.append(hex)
+	eligible.shuffle()
+	var count := mini(missions.size(), eligible.size())
+	for i in count:
+		eligible[i]["active_mission"] = missions[i]
+	print("[WorldManager] Assigned ", count, " missions to hex tiles")
+
+
 # --- Data Loading ---
 func _load_capital_definitions():
 	"""
