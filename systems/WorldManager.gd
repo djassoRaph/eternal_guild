@@ -35,10 +35,11 @@ func assign_missions_to_hexes(missions: Array) -> void:
 	if world_map.is_empty():
 		return
 	for hex in world_map:
-		hex["active_mission"] = null
+		if not hex.get("locked", false):
+			hex["active_mission"] = null
 	var eligible: Array = []
 	for hex in world_map:
-		if hex["is_center"] or hex["is_zone"]:
+		if hex["is_center"] or hex["is_zone"] or hex.get("locked", false):
 			continue
 		eligible.append(hex)
 	eligible.shuffle()

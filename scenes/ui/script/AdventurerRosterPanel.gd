@@ -144,8 +144,12 @@ func _get_status_display(adventurer: Dictionary) -> String:
 
 func create_adventurer_card(adventurer: Dictionary):
 	"""Spawn and populate a single adventurer card"""
-	# Instance the card template
+	# id computed first so the drag script receives it before _ready() fires
+	var adventurer_id = adventurer.get("id", adventurer.get("name"))
+
 	var card = adventurer_card_scene.instantiate()
+	card.set_script(preload("res://scenes/ui/script/adventurer_card.gd"))
+	card.adventurer_id = adventurer_id
 	roster_list.add_child(card)
 	
 	# Get references to the card's internal nodes
@@ -193,10 +197,18 @@ func create_adventurer_card(adventurer: Dictionary):
 		# Fallback to colored rectangle (already handled by default)
 		print("⚠️ Portrait not found for class: ", adv_class)
 	
+	# Grey out cards for adventurers who aren't currently Ready
+	var is_ready := false
+	for adv in GameManager.get_ready_adventurers():
+		if adv.get("id", adv.get("name")) == adventurer_id:
+			is_ready = true
+			break
+	if not is_ready:
+		card.modulate = Color(0.55, 0.55, 0.55, 0.80)
+
 	# Store card reference
-	var adventurer_id = adventurer.get("id", adventurer.get("name"))
 	adventurer_cards[adventurer_id] = card
-	
+
 	print("✅ Created card for: ", adventurer.get("name"))
 
 func get_portrait_path(character_class: String) -> String:

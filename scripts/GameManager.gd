@@ -364,6 +364,13 @@ func process_mission_returns():
 			resolved_indices.append(i)
 			var report = _resolve_mission(entry)
 			pending_reports.append(report)
+			# Clear the hex lock so this hex re-enters circulation after resolution.
+			var hex_id: String = entry.get("hex_id", "")
+			if hex_id != "":
+				for hex in WorldManager.world_map:
+					if hex["id"] == hex_id:
+						hex.erase("locked")
+						break
 		else:
 			var mission_name = entry.mission.get("name", "Unknown")
 			var days_left = entry.days_remaining

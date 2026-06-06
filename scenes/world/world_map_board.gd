@@ -3,6 +3,7 @@ extends Control
 signal board_closed
 
 const HEX_MAP_SCENE := preload("res://scenes/HexMapTest.tscn")
+const MISSION_SLOT_SCRIPT := preload("res://scenes/world/mission_slot.gd")
 
 # If ۩ (U+06E9) renders as a tofu box, change this one constant to "✦" or any glyph you prefer.
 const RUNE := "۩"
@@ -20,6 +21,14 @@ var _marker_layer: Control
 var _marker_tweens: Array = []
 
 var _detail_panel: Control = null
+
+# Detail panel active state — valid only while _detail_panel != null
+var _panel_mission: Dictionary = {}
+var _panel_rec: Dictionary = {}   # same dict object as WorldManager.world_map entry
+var _panel_n: int = 0
+var _assigned_ids: Array = []
+var _chance_label: Label = null
+var _accept_btn: Button = null
 
 
 func _ready() -> void:
@@ -182,8 +191,7 @@ func _handle_hover(mouse_pos: Vector2) -> void:
 	if rec.is_empty():
 		_hide_bubble()
 		return
-	# Stage 1 confirmation print — left in intentionally until bubble is verified
-	print("[hover] ", rec["id"], " biome=", rec["biome"], " mission=", rec.get("active_mission", null))
+	#print("[hover] ", rec["id"], " biome=", rec["biome"], " mission=", rec.get("active_mission", null))
 	_show_bubble(rec, mouse_pos)
 
 
@@ -303,60 +311,80 @@ func _build_markers() -> void:
 			sv_pixel.y / float(_sv.size.y) * svc_rect.size.y + svc_rect.position.y
 		)
 
-		_spawn_marker(screen_pos)
+		_spawn_marker(screen_pos, rec.get("locked", false))
 
 
-func _spawn_marker(screen_pos: Vector2) -> void:
+func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
 	var marker := Control.new()
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	marker.position = screen_pos
 	_marker_layer.add_child(marker)
 
-	# Glow ring: warm, dim — centered behind rune. (Part 0: 48 pt, offset -24)
+	# Colors differ between available (gold) and locked/dispatched (grey-blue).
+	var glow_color  := Color(1.0, 0.65, 0.15, 0.55)  if not is_locked else Color(0.45, 0.45, 0.55, 0.30)
+	var stroke_color := Color(0.55, 0.30, 0.0, 0.90) if not is_locked else Color(0.28, 0.28, 0.32, 0.60)
+	var rune_color  := Color(1.0, 0.92, 0.5, 1.0)    if not is_locked else Color(0.50, 0.52, 0.60, 0.75)
+
+	# Glow ring — centered behind rune.
 	var glow := Label.new()
 	glow.text = RUNE
 	glow.add_theme_font_size_override("font_size", 48)
-	glow.add_theme_color_override("font_color", Color(1.0, 0.65, 0.15, 0.55))
+	glow.add_theme_color_override("font_color", glow_color)
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	glow.position = Vector2(-24.0, -24.0)
 	marker.add_child(glow)
 
-	# Stroke layer: four 1-px offset copies in dark amber — fakes a bold outline.
+	# Stroke layer: four 1-px offset copies — fakes a bold outline.
 	for off in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
 		var stroke := Label.new()
 		stroke.text = RUNE
 		stroke.add_theme_font_size_override("font_size", 32)
-		stroke.add_theme_color_override("font_color", Color(0.55, 0.30, 0.0, 0.90))
+		stroke.add_theme_color_override("font_color", stroke_color)
 		stroke.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		stroke.position = Vector2(-16.0, -16.0) + off
 		marker.add_child(stroke)
 
-	# Rune: bright gold on top. (Part 0: Color green channel 0.9 → 0.92)
+	# Rune: on top.
 	var rune := Label.new()
 	rune.text = RUNE
 	rune.add_theme_font_size_override("font_size", 32)
-	rune.add_theme_color_override("font_color", Color(1.0, 0.92, 0.5, 1.0))
+	rune.add_theme_color_override("font_color", rune_color)
 	rune.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rune.position = Vector2(-16.0, -16.0)
 	marker.add_child(rune)
 
-	# Pulse: breathe between 40% and 100% opacity on a sine curve, loop forever.
+	# Pulse: locked markers breathe slower and stay dim; available markers are bright.
+	var pulse_max := 1.0 if not is_locked else 0.55
+	var pulse_min := 0.4 if not is_locked else 0.25
+	var pulse_dur := 1.4 if not is_locked else 2.2
 	marker.modulate.a = 0.65
 	var tw := create_tween()
 	tw.set_loops()
-	tw.tween_property(marker, "modulate:a", 1.0, 1.4) \
+	tw.tween_property(marker, "modulate:a", pulse_max, pulse_dur) \
 		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(marker, "modulate:a", 0.4, 1.4) \
+	tw.tween_property(marker, "modulate:a", pulse_min, pulse_dur) \
 		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 	_marker_tweens.append(tw)
 
 
-# ── Mission detail panel (C1: read-only display, no drag, no commit) ──────────
+# ── Mission detail panel ──────────────────────────────────────────────────────
 
 func _open_detail_panel(rec: Dictionary) -> void:
 	_close_detail_panel()  # ensure only one panel at a time
 
 	var mission: Dictionary = rec["active_mission"]
+
+	# Initialise panel-level tracking state.
+	_panel_mission = mission
+	_panel_rec = rec  # retained so _on_accept_pressed can stamp hex_id and set locked
+	var party_raw = mission.get("party_required", false)
+	if party_raw is bool:
+		_panel_n = 2 if party_raw else 1
+	else:
+		_panel_n = maxi(1, int(party_raw))
+	_assigned_ids = []
+	for _i in _panel_n:
+		_assigned_ids.append(null)
 
 	# CenterContainer: full-rect transparent wrapper — auto-centers the panel.
 	var wrapper := CenterContainer.new()
@@ -414,37 +442,31 @@ func _open_detail_panel(rec: Dictionary) -> void:
 	reward_lbl.add_theme_color_override("font_color", Color(0.90, 0.80, 0.30, 1.0))
 	vbox.add_child(reward_lbl)
 
-	# Success chance — placeholder; real value arrives in C2 once adventurers are assigned
-	var chance_lbl := Label.new()
-	chance_lbl.text = "Success:  — (assign adventurers)"
-	chance_lbl.add_theme_font_size_override("font_size", 14)
-	chance_lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1.0))
-	vbox.add_child(chance_lbl)
+	# Live success chance — updates whenever a slot fills or clears.
+	_chance_label = Label.new()
+	_chance_label.text = "Success:  — (assign adventurers)"
+	_chance_label.add_theme_font_size_override("font_size", 14)
+	_chance_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1.0))
+	vbox.add_child(_chance_label)
 
 	vbox.add_child(HSeparator.new())
 
-	# Slot count — derive from party_required (bool or int)
-	var party_raw = mission.get("party_required", false)
-	var n: int
-	if party_raw is bool:
-		n = 2 if party_raw else 1
-	else:
-		n = maxi(1, int(party_raw))
-
+	# Slot row header
 	var slots_hdr := Label.new()
-	slots_hdr.text = "Adventurers required:  " + str(n)
+	slots_hdr.text = "Adventurers required:  " + str(_panel_n)
 	slots_hdr.add_theme_font_size_override("font_size", 14)
 	slots_hdr.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75, 1.0))
 	vbox.add_child(slots_hdr)
 
-	# N empty bordered boxes — visual placeholders; become drop-targets in C2
+	# N drop-target slots — implemented by mission_slot.gd (drag-and-drop + click-to-clear)
 	var slots_row := HBoxContainer.new()
 	slots_row.add_theme_constant_override("separation", 8)
 	slots_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(slots_row)
 
-	for _i in n:
+	for i in _panel_n:
 		var slot := PanelContainer.new()
+		slot.set_script(MISSION_SLOT_SCRIPT)
 		slot.custom_minimum_size = Vector2(80.0, 100.0)
 		var slot_style := StyleBoxFlat.new()
 		slot_style.bg_color = Color(0.14, 0.11, 0.09, 1.0)
@@ -452,7 +474,9 @@ func _open_detail_panel(rec: Dictionary) -> void:
 		slot_style.set_border_width_all(2)
 		slot_style.set_corner_radius_all(4)
 		slot.add_theme_stylebox_override("panel", slot_style)
+		# Label created here and named so mission_slot._ready() can find it.
 		var slot_lbl := Label.new()
+		slot_lbl.name = "SlotLabel"
 		slot_lbl.text = "Empty"
 		slot_lbl.add_theme_font_size_override("font_size", 12)
 		slot_lbl.add_theme_color_override("font_color", Color(0.45, 0.45, 0.45, 1.0))
@@ -460,18 +484,116 @@ func _open_detail_panel(rec: Dictionary) -> void:
 		slot_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		slot_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 		slot.add_child(slot_lbl)
-		slots_row.add_child(slot)
+		# Wire the slot to board state BEFORE add_child so the ref is live on _ready().
+		slot.slot_index = i
+		slot.assigned_ids = _assigned_ids
+		slot.on_slot_changed = _on_slot_changed
+		slots_row.add_child(slot)  # triggers slot._ready()
 
 	vbox.add_child(HSeparator.new())
+
+	# Accept + Close buttons side by side
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(btn_row)
+
+	_accept_btn = Button.new()
+	_accept_btn.text = "Accept"
+	_accept_btn.disabled = true  # enabled once all N slots are filled
+	_accept_btn.pressed.connect(_on_accept_pressed)
+	btn_row.add_child(_accept_btn)
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
 	close_btn.add_theme_color_override("font_color", Color(0.85, 0.35, 0.30, 1.0))
 	close_btn.pressed.connect(_close_detail_panel)
-	vbox.add_child(close_btn)
+	btn_row.add_child(close_btn)
 
 
 func _close_detail_panel() -> void:
 	if _detail_panel != null and is_instance_valid(_detail_panel):
 		_detail_panel.queue_free()
 	_detail_panel = null
+	_panel_mission = {}
+	_panel_rec = {}
+	_panel_n = 0
+	_assigned_ids = []
+	_chance_label = null
+	_accept_btn = null
+
+
+# ── Slot callbacks ────────────────────────────────────────────────────────────
+
+func _on_slot_changed() -> void:
+	_update_chance_and_accept()
+
+
+func _update_chance_and_accept() -> void:
+	if not is_instance_valid(_chance_label) or not is_instance_valid(_accept_btn):
+		return
+
+	var filled := _assigned_ids.filter(func(x): return x != null)
+	_accept_btn.disabled = filled.size() != _panel_n
+
+	if filled.is_empty():
+		_chance_label.text = "Success:  — (assign adventurers)"
+		_chance_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1.0))
+		return
+
+	# Display chance using the first-placed adventurer.
+	# For multi-member parties this is a display approximation; actual resolution
+	# math lives in GameManager and runs at dispatch time (Step C3).
+	var first_id = filled[0]
+	var adv := {}
+	for a in GameManager.adventurers:
+		if a.get("id", a.get("name")) == first_id:
+			adv = a
+			break
+	if adv.is_empty():
+		return
+
+	var chance := GameManager.calculate_mission_success_chance(adv, _panel_mission)
+	var c: Color
+	if   chance >= 70: c = Color(0.30, 0.85, 0.40, 1.0)
+	elif chance >= 50: c = Color(0.90, 0.80, 0.20, 1.0)
+	else:              c = Color(0.90, 0.35, 0.30, 1.0)
+	_chance_label.text = "Success:  " + str(chance) + "%"
+	_chance_label.add_theme_color_override("font_color", c)
+
+
+func _on_accept_pressed() -> void:
+	# Build party: resolve integer ids → live adventurer dicts.
+	# If ANY id fails to match, abort before mutating anything.
+	var party: Array = []
+	for slot_id in _assigned_ids:
+		var found: Dictionary = {}
+		for adv in GameManager.adventurers:
+			if adv.get("id", adv.get("name")) == slot_id:
+				found = adv
+				break
+		if found.is_empty():
+			push_warning("[C3] Accept aborted — adventurer id %s not found in roster." % str(slot_id))
+			return
+		party.append(found)
+
+	if party.size() != _panel_n:
+		push_warning("[C3] Accept aborted — party size mismatch (%d resolved, %d required)." % [party.size(), _panel_n])
+		return
+
+	# Dispatch — branch preserves solo's pre-computed success_chance and reckless-trait path.
+	if _panel_n == 1:
+		GameManager.send_on_mission(party[0], _panel_mission)
+	else:
+		GameManager.send_party_on_mission(party, _panel_mission)
+
+	# Stamp hex_id onto the just-appended entry.
+	# Both dispatch functions append unconditionally; [-1] is guaranteed to be the new entry.
+	GameManager.active_missions[-1]["hex_id"] = _panel_rec["id"]
+
+	# Lock the hex so assign_missions_to_hexes skips it and no new mission lands on it.
+	_panel_rec["locked"] = true
+
+	# Close panel then rebuild markers so the locked hex updates visually.
+	_close_detail_panel()
+	_build_markers()
