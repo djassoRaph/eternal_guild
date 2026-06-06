@@ -124,6 +124,10 @@ func _physics_process(delta: float) -> void:
 
 func _get_input_direction() -> Vector2:
 	"""Get normalized 2D input direction"""
+	for node in get_tree().get_nodes_in_group("blocks_player"):
+		if node.visible:
+			return Vector2.ZERO
+
 	var input = Vector2.ZERO
 	
 	if Input.is_action_pressed("move_forward"):  # W or Z

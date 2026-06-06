@@ -7,6 +7,7 @@ extends PopupPanel
 var available_recruits = []
 
 func _ready():
+	add_to_group("blocks_player")
 	print("Recruitment Popup ready")
 
 func open_recruitment_desk():

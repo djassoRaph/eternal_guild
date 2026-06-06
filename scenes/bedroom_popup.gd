@@ -19,6 +19,7 @@ extends PopupPanel
 @onready var sleep_button = $MarginContainer/MainVBox/SleepButton
 
 func _ready():
+	add_to_group("blocks_player")
 	print("🌙 Bedroom Popup ready (Editor UI version)")
 	
 	# Connect button signals

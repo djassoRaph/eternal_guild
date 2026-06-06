@@ -4,6 +4,7 @@ extends PopupPanel
 @onready var main_container = $MainContainer
 
 func _ready():
+	add_to_group("blocks_player")
 	print("Tavern Management Popup ready")
 
 func open_tavern_management():

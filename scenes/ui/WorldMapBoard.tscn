@@ -40,7 +40,7 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="ColorRect/MarginContainer/Panel/SubViewportContainer"]
 handle_input_locally = false
-size = Vector2i(1920, 1080)
+size = Vector2i(2, 2)
 render_target_update_mode = 4
 
 [node name="HexMapTest" parent="ColorRect/MarginContainer/Panel/SubViewportContainer/SubViewport" instance=ExtResource("1_cpq1e")]
