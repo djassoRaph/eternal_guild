@@ -320,37 +320,38 @@ func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
 	marker.position = screen_pos
 	_marker_layer.add_child(marker)
 
-	# Colors differ between available (gold) and locked/dispatched (grey-blue).
-	var glow_color  := Color(1.0, 0.65, 0.15, 0.55)  if not is_locked else Color(0.45, 0.45, 0.55, 0.30)
-	var stroke_color := Color(0.55, 0.30, 0.0, 0.90) if not is_locked else Color(0.28, 0.28, 0.32, 0.60)
-	var rune_color  := Color(1.0, 0.92, 0.5, 1.0)    if not is_locked else Color(0.50, 0.52, 0.60, 0.75)
+	# High-contrast palette: gold body, near-black outline/backing — reads against
+	# grass and water alike. Locked/dispatched markers stay dim grey-blue.
+	var glow_color   := Color(1.0, 0.84, 0.0, 0.40)  if not is_locked else Color(0.45, 0.45, 0.55, 0.25)
+	var stroke_color := Color(0.05, 0.05, 0.05, 0.95) if not is_locked else Color(0.05, 0.05, 0.05, 0.85)
+	var rune_color   := Color(1.0, 0.84, 0.0, 1.0)   if not is_locked else Color(0.55, 0.58, 0.65, 0.80)
 
-	# Glow ring — centered behind rune.
+	# Glow ring — centered behind rune. 2x previous size (48 -> 96).
 	var glow := Label.new()
 	glow.text = RUNE
-	glow.add_theme_font_size_override("font_size", 48)
+	glow.add_theme_font_size_override("font_size", 96)
 	glow.add_theme_color_override("font_color", glow_color)
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glow.position = Vector2(-24.0, -24.0)
+	glow.position = Vector2(-48.0, -48.0)
 	marker.add_child(glow)
 
-	# Stroke layer: four 1-px offset copies — fakes a bold outline.
-	for off in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
+	# Stroke layer: four 2-px offset copies — fakes a bold outline. 2x previous size (32 -> 64).
+	for off in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2)]:
 		var stroke := Label.new()
 		stroke.text = RUNE
-		stroke.add_theme_font_size_override("font_size", 32)
+		stroke.add_theme_font_size_override("font_size", 64)
 		stroke.add_theme_color_override("font_color", stroke_color)
 		stroke.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		stroke.position = Vector2(-16.0, -16.0) + off
+		stroke.position = Vector2(-32.0, -32.0) + off
 		marker.add_child(stroke)
 
-	# Rune: on top.
+	# Rune: on top. 2x previous size (32 -> 64).
 	var rune := Label.new()
 	rune.text = RUNE
-	rune.add_theme_font_size_override("font_size", 32)
+	rune.add_theme_font_size_override("font_size", 64)
 	rune.add_theme_color_override("font_color", rune_color)
 	rune.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rune.position = Vector2(-16.0, -16.0)
+	rune.position = Vector2(-32.0, -32.0)
 	marker.add_child(rune)
 
 	# Pulse: locked markers breathe slower and stay dim; available markers are bright.
@@ -365,6 +366,18 @@ func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
 	tw.tween_property(marker, "modulate:a", pulse_min, pulse_dur) \
 		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 	_marker_tweens.append(tw)
+
+	# Bob: available markers only — fast 0.3s-period vertical bob is what catches
+	# the eye at distance. Locked markers stay still (deliberately less attention-grabbing).
+	if not is_locked:
+		var base_y := marker.position.y
+		var bob := create_tween()
+		bob.set_loops()
+		bob.tween_property(marker, "position:y", base_y - 8.0, 0.15) \
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		bob.tween_property(marker, "position:y", base_y, 0.15) \
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		_marker_tweens.append(bob)
 
 
 # ── Mission detail panel ──────────────────────────────────────────────────────
@@ -583,13 +596,9 @@ func _on_accept_pressed() -> void:
 
 	# Dispatch — branch preserves solo's pre-computed success_chance and reckless-trait path.
 	if _panel_n == 1:
-		GameManager.send_on_mission(party[0], _panel_mission)
+		GameManager.send_on_mission(party[0], _panel_mission, _panel_rec["id"])
 	else:
-		GameManager.send_party_on_mission(party, _panel_mission)
-
-	# Stamp hex_id onto the just-appended entry.
-	# Both dispatch functions append unconditionally; [-1] is guaranteed to be the new entry.
-	GameManager.active_missions[-1]["hex_id"] = _panel_rec["id"]
+		GameManager.send_party_on_mission(party, _panel_mission, _panel_rec["id"])
 
 	# Lock the hex so assign_missions_to_hexes skips it and no new mission lands on it.
 	_panel_rec["locked"] = true

@@ -30,7 +30,7 @@ signal recruitment_pool_changed
 signal game_over_triggered(reason: String)
 signal firewood_changed(new_amount: int)
 signal fireplace_fuel_changed(new_percentage: float)
-signal mission_dispatched(adventurer, mission)
+signal mission_dispatched(adventurers: Array, mission, hex_id: String)
 signal missions_resolved(reports)
 signal morning_briefing_ready(reports)
 
@@ -188,7 +188,7 @@ func get_max_adventurers() -> int:
 	return max_adventurers
 
 # === MISSION SYSTEM ===
-func send_on_mission(adventurer: Dictionary, mission: Dictionary):
+func send_on_mission(adventurer: Dictionary, mission: Dictionary, hex_id: String = ""):
 	"""Dispatch an adventurer on a mission. Does NOT resolve it — just starts the timer."""
 	var duration = mission.get("duration_days", 1)
 
@@ -201,7 +201,8 @@ func send_on_mission(adventurer: Dictionary, mission: Dictionary):
 		"days_remaining": duration,
 		"total_duration": duration,
 		"success_chance": calculate_mission_success_chance(adventurer, mission),
-		"sent_day": current_day
+		"sent_day": current_day,
+		"hex_id": hex_id
 	}
 
 	active_missions.append(active_entry)
@@ -209,10 +210,10 @@ func send_on_mission(adventurer: Dictionary, mission: Dictionary):
 	log_message("🗡️ " + adventurer.name + " departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
 
 	adventurer_roster_changed.emit()
-	mission_dispatched.emit(adventurer, mission)
+	mission_dispatched.emit([adventurer], mission, hex_id)
 
 
-func send_party_on_mission(party: Array, mission: Dictionary):
+func send_party_on_mission(party: Array, mission: Dictionary, hex_id: String = ""):
 	"""Dispatch a party on a mission. Does NOT resolve — starts the timer."""
 	var duration = mission.get("duration_days", 1)
 
@@ -226,7 +227,8 @@ func send_party_on_mission(party: Array, mission: Dictionary):
 		"days_remaining": duration,
 		"total_duration": duration,
 		"is_party_mission": true,
-		"sent_day": current_day
+		"sent_day": current_day,
+		"hex_id": hex_id
 	}
 
 	active_missions.append(active_entry)
@@ -236,7 +238,7 @@ func send_party_on_mission(party: Array, mission: Dictionary):
 	log_message("   Party: " + names)
 
 	adventurer_roster_changed.emit()
-	mission_dispatched.emit(party[0], mission)
+	mission_dispatched.emit(party, mission, hex_id)
 
 
 func get_trait_data(personality: String) -> Dictionary:

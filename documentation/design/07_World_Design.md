@@ -18,6 +18,7 @@ This replaces the current mission-board popup. Instead of a flat list of contrac
 ### 2.1 What the Map Is
 * **A persistent world layer.** 6–10 locations are fixed per save, generated once at new-game from existing settlement data (`locations.json`, `capitals.json`). Each location has a biome, faction, danger level, and a mission "flavor" that determines which kinds of missions can appear there.
 * **A daily mission layer on top.** Each new day, locations roll for missions from their category pool. Routine locations (farms, roads) always offer at least one low-tier mission; dangerous locations may be empty one day and spike with a high-reward rare mission the next. **The location determines the mission pool, not the reverse.** This is the only procedural element at this stage — the map shape is stable, only the pinned missions change.
+* **Mission scale follows distance (design note).** Short, low-risk contracts belong within a day's walk of the tavern's home hex; longer, higher-stakes expeditions belong toward the map's edge. Not yet implemented in the assignment logic — captured here so it isn't lost before the location/distance data is wired up.
 * **An adventurer roster layer.** The hired roster is shown as cards along one edge. Ready adventurers are bright and grabbable; adventurers already on a mission are greyed out with a return-day counter.
 
 ### 2.2 The Dispatch Flow

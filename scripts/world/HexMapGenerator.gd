@@ -1,20 +1,41 @@
 extends Node3D
-## HexMapGenerator.gd (Complete Seeded Procedural Blueprint)
+## HexMapGenerator.gd — Island generator: simplex noise + radial falloff.
+##
+## Design rules honored here:
+##  - Generated ONCE per new game. Every visual choice (which mesh variant,
+##    which rotation) is resolved at generation time and STORED in the record.
+##    display_mode re-instantiates exactly what the record says — zero RNG.
+##  - One seeded RNG (_rng) drives everything. Same seed = same world.
+##  - Regenerate rolls a fresh seed (toggleable in Inspector).
 
-@export var map_seed: int = 12345
-@export var map_radius: int = 5  # Generates a large island (approx 91 tiles)
+# ── Tuning (Inspector) ────────────────────────────────────────────────────────
+@export var map_radius: int = 20                    # 6 → 127 hexes, 7 → 169
+@export var randomize_seed_on_generate: bool = true
+@export var map_seed: int = 12345                  # used when randomize is off
 
-# Noise height thresholds (-1.0 to 1.0) to cluster biomes organics
-@export_range(-1.0, 1.0) var threshold_sea: float = -0.35
-@export_range(-1.0, 1.0) var threshold_coast: float = -0.15
-@export_range(-1.0, 1.0) var threshold_grass: float = 0.3
-@export_range(-1.0, 1.0) var threshold_forest: float = 0.65
-# Anything above forest threshold automatically becomes "mountain"
+# Elevation thresholds on 0..1 AFTER falloff is applied.
+# (Renamed from threshold_* on purpose — stale Inspector overrides of the old
+#  names can't silently fight the new math.)
+@export_range(0.0, 1.0) var sea_level: float = 0.10
+@export_range(0.0, 1.0) var forest_level: float = 0.50
+@export_range(0.0, 1.0) var mountain_level: float = 0.75
+@export_range(0.0, 4.0) var falloff_strength: float = 2.2
+@export_range(0.01, 1.0) var noise_frequency: float = 0.3
 
-# When true, renders WorldManager.world_map statically instead of generating a new world.
+@export var settlement_count: int = 10
+@export var settlement_min_spacing: int = 2        # hex distance between zones
+
+# Chance of a small decorative prop on otherwise-plain tiles.
+@export_range(0.0, 1.0) var grass_decor_chance: float = 0.5
+@export_range(0.0, 1.0) var sea_decor_chance: float = 0.5
+
+# Rotate this if KayKit coast meshes face the wrong way (degrees).
+@export var coast_mesh_offset_deg: float = 0.1
+
+# When true, renders WorldManager.world_map statically instead of generating.
 @export var display_mode: bool = false
 
-# Signals for map interaction and timeline sequences
+# ── Signals ───────────────────────────────────────────────────────────────────
 signal reveal_finished
 signal tavern_hex_selected(record: Dictionary)
 
@@ -25,81 +46,352 @@ const TOTAL_ROTATIONS := 3.25
 const SETTLE_ROT_EXTRA := 0.75
 const SETTLE_DURATION := 0.8
 
-# ── Tile paths (Mountains & Grass are now default bases for toppers) ──────────
+# ── Asset paths ───────────────────────────────────────────────────────────────
 const GRASS_SCENE := "res://assets/environment/hexagons/base/hex_grass.gltf"
 const WATER_SCENE := "res://assets/environment/hexagons/base/hex_water.gltf"
 
-const RIVER_VARIANTS := [
-	"res://assets/environment/hexagons/rivers/hex_river_B.gltf",
-	"res://assets/environment/hexagons/rivers/hex_river_A_curvy.gltf",
-	"res://assets/environment/hexagons/rivers/hex_river_F.gltf",
-]
 const COAST_VARIANTS := [
 	"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
 	"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
 	"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+	"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+	"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
 ]
 
-const TOPPERS := {
-	"forest": [
-		"res://assets/environment/hexagons/nature/trees_A_large.gltf",
-		"res://assets/environment/hexagons/nature/trees_A_medium.gltf",
-		"res://assets/environment/hexagons/nature/hills_A_trees.gltf",
-	],
-	"mine": [
-		"res://assets/environment/hexagons/blue/building_mine_blue.gltf",
-	],
-	"tavern_site": [
-		"res://assets/environment/hexagons/blue/building_tavern_blue.gltf",
-	],
-	"mountain": [
-		"res://assets/environment/hexagons/nature/mountain_A_grass_trees.gltf",
-		"res://assets/environment/hexagons/nature/mountain_B.gltf",
-	],
-	"zone_location": [
-		"res://assets/environment/hexagons/blue/building_mine_blue.gltf", 
-	]
-}
+const FOREST_TOPPERS := [
+	"res://assets/environment/hexagons/nature/trees_A_large.gltf",
+	"res://assets/environment/hexagons/nature/trees_A_medium.gltf",
+	"res://assets/environment/hexagons/nature/trees_B_large.gltf",
+	"res://assets/environment/hexagons/nature/trees_B_medium.gltf",
+	"res://assets/environment/hexagons/nature/hills_A_trees.gltf",
+	"res://assets/environment/hexagons/nature/hills_B_trees.gltf",
+	"res://assets/environment/hexagons/nature/hills_C_trees.gltf",
+]
 
-# The single global center coordinate in our dynamic system
+const MOUNTAIN_TOPPERS := [
+	"res://assets/environment/hexagons/nature/mountain_A_grass.gltf",
+	"res://assets/environment/hexagons/nature/mountain_A_grass_trees.gltf",
+	"res://assets/environment/hexagons/nature/mountain_B_grass.gltf",
+	"res://assets/environment/hexagons/nature/mountain_B_grass_trees.gltf",
+	"res://assets/environment/hexagons/nature/mountain_C_grass.gltf",
+	"res://assets/environment/hexagons/nature/mountain_C_grass_trees.gltf",
+]
+
+const GRASS_DECOR := [
+	"res://assets/environment/hexagons/nature/rock_single_A.gltf",
+	"res://assets/environment/hexagons/nature/rock_single_B.gltf",
+	"res://assets/environment/hexagons/nature/rock_single_C.gltf",
+	"res://assets/environment/hexagons/nature/tree_single_A.gltf",
+	"res://assets/environment/hexagons/nature/tree_single_B.gltf",
+	"res://assets/environment/hexagons/nature/trees_A_small.gltf",
+	"res://assets/environment/hexagons/nature/trees_B_small.gltf",
+	"res://assets/environment/hexagons/nature/hill_single_A.gltf",
+	"res://assets/environment/hexagons/nature/hill_single_B.gltf",
+]
+
+const SEA_DECOR := [
+	"res://assets/environment/hexagons/nature/waterlily_A.gltf",
+	"res://assets/environment/hexagons/nature/waterlily_B.gltf",
+	"res://assets/environment/hexagons/nature/waterplant_A.gltf",
+	"res://assets/environment/hexagons/nature/waterplant_B.gltf",
+	"res://assets/environment/hexagons/nature/waterplant_C.gltf",
+]
+
+const TAVERN_TOPPER := "res://assets/environment/hexagons/blue/building_tavern_blue.gltf"
+
+# Each settlement gets a distinct building — shuffled per seed.
+const ZONE_BUILDINGS := [
+	"res://assets/environment/hexagons/blue/building_castle_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_church_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_market_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_windmill_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_lumbermill_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_barracks_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_watermill_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_mine_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_home_A_blue.gltf",
+	"res://assets/environment/hexagons/blue/building_blacksmith_blue.gltf",
+]
+
 const CENTER_COORD := Vector2i(0, 0)
 
-# Runtime state tracking variables
+# Odd-r offset neighbor deltas (matches HexGrid: odd rows shifted +X).
+const NEIGHBORS_EVEN := [
+	Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1),
+	Vector2i(-1, -1), Vector2i(0, 1), Vector2i(-1, 1),
+]
+const NEIGHBORS_ODD := [
+	Vector2i(1, 0), Vector2i(-1, 0), Vector2i(1, -1),
+	Vector2i(0, -1), Vector2i(1, 1), Vector2i(0, 1),
+]
+
+# ── Runtime state ─────────────────────────────────────────────────────────────
 var _records := []
 var _grass_tiles: Array = []
 var _biome_tiles: Array = []
 var _active_tweens: Array = []
 var _is_revealing: bool = false
 var _noise := FastNoiseLite.new()
+var _rng := RandomNumberGenerator.new()
+var _scene_cache := {}   # path -> PackedScene; gltf loads are not free
+
 
 func _ready() -> void:
-	_initialize_noise()
 	if display_mode:
 		display_stored_world()
 	else:
 		generate_and_reveal()
 
-func _initialize_noise() -> void:
-	_noise.seed = map_seed
-	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	_noise.frequency = 0.15 # Higher values = chaotic maps, Lower = smooth landmasses
 
-# ── Public Entry Point ────────────────────────────────────────────────────────
+# ── Public entry point ────────────────────────────────────────────────────────
 
 func generate_and_reveal() -> void:
 	if _is_revealing:
 		print("[HexMapGenerator] Reveal already in progress — ignoring regenerate.")
 		return
 
+	if randomize_seed_on_generate:
+		map_seed = randi()
+	_rng.seed = map_seed
+	_noise.seed = map_seed
+	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	_noise.frequency = noise_frequency
+	print("[HexMapGenerator] Generating world with seed: ", map_seed)
+
 	_clear_map()
-	
-	_records = _build_seeded_records()
-	print("[HexMapGenerator] Generated seeded layout:")
+	_records = _build_records()
+	_resolve_visuals()
+
 	for rec in _records:
 		if rec.is_zone:
-			print("  ZONE: %-8s  coord=%s  biome=%s  name=%s" % [rec.id, str(rec.coord), rec.biome, rec.location_name])
-	
+			print("  ZONE: %-8s coord=%s biome=%s name=%s" %
+				[rec.id, str(rec.coord), rec.biome, rec.location_name])
+
 	_run_reveal()
+
+
+# ── World building ────────────────────────────────────────────────────────────
+
+func _build_records() -> Array:
+	var recs := []
+	var by_coord := {}   # Vector2i -> record, for adjacency passes
+
+	# Pass 1: elevation -> base biome
+	var hex_index := 0
+	for r in range(-map_radius, map_radius + 1):
+		for q in range(-map_radius, map_radius + 1):
+			if abs(q) + abs(r) + abs(-q - r) > map_radius * 2:
+				continue
+			var col := q + (r - (r & 1)) / 2
+			var coord := Vector2i(col, r)
+			var is_center := (coord == CENTER_COORD)
+
+			var biome: String
+			if is_center:
+				biome = "tavern_site"
+			else:
+				var dist := _hex_distance(coord, CENTER_COORD)
+				var dist_norm := float(dist) / float(map_radius)
+				var world_pos := HexGrid.offset_to_world(coord.x, coord.y)
+				# 0..1 elevation, sunk toward the edges -> island silhouette
+				var elevation := (_noise.get_noise_2d(world_pos.x, world_pos.z) + 1.0) * 0.5
+				elevation -= pow(dist_norm, 3.0) * falloff_strength
+
+				if dist >= map_radius:
+					biome = "sea"   # hard guarantee: water frames the island
+				elif elevation < sea_level:
+					biome = "sea"
+				elif elevation < forest_level:
+					biome = "grass"
+				elif elevation < mountain_level:
+					biome = "forest"
+				else:
+					biome = "mountain"
+
+			var rec := {
+				"id": "hex_%d" % hex_index,
+				"coord": coord,
+				"biome": biome,
+				"is_center": is_center,
+				"is_zone": false,
+				"location_name": "",
+				"active_mission": null,
+				"base_path": "",
+				"base_rot_y": 0.0,
+				"topper_paths": [],
+			}
+			recs.append(rec)
+			by_coord[coord] = rec
+			hex_index += 1
+
+	# Pass 2: coast = GRASS adjacent to sea. Forests and mountains that touch
+	# water stay as they are (reads as cliffs); beaches only on open grass.
+	for rec in recs:
+		if rec.biome != "grass":
+			continue
+		if not _sea_neighbors_of(rec, by_coord).is_empty():
+			rec.biome = "coast"
+
+	# Pass 3: settlements on land, spaced apart
+	_place_settlements(recs)
+
+	# Pass 4: coast rotation toward actual adjacent water
+	for rec in recs:
+		if rec.biome == "coast":
+			rec.base_rot_y = _coast_rotation(rec, by_coord)
+
+	return recs
+
+
+func _place_settlements(recs: Array) -> void:
+	var candidates := []
+	for rec in recs:
+		if rec.is_center or rec.biome == "sea" or rec.biome == "coast":
+			continue
+		if _hex_distance(rec.coord, CENTER_COORD) < settlement_min_spacing:
+			continue
+		candidates.append(rec)
+
+	var buildings := ZONE_BUILDINGS.duplicate()
+	# Fisher-Yates with the seeded RNG (Array.shuffle() uses the global RNG)
+	for i in range(buildings.size() - 1, 0, -1):
+		var j := _rng.randi_range(0, i)
+		var tmp = buildings[i]
+		buildings[i] = buildings[j]
+		buildings[j] = tmp
+
+	var placed := []
+	var spacing := settlement_min_spacing
+	while placed.size() < settlement_count and spacing >= 0:
+		var pool := candidates.duplicate()
+		while not pool.is_empty() and placed.size() < settlement_count:
+			var idx := _rng.randi_range(0, pool.size() - 1)
+			var pick: Dictionary = pool[idx]
+			pool.remove_at(idx)
+			if pick.is_zone:
+				continue
+			var ok := true
+			for z in placed:
+				if _hex_distance(pick.coord, z.coord) < spacing:
+					ok = false
+					break
+			if ok:
+				pick.is_zone = true
+				pick.location_name = "Settlement %d" % (placed.size() + 1)
+				pick["zone_building"] = buildings[placed.size() % buildings.size()]
+				placed.append(pick)
+		# Couldn't fit them all at this spacing — relax and try again.
+		spacing -= 1
+
+	if placed.size() < settlement_count:
+		push_warning("[HexMapGenerator] Only placed %d/%d settlements." %
+			[placed.size(), settlement_count])
+
+
+# ── Visual resolution (all RNG happens HERE, results stored in records) ──────
+
+func _resolve_visuals() -> void:
+	for rec in _records:
+		match rec.biome:
+			"sea":
+				rec.base_path = WATER_SCENE
+				if _rng.randf() < sea_decor_chance:
+					rec.topper_paths.append(SEA_DECOR[_rng.randi_range(0, SEA_DECOR.size() - 1)])
+			"coast":
+				rec.base_path = COAST_VARIANTS[_rng.randi_range(0, COAST_VARIANTS.size() - 1)]
+			"forest":
+				rec.base_path = GRASS_SCENE
+				rec.topper_paths.append(FOREST_TOPPERS[_rng.randi_range(0, FOREST_TOPPERS.size() - 1)])
+			"mountain":
+				rec.base_path = GRASS_SCENE
+				rec.topper_paths.append(MOUNTAIN_TOPPERS[_rng.randi_range(0, MOUNTAIN_TOPPERS.size() - 1)])
+			"tavern_site":
+				rec.base_path = GRASS_SCENE
+				rec.topper_paths.append(TAVERN_TOPPER)
+			_:  # plain grass
+				rec.base_path = GRASS_SCENE
+				if _rng.randf() < grass_decor_chance:
+					rec.topper_paths.append(GRASS_DECOR[_rng.randi_range(0, GRASS_DECOR.size() - 1)])
+
+		# Settlement building replaces nature toppers on its hex (no more
+		# mine-glued-to-mountain collisions).
+		if rec.is_zone:
+			rec.topper_paths = [rec.get("zone_building", ZONE_BUILDINGS[0])]
+
+
+# ── Hex math helpers ──────────────────────────────────────────────────────────
+
+func _offset_to_axial(c: Vector2i) -> Vector2i:
+	return Vector2i(c.x - (c.y - (c.y & 1)) / 2, c.y)
+
+
+func _hex_distance(a: Vector2i, b: Vector2i) -> int:
+	var aa := _offset_to_axial(a)
+	var bb := _offset_to_axial(b)
+	var dq := aa.x - bb.x
+	var dr := aa.y - bb.y
+	return (abs(dq) + abs(dr) + abs(dq + dr)) / 2
+
+
+func _neighbors_of(coord: Vector2i) -> Array:
+	var deltas: Array = NEIGHBORS_ODD if (coord.y & 1) == 1 else NEIGHBORS_EVEN
+	var result := []
+	for d in deltas:
+		result.append(coord + d)
+	return result
+
+
+func _sea_neighbors_of(rec: Dictionary, by_coord: Dictionary) -> Array:
+	var seas := []
+	for n in _neighbors_of(rec.coord):
+		if by_coord.has(n) and by_coord[n].biome == "sea":
+			seas.append(by_coord[n])
+	return seas
+
+
+func _coast_rotation(rec: Dictionary, by_coord: Dictionary) -> float:
+	var seas := _sea_neighbors_of(rec, by_coord)
+	if seas.is_empty():
+		return 0.0
+	var here := HexGrid.offset_to_world(rec.coord.x, rec.coord.y)
+	var dir := Vector3.ZERO
+	for s in seas:
+		var sp := HexGrid.offset_to_world(s.coord.x, s.coord.y)
+		dir += (sp - here).normalized()
+	if dir.length() < 0.01:
+		# Water on opposite sides cancels out — just face the first one.
+		var sp0 := HexGrid.offset_to_world(seas[0].coord.x, seas[0].coord.y)
+		dir = (sp0 - here).normalized()
+	dir = dir.normalized()
+	var angle := atan2(-dir.z, dir.x)
+	var step := deg_to_rad(60.0)
+	return snappedf(angle, step) + deg_to_rad(coast_mesh_offset_deg)
+
+
+# ── Scene cache ───────────────────────────────────────────────────────────────
+
+func _load_scene(path: String) -> PackedScene:
+	if not _scene_cache.has(path):
+		_scene_cache[path] = load(path)
+	return _scene_cache[path]
+
+
+# ── Tile instantiation (shared by reveal + static modes) ──────────────────────
+
+func _instantiate_tile(rec: Dictionary) -> Node3D:
+	var packed := _load_scene(rec.base_path)
+	if packed == null:
+		push_error("[HexMapGenerator] Failed to load: " + rec.base_path)
+		return null
+	var bt := packed.instantiate() as Node3D
+	bt.name = rec.id
+	bt.rotation.y = rec.get("base_rot_y", 0.0)
+	for tp in rec.topper_paths:
+		var tp_packed := _load_scene(tp)
+		if tp_packed != null:
+			bt.add_child(tp_packed.instantiate() as Node3D)
+	return bt
+
 
 # ── Teardown ──────────────────────────────────────────────────────────────────
 
@@ -108,26 +400,24 @@ func _clear_map() -> void:
 		if tw != null and tw.is_valid():
 			tw.kill()
 	_active_tweens.clear()
-
 	for gt in _grass_tiles:
 		if is_instance_valid(gt):
 			gt.queue_free()
 	_grass_tiles.clear()
-
 	for bt in _biome_tiles:
 		if is_instance_valid(bt):
 			bt.queue_free()
 	_biome_tiles.clear()
-
 	_records.clear()
 
-# ── Reveal Coroutine Loop ─────────────────────────────────────────────────────
+
+# ── Reveal coroutine ──────────────────────────────────────────────────────────
 
 func _run_reveal() -> void:
 	_is_revealing = true
 	_spawn_all_tiles()
 
-	# ── Phase: spin ──
+	# Phase: spin
 	var hold: float = TOTAL_ROTATIONS * SPIN_PERIOD
 	for gt in _grass_tiles:
 		var tween := create_tween()
@@ -141,7 +431,7 @@ func _run_reveal() -> void:
 		_is_revealing = false
 		return
 
-	# ── Phase: swap ──
+	# Phase: swap
 	var swap_rot: float = TOTAL_ROTATIONS * TAU
 	for i in _records.size():
 		var bt: Node3D = _biome_tiles[i]
@@ -156,7 +446,7 @@ func _run_reveal() -> void:
 			gt.queue_free()
 	_grass_tiles.clear()
 
-	# ── Phase: settle ──
+	# Phase: settle
 	var final_rot: float = (TOTAL_ROTATIONS + SETTLE_ROT_EXTRA) * TAU
 	for bt in _biome_tiles:
 		if bt == null:
@@ -173,7 +463,6 @@ func _run_reveal() -> void:
 	_is_revealing = false
 	reveal_finished.emit()
 
-# ── Dynamic Tile Spawner ──────────────────────────────────────────────────────
 
 func _spawn_all_tiles() -> void:
 	for i in _records.size():
@@ -182,81 +471,54 @@ func _spawn_all_tiles() -> void:
 		base_pos.y = LIFT_Y
 
 		# Grass placeholder (spin phase)
-		var grass_packed: PackedScene = load(GRASS_SCENE)
-		var gt := grass_packed.instantiate() as Node3D
+		var gt := _load_scene(GRASS_SCENE).instantiate() as Node3D
 		gt.name = rec.id + "_grass"
 		gt.position = base_pos
 		add_child(gt)
 		_grass_tiles.append(gt)
 
-		# Render Base Mesh Map
-		var biome_path := _base_path_for(rec.biome)
-		var biome_packed: PackedScene = load(biome_path)
-		if biome_packed == null:
-			push_error("[HexMapGenerator] Failed to load biome: " + biome_path)
+		# Real tile, hidden until swap
+		var bt := _instantiate_tile(rec)
+		if bt == null:
 			_biome_tiles.append(null)
 			continue
-			
-		var bt := biome_packed.instantiate() as Node3D
-		bt.name = rec.id
 		bt.position = base_pos
 		bt.visible = false
-		
-		# ── Align coastlines to face the ocean ──
-		if rec.biome == "coast":
-			_align_coast_tile(bt, rec)
-		
-		# Generate Natural Biome Toppers (Trees, Mountains)
-		for tp in _topper_paths_for(rec.biome):
-			var tp_packed: PackedScene = load(tp)
-			if tp_packed != null:
-				bt.add_child(tp_packed.instantiate() as Node3D)
-				
-		# Generate Interactivity Zone Topper (The 10 Towns)
-		if rec.is_zone:
-			var zone_variants: Array = TOPPERS["zone_location"]
-			var zone_packed: PackedScene = load(zone_variants[0])
-			if zone_packed != null:
-				bt.add_child(zone_packed.instantiate() as Node3D)
-
 		add_child(bt)
 		_biome_tiles.append(bt)
 
-		# Interaction Wiring
 		if rec.is_center or rec.is_zone:
 			_make_tile_clickable(bt, rec)
 
-func _align_coast_tile(tile_mesh: Node3D, current_rec: Dictionary) -> void:
-	var current_pos := HexGrid.offset_to_world(current_rec.coord.x, current_rec.coord.y)
-	var closest_sea_pos := Vector3.ZERO
-	var min_distance: float = 99999.0
-	var found_water: bool = false
-	
-	# Look through all generated tiles to find the closest ocean neighbor
-	for rec in _records:
-		if rec.biome == "sea":
-			var sea_pos := HexGrid.offset_to_world(rec.coord.x, rec.coord.y)
-			var dist: float = current_pos.distance_to(sea_pos)
-			if dist < min_distance:
-				min_distance = dist
-				closest_sea_pos = sea_pos
-				found_water = true
-				
-	if found_water:
-		# Calculate the directional vector on the flat ground plane (X, Z)
-		var dir_to_water := (closest_sea_pos - current_pos).normalized()
-		var angle: float = atan2(-dir_to_water.z, dir_to_water.x)
-		
-		# Snap the angle cleanly to the nearest 60 degrees (Hex orientation step)
-		var hex_angle_step: float = deg_to_rad(60.0)
-		var snapped_angle: float = round(angle / hex_angle_step) * hex_angle_step
-		
-		# Adjust this offset constant if KayKit's assets face backward by default
-		const MESH_DIRECTION_OFFSET: float = 0.0 
-		
-		tile_mesh.rotation.y = snapped_angle + deg_to_rad(MESH_DIRECTION_OFFSET)
 
-# ── Interactive Click Volumes ─────────────────────────────────────────────────
+# ── Static display mode (renders WorldManager.world_map exactly as stored) ────
+
+func display_stored_world() -> void:
+	var stored: Array = WorldManager.world_map
+	if stored.is_empty():
+		push_warning("[HexMapGenerator] display_mode: WorldManager.world_map is empty — nothing to render.")
+		return
+	_records = stored.duplicate(true)
+	_spawn_tiles_static()
+
+
+func _spawn_tiles_static() -> void:
+	for rec in _records:
+		if rec.get("base_path", "") == "":
+			push_warning("[HexMapGenerator] Record %s has no base_path — old-format save?" % rec.get("id", "?"))
+			continue
+		var bt := _instantiate_tile(rec)
+		if bt == null:
+			_biome_tiles.append(null)
+			continue
+		bt.position = HexGrid.offset_to_world(rec.coord.x, rec.coord.y)
+		bt.visible = true
+		add_child(bt)
+		_biome_tiles.append(bt)
+		_add_hover_area(bt, rec)
+
+
+# ── Interactive click volumes ─────────────────────────────────────────────────
 
 func _add_hover_area(tile: Node3D, rec: Dictionary) -> void:
 	var area := Area3D.new()
@@ -270,11 +532,11 @@ func _add_hover_area(tile: Node3D, rec: Dictionary) -> void:
 	area.add_child(col)
 	tile.add_child(area)
 
+
 func _make_tile_clickable(tile: Node3D, rec: Dictionary) -> void:
 	var area := Area3D.new()
 	area.name = "ClickArea"
 	area.input_ray_pickable = true
-
 	var col := CollisionShape3D.new()
 	var shape := CylinderShape3D.new()
 	shape.radius = 1.0
@@ -282,8 +544,8 @@ func _make_tile_clickable(tile: Node3D, rec: Dictionary) -> void:
 	col.shape = shape
 	area.add_child(col)
 	tile.add_child(area)
-
 	area.input_event.connect(_on_tile_input_event.bind(rec))
+
 
 func _on_tile_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: Vector3, _shape_idx: int, rec: Dictionary) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -293,220 +555,6 @@ func _on_tile_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _norm
 		elif rec.is_zone:
 			print("[HexMapGenerator] Zone settlement clicked: ", rec.location_name, " at ", rec.coord)
 
+
 func get_records() -> Array:
 	return _records
-
-# ── Static Display Mode (Board Overlay Loading) ───────────────────────────────
-
-func display_stored_world() -> void:
-	var stored: Array = WorldManager.world_map
-	if stored.is_empty():
-		push_warning("[HexMapGenerator] display_mode: WorldManager.world_map is empty — nothing to render.")
-		return
-	_records = stored.duplicate(true)
-	_spawn_tiles_static()
-
-func _spawn_tiles_static() -> void:
-	for rec in _records:
-		var base_pos := HexGrid.offset_to_world(rec.coord.x, rec.coord.y)
-		base_pos.y = 0.0
-
-		var biome_path := _base_path_for(rec.biome)
-		var biome_packed: PackedScene = load(biome_path)
-		if biome_packed == null:
-			push_error("[HexMapGenerator] Failed to load biome: " + biome_path)
-			_biome_tiles.append(null)
-			continue
-		var bt := biome_packed.instantiate() as Node3D
-		bt.name = rec.id
-		bt.position = base_pos
-		bt.visible = true
-		
-		# Align coastlines in static mode too
-		if rec.biome == "coast":
-			_align_coast_tile(bt, rec)
-		
-		# Base topper population
-		for tp in _topper_paths_for(rec.biome):
-			var tp_packed: PackedScene = load(tp)
-			if tp_packed != null:
-				bt.add_child(tp_packed.instantiate() as Node3D)
-				
-		# Re-render persistent zones
-		if rec.get("is_zone", false):
-			var zone_variants: Array = TOPPERS["zone_location"]
-			var zone_packed: PackedScene = load(zone_variants[0])
-			if zone_packed != null:
-				bt.add_child(zone_packed.instantiate() as Node3D)
-				
-		add_child(bt)
-		_biome_tiles.append(bt)
-		_add_hover_area(bt, rec)
-
-# ── Procedural Mathematics Builder ────────────────────────────────────────────
-
-func _build_seeded_records() -> Array:
-	var temp_records := []
-	var land_hex_records := []
-	var hex_index := 0
-	
-	# Programmatic generation of all coordinate layouts inside a grid radius
-	for r in range(-map_radius, map_radius + 1):
-		for q in range(-map_radius, map_radius + 1):
-			# Math calculation converting spatial axial grids to odd-row offsets
-			var col := q + (r - (r & 1)) / 2
-			var row := r
-			
-			# Trim corners to achieve a clean hexagonal radial bounds outline
-			if abs(q) + abs(r) + abs(-q-r) > map_radius * 2:
-				continue
-				
-			var coord := Vector2i(col, row)
-			var is_center := (coord == CENTER_COORD)
-			var biome := "grass"
-			
-			if is_center:
-				biome = "tavern_site"
-			else:
-				# Sample the noise system based on engine 3D world space vector calculations
-				var world_pos := HexGrid.offset_to_world(coord.x, coord.y)
-				var noise_val := _noise.get_noise_2d(world_pos.x, world_pos.z)
-				var fractal_factor := _sample_mandelbrot(world_pos.x, world_pos.z) # 0.0 to 1.0
-				
-				#var noise_val := simplex_noise * fractal_factor # hmm ? 
-				
-				
-				# Threshold stacking step logic
-				if noise_val < threshold_sea:
-					biome = "sea"
-				elif noise_val < threshold_coast:
-					biome = "coast"
-				elif noise_val < threshold_grass:
-					biome = "grass"
-				elif noise_val < threshold_forest:
-					biome = "forest"
-				else:
-					biome = "mountain"
-			
-			var rec := {
-				"id": "hex_%d" % hex_index,
-				"coord": coord,
-				"biome": biome,
-				"is_center": is_center,
-				"is_zone": false,
-				"location_name": "",
-				"active_mission": null
-			}
-			
-			temp_records.append(rec)
-			
-			# Validating viable terra-firma surface candidates for zone placements
-			if not is_center and biome != "sea" and biome != "coast":
-				land_hex_records.append(rec)
-				
-			hex_index += 1
-
-	# Isolate pseudo-random parameters strictly inside our saving seed limits
-	var rng := RandomNumberGenerator.new()
-	rng.seed = map_seed
-	
-	var target_zone_count := mini(10, land_hex_records.size())
-	for i in range(target_zone_count):
-		var pick_idx := rng.randi() % land_hex_records.size()
-		var chosen_rec: Dictionary = land_hex_records[pick_idx]
-		
-		chosen_rec["is_zone"] = true
-		chosen_rec["location_name"] = "Settlement %d" % (i + 1)
-		
-		land_hex_records.remove_at(pick_idx)
-
-	return temp_records
-
-func _apply_fibonacci_settlements(temp_records: Array) -> void:
-	var golden_angle: float = deg_to_rad(137.507764)
-	var spiral_spacing: float = 1.8 # Controls how tight or spread out the spiral is
-	var settlements_placed: int = 0
-	var target_count := 10
-	
-	# Start iterating outward along the mathematical spiral indices
-	# Skipping index 0 because that's our central tavern!
-	for i in range(1, 200): 
-		if settlements_placed >= target_count:
-			break
-			
-		# Fermat's Spiral math using the Golden Angle
-		var radius: float = spiral_spacing * sqrt(i)
-		var theta: float = i * golden_angle
-		
-		# Convert polar coordinates to a flat 3D world space coordinate (X, Z)
-		var target_world_pos := Vector3(
-			radius * cos(theta),
-			0.0,
-			radius * sin(theta)
-		)
-		
-		# Find the closest record in our map that matches this spot
-		var best_rec: Dictionary = {}
-		var min_dist: float = 99999.0
-		
-		for rec in temp_records:
-			# Skip tiles that are water, coast, or already a zone/center
-			if rec.biome == "sea" or rec.biome == "coast" or rec.is_center or rec.is_zone:
-				continue
-				
-			var tile_pos := HexGrid.offset_to_world(rec.coord.x, rec.coord.y)
-			var d: float = tile_pos.distance_to(target_world_pos)
-			if d < min_dist:
-				min_dist = d
-				best_rec = rec
-				
-		# If we found a matching land tile nearby, snap the settlement to it!
-		if not best_rec.is_empty() and min_dist < 2.5:
-			settlements_placed += 1
-			best_rec["is_zone"] = true
-			# We can name it based on its sequential index in the Fibonacci spiral!
-			best_rec["location_name"] = "Settlement %d" % settlements_placed
-
-
-
-# Returns a value between 0.0 (inside the set) and 1.0 (escaped quickly)
-func _sample_mandelbrot(world_x: float, world_z: float) -> float:
-	# 1. Map your game world coordinates down to the Mandelbrot view window
-	# The fractal lives tightly between Real (-2.0 to 0.5) and Imaginary (-1.25 to 1.25)
-	var scale := 0.15 # Controls how "zoomed in" the fractal shape is
-	var offset_x := -0.7 # Centers the island on a cool part of the fractal
-	var offset_z := 0.0
-	
-	var cx: float = (world_x * scale) + offset_x
-	var cz: float = (world_z * scale) + offset_z
-	
-	var x: float = 0.0
-	var y: float = 0.0
-	var iteration: int = 0
-	var max_iterations: int = 32 # Higher = sharper fractal edges, more expensive
-	
-	# 2. Run the escape-time loop
-	while (x*x + y*y <= 4.0) and (iteration < max_iterations):
-		var xtemp: float = x*x - y*y + cx
-		y = 2.0 * x * y + cz
-		x = xtemp
-		iteration += 1
-		
-	# Normalize to a 0.0 - 1.0 float
-	return float(iteration) / float(max_iterations)
-
-
-
-# ── Dynamic Fallback Visual Resolvers ──────────────────────────────────────────
-
-func _base_path_for(biome: String) -> String:
-	match biome:
-		"coast": return COAST_VARIANTS[randi() % COAST_VARIANTS.size()]
-		"sea":   return WATER_SCENE
-		_:       return GRASS_SCENE # Forests, Mountains, Mines, and Zones sit above grass!
-
-func _topper_paths_for(biome: String) -> Array:
-	if biome not in TOPPERS:
-		return []
-	var options: Array = TOPPERS[biome]
-	return [options[randi() % options.size()]]
