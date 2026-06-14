@@ -66,8 +66,8 @@ func _ready() -> void:
 	_cam = hex_map.get_node_or_null("Camera3D") as Camera3D
 	if _cam:
 		_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
-		_cam.fov = 30.0
-		_cam.position = Vector3(28.0, 22.0, 28.0)
+		_cam.fov = 50.0
+		_cam.position = Vector3(20.0, 50.0, 23.0)
 		_cam.look_at(Vector3.ZERO, Vector3.UP)
 
 	# Marker layer sits above the SubViewport but below the hover bubble.
