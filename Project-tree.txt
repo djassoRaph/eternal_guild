@@ -1,0 +1,1235 @@
+.
+├── Project-tree.txt
+├── README.MD
+├── addons
+│   ├── asset_placer
+│   │   ├── LICENSE
+│   │   ├── asset_placer.gd
+│   │   ├── asset_placer.gd.uid
+│   │   ├── asset_placer_plugin.gd
+│   │   ├── asset_placer_plugin.gd.uid
+│   │   ├── asset_placer_presenter.gd
+│   │   ├── asset_placer_presenter.gd.uid
+│   │   ├── data
+│   │   │   ├── asset_library.gd
+│   │   │   ├── asset_library.gd.uid
+│   │   │   ├── asset_library_manager.gd
+│   │   │   ├── asset_library_manager.gd.uid
+│   │   │   ├── asset_library_parser.gd
+│   │   │   ├── asset_library_parser.gd.uid
+│   │   │   ├── asset_palette.gd
+│   │   │   ├── asset_palette.gd.uid
+│   │   │   ├── asset_placer_editor_settings.gd
+│   │   │   ├── asset_placer_editor_settings.gd.uid
+│   │   │   ├── asset_placer_editor_settings_manager.gd
+│   │   │   ├── asset_placer_editor_settings_manager.gd.uid
+│   │   │   ├── asset_placer_options.gd
+│   │   │   ├── asset_placer_options.gd.uid
+│   │   │   ├── asset_placer_settings.gd
+│   │   │   ├── asset_placer_settings.gd.uid
+│   │   │   ├── asset_placer_settings_repository.gd
+│   │   │   ├── asset_placer_settings_repository.gd.uid
+│   │   │   ├── asset_resource.gd
+│   │   │   ├── asset_resource.gd.uid
+│   │   │   ├── assets_collection.gd
+│   │   │   ├── assets_collection.gd.uid
+│   │   │   ├── folder
+│   │   │   │   ├── asset_folder.gd
+│   │   │   │   ├── asset_folder.gd.uid
+│   │   │   │   └── rules
+│   │   │   │       ├── add_to_collection_rule.gd
+│   │   │   │       ├── add_to_collection_rule.gd.uid
+│   │   │   │       ├── asset_placer_folder_rule.gd
+│   │   │   │       ├── asset_placer_folder_rule.gd.uid
+│   │   │   │       ├── filter_by_name_rule.gd
+│   │   │   │       ├── filter_by_name_rule.gd.uid
+│   │   │   │       ├── rule_factory.gd
+│   │   │   │       └── rule_factory.gd.uid
+│   │   │   ├── migrations
+│   │   │   │   ├── collection_id_migration.gd
+│   │   │   │   └── collection_id_migration.gd.uid
+│   │   │   ├── synchronizer.gd
+│   │   │   └── synchronizer.gd.uid
+│   │   ├── icon.png
+│   │   ├── icon.png.import
+│   │   ├── placement
+│   │   │   ├── asset_placement_strategy.gd
+│   │   │   ├── asset_placement_strategy.gd.uid
+│   │   │   ├── placement_mode.gd
+│   │   │   ├── placement_mode.gd.uid
+│   │   │   ├── plane_options.gd
+│   │   │   ├── plane_options.gd.uid
+│   │   │   ├── plane_placement_strategy.gd
+│   │   │   ├── plane_placement_strategy.gd.uid
+│   │   │   ├── surface_asset_placement_strategy.gd
+│   │   │   ├── surface_asset_placement_strategy.gd.uid
+│   │   │   ├── terrain_3d_placement_strategy.gd
+│   │   │   └── terrain_3d_placement_strategy.gd.uid
+│   │   ├── plugin.cfg
+│   │   ├── thumbnail
+│   │   │   ├── thumbnail_cache_store.gd
+│   │   │   ├── thumbnail_cache_store.gd.uid
+│   │   │   ├── thumbnail_generation_coordinator.gd
+│   │   │   ├── thumbnail_generation_coordinator.gd.uid
+│   │   │   ├── thumbnail_render_service.gd
+│   │   │   └── thumbnail_render_service.gd.uid
+│   │   ├── ui
+│   │   │   ├── about
+│   │   │   │   ├── about_window.gd
+│   │   │   │   ├── about_window.gd.uid
+│   │   │   │   └── about_window.tscn
+│   │   │   ├── asset_collections_window
+│   │   │   │   ├── asset_collection_window.gd
+│   │   │   │   ├── asset_collection_window.gd.uid
+│   │   │   │   ├── asset_collection_window.tscn
+│   │   │   │   ├── asset_collections_presenter.gd
+│   │   │   │   ├── asset_collections_presenter.gd.uid
+│   │   │   │   ├── components
+│   │   │   │   │   ├── collection_circle.svg
+│   │   │   │   │   ├── collection_circle.svg.import
+│   │   │   │   │   ├── collection_list_item.gd
+│   │   │   │   │   ├── collection_list_item.gd.uid
+│   │   │   │   │   └── collection_list_item.tscn
+│   │   │   │   └── edit
+│   │   │   │       ├── collection_edit_popup.gd
+│   │   │   │       ├── collection_edit_popup.gd.uid
+│   │   │   │       └── collection_edit_popup.tscn
+│   │   │   ├── asset_library_panel.gd
+│   │   │   ├── asset_library_panel.gd.uid
+│   │   │   ├── asset_library_panel.tscn
+│   │   │   ├── asset_library_window
+│   │   │   │   ├── asset_library_presenter.gd
+│   │   │   │   ├── asset_library_presenter.gd.uid
+│   │   │   │   ├── asset_library_window.gd
+│   │   │   │   ├── asset_library_window.gd.uid
+│   │   │   │   ├── asset_library_window.tscn
+│   │   │   │   ├── asset_sort_by.gd
+│   │   │   │   └── asset_sort_by.gd.uid
+│   │   │   ├── asset_palette
+│   │   │   │   ├── asset_palette_presenter.gd
+│   │   │   │   ├── asset_palette_presenter.gd.uid
+│   │   │   │   ├── asset_palette_session_state.gd
+│   │   │   │   ├── asset_palette_session_state.gd.uid
+│   │   │   │   ├── asset_pallete_container.gd
+│   │   │   │   ├── asset_pallete_container.gd.uid
+│   │   │   │   ├── asset_pallete_item.gd
+│   │   │   │   ├── asset_pallete_item.gd.uid
+│   │   │   │   ├── asset_pallete_item.tscn
+│   │   │   │   ├── asset_pallete_tab.gd
+│   │   │   │   ├── asset_pallete_tab.gd.uid
+│   │   │   │   ├── asset_pallete_tab.tscn
+│   │   │   │   ├── asset_palletes_presenter.gd
+│   │   │   │   └── asset_palletes_presenter.gd.uid
+│   │   │   ├── asset_picker_dialog
+│   │   │   │   ├── asset_picker_dialog.gd
+│   │   │   │   ├── asset_picker_dialog.gd.uid
+│   │   │   │   └── asset_picker_dialog.tscn
+│   │   │   ├── asset_placer_dock_presenter.gd
+│   │   │   ├── asset_placer_dock_presenter.gd.uid
+│   │   │   ├── asset_placer_options
+│   │   │   │   ├── asset_placer_options.gd
+│   │   │   │   ├── asset_placer_options.gd.uid
+│   │   │   │   └── asset_placer_options.tscn
+│   │   │   ├── collection_picker
+│   │   │   │   ├── collection_picker.gd
+│   │   │   │   └── collection_picker.gd.uid
+│   │   │   ├── components
+│   │   │   │   ├── asset_resource_preview.gd
+│   │   │   │   ├── asset_resource_preview.gd.uid
+│   │   │   │   ├── asset_resource_preview.tscn
+│   │   │   │   ├── asset_thumbnail.gd
+│   │   │   │   ├── asset_thumbnail.gd.uid
+│   │   │   │   ├── asset_thumbnail_texture.gd
+│   │   │   │   ├── asset_thumbnail_texture.gd.uid
+│   │   │   │   ├── chip.gd
+│   │   │   │   ├── chip.gd.uid
+│   │   │   │   ├── collapsible_side_panel.gd
+│   │   │   │   ├── collapsible_side_panel.gd.uid
+│   │   │   │   ├── vector3_spinbox.gd
+│   │   │   │   └── vector3_spinbox.gd.uid
+│   │   │   ├── folders_window
+│   │   │   │   ├── folder_item_presenter.gd
+│   │   │   │   ├── folder_item_presenter.gd.uid
+│   │   │   │   ├── folder_presenter.gd
+│   │   │   │   ├── folder_presenter.gd.uid
+│   │   │   │   ├── folder_view.gd
+│   │   │   │   ├── folder_view.gd.uid
+│   │   │   │   ├── folder_view.tscn
+│   │   │   │   ├── folders_window.gd
+│   │   │   │   ├── folders_window.gd.uid
+│   │   │   │   └── folders_window.tscn
+│   │   │   ├── manage_collections
+│   │   │   │   ├── component
+│   │   │   │   │   ├── checkable_asset_item.gd
+│   │   │   │   │   ├── checkable_asset_item.gd.uid
+│   │   │   │   │   ├── checkable_asset_item.tscn
+│   │   │   │   │   ├── checkable_collection_item.gd
+│   │   │   │   │   ├── checkable_collection_item.gd.uid
+│   │   │   │   │   └── checkable_collection_item.tscn
+│   │   │   │   ├── manage_collections_dialog.gd
+│   │   │   │   ├── manage_collections_dialog.gd.uid
+│   │   │   │   ├── manage_collections_dialog.tscn
+│   │   │   │   ├── manage_collections_presenter.gd
+│   │   │   │   └── manage_collections_presenter.gd.uid
+│   │   │   ├── plane_preview
+│   │   │   │   ├── plan_preview.gd
+│   │   │   │   ├── plan_preview.gd.uid
+│   │   │   │   ├── plan_preview.tscn
+│   │   │   │   ├── plane_placer.gd
+│   │   │   │   ├── plane_placer.gd.uid
+│   │   │   │   ├── plane_preview_material.tres
+│   │   │   │   ├── plane_texture.svg
+│   │   │   │   └── plane_texture.svg.import
+│   │   │   ├── settings
+│   │   │   │   ├── components
+│   │   │   │   │   ├── keybinding_button.gd
+│   │   │   │   │   ├── keybinding_button.gd.uid
+│   │   │   │   │   ├── keybinding_group.gd
+│   │   │   │   │   ├── keybinding_group.gd.uid
+│   │   │   │   │   ├── keybinding_option.gd
+│   │   │   │   │   ├── keybinding_option.gd.uid
+│   │   │   │   │   └── keybinding_option.tscn
+│   │   │   │   ├── settings_panel.gd
+│   │   │   │   ├── settings_panel.gd.uid
+│   │   │   │   ├── settings_panel.tscn
+│   │   │   │   ├── settings_presenter.gd
+│   │   │   │   ├── settings_presenter.gd.uid
+│   │   │   │   ├── thumbnail_regeneration_dialog.gd
+│   │   │   │   ├── thumbnail_regeneration_dialog.gd.uid
+│   │   │   │   └── thumbnail_regeneration_dialog.tscn
+│   │   │   └── viewport_overlay
+│   │   │       ├── viewport_overlay.gd
+│   │   │       ├── viewport_overlay.gd.uid
+│   │   │       └── viewport_overlay.tscn
+│   │   ├── updater
+│   │   │   ├── plugin_config.gd
+│   │   │   ├── plugin_config.gd.uid
+│   │   │   ├── plugin_updater.gd
+│   │   │   ├── plugin_updater.gd.uid
+│   │   │   ├── plugin_updater_http_client.gd
+│   │   │   ├── plugin_updater_http_client.gd.uid
+│   │   │   ├── update.gd
+│   │   │   ├── update.gd.uid
+│   │   │   ├── version.gd
+│   │   │   └── version.gd.uid
+│   │   └── utils
+│   │       ├── aabb_provider.gd
+│   │       ├── aabb_provider.gd.uid
+│   │       ├── asset_context_provider.gd
+│   │       ├── asset_context_provider.gd.uid
+│   │       ├── asset_parent_selector.gd
+│   │       ├── asset_parent_selector.gd.uid
+│   │       ├── asset_placer_input_option.gd
+│   │       ├── asset_placer_input_option.gd.uid
+│   │       ├── async.gd
+│   │       ├── async.gd.uid
+│   │       ├── preview_material.tres
+│   │       ├── resource_id_compat.gd
+│   │       ├── resource_id_compat.gd.uid
+│   │       ├── system_icon.gd
+│   │       ├── system_icon.gd.uid
+│   │       ├── toaster_compat.gd
+│   │       ├── toaster_compat.gd.uid
+│   │       ├── transformations.gd
+│   │       └── transformations.gd.uid
+│   └── dialogue_manager
+│       ├── DialogueManager.cs
+│       ├── DialogueManager.cs.uid
+│       ├── LICENSE
+│       ├── assets
+│       │   ├── banner.png
+│       │   ├── banner.png.import
+│       │   ├── icon.svg
+│       │   ├── icon.svg.import
+│       │   ├── responses_menu.svg
+│       │   ├── responses_menu.svg.import
+│       │   ├── update.svg
+│       │   └── update.svg.import
+│       ├── compiler
+│       │   ├── compilation.gd
+│       │   ├── compilation.gd.uid
+│       │   ├── compiled_line.gd
+│       │   ├── compiled_line.gd.uid
+│       │   ├── compiler.gd
+│       │   ├── compiler.gd.uid
+│       │   ├── compiler_regex.gd
+│       │   ├── compiler_regex.gd.uid
+│       │   ├── compiler_result.gd
+│       │   ├── compiler_result.gd.uid
+│       │   ├── expression_parser.gd
+│       │   ├── expression_parser.gd.uid
+│       │   ├── resolved_goto_data.gd
+│       │   ├── resolved_goto_data.gd.uid
+│       │   ├── resolved_line_data.gd
+│       │   ├── resolved_line_data.gd.uid
+│       │   ├── resolved_tag_data.gd
+│       │   ├── resolved_tag_data.gd.uid
+│       │   ├── tree_line.gd
+│       │   └── tree_line.gd.uid
+│       ├── components
+│       │   ├── code_edit.gd
+│       │   ├── code_edit.gd.uid
+│       │   ├── code_edit.tscn
+│       │   ├── code_edit_syntax_highlighter.gd
+│       │   ├── code_edit_syntax_highlighter.gd.uid
+│       │   ├── download_update_panel.gd
+│       │   ├── download_update_panel.gd.uid
+│       │   ├── download_update_panel.tscn
+│       │   ├── editor_property
+│       │   │   ├── editor_property.gd
+│       │   │   ├── editor_property.gd.uid
+│       │   │   ├── editor_property_control.gd
+│       │   │   ├── editor_property_control.gd.uid
+│       │   │   ├── editor_property_control.tscn
+│       │   │   ├── resource_button.gd
+│       │   │   ├── resource_button.gd.uid
+│       │   │   └── resource_button.tscn
+│       │   ├── errors_panel.gd
+│       │   ├── errors_panel.gd.uid
+│       │   ├── errors_panel.tscn
+│       │   ├── files_list.gd
+│       │   ├── files_list.gd.uid
+│       │   ├── files_list.tscn
+│       │   ├── search_and_replace.gd
+│       │   ├── search_and_replace.gd.uid
+│       │   ├── search_and_replace.tscn
+│       │   ├── title_list.gd
+│       │   ├── title_list.gd.uid
+│       │   ├── title_list.tscn
+│       │   ├── update_button.gd
+│       │   ├── update_button.gd.uid
+│       │   └── update_button.tscn
+│       ├── constants.gd
+│       ├── constants.gd.uid
+│       ├── dialogue_label.gd
+│       ├── dialogue_label.gd.uid
+│       ├── dialogue_label.tscn
+│       ├── dialogue_line.gd
+│       ├── dialogue_line.gd.uid
+│       ├── dialogue_manager.gd
+│       ├── dialogue_manager.gd.uid
+│       ├── dialogue_processor.gd
+│       ├── dialogue_processor.gd.uid
+│       ├── dialogue_resource.gd
+│       ├── dialogue_resource.gd.uid
+│       ├── dialogue_response.gd
+│       ├── dialogue_response.gd.uid
+│       ├── dialogue_responses_menu.gd
+│       ├── dialogue_responses_menu.gd.uid
+│       ├── editor_translation_parser_plugin.gd
+│       ├── editor_translation_parser_plugin.gd.uid
+│       ├── example_balloon
+│       │   ├── ExampleBalloon.cs
+│       │   ├── ExampleBalloon.cs.uid
+│       │   ├── example_balloon.gd
+│       │   ├── example_balloon.gd.uid
+│       │   ├── example_balloon.tscn
+│       │   └── small_example_balloon.tscn
+│       ├── export_plugin.gd
+│       ├── export_plugin.gd.uid
+│       ├── import_plugin.gd
+│       ├── import_plugin.gd.uid
+│       ├── inspector_plugin.gd
+│       ├── inspector_plugin.gd.uid
+│       ├── l10n
+│       │   ├── en.po
+│       │   ├── es.po
+│       │   ├── translations.pot
+│       │   ├── uk.po
+│       │   ├── zh.po
+│       │   └── zh_TW.po
+│       ├── plugin.cfg
+│       ├── plugin.cfg.uid
+│       ├── plugin.gd
+│       ├── plugin.gd.uid
+│       ├── settings.gd
+│       ├── settings.gd.uid
+│       ├── test_scene.gd
+│       ├── test_scene.gd.uid
+│       ├── test_scene.tscn
+│       ├── utilities
+│       │   ├── builtins.gd
+│       │   ├── builtins.gd.uid
+│       │   ├── dialogue_cache.gd
+│       │   ├── dialogue_cache.gd.uid
+│       │   ├── translations.gd
+│       │   ├── translations.gd.uid
+│       │   ├── waiter.gd
+│       │   └── waiter.gd.uid
+│       └── views
+│           ├── find_in_dialogue_view.gd
+│           ├── find_in_dialogue_view.gd.uid
+│           ├── find_in_dialogue_view.tscn
+│           ├── main_view.gd
+│           ├── main_view.gd.uid
+│           └── main_view.tscn
+├── assets
+│   ├── audio
+│   ├── characters
+│   │   ├── animations
+│   │   │   └── npc_data
+│   │   │       ├── adventurer_templates.json
+│   │   │       ├── npc_names.json
+│   │   │       └── skeleton_templates.json
+│   │   ├── models
+│   │   │   ├── kaykit_adventurers
+│   │   │   │   ├── Barbarian.glb
+│   │   │   │   ├── Barbarian.glb.import
+│   │   │   │   ├── Barbarian_barbarian_texture.png
+│   │   │   │   ├── Barbarian_barbarian_texture.png.import
+│   │   │   │   ├── Knight.glb
+│   │   │   │   ├── Knight.glb.import
+│   │   │   │   ├── Knight_knight_texture.png
+│   │   │   │   ├── Knight_knight_texture.png.import
+│   │   │   │   ├── Mage.fbx
+│   │   │   │   ├── Mage.fbx.import
+│   │   │   │   ├── Mage.glb
+│   │   │   │   ├── Mage.glb.import
+│   │   │   │   ├── Mage_mage_texture.png
+│   │   │   │   ├── Mage_mage_texture.png.import
+│   │   │   │   ├── Rogue.glb
+│   │   │   │   ├── Rogue.glb.import
+│   │   │   │   ├── Rogue_Hooded.glb
+│   │   │   │   ├── Rogue_Hooded.glb.import
+│   │   │   │   ├── Rogue_Hooded_rogue_texture.png
+│   │   │   │   ├── Rogue_Hooded_rogue_texture.png.import
+│   │   │   │   ├── Rogue_rogue_texture.png
+│   │   │   │   ├── Rogue_rogue_texture.png.import
+│   │   │   │   ├── barbarian_texture.png
+│   │   │   │   ├── barbarian_texture.png.import
+│   │   │   │   ├── knight_texture.png
+│   │   │   │   ├── knight_texture.png.import
+│   │   │   │   ├── mage_texture.png
+│   │   │   │   ├── mage_texture.png.import
+│   │   │   │   ├── rogue_texture.png
+│   │   │   │   └── rogue_texture.png.import
+│   │   │   ├── kaykit_skeletons
+│   │   │   │   ├── Skeleton_Mage.glb
+│   │   │   │   ├── Skeleton_Mage.glb.import
+│   │   │   │   ├── Skeleton_Mage_skeleton_texture.png
+│   │   │   │   ├── Skeleton_Mage_skeleton_texture.png.import
+│   │   │   │   ├── Skeleton_Minion.glb
+│   │   │   │   ├── Skeleton_Minion.glb.import
+│   │   │   │   ├── Skeleton_Minion_skeleton_texture.png
+│   │   │   │   ├── Skeleton_Minion_skeleton_texture.png.import
+│   │   │   │   ├── Skeleton_Rogue.glb
+│   │   │   │   ├── Skeleton_Rogue.glb.import
+│   │   │   │   ├── Skeleton_Rogue_skeleton_texture.png
+│   │   │   │   ├── Skeleton_Rogue_skeleton_texture.png.import
+│   │   │   │   ├── Skeleton_Warrior.glb
+│   │   │   │   ├── Skeleton_Warrior.glb.import
+│   │   │   │   ├── Skeleton_Warrior_skeleton_texture.png
+│   │   │   │   ├── Skeleton_Warrior_skeleton_texture.png.import
+│   │   │   │   ├── skeleton_texture.png
+│   │   │   │   └── skeleton_texture.png.import
+│   │   │   └── materials
+│   │   ├── portraits
+│   │   │   ├── fighter.png
+│   │   │   ├── fighter.png.import
+│   │   │   ├── knight.png
+│   │   │   ├── knight.png.import
+│   │   │   ├── mage.png
+│   │   │   ├── mage.png.import
+│   │   │   ├── rogue.png
+│   │   │   └── rogue.png.import
+│   │   └── textures
+│   ├── environment
+│   │   ├── decorations
+│   │   │   ├── banner_shield_red.mtl
+│   │   │   ├── banner_shield_red.obj
+│   │   │   ├── banner_shield_red.obj.import
+│   │   │   ├── barrel_small.obj
+│   │   │   ├── barrel_small.obj.import
+│   │   │   ├── barrier.obj
+│   │   │   ├── barrier.obj.import
+│   │   │   ├── barrier_colum_half.obj
+│   │   │   ├── barrier_colum_half.obj.import
+│   │   │   ├── bottle_B_green.obj
+│   │   │   ├── bottle_B_green.obj.import
+│   │   │   ├── candle_thin_lit.obj
+│   │   │   ├── candle_thin_lit.obj.import
+│   │   │   ├── coin_stack_medium.obj
+│   │   │   ├── coin_stack_medium.obj.import
+│   │   │   ├── dungeon_texture.png
+│   │   │   ├── dungeon_texture.png.import
+│   │   │   ├── keg.obj
+│   │   │   ├── keg.obj.import
+│   │   │   ├── keg_decorated.obj
+│   │   │   ├── keg_decorated.obj.import
+│   │   │   ├── key.obj
+│   │   │   ├── key.obj.import
+│   │   │   ├── pillar_decorated.obj
+│   │   │   ├── pillar_decorated.obj.import
+│   │   │   ├── plate.obj
+│   │   │   ├── plate.obj.import
+│   │   │   ├── stairs_wood_decorated.mtl
+│   │   │   ├── stairs_wood_decorated.obj
+│   │   │   ├── stairs_wood_decorated.obj.import
+│   │   │   ├── stool.mtl
+│   │   │   ├── stool.obj
+│   │   │   ├── stool.obj.import
+│   │   │   ├── table_long_tablecloth_decorated_A.mtl
+│   │   │   ├── table_long_tablecloth_decorated_A.obj
+│   │   │   ├── table_long_tablecloth_decorated_A.obj.import
+│   │   │   ├── table_medium_tablecloth.mtl
+│   │   │   ├── table_medium_tablecloth.obj
+│   │   │   ├── table_medium_tablecloth.obj.import
+│   │   │   ├── table_small.mtl
+│   │   │   ├── table_small.obj
+│   │   │   ├── table_small.obj.import
+│   │   │   ├── table_small_decorated_A.obj
+│   │   │   ├── table_small_decorated_A.obj.import
+│   │   │   ├── torch_mounted.obj
+│   │   │   ├── torch_mounted.obj.import
+│   │   │   ├── trunk_large_A.obj
+│   │   │   ├── trunk_large_A.obj.import
+│   │   │   ├── wall_doorway_door.obj
+│   │   │   └── wall_doorway_door.obj.import
+│   │   ├── furniture
+│   │   │   ├── Chair 3.obj
+│   │   │   ├── Chair 3.obj.import
+│   │   │   ├── Chair 5.obj
+│   │   │   ├── Chair 5.obj.import
+│   │   │   ├── TavernCounterCircular.glb
+│   │   │   ├── TavernCounterCircular.glb.import
+│   │   │   ├── barrel.glb
+│   │   │   ├── barrel.glb.import
+│   │   │   ├── barrel_barrel_albedo.png
+│   │   │   ├── barrel_barrel_albedo.png.import
+│   │   │   ├── bench.glb
+│   │   │   ├── bench.glb.import
+│   │   │   ├── bench_bench_albedo.png
+│   │   │   ├── bench_bench_albedo.png.import
+│   │   │   ├── candle.obj
+│   │   │   ├── candle.obj.import
+│   │   │   ├── crate.glb
+│   │   │   ├── crate.glb.import
+│   │   │   ├── crate_crate_albedo.png
+│   │   │   ├── crate_crate_albedo.png.import
+│   │   │   ├── stairs_wide.obj
+│   │   │   ├── stairs_wide.obj.import
+│   │   │   ├── stonefireplace.jpg
+│   │   │   ├── stonefireplace.jpg.import
+│   │   │   ├── table.glb
+│   │   │   ├── table.glb.import
+│   │   │   ├── table_table_albedo.png
+│   │   │   └── table_table_albedo.png.import
+│   │   ├── hexagons
+│   │   │   ├── base
+│   │   │   │   ├── hex_grass.bin
+│   │   │   │   ├── hex_grass.gltf
+│   │   │   │   ├── hex_grass.gltf.import
+│   │   │   │   ├── hex_grass_bottom.bin
+│   │   │   │   ├── hex_grass_bottom.gltf
+│   │   │   │   ├── hex_grass_bottom.gltf.import
+│   │   │   │   ├── hex_grass_sloped_high.bin
+│   │   │   │   ├── hex_grass_sloped_high.gltf
+│   │   │   │   ├── hex_grass_sloped_high.gltf.import
+│   │   │   │   ├── hex_grass_sloped_low.bin
+│   │   │   │   ├── hex_grass_sloped_low.gltf
+│   │   │   │   ├── hex_grass_sloped_low.gltf.import
+│   │   │   │   ├── hex_water.bin
+│   │   │   │   ├── hex_water.gltf
+│   │   │   │   ├── hex_water.gltf.import
+│   │   │   │   ├── hexagons_medieval.png
+│   │   │   │   └── hexagons_medieval.png.import
+│   │   │   ├── blue
+│   │   │   │   ├── building_archeryrange_blue.bin
+│   │   │   │   ├── building_archeryrange_blue.gltf
+│   │   │   │   ├── building_archeryrange_blue.gltf.import
+│   │   │   │   ├── building_barracks_blue.bin
+│   │   │   │   ├── building_barracks_blue.gltf
+│   │   │   │   ├── building_barracks_blue.gltf.import
+│   │   │   │   ├── building_blacksmith_blue.bin
+│   │   │   │   ├── building_blacksmith_blue.gltf
+│   │   │   │   ├── building_blacksmith_blue.gltf.import
+│   │   │   │   ├── building_castle_blue.bin
+│   │   │   │   ├── building_castle_blue.gltf
+│   │   │   │   ├── building_castle_blue.gltf.import
+│   │   │   │   ├── building_church_blue.bin
+│   │   │   │   ├── building_church_blue.gltf
+│   │   │   │   ├── building_church_blue.gltf.import
+│   │   │   │   ├── building_home_A_blue.bin
+│   │   │   │   ├── building_home_A_blue.gltf
+│   │   │   │   ├── building_home_A_blue.gltf.import
+│   │   │   │   ├── building_home_B_blue.bin
+│   │   │   │   ├── building_home_B_blue.gltf
+│   │   │   │   ├── building_home_B_blue.gltf.import
+│   │   │   │   ├── building_lumbermill_blue.bin
+│   │   │   │   ├── building_lumbermill_blue.gltf
+│   │   │   │   ├── building_lumbermill_blue.gltf.import
+│   │   │   │   ├── building_market_blue.bin
+│   │   │   │   ├── building_market_blue.gltf
+│   │   │   │   ├── building_market_blue.gltf.import
+│   │   │   │   ├── building_mine_blue.bin
+│   │   │   │   ├── building_mine_blue.gltf
+│   │   │   │   ├── building_mine_blue.gltf.import
+│   │   │   │   ├── building_tavern_blue.bin
+│   │   │   │   ├── building_tavern_blue.gltf
+│   │   │   │   ├── building_tavern_blue.gltf.import
+│   │   │   │   ├── building_tower_A_blue.bin
+│   │   │   │   ├── building_tower_A_blue.gltf
+│   │   │   │   ├── building_tower_A_blue.gltf.import
+│   │   │   │   ├── building_tower_B_blue.bin
+│   │   │   │   ├── building_tower_B_blue.gltf
+│   │   │   │   ├── building_tower_B_blue.gltf.import
+│   │   │   │   ├── building_tower_base_blue.bin
+│   │   │   │   ├── building_tower_base_blue.gltf
+│   │   │   │   ├── building_tower_base_blue.gltf.import
+│   │   │   │   ├── building_tower_catapult_blue.bin
+│   │   │   │   ├── building_tower_catapult_blue.gltf
+│   │   │   │   ├── building_tower_catapult_blue.gltf.import
+│   │   │   │   ├── building_watermill_blue.bin
+│   │   │   │   ├── building_watermill_blue.gltf
+│   │   │   │   ├── building_watermill_blue.gltf.import
+│   │   │   │   ├── building_well_blue.bin
+│   │   │   │   ├── building_well_blue.gltf
+│   │   │   │   ├── building_well_blue.gltf.import
+│   │   │   │   ├── building_windmill_blue.bin
+│   │   │   │   ├── building_windmill_blue.gltf
+│   │   │   │   ├── building_windmill_blue.gltf.import
+│   │   │   │   ├── hexagons_medieval.png
+│   │   │   │   └── hexagons_medieval.png.import
+│   │   │   ├── coast
+│   │   │   │   ├── hex_coast_A.bin
+│   │   │   │   ├── hex_coast_A.gltf
+│   │   │   │   ├── hex_coast_A.gltf.import
+│   │   │   │   ├── hex_coast_B.bin
+│   │   │   │   ├── hex_coast_B.gltf
+│   │   │   │   ├── hex_coast_B.gltf.import
+│   │   │   │   ├── hex_coast_C.bin
+│   │   │   │   ├── hex_coast_C.gltf
+│   │   │   │   ├── hex_coast_C.gltf.import
+│   │   │   │   ├── hex_coast_D.bin
+│   │   │   │   ├── hex_coast_D.gltf
+│   │   │   │   ├── hex_coast_D.gltf.import
+│   │   │   │   ├── hex_coast_E.bin
+│   │   │   │   ├── hex_coast_E.gltf
+│   │   │   │   ├── hex_coast_E.gltf.import
+│   │   │   │   ├── hexagons_medieval.png
+│   │   │   │   ├── hexagons_medieval.png.import
+│   │   │   │   └── waterless
+│   │   │   │       ├── hex_coast_A_waterless.bin
+│   │   │   │       ├── hex_coast_A_waterless.gltf
+│   │   │   │       ├── hex_coast_A_waterless.gltf.import
+│   │   │   │       ├── hex_coast_B_waterless.bin
+│   │   │   │       ├── hex_coast_B_waterless.gltf
+│   │   │   │       ├── hex_coast_B_waterless.gltf.import
+│   │   │   │       ├── hex_coast_C_waterless.bin
+│   │   │   │       ├── hex_coast_C_waterless.gltf
+│   │   │   │       ├── hex_coast_C_waterless.gltf.import
+│   │   │   │       ├── hex_coast_D_waterless.bin
+│   │   │   │       ├── hex_coast_D_waterless.gltf
+│   │   │   │       ├── hex_coast_D_waterless.gltf.import
+│   │   │   │       ├── hex_coast_E_waterless.bin
+│   │   │   │       ├── hex_coast_E_waterless.gltf
+│   │   │   │       ├── hex_coast_E_waterless.gltf.import
+│   │   │   │       ├── hexagons_medieval.png
+│   │   │   │       └── hexagons_medieval.png.import
+│   │   │   ├── nature
+│   │   │   │   ├── cloud_big.bin
+│   │   │   │   ├── cloud_big.gltf
+│   │   │   │   ├── cloud_big.gltf.import
+│   │   │   │   ├── cloud_small.bin
+│   │   │   │   ├── cloud_small.gltf
+│   │   │   │   ├── cloud_small.gltf.import
+│   │   │   │   ├── forest_texture.png
+│   │   │   │   ├── forest_texture.png.import
+│   │   │   │   ├── hexagons_medieval.png
+│   │   │   │   ├── hexagons_medieval.png.import
+│   │   │   │   ├── hill_single_A.bin
+│   │   │   │   ├── hill_single_A.gltf
+│   │   │   │   ├── hill_single_A.gltf.import
+│   │   │   │   ├── hill_single_B.bin
+│   │   │   │   ├── hill_single_B.gltf
+│   │   │   │   ├── hill_single_B.gltf.import
+│   │   │   │   ├── hill_single_C.bin
+│   │   │   │   ├── hill_single_C.gltf
+│   │   │   │   ├── hill_single_C.gltf.import
+│   │   │   │   ├── hills_A.bin
+│   │   │   │   ├── hills_A.gltf
+│   │   │   │   ├── hills_A.gltf.import
+│   │   │   │   ├── hills_A_trees.bin
+│   │   │   │   ├── hills_A_trees.gltf
+│   │   │   │   ├── hills_A_trees.gltf.import
+│   │   │   │   ├── hills_B.bin
+│   │   │   │   ├── hills_B.gltf
+│   │   │   │   ├── hills_B.gltf.import
+│   │   │   │   ├── hills_B_trees.bin
+│   │   │   │   ├── hills_B_trees.gltf
+│   │   │   │   ├── hills_B_trees.gltf.import
+│   │   │   │   ├── hills_C.bin
+│   │   │   │   ├── hills_C.gltf
+│   │   │   │   ├── hills_C.gltf.import
+│   │   │   │   ├── hills_C_trees.bin
+│   │   │   │   ├── hills_C_trees.gltf
+│   │   │   │   ├── hills_C_trees.gltf.import
+│   │   │   │   ├── mountain_A.bin
+│   │   │   │   ├── mountain_A.gltf
+│   │   │   │   ├── mountain_A.gltf.import
+│   │   │   │   ├── mountain_A_grass.bin
+│   │   │   │   ├── mountain_A_grass.gltf
+│   │   │   │   ├── mountain_A_grass.gltf.import
+│   │   │   │   ├── mountain_A_grass_trees.bin
+│   │   │   │   ├── mountain_A_grass_trees.gltf
+│   │   │   │   ├── mountain_A_grass_trees.gltf.import
+│   │   │   │   ├── mountain_B.bin
+│   │   │   │   ├── mountain_B.gltf
+│   │   │   │   ├── mountain_B.gltf.import
+│   │   │   │   ├── mountain_B_grass.bin
+│   │   │   │   ├── mountain_B_grass.gltf
+│   │   │   │   ├── mountain_B_grass.gltf.import
+│   │   │   │   ├── mountain_B_grass_trees.bin
+│   │   │   │   ├── mountain_B_grass_trees.gltf
+│   │   │   │   ├── mountain_B_grass_trees.gltf.import
+│   │   │   │   ├── mountain_C.bin
+│   │   │   │   ├── mountain_C.gltf
+│   │   │   │   ├── mountain_C.gltf.import
+│   │   │   │   ├── mountain_C_grass.bin
+│   │   │   │   ├── mountain_C_grass.gltf
+│   │   │   │   ├── mountain_C_grass.gltf.import
+│   │   │   │   ├── mountain_C_grass_trees.bin
+│   │   │   │   ├── mountain_C_grass_trees.gltf
+│   │   │   │   ├── mountain_C_grass_trees.gltf.import
+│   │   │   │   ├── rock_single_A.bin
+│   │   │   │   ├── rock_single_A.gltf
+│   │   │   │   ├── rock_single_A.gltf.import
+│   │   │   │   ├── rock_single_B.bin
+│   │   │   │   ├── rock_single_B.gltf
+│   │   │   │   ├── rock_single_B.gltf.import
+│   │   │   │   ├── rock_single_C.bin
+│   │   │   │   ├── rock_single_C.gltf
+│   │   │   │   ├── rock_single_C.gltf.import
+│   │   │   │   ├── rock_single_D.bin
+│   │   │   │   ├── rock_single_D.gltf
+│   │   │   │   ├── rock_single_D.gltf.import
+│   │   │   │   ├── rock_single_E.bin
+│   │   │   │   ├── rock_single_E.gltf
+│   │   │   │   ├── rock_single_E.gltf.import
+│   │   │   │   ├── tree_single_A.bin
+│   │   │   │   ├── tree_single_A.gltf
+│   │   │   │   ├── tree_single_A.gltf.import
+│   │   │   │   ├── tree_single_A_cut.bin
+│   │   │   │   ├── tree_single_A_cut.gltf
+│   │   │   │   ├── tree_single_A_cut.gltf.import
+│   │   │   │   ├── tree_single_B.bin
+│   │   │   │   ├── tree_single_B.gltf
+│   │   │   │   ├── tree_single_B.gltf.import
+│   │   │   │   ├── tree_single_B_cut.bin
+│   │   │   │   ├── tree_single_B_cut.gltf
+│   │   │   │   ├── tree_single_B_cut.gltf.import
+│   │   │   │   ├── trees_A_cut.bin
+│   │   │   │   ├── trees_A_cut.gltf
+│   │   │   │   ├── trees_A_cut.gltf.import
+│   │   │   │   ├── trees_A_large.bin
+│   │   │   │   ├── trees_A_large.gltf
+│   │   │   │   ├── trees_A_large.gltf.import
+│   │   │   │   ├── trees_A_medium.bin
+│   │   │   │   ├── trees_A_medium.gltf
+│   │   │   │   ├── trees_A_medium.gltf.import
+│   │   │   │   ├── trees_A_small.bin
+│   │   │   │   ├── trees_A_small.gltf
+│   │   │   │   ├── trees_A_small.gltf.import
+│   │   │   │   ├── trees_B_cut.bin
+│   │   │   │   ├── trees_B_cut.gltf
+│   │   │   │   ├── trees_B_cut.gltf.import
+│   │   │   │   ├── trees_B_large.bin
+│   │   │   │   ├── trees_B_large.gltf
+│   │   │   │   ├── trees_B_large.gltf.import
+│   │   │   │   ├── trees_B_medium.bin
+│   │   │   │   ├── trees_B_medium.gltf
+│   │   │   │   ├── trees_B_medium.gltf.import
+│   │   │   │   ├── trees_B_small.bin
+│   │   │   │   ├── trees_B_small.gltf
+│   │   │   │   ├── trees_B_small.gltf.import
+│   │   │   │   ├── waterlily_A.bin
+│   │   │   │   ├── waterlily_A.gltf
+│   │   │   │   ├── waterlily_A.gltf.import
+│   │   │   │   ├── waterlily_B.bin
+│   │   │   │   ├── waterlily_B.gltf
+│   │   │   │   ├── waterlily_B.gltf.import
+│   │   │   │   ├── waterplant_A.bin
+│   │   │   │   ├── waterplant_A.gltf
+│   │   │   │   ├── waterplant_A.gltf.import
+│   │   │   │   ├── waterplant_B.bin
+│   │   │   │   ├── waterplant_B.gltf
+│   │   │   │   ├── waterplant_B.gltf.import
+│   │   │   │   ├── waterplant_C.bin
+│   │   │   │   ├── waterplant_C.gltf
+│   │   │   │   └── waterplant_C.gltf.import
+│   │   │   ├── props
+│   │   │   │   ├── barrel.bin
+│   │   │   │   ├── barrel.gltf
+│   │   │   │   ├── barrel.gltf.import
+│   │   │   │   ├── bucket_arrows.bin
+│   │   │   │   ├── bucket_arrows.gltf
+│   │   │   │   ├── bucket_arrows.gltf.import
+│   │   │   │   ├── bucket_empty.bin
+│   │   │   │   ├── bucket_empty.gltf
+│   │   │   │   ├── bucket_empty.gltf.import
+│   │   │   │   ├── bucket_water.bin
+│   │   │   │   ├── bucket_water.gltf
+│   │   │   │   ├── bucket_water.gltf.import
+│   │   │   │   ├── crate_A_big.bin
+│   │   │   │   ├── crate_A_big.gltf
+│   │   │   │   ├── crate_A_big.gltf.import
+│   │   │   │   ├── crate_A_small.bin
+│   │   │   │   ├── crate_A_small.gltf
+│   │   │   │   ├── crate_A_small.gltf.import
+│   │   │   │   ├── crate_B_big.bin
+│   │   │   │   ├── crate_B_big.gltf
+│   │   │   │   ├── crate_B_big.gltf.import
+│   │   │   │   ├── crate_B_small.bin
+│   │   │   │   ├── crate_B_small.gltf
+│   │   │   │   ├── crate_B_small.gltf.import
+│   │   │   │   ├── crate_long_A.bin
+│   │   │   │   ├── crate_long_A.gltf
+│   │   │   │   ├── crate_long_A.gltf.import
+│   │   │   │   ├── crate_long_B.bin
+│   │   │   │   ├── crate_long_B.gltf
+│   │   │   │   ├── crate_long_B.gltf.import
+│   │   │   │   ├── crate_long_C.bin
+│   │   │   │   ├── crate_long_C.gltf
+│   │   │   │   ├── crate_long_C.gltf.import
+│   │   │   │   ├── crate_long_empty.bin
+│   │   │   │   ├── crate_long_empty.gltf
+│   │   │   │   ├── crate_long_empty.gltf.import
+│   │   │   │   ├── crate_open.bin
+│   │   │   │   ├── crate_open.gltf
+│   │   │   │   ├── crate_open.gltf.import
+│   │   │   │   ├── flag_blue.bin
+│   │   │   │   ├── flag_blue.gltf
+│   │   │   │   ├── flag_blue.gltf.import
+│   │   │   │   ├── flag_green.bin
+│   │   │   │   ├── flag_green.gltf
+│   │   │   │   ├── flag_green.gltf.import
+│   │   │   │   ├── flag_red.bin
+│   │   │   │   ├── flag_red.gltf
+│   │   │   │   ├── flag_red.gltf.import
+│   │   │   │   ├── flag_yellow.bin
+│   │   │   │   ├── flag_yellow.gltf
+│   │   │   │   ├── flag_yellow.gltf.import
+│   │   │   │   ├── hexagons_medieval.png
+│   │   │   │   ├── hexagons_medieval.png.import
+│   │   │   │   ├── ladder.bin
+│   │   │   │   ├── ladder.gltf
+│   │   │   │   ├── ladder.gltf.import
+│   │   │   │   ├── pallet.bin
+│   │   │   │   ├── pallet.gltf
+│   │   │   │   ├── pallet.gltf.import
+│   │   │   │   ├── resource_lumber.bin
+│   │   │   │   ├── resource_lumber.gltf
+│   │   │   │   ├── resource_lumber.gltf.import
+│   │   │   │   ├── resource_stone.bin
+│   │   │   │   ├── resource_stone.gltf
+│   │   │   │   ├── resource_stone.gltf.import
+│   │   │   │   ├── sack.bin
+│   │   │   │   ├── sack.gltf
+│   │   │   │   ├── sack.gltf.import
+│   │   │   │   ├── target.bin
+│   │   │   │   ├── target.gltf
+│   │   │   │   ├── target.gltf.import
+│   │   │   │   ├── tent.bin
+│   │   │   │   ├── tent.gltf
+│   │   │   │   ├── tent.gltf.import
+│   │   │   │   ├── weaponrack.bin
+│   │   │   │   ├── weaponrack.gltf
+│   │   │   │   ├── weaponrack.gltf.import
+│   │   │   │   ├── wheelbarrow.bin
+│   │   │   │   ├── wheelbarrow.gltf
+│   │   │   │   └── wheelbarrow.gltf.import
+│   │   │   ├── rivers
+│   │   │   │   ├── hex_river_A.bin
+│   │   │   │   ├── hex_river_A.gltf
+│   │   │   │   ├── hex_river_A.gltf.import
+│   │   │   │   ├── hex_river_A_curvy.bin
+│   │   │   │   ├── hex_river_A_curvy.gltf
+│   │   │   │   ├── hex_river_A_curvy.gltf.import
+│   │   │   │   ├── hex_river_B.bin
+│   │   │   │   ├── hex_river_B.gltf
+│   │   │   │   ├── hex_river_B.gltf.import
+│   │   │   │   ├── hex_river_C.bin
+│   │   │   │   ├── hex_river_C.gltf
+│   │   │   │   ├── hex_river_C.gltf.import
+│   │   │   │   ├── hex_river_D.bin
+│   │   │   │   ├── hex_river_D.gltf
+│   │   │   │   ├── hex_river_D.gltf.import
+│   │   │   │   ├── hex_river_E.bin
+│   │   │   │   ├── hex_river_E.gltf
+│   │   │   │   ├── hex_river_E.gltf.import
+│   │   │   │   ├── hex_river_F.bin
+│   │   │   │   ├── hex_river_F.gltf
+│   │   │   │   ├── hex_river_F.gltf.import
+│   │   │   │   ├── hex_river_G.bin
+│   │   │   │   ├── hex_river_G.gltf
+│   │   │   │   ├── hex_river_G.gltf.import
+│   │   │   │   ├── hex_river_H.bin
+│   │   │   │   ├── hex_river_H.gltf
+│   │   │   │   ├── hex_river_H.gltf.import
+│   │   │   │   ├── hex_river_I.bin
+│   │   │   │   ├── hex_river_I.gltf
+│   │   │   │   ├── hex_river_I.gltf.import
+│   │   │   │   ├── hex_river_J.bin
+│   │   │   │   ├── hex_river_J.gltf
+│   │   │   │   ├── hex_river_J.gltf.import
+│   │   │   │   ├── hex_river_K.bin
+│   │   │   │   ├── hex_river_K.gltf
+│   │   │   │   ├── hex_river_K.gltf.import
+│   │   │   │   ├── hex_river_L.bin
+│   │   │   │   ├── hex_river_L.gltf
+│   │   │   │   ├── hex_river_L.gltf.import
+│   │   │   │   ├── hex_river_crossing_A.bin
+│   │   │   │   ├── hex_river_crossing_A.gltf
+│   │   │   │   ├── hex_river_crossing_A.gltf.import
+│   │   │   │   ├── hex_river_crossing_B.bin
+│   │   │   │   ├── hex_river_crossing_B.gltf
+│   │   │   │   ├── hex_river_crossing_B.gltf.import
+│   │   │   │   ├── hexagons_medieval.png
+│   │   │   │   ├── hexagons_medieval.png.import
+│   │   │   │   └── waterless
+│   │   │   │       ├── hex_river_A_curvy_waterless.bin
+│   │   │   │       ├── hex_river_A_curvy_waterless.gltf
+│   │   │   │       ├── hex_river_A_curvy_waterless.gltf.import
+│   │   │   │       ├── hex_river_A_waterless.bin
+│   │   │   │       ├── hex_river_A_waterless.gltf
+│   │   │   │       ├── hex_river_A_waterless.gltf.import
+│   │   │   │       ├── hex_river_B_waterless.bin
+│   │   │   │       ├── hex_river_B_waterless.gltf
+│   │   │   │       ├── hex_river_B_waterless.gltf.import
+│   │   │   │       ├── hex_river_C_waterless.bin
+│   │   │   │       ├── hex_river_C_waterless.gltf
+│   │   │   │       ├── hex_river_C_waterless.gltf.import
+│   │   │   │       ├── hex_river_D_waterless.bin
+│   │   │   │       ├── hex_river_D_waterless.gltf
+│   │   │   │       ├── hex_river_D_waterless.gltf.import
+│   │   │   │       ├── hex_river_E_waterless.bin
+│   │   │   │       ├── hex_river_E_waterless.gltf
+│   │   │   │       ├── hex_river_E_waterless.gltf.import
+│   │   │   │       ├── hex_river_F_waterless.bin
+│   │   │   │       ├── hex_river_F_waterless.gltf
+│   │   │   │       ├── hex_river_F_waterless.gltf.import
+│   │   │   │       ├── hex_river_G_waterless.bin
+│   │   │   │       ├── hex_river_G_waterless.gltf
+│   │   │   │       ├── hex_river_G_waterless.gltf.import
+│   │   │   │       ├── hex_river_H_waterless.bin
+│   │   │   │       ├── hex_river_H_waterless.gltf
+│   │   │   │       ├── hex_river_H_waterless.gltf.import
+│   │   │   │       ├── hex_river_I_waterless.bin
+│   │   │   │       ├── hex_river_I_waterless.gltf
+│   │   │   │       ├── hex_river_I_waterless.gltf.import
+│   │   │   │       ├── hex_river_J_waterless.bin
+│   │   │   │       ├── hex_river_J_waterless.gltf
+│   │   │   │       ├── hex_river_J_waterless.gltf.import
+│   │   │   │       ├── hex_river_K_waterless.bin
+│   │   │   │       ├── hex_river_K_waterless.gltf
+│   │   │   │       ├── hex_river_K_waterless.gltf.import
+│   │   │   │       ├── hex_river_L_waterless.bin
+│   │   │   │       ├── hex_river_L_waterless.gltf
+│   │   │   │       ├── hex_river_L_waterless.gltf.import
+│   │   │   │       ├── hex_river_crossing_A_waterless.bin
+│   │   │   │       ├── hex_river_crossing_A_waterless.gltf
+│   │   │   │       ├── hex_river_crossing_A_waterless.gltf.import
+│   │   │   │       ├── hex_river_crossing_B_waterless.bin
+│   │   │   │       ├── hex_river_crossing_B_waterless.gltf
+│   │   │   │       ├── hex_river_crossing_B_waterless.gltf.import
+│   │   │   │       ├── hexagons_medieval.png
+│   │   │   │       └── hexagons_medieval.png.import
+│   │   │   └── roads
+│   │   │       ├── hex_road_A.bin
+│   │   │       ├── hex_road_A.gltf
+│   │   │       ├── hex_road_A.gltf.import
+│   │   │       ├── hex_road_A_sloped_high.bin
+│   │   │       ├── hex_road_A_sloped_high.gltf
+│   │   │       ├── hex_road_A_sloped_high.gltf.import
+│   │   │       ├── hex_road_A_sloped_low.bin
+│   │   │       ├── hex_road_A_sloped_low.gltf
+│   │   │       ├── hex_road_A_sloped_low.gltf.import
+│   │   │       ├── hex_road_B.bin
+│   │   │       ├── hex_road_B.gltf
+│   │   │       ├── hex_road_B.gltf.import
+│   │   │       ├── hex_road_C.bin
+│   │   │       ├── hex_road_C.gltf
+│   │   │       ├── hex_road_C.gltf.import
+│   │   │       ├── hex_road_D.bin
+│   │   │       ├── hex_road_D.gltf
+│   │   │       ├── hex_road_D.gltf.import
+│   │   │       ├── hex_road_E.bin
+│   │   │       ├── hex_road_E.gltf
+│   │   │       ├── hex_road_E.gltf.import
+│   │   │       ├── hex_road_F.bin
+│   │   │       ├── hex_road_F.gltf
+│   │   │       ├── hex_road_F.gltf.import
+│   │   │       ├── hex_road_G.bin
+│   │   │       ├── hex_road_G.gltf
+│   │   │       ├── hex_road_G.gltf.import
+│   │   │       ├── hex_road_H.bin
+│   │   │       ├── hex_road_H.gltf
+│   │   │       ├── hex_road_H.gltf.import
+│   │   │       ├── hex_road_I.bin
+│   │   │       ├── hex_road_I.gltf
+│   │   │       ├── hex_road_I.gltf.import
+│   │   │       ├── hex_road_J.bin
+│   │   │       ├── hex_road_J.gltf
+│   │   │       ├── hex_road_J.gltf.import
+│   │   │       ├── hex_road_K.bin
+│   │   │       ├── hex_road_K.gltf
+│   │   │       ├── hex_road_K.gltf.import
+│   │   │       ├── hex_road_L.bin
+│   │   │       ├── hex_road_L.gltf
+│   │   │       ├── hex_road_L.gltf.import
+│   │   │       ├── hex_road_M.bin
+│   │   │       ├── hex_road_M.gltf
+│   │   │       ├── hex_road_M.gltf.import
+│   │   │       ├── hexagons_medieval.png
+│   │   │       └── hexagons_medieval.png.import
+│   │   └── lighting
+│   ├── portraits
+│   │   ├── barbarian.jpg
+│   │   ├── barbarian.jpg.import
+│   │   ├── drow-girl.jpg
+│   │   ├── drow-girl.jpg.import
+│   │   ├── fighter-girl.jpg
+│   │   ├── fighter-girl.jpg.import
+│   │   ├── fighter.png
+│   │   ├── fighter.png.import
+│   │   ├── healer.jpg
+│   │   ├── healer.jpg.import
+│   │   ├── healer.png
+│   │   ├── healer.png.import
+│   │   ├── mage portrait.jpg
+│   │   ├── mage portrait.jpg.import
+│   │   ├── mage.png
+│   │   ├── mage.png.import
+│   │   ├── rogue.jpg
+│   │   ├── rogue.jpg.import
+│   │   ├── rogue.png
+│   │   ├── rogue.png.import
+│   │   ├── unnamed.jpg
+│   │   └── unnamed.jpg.import
+│   ├── shaders
+│   │   ├── edge_detection.gdshader
+│   │   └── edge_detection.gdshader.uid
+│   └── ui
+│       ├── fire
+│       │   ├── log.png
+│       │   └── log.png.import
+│       ├── flag.mtl
+│       ├── flag.obj
+│       ├── flag.obj.import
+│       ├── fonts
+│       ├── icons
+│       │   ├── icon.svg
+│       │   └── icon.svg.import
+│       ├── tavernbackgroundimage.png
+│       └── tavernbackgroundimage.png.import
+├── build
+│   ├── EternalGuild_pre_v0.1_alpha.console.exe
+│   ├── EternalGuild_pre_v0.1_alpha.exe
+│   ├── EternalGuild_pre_v0.1_alpha.exe.7z
+│   ├── EternalGuild_pre_v0.1_alpha.zip
+│   ├── EternalGuild_pre_v0.2_alpha.console.exe
+│   ├── EternalGuild_pre_v0.2_alpha.exe
+│   └── buildv0.2prealpha.zip
+├── control.gd
+├── control.gd.uid
+├── data
+│   ├── characters
+│   │   ├── classes.json
+│   │   ├── names.json
+│   │   └── traits.json
+│   ├── dialogue
+│   │   └── patron_lines.json
+│   ├── economy
+│   │   └── items.json
+│   ├── missions
+│   │   ├── mission_types.json
+│   │   └── rewards.json
+│   └── settlements
+│       ├── capitals.json
+│       └── locations.json
+├── documentation
+│   ├── TECH_DEBT.md
+│   ├── design
+│   │   ├── 00_GDD_Master.md
+│   │   ├── 01_Core_Vision_and_Pillars.md
+│   │   ├── 01_VISION.md
+│   │   ├── 02_Gameplay_Mechanics.md
+│   │   ├── 02_STATE_OF_THE_BUILD.md
+│   │   ├── 03_STORY_BIBLE.md
+│   │   ├── 03_Story_and_Progression.md
+│   │   ├── 04_Art_and_Interaction.md
+│   │   ├── 04_PROCESS.md
+│   │   ├── 05_REVEAL_REWORK_PLAN.md
+│   │   ├── 05_Technical_Architecture.md
+│   │   ├── 06_Character_Design.md
+│   │   ├── 07_World_Design.md
+│   │   ├── ADVENTURER_PRESENCE_SYSTEM.md
+│   │   ├── ETERNAL_GUILD_BLINDSPOT_PLAN_v2.md
+│   │   ├── INTEGRATION_CONTRACT_DISPATCH.md
+│   │   ├── eternal_guild_world_map_dispatch_dataflow.svg
+│   │   ├── eternal_guild_world_map_dispatch_dataflow.svg.import
+│   │   └── session.md
+│   └── old
+│       ├── # Eternal Guild - Development Bible & AI.md
+│       ├── # Eternal Guild - Development Progress S.md
+│       ├── # Eternal Guild Development Context & In.ini
+│       ├── # Eternal Guild Modding System & Community.md
+│       ├── # Eternal Guild Project - Current Status.md
+│       ├── # Game Design Document (GDD).md
+│       ├── # Game Design Document (GDD)2.md
+│       ├── ASCIIWorldGenerator.gd
+│       ├── ASCIIWorldGenerator.gd.uid
+│       ├── ASCIIWorldSelection.gd
+│       ├── ASCIIWorldSelection.gd.uid
+│       ├── ASCIIWorldSelection.tscn
+│       ├── Eternal Guild - IA instructions.md
+│       ├── Gemini_Generated_Image_i1o9vzi1o9vzi1o9.png
+│       ├── Gemini_Generated_Image_i1o9vzi1o9vzi1o9.png.import
+│       ├── Gemini_Generated_Image_porhmlporhmlporh.png
+│       ├── Gemini_Generated_Image_porhmlporhmlporh.png.import
+│       ├── Gemini_Generated_Image_qgj1tkqgj1tkqgj1.png
+│       ├── Gemini_Generated_Image_qgj1tkqgj1tkqgj1.png.import
+│       ├── Gemini_Generated_Image_r5goodr5goodr5go.png
+│       ├── Gemini_Generated_Image_r5goodr5goodr5go.png.import
+│       ├── Gemini_Generated_Image_r7uz6ir7uz6ir7uz.png.import
+│       ├── Hero Journey & Tarot.md
+│       ├── Lessons from Fort of Chains.md
+│       ├── Stardew Valley Negative Feedback Analysis .md
+│       ├── dsq.txt
+│       ├── gdd.md
+│       ├── notes from other game.md
+│       ├── notes.txt
+│       ├── preview.webp.import
+│       ├── procedural world system choice.md
+│       ├── rimworld hot take.md
+│       ├── tavern idea layout artwork.png
+│       ├── tavern idea layout artwork.png.import
+│       ├── unnamed.png
+│       └── unnamed.png.import
+├── export_presets.cfg
+├── project.godot
+├── scenes
+│   ├── GameOverScreen.tscn
+│   ├── HexMapTest.tscn
+│   ├── MainMenu.tscn
+│   ├── MainTavern.tscn
+│   ├── MapControls.gd
+│   ├── MapControls.gd.uid
+│   ├── bedroom_popup.gd
+│   ├── bedroom_popup.gd.uid
+│   ├── exit_zone_exterior.gd
+│   ├── exit_zone_exterior.gd.uid
+│   ├── fireplace_zone.gd
+│   ├── fireplace_zone.gd.uid
+│   ├── game_over_screen.gd
+│   ├── game_over_screen.gd.uid
+│   ├── npcs
+│   │   ├── PatronFarmer.tscn
+│   │   ├── PatronKnight.tscn
+│   │   ├── PatronMage.tscn
+│   │   ├── PatronRogue.tscn
+│   │   └── RealisticPatron.tscn
+│   ├── player
+│   │   └── Player.tscn
+│   ├── ui
+│   │   ├── AdventurerCard.tscn
+│   │   ├── FireplaceMinigamePanel.tscn
+│   │   ├── MissionBoard.tscn
+│   │   ├── MorningBriefing.tscn
+│   │   ├── PartyMissionCard.tscn
+│   │   ├── SingleMissionCard.tscn
+│   │   ├── WorldMapBoard.tscn
+│   │   ├── debug_panel.gd
+│   │   ├── debug_panel.gd.uid
+│   │   ├── debug_panel.tscn
+│   │   └── script
+│   │       ├── AdventurerRosterPanel.gd
+│   │       ├── AdventurerRosterPanel.gd.uid
+│   │       ├── FireplaceMinigamePanel.gd
+│   │       ├── FireplaceMinigamePanel.gd.uid
+│   │       ├── adventurer_card.gd
+│   │       ├── adventurer_card.gd.uid
+│   │       ├── debug_panel.gd
+│   │       ├── debug_panel.gd.uid
+│   │       ├── mission_board.gd
+│   │       ├── mission_board.gd.uid
+│   │       ├── morning_briefing.gd
+│   │       ├── morning_briefing.gd.uid
+│   │       ├── party_mission_card.gd
+│   │       ├── party_mission_card.gd.uid
+│   │       ├── single_mission_card.gd
+│   │       └── single_mission_card.gd.uid
+│   └── world
+│       ├── ExteriorWorld.tscn
+│       ├── HexagoneWorld.tscn
+│       ├── WorldMapBoard.tscn
+│       ├── mission_slot.gd
+│       ├── mission_slot.gd.uid
+│       ├── world_map_board.gd
+│       └── world_map_board.gd.uid
+├── scripts
+│   ├── GameManager.gd
+│   ├── GameManager.gd.uid
+│   ├── autoload
+│   │   ├── PlayerManager.gd
+│   │   └── PlayerManager.gd.uid
+│   ├── camera
+│   │   ├── camera_3d.gd
+│   │   ├── camera_3d.gd.uid
+│   │   ├── exterior_camera.gd
+│   │   └── exterior_camera.gd.uid
+│   ├── environment
+│   ├── game
+│   │   ├── ZonePromptUI.gd
+│   │   ├── ZonePromptUI.gd.uid
+│   │   ├── bar_area.gd
+│   │   ├── bar_area.gd.uid
+│   │   ├── main_tavern.gd
+│   │   ├── main_tavern.gd.uid
+│   │   ├── patron_interactions.gd
+│   │   ├── patron_interactions.gd.uid
+│   │   ├── zone_interactions.gd
+│   │   └── zone_interactions.gd.uid
+│   ├── menus
+│   │   ├── main_menu.gd
+│   │   ├── main_menu.gd.uid
+│   │   ├── pause_menu.gd
+│   │   └── pause_menu.gd.uid
+│   ├── npcs
+│   │   ├── PatronSpawner.gd
+│   │   ├── PatronSpawner.gd.uid
+│   │   ├── RealisticPatron.gd
+│   │   └── RealisticPatron.gd.uid
+│   ├── player
+│   │   ├── Player.tscn
+│   │   ├── player.gd
+│   │   └── player.gd.uid
+│   ├── ui
+│   │   ├── fade_to_black.gd
+│   │   ├── fade_to_black.gd.uid
+│   │   ├── recruitment_popup.gd
+│   │   ├── recruitment_popup.gd.uid
+│   │   ├── tavern_management.gd
+│   │   └── tavern_management.gd.uid
+│   └── world
+│       ├── HexGrid.gd
+│       ├── HexGrid.gd.uid
+│       ├── HexMapGenerator.gd
+│       ├── HexMapGenerator.gd.uid
+│       ├── entrance_zone_exterior.gd
+│       ├── entrance_zone_exterior.gd.uid
+│       ├── exit_zone_interior.gd
+│       ├── exit_zone_interior.gd.uid
+│       ├── exteriorworld.gd
+│       └── exteriorworld.gd.uid
+└── systems
+    ├── DataManager.gd
+    ├── DataManager.gd.uid
+    ├── PlayerManager.gd
+    ├── PlayerManager.gd.uid
+    ├── SaveSystem.gd
+    ├── SaveSystem.gd.uid
+    ├── WorldManager.gd
+    └── WorldManager.gd.uid
+
+95 directories, 1137 files

@@ -23,6 +23,10 @@ SaveSystem="*res://systems/SaveSystem.gd"
 WorldManager="*res://systems/WorldManager.gd"
 ZonePromptUI="*res://scripts/game/ZonePromptUI.gd"
 PlayerManager="*res://scripts/autoload/PlayerManager.gd"
+DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
+DebugMenu="*res://addons/debug_menu/debug_menu.tscn"
+MCPRuntime="*res://addons/godot_mcp_runtime/mcp_runtime_autoload.gd"
+McpInteractionServer="*res://mcp_interaction_server.gd"
 
 [display]
 
@@ -32,6 +36,10 @@ window/size/viewport_height=1080
 [editor]
 
 version_control/autoload_on_startup=true
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/asset_placer/plugin.cfg", "res://addons/auto_reload/plugin.cfg", "res://addons/debug_menu/plugin.cfg", "res://addons/dialogue_manager/plugin.cfg", "res://addons/godot_mcp_editor/plugin.cfg", "res://addons/godot_mcp_runtime/plugin.cfg")
 
 [input]
 
