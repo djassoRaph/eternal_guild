@@ -127,9 +127,6 @@ func _get_status_display(adventurer: Dictionary) -> String:
 	match adventurer.status:
 		"Ready":
 			return "Ready"
-		"on_mission":
-			var mission_name = adventurer.get("current_mission", "Unknown Mission")
-			return "On Mission: " + mission_name
 		"On Mission":
 			var mission_name = adventurer.get("current_mission", "Unknown Mission")
 			return "On Mission: " + str(mission_name)
@@ -181,8 +178,6 @@ func create_adventurer_card(adventurer: Dictionary):
 			status_label.add_theme_color_override("font_color", Color.YELLOW)
 		"Injured":
 			status_label.add_theme_color_override("font_color", Color.RED)
-		"on_mission":
-			status_label.add_theme_color_override("font_color", Color.CYAN)
 		"On Mission":
 			status_label.add_theme_color_override("font_color", Color.CYAN)
 	

@@ -1397,7 +1397,7 @@ func get_adventurer_status_description(adventurer: Dictionary) -> String:
 		"Resting":
 			var days = adventurer.get("recovery", 0) 
 			return "Resting (" + str(days) + " day" + ("s" if days != 1 else "") + " remaining)"
-		"on_mission":
+		"On Mission":
 			return "Currently on mission"
 		_:
 			return "Status unknown"
@@ -1418,7 +1418,7 @@ func get_guild_availability_report() -> Dictionary:
 				resting_count += 1
 			"Injured": 
 				injured_count += 1
-			"on_mission":
+			"On Mission":
 				on_mission_count += 1
 	
 	return {
@@ -1625,21 +1625,3 @@ func refresh_available_missions():
 			available_missions.append(mission)
 		print("⚠️ Using fallback missions")
 	WorldManager.assign_missions_to_hexes(available_missions)
-
-
-
-func assign_adventurer_to_mission(adventurer: Dictionary, mission: Dictionary):
-	# Mark adventurer as busy
-	adventurer["on_mission"] = true
-	adventurer["current_mission"] = mission
-	
-	if not "active_missions" in self:
-				
-		active_missions.append({
-			"adventurer": adventurer,
-			"mission": mission,
-			"days_left": 1  # placeholder
-		})
-		
-	# Emit roster change so UI updates
-	adventurer_roster_changed.emit()
