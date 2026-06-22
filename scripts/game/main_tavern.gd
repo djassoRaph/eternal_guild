@@ -289,10 +289,8 @@ func _update_day_phase_display():
 	phase_label.add_theme_color_override("font_color", Color(0.9, 0.8, 0.5))
 		
 func _init_zone_prompts():
-	"""Initialize ZonePromptUI for tavern zones"""
-	if ZonePromptUI:
-		# This will find and connect all tavern interaction zones
-		ZonePromptUI.connect_tavern_zones()
-		print("Tavern zone prompts initialized")
-	else:
-		push_warning("MainTavern: ZonePromptUI not found!")
+	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
+	var zui = zui_script.new()
+	add_child(zui)
+	zui.connect_tavern_zones()
+	print("Tavern zone prompts initialized")

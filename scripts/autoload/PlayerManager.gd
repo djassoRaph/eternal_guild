@@ -96,11 +96,10 @@ func transition_to_scene(scene_path: String, spawn_pos: Vector3 = Vector3.ZERO) 
 	else:
 		print("No valid player reference")
 	
-	# Clear zones
-	var zui = get_node_or_null("/root/ZonePromptUI")
+	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
+	var zui = zui_script.find(get_tree())
 	if zui:
 		zui.clear_all_zones()
-		print("Zones cleared")
 	
 	# DO THE SCENE CHANGE
 	print("Calling change_scene_to_file()...")

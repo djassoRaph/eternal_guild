@@ -31,16 +31,13 @@ func _ready():
 	print("Entrance zone (exterior) ready")
 
 func _register_with_prompt_ui():
-	"""Register this zone with the ZonePromptUI singleton"""
-	# Wait a frame for autoloads to be ready
 	await get_tree().process_frame
-	
-	var zone_ui = get_node_or_null("/root/ZonePromptUI")
-	if zone_ui and zone_ui.has_method("register_zone"):
+	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
+	var zone_ui = zui_script.find(get_tree())
+	if zone_ui:
 		zone_ui.register_zone(self, prompt_text)
-		print("Entrance zone registered with ZonePromptUI")
 	else:
-		push_warning("EntranceZone: ZonePromptUI singleton not found!")
+		push_warning("EntranceZone: ZonePromptUI not found in scene")
 
 # =============================================================================
 # INPUT HANDLING
@@ -91,11 +88,8 @@ func _enter_tavern() -> void:
 		_fallback_transition()
 
 func _fallback_transition() -> void:
-	"""Fallback transition without PlayerManager"""
-	# Clear zone prompts
-	var zone_ui = get_node_or_null("/root/ZonePromptUI")
-	if zone_ui and zone_ui.has_method("clear_all_zones"):
+	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
+	var zone_ui = zui_script.find(get_tree())
+	if zone_ui:
 		zone_ui.clear_all_zones()
-	
-	# Simple scene change
 	get_tree().change_scene_to_file(interior_scene_path)
