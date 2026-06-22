@@ -7,6 +7,7 @@ const MAX_BACKUP_FILES = 3
 
 var autosave_timer: Timer
 var save_in_progress: bool = false
+var load_in_progress: bool = false
 
 signal save_completed(success: bool)
 signal load_completed(success: bool)
@@ -36,8 +37,9 @@ func _on_autosave_timer_timeout():
 	autosave_game()
 
 func _on_day_changed(new_day: int):
-	"""Auto-save at the end of each day"""
-	if new_day > 1:  # Don't save on day 1 start
+	if load_in_progress:
+		return
+	if new_day > 1:
 		autosave_game()
 
 func _on_game_over(reason: String):
@@ -104,64 +106,32 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 
 
 func load_game() -> bool:
-	"""Load game from save file - IMPROVED WITH DEBUG"""
 	if not has_save_file():
-		print("❌ No save file found at: ", SAVE_FILE)
+		print("No save file found at: ", SAVE_FILE)
 		return false
-	
-	print("📂 Loading game state from: ", SAVE_FILE)
-	
+
+	print("Loading game state from: ", SAVE_FILE)
+
 	var save_data = read_save_file(SAVE_FILE)
 	if save_data == null or save_data.is_empty():
-		print("❌ Failed to read save file or file is empty")
-		print("   File exists: ", FileAccess.file_exists(SAVE_FILE))
+		print("Failed to read save file or file is empty")
 		return false
-	
-	print("✅ Save file read successfully")
-	print("   Data keys: ", save_data.keys())
-	
-	# Validate save data
+
 	if not validate_save_data(save_data):
-		print("❌ Save file validation failed")
-		print("   Current day: ", save_data.get("current_day", "MISSING"))
-		print("   Gold: ", save_data.get("gold", "MISSING"))
-		print("   Beer: ", save_data.get("beer_stock", "MISSING"))
+		print("Save file validation failed")
 		return false
-	
-	print("✅ Save file validated")
-	
-	# Load into GameManager
+
 	if not GameManager:
-		print("❌ GameManager not found!")
+		print("GameManager not found!")
 		return false
-	
+
+	# Suppress autosave while signals fire during load
+	load_in_progress = true
 	GameManager.load_save_data(save_data)
-	
-	# Restore additional state
-	if save_data.has("beer_shortage_days"):
-		GameManager.beer_shortage_days = save_data["beer_shortage_days"]
-		print("   Restored beer_shortage_days: ", GameManager.beer_shortage_days)
-	
-	if save_data.has("adventurer_morale"):
-		GameManager.adventurer_morale = save_data["adventurer_morale"]
-		print("   Restored adventurer_morale")
-	
-	# Restore firewood and fuel if saved
-	if save_data.has("firewood_stock"):
-		GameManager.firewood_stock = save_data.get("firewood_stock", 0)
-		GameManager.firewood_changed.emit(GameManager.firewood_stock)
-		print("   Restored firewood: ", GameManager.firewood_stock)
-	
-	if save_data.has("fireplace_fuel"):
-		GameManager.fireplace_fuel = save_data.get("fireplace_fuel", 100.0)
-		GameManager.fireplace_fuel_changed.emit(GameManager.fireplace_fuel)
-		print("   Restored fuel: ", GameManager.fireplace_fuel)
-	
-	print("✅ Game loaded successfully from Day ", save_data.get("current_day", 1))
-	
-	if GameManager.has_method("log_message"):
-		GameManager.log_message("📂 Game loaded from Day " + str(save_data.get("current_day", 1)))
-	
+	load_in_progress = false
+
+	print("Game loaded successfully from Day ", save_data.get("current_day", 1))
+
 	load_completed.emit(true)
 	return true
 

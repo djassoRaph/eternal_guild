@@ -17,6 +17,12 @@ config/icon="res://assets/ui/icons/icon.svg"
 
 [autoload]
 
+GameBus="*res://scripts/buses/GameBus.gd"
+AdventurerBus="*res://scripts/buses/AdventurerBus.gd"
+EconomyBus="*res://scripts/buses/EconomyBus.gd"
+WorldBus="*res://scripts/buses/WorldBus.gd"
+GuildBus="*res://scripts/buses/GuildBus.gd"
+LegacyBus="*res://scripts/buses/LegacyBus.gd"
 GameManager="*res://scripts/GameManager.gd"
 DataManager="*res://systems/DataManager.gd"
 SaveSystem="*res://systems/SaveSystem.gd"
