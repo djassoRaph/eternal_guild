@@ -68,6 +68,21 @@ func _ready():
 	print("🎮 GameManager singleton initialized")
 	print("Initial state - Gold: ", gold, " Beer: ", beer_stock, " Day: ", current_day)
 	DataManager.data_ready.connect(_on_data_ready)
+	_bridge_signals_to_buses()
+
+func _bridge_signals_to_buses():
+	gold_changed.connect(func(v): EconomyBus.gold_changed.emit(v))
+	beer_changed.connect(func(v): EconomyBus.beer_changed.emit(v))
+	firewood_changed.connect(func(v): EconomyBus.firewood_changed.emit(v))
+	fireplace_fuel_changed.connect(func(v): EconomyBus.fireplace_fuel_changed.emit(v))
+	day_changed.connect(func(v): GameBus.day_changed.emit(v))
+	game_over_triggered.connect(func(r): GameBus.game_over_triggered.emit(r))
+	morning_briefing_ready.connect(func(r): GameBus.morning_briefing_ready.emit(r))
+	adventurer_roster_changed.connect(func(): AdventurerBus.adventurer_roster_changed.emit())
+	recruitment_pool_changed.connect(func(): AdventurerBus.recruitment_pool_changed.emit())
+	mission_dispatched.connect(func(a, m, h): AdventurerBus.mission_dispatched.emit(a, m, h))
+	missions_resolved.connect(func(r): AdventurerBus.missions_resolved.emit(r))
+	missions_changed.connect(func(): AdventurerBus.missions_changed.emit())
 	
 
 
@@ -847,12 +862,15 @@ func get_save_data() -> Dictionary:
 		"next_adventurer_id": next_adventurer_id,
 
 		# Tax grace period
-		"tax_grace_days": tax_grace_days
+		"tax_grace_days": tax_grace_days,
+
+		# World map (hex grid needed by mission board after load)
+		"world_data": WorldManager.get_save_data()
 	}
-	
+
 	print("   Saved: ", data.keys().size(), " fields")
 	print("   Day: ", data.current_day, ", Gold: ", data.gold)
-	
+
 	return data
 
 func load_save_data(data: Dictionary):
@@ -904,6 +922,11 @@ func load_save_data(data: Dictionary):
 
 	# Tax grace period
 	tax_grace_days = int(data.get("tax_grace_days", 0))
+
+	# World map (restore hex grid so mission board works after load)
+	var world_data = data.get("world_data", {})
+	if not world_data.is_empty():
+		WorldManager.load_save_data(world_data)
 
 	# Reset game over state
 	game_over_active = false

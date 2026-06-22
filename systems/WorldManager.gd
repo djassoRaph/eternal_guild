@@ -21,14 +21,34 @@ func _ready():
 	print("capitals.json called.")
 	_load_capital_definitions()
 
-# Called by the world map when the player confirms their tavern spot.
-# Stores the generated layout in memory for the session. Saving to disk
-# is a later step (gated on the load-game fix); this just stops the map
-# from being thrown away on scene change.
+# Called by the world map when the player confirms their tavern spot,
+# and by GameManager.load_save_data() when restoring from a save file.
 func set_generated_world(records: Array, center: Dictionary) -> void:
 	world_map = records.duplicate(true)
 	chosen_center = center.duplicate(true)
 	print("[WorldManager] Stored world: ", world_map.size(), " hexes. Center: ", chosen_center.get("id", "?"))
+
+
+func get_save_data() -> Dictionary:
+	var serialized: Array = []
+	for rec in world_map:
+		var copy = rec.duplicate(true)
+		var c = copy.get("coord")
+		if c is Vector2i or c is Vector2:
+			copy["coord"] = [c.x, c.y]
+		serialized.append(copy)
+	return {"world_map": serialized, "chosen_center": chosen_center.duplicate(true)}
+
+
+func load_save_data(data: Dictionary) -> void:
+	var records: Array = data.get("world_map", [])
+	for rec in records:
+		var c = rec.get("coord")
+		if c is Array and c.size() == 2:
+			rec["coord"] = Vector2i(int(c[0]), int(c[1]))
+	world_map = records
+	chosen_center = data.get("chosen_center", {})
+	print("[WorldManager] Restored world: ", world_map.size(), " hexes")
 
 
 func assign_missions_to_hexes(missions: Array) -> void:

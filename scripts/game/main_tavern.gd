@@ -173,12 +173,12 @@ func toggle_pause_menu():
 	print("🖱️ PauseMenu visible: ", pause_menu.visible)
 
 func _on_main_menu_button_pressed() -> void:
-	print("on_main_menu_button log")
+	SaveSystem.save_game()
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
 
 func _on_quit_button_pressed() -> void:
-	print("_on_quit_button_pressed log")
+	SaveSystem.save_game()
 	get_tree().quit()
 
 # === LOGGING SYSTEM ===
@@ -194,17 +194,20 @@ func log_message(message: String):
 		else:
 			game_log.text += "\n" + message
 		
-		# Force updates and recalculation
+		if not is_inside_tree():
+			return
 		await get_tree().process_frame
-		await get_tree().process_frame  # Extra frame for safety
-		
-		# Force the ScrollContainer to update its scrollbars
+		await get_tree().process_frame
+
+		if not is_inside_tree():
+			return
 		log_container.queue_redraw()
-		
+
 		if log_container.get_v_scroll_bar():
 			var vbar = log_container.get_v_scroll_bar()
-			# Wait for scrollbar to update
 			await get_tree().process_frame
+			if not is_inside_tree():
+				return
 			vbar.value = vbar.max_value
 
 func fix_floor_collision():
