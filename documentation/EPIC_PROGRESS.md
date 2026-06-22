@@ -41,15 +41,18 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] main_tavern.gd and exteriorworld.gd instantiate ZonePromptUI locally
 
 ### Story 1.5: Dual-File Save Architecture Skeleton
-- [~] SaveSystem.gd exists — single file `user://eternal_guild_save.json` with 3-backup rotation
-- [~] Backup restore method works (`restore_from_backup()`)
-- [~] Save validation exists (checks required fields)
-- [ ] **No `schema_version` field** in save data
-- [ ] **No `codex.dat`** (eternal cross-run persistence file)
-- [ ] Not truly atomic (writes directly, relies on backups for corruption recovery)
+- [x] SaveSystem.gd — dual-file architecture (`savegame.json` + `codex.dat`)
+- [x] Backup restore method works (`restore_from_backup()`)
+- [x] Save validation exists (checks required fields)
+- [x] `schema_version` field in save data + `_migrate_save_data()` for future upgrades
+- [x] `codex.dat` — eternal cross-run persistence (fallen heroes, guild achievements, run stats)
+- [x] Atomic writes (write `.tmp` then rename)
+- [x] `AUTOSAVE_INTERVAL` and `MAX_BACKUP_FILES` read from DataManager config
 
 ### Story 1.6: MinigameInterface Base Class
-- [ ] `scripts/minigames/` directory does not exist — no base class
+- [x] `scripts/minigames/minigame_interface.gd` — `class_name MinigameInterface` with 4 virtual methods + signals + state tracking
+- [x] `scripts/minigames/harvest_minigame.gd` — placeholder subclass proving polymorphism pattern
+- [x] Day-end sequence can call `pause_minigame()` on any `MinigameInterface` subclass without knowing concrete type
 
 ### Story 1.7: Plugin Installation Suite
 - [x] **LimboAI** — files present in `addons/limboai/` (GDExtension) — **but NOT in editor_plugins enabled list** (needs manual enable)
@@ -231,9 +234,9 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] **Restore from backup** method exists
 - [x] **Signal re-emission on load** — all UI signals fired to refresh displays
 - [x] **Game over save** — saves state even on game over
-- [ ] **No `schema_version`** — save not versioned
-- [ ] **No `codex.dat`** — no eternal cross-run persistence
-- [ ] **Not atomic** — direct FileAccess write (but backup rotation mitigates)
+- [x] **`schema_version`** — save versioned with migration support
+- [x] **`codex.dat`** — eternal cross-run persistence (fallen heroes, achievements, run stats)
+- [x] **Atomic writes** — write to `.tmp` then rename
 - [ ] **FR-36 player spawn at morning point** — PlayerManager uses SpawnPoint nodes but unclear if save/load respects this
 - **NOTE (Raphael):** Load isn't working as expected — needs debugging/rework
 
