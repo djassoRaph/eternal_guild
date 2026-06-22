@@ -165,7 +165,7 @@ func _refresh_state_tab() -> void:
 			lines.append("• %s  [%s]  — %s" % [
 				adv.get("name", "?"),
 				adv.get("class", "?"),
-				adv.get("status", "idle")
+				AdventurerStatus.to_string_label(adv.get("status", AdventurerStatus.Status.READY))
 			])
 		_state_labels["roster_detail"].text = "\n".join(lines)
 
@@ -421,7 +421,7 @@ func _debug_add_adventurer() -> void:
 		"name": "Debug Hero " + str(GameManager.adventurers.size() + 1),
 		"class": ["Warrior","Ranger","Mage","Cleric","Rogue"][randi() % 5],
 		"level": 1,
-		"status": "idle",
+		"status": AdventurerStatus.Status.READY,
 		"id": "dbg_" + str(Time.get_ticks_msec())
 	}
 	# Try DataManager first for a proper generated adventurer

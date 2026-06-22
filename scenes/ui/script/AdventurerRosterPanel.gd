@@ -123,17 +123,16 @@ func _get_adventurer_level(adventurer: Dictionary) -> int:
 		return 6
 
 func _get_status_display(adventurer: Dictionary) -> String:
-	"""Get human-readable status text"""
 	match adventurer.status:
-		"Ready":
+		AdventurerStatus.Status.READY:
 			return "Ready"
-		"On Mission":
+		AdventurerStatus.Status.ON_MISSION:
 			var mission_name = adventurer.get("current_mission", "Unknown Mission")
 			return "On Mission: " + str(mission_name)
-		"Injured":
+		AdventurerStatus.Status.WOUNDED:
 			var days = adventurer.get("recovery", 0)
-			return "Injured (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
-		"Resting":
+			return "Wounded (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
+		AdventurerStatus.Status.RESTING:
 			var days = adventurer.get("recovery", 0)
 			return "Resting (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
 		_:
@@ -168,17 +167,17 @@ func create_adventurer_card(adventurer: Dictionary):
 	class_label.text = adv_class + " (Level " + str(level) + ")"
 	
 	# Status with color coding
-	var status = adventurer.get("status", "Ready")
-	status_label.text = "Status: " + _get_status_display(adventurer)  # FIXED: Use the function
-	
+	var status = adventurer.get("status", AdventurerStatus.Status.READY)
+	status_label.text = "Status: " + _get_status_display(adventurer)
+
 	match status:
-		"Ready":
+		AdventurerStatus.Status.READY:
 			status_label.add_theme_color_override("font_color", Color.GREEN)
-		"Resting":
+		AdventurerStatus.Status.RESTING:
 			status_label.add_theme_color_override("font_color", Color.YELLOW)
-		"Injured":
+		AdventurerStatus.Status.WOUNDED:
 			status_label.add_theme_color_override("font_color", Color.RED)
-		"On Mission":
+		AdventurerStatus.Status.ON_MISSION:
 			status_label.add_theme_color_override("font_color", Color.CYAN)
 	
 	# Daily wage
