@@ -66,9 +66,18 @@ var tier_requirements = {
 # === INITIALIZATION ===
 func _ready():
 	print("GameManager singleton initialized")
-	print("Initial state - Gold: ", gold, " Beer: ", beer_stock, " Day: ", current_day)
 	DataManager.data_ready.connect(_on_data_ready)
 	_bridge_signals_to_buses()
+
+func _apply_config():
+	gold = DataManager.get_config("starting_gold", 1000)
+	beer_stock = DataManager.get_config("starting_beer", 5)
+	max_adventurers = DataManager.get_config("max_adventurers", 5)
+	max_firewood_storage = DataManager.get_config("max_firewood_storage", 10)
+	firewood_stock = DataManager.get_config("starting_firewood", 0)
+	fireplace_fuel = DataManager.get_config("starting_fireplace_fuel", 0.0)
+	tax_due_day = DataManager.get_config("tax_due_day", 30)
+	daily_operating_cost = DataManager.get_config("daily_operating_cost", 1)
 
 func _bridge_signals_to_buses():
 	gold_changed.connect(func(v): EconomyBus.gold_changed.emit(v))
@@ -87,6 +96,8 @@ func _bridge_signals_to_buses():
 
 
 func _on_data_ready():
+	_apply_config()
+	print("Config applied - Gold: ", gold, " Beer: ", beer_stock, " Max adventurers: ", max_adventurers)
 	refresh_missions()
 
 func refresh_missions():
@@ -890,7 +901,7 @@ func load_save_data(data: Dictionary):
 	for adv in adventurers:
 		if adv.has("status") and adv.status is String:
 			adv.status = AdventurerStatus.from_save(adv.status)
-	max_adventurers = int(data.get("max_adventurers", 5))
+	max_adventurers = DataManager.get_config("max_adventurers", 5)
 	
 	# Beer shortage tracking
 	beer_shortage_days = int(data.get("beer_shortage_days", 0))
@@ -991,27 +1002,13 @@ func trigger_game_over(failure_type: String, reason: String):
 
 
 func reset_game_state():
-	"""Reset GameManager to initial state - COMPLETE VERSION"""
 	print("Resetting game state...")
-	
-	# Core resources
-	gold = 10
-	beer_stock = 0
-	
-	# Time
+	_apply_config()
 	current_day = 1
-	tax_due_day = 30
-	daily_operating_cost = 1
-	
-	# Adventurers
+
 	adventurers.clear()
-	max_adventurers = 5
 	beer_shortage_days = 0
 	adventurer_morale.clear()
-	
-	# Firewood
-	firewood_stock = 0
-	fireplace_fuel = 100.0
 	
 	# Recruitment
 	daily_recruits.clear()
