@@ -1,6 +1,8 @@
 # GameManager.gd - Autoload Singleton
 extends Node
 
+const AStatus = AdventurerStatus.Status
+
 # === CORE GAME STATE ===
 var gold: int = 1000
 var beer_stock: int = 5
@@ -155,23 +157,19 @@ func get_adventurer_count() -> int:
 	return adventurers.size()
 
 func get_ready_adventurers() -> Array:
-	"""Get adventurers available for missions """
 	var ready = []
 	for adv in adventurers:
-		if adv.get("ready", true) and not adv.get("on_mission", false) and adv.get("status", "Ready") == "Ready":
+		if AdventurerStatus.is_available(adv.get("status", AStatus.READY)):
 			ready.append(adv)
 	return ready
-	
-func is_adventurer_available(adventurer: Dictionary) -> bool:
-	"""Check if specific adventurer is available for missions"""
-	return adventurer.status == "Ready"
 
+func is_adventurer_available(adventurer: Dictionary) -> bool:
+	return AdventurerStatus.is_available(adventurer.status)
 
 func get_unavailable_adventurers() -> Array:
-	"""Get adventurers who are currently unavailable"""
 	var unavailable = []
 	for adv in adventurers:
-		if adv.status != "Ready":
+		if not AdventurerStatus.is_available(adv.status):
 			unavailable.append(adv)
 	return unavailable
 
@@ -192,7 +190,7 @@ func send_on_mission(adventurer: Dictionary, mission: Dictionary, hex_id: String
 	"""Dispatch an adventurer on a mission. Does NOT resolve it — just starts the timer."""
 	var duration = mission.get("duration_days", 1)
 
-	adventurer.status = "On Mission"
+	adventurer.status = AStatus.ON_MISSION
 	adventurer["current_mission"] = mission.get("name", "Unknown Mission")
 
 	var active_entry = {
@@ -218,7 +216,7 @@ func send_party_on_mission(party: Array, mission: Dictionary, hex_id: String = "
 	var duration = mission.get("duration_days", 1)
 
 	for adventurer in party:
-		adventurer.status = "On Mission"
+		adventurer.status = AStatus.ON_MISSION
 		adventurer["current_mission"] = mission.get("name", "Unknown Mission")
 
 	var active_entry = {
@@ -298,7 +296,7 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		adventurer.gold_earned += reward
 
 		# SUCCESS: Adventurer needs rest (1 day minimum)
-		adventurer.status = "Resting"
+		adventurer.status = AStatus.RESTING
 		adventurer.recovery = 1
 
 		total_missions_completed += 1
@@ -313,10 +311,10 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 
 		# FAILURE ONLY: Handle injury and death consequences
 		if adventurer.get("injured", false):
-			adventurer.status = "Injured"
+			adventurer.status = AStatus.WOUNDED
 			adventurer.recovery = randi_range(2, 5)
 		else:
-			adventurer.status = "Resting"
+			adventurer.status = AStatus.RESTING
 			adventurer.recovery = 1
 
 		handle_party_failure_consequences(adventurer, mission)
@@ -337,7 +335,7 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 		
 		for adventurer in party:
 			# SUCCESS: All party members need rest
-			adventurer.status = "Resting"
+			adventurer.status = AStatus.RESTING
 			adventurer.recovery = 1  # 1 day rest for successful party missions
 			adventurer.missions_completed += 1
 			adventurer.gold_earned += reward / party.size()
@@ -425,8 +423,8 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 		"success_chance": success_chance,
 		"reward": mission.get("reward_range", [0, 0]),
 		"duration": entry.total_duration,
-		"alive": adventurer.get("status", "") != "Dead",
-		"injured": adventurer.get("status", "") == "Injured",
+		"alive": adventurer.get("status") != AStatus.DEAD,
+		"injured": adventurer.get("status") == AStatus.WOUNDED,
 		"category": mission.get("category", "combat")
 	}
 
@@ -450,8 +448,8 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 	complete_party_mission(party, mission, success)
 
 	var member_names = party.map(func(a): return a.get("name", "?"))
-	var casualties = party.filter(func(a): return a.get("status", "") == "Dead")
-	var injured = party.filter(func(a): return a.get("status", "") == "Injured")
+	var casualties = party.filter(func(a): return a.get("status") == AStatus.DEAD)
+	var injured = party.filter(func(a): return a.get("status") == AStatus.WOUNDED)
 
 	return {
 		"type": "party",
@@ -476,74 +474,26 @@ func get_and_clear_pending_reports() -> Array:
 	has_pending_briefing = false
 	return reports
 
-func process_daily_operations():
-	"""Handle daily costs and maintenance"""
-	var base_cost = daily_operating_cost
-	var adventurer_wages = 0
-	for adv in adventurers:
-		var base_wage = 1
-		var trait_data = get_trait_data(adv.get("personality", ""))
-		if trait_data.has("cost_multiplier"):
-			base_wage = int(ceil(base_wage * trait_data.cost_multiplier))
-		adventurer_wages += base_wage
-	var total_cost = base_cost + adventurer_wages
-	
-	# Beer consumption by adventurers
-	var beer_needed = adventurers.size() * 1  # 1 beer per adventurer per day
-	
-	if spend_gold(total_cost):
-		log_message("Paid " + str(total_cost) + " gold in daily costs (" + str(base_cost) + " operations + " + str(adventurer_wages) + " wages)")
-	else:
-		log_message("WARNING: Could not afford operating costs!")
-	
-	# Adventurers consume beer
-	if beer_needed > 0:
-		if consume_beer(beer_needed):
-			log_message("Adventurers consumed " + str(beer_needed) + " beer")
-		else:
-			log_message("WARNING: Insufficient beer for adventurers! Morale will suffer.")
-			# Apply morale penalty (implement this later)
-
-func process_customer_visits():
-	"""Handle tavern customers and beer sales"""
-	var customer_count = randi_range(2, 5) + min(adventurers.size(), 3)
-	var beer_sold = min(customer_count, beer_stock)
-	var sales_income = beer_sold * 6  # 6 gold per beer
-	
-	if beer_sold > 0:
-		consume_beer(beer_sold)
-		add_gold(sales_income)
-		log_message(str(customer_count) + " customers visited the tavern")
-		log_message("Sold " + str(beer_sold) + " beer for " + str(sales_income) + " gold")
-		
-		if beer_sold < customer_count:
-			log_message("WARNING: " + str(customer_count - beer_sold) + " customers left disappointed!")
-	else:
-		log_message(str(customer_count) + " customers visited but you had no beer!")
-
 func process_adventurer_recovery():
-	"""Enhanced recovery processing with clear status transitions"""
 	for adventurer in adventurers:
-		if adventurer.status in ["Injured", "Resting"] and adventurer.has("recovery"):
+		if adventurer.status in [AStatus.WOUNDED, AStatus.RESTING] and adventurer.has("recovery"):
 			adventurer.recovery -= 1
-			
+
 			if adventurer.recovery <= 0:
-				# Recovery complete
 				var old_status = adventurer.status
-				adventurer.status = "Ready"
+				adventurer.status = AStatus.READY
 				adventurer.erase("recovery")
-				
+
 				match old_status:
-					"Injured":
+					AStatus.WOUNDED:
 						log_message("🩹 " + adventurer.name + " has fully recovered from injuries!")
-					"Resting":
+					AStatus.RESTING:
 						log_message("😊 " + adventurer.name + " is refreshed and ready for new missions!")
 			else:
-				# Still recovering
 				match adventurer.status:
-					"Injured":
+					AStatus.WOUNDED:
 						log_message("🏥 " + adventurer.name + " continues healing (" + str(adventurer.recovery) + " days remaining)")
-					"Resting":
+					AStatus.RESTING:
 						log_message("😴 " + adventurer.name + " is still resting (" + str(adventurer.recovery) + " days remaining)")
 
 
@@ -615,7 +565,7 @@ func generate_fallback_recruits(count: int) -> Array:
 			"id": generate_recruit_id(),
 			"name": names[randi() % names.size()],
 			"class": classes[randi() % classes.size()],
-			"status": "Ready",
+			"status": AStatus.READY,
 			"recovery": 0,
 			"missions_completed": 0,
 			"missions_failed": 0,
@@ -801,7 +751,7 @@ func cleanup_expired_recruitment_candidates():
 # Enhanced hiring function
 func dismiss_adventurer(adventurer: Dictionary) -> bool:
 	"""Remove an adventurer from the roster. Cannot dismiss if on mission."""
-	if adventurer.get("status", "") == "On Mission":
+	if adventurer.get("status") == AStatus.ON_MISSION:
 		log_message("⚠️ Cannot dismiss " + adventurer.get("name", "?") + " — they are currently on a mission.")
 		return false
 
@@ -848,20 +798,24 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 
 # === SAVE/LOAD SYSTEM ===
 func get_save_data() -> Dictionary:
-	"""Get all data for saving - COMPLETE VERSION"""
 	print("💾 Gathering save data...")
-	
+
+	var save_adventurers = adventurers.duplicate(true)
+	for adv in save_adventurers:
+		if adv.has("status") and adv.status is int:
+			adv.status = AdventurerStatus.for_save(adv.status)
+
 	var data = {
 		# Core resources
 		"gold": gold,
 		"beer_stock": beer_stock,
-		
+
 		# Time tracking
 		"current_day": current_day,
 		"tax_due_day": tax_due_day,
-		
+
 		# Adventurers
-		"adventurers": adventurers,
+		"adventurers": save_adventurers,
 		"max_adventurers": max_adventurers,
 		
 		# Beer shortage tracking
@@ -915,6 +869,9 @@ func load_save_data(data: Dictionary):
 	
 	# Adventurers
 	adventurers = data.get("adventurers", [])
+	for adv in adventurers:
+		if adv.has("status") and adv.status is String:
+			adv.status = AdventurerStatus.from_save(adv.status)
 	max_adventurers = int(data.get("max_adventurers", 5))
 	
 	# Beer shortage tracking
@@ -1231,20 +1188,11 @@ func calculate_mission_success_with_beer_effects(base_chance: int, adventurer: D
 
 # === DAILY PROCESSING INTEGRATION ===
 func process_daily_operations_with_beer():
-	"""Enhanced daily operations that include beer consumption"""
-	# Pay adventurer wages
 	var wage_cost = adventurers.size()  # 1 gold per adventurer
 	if spend_gold(wage_cost):
 		log_message("💰 Paid " + str(wage_cost) + " gold in adventurer wages")
 	else:
 		log_message("💸 WARNING: Could not afford adventurer wages!")
-		# Could add wage shortage consequences here too
-	
-	# Handle beer consumption with consequences
-	process_adventurer_beer_consumption()
-	
-	# Regular tavern customers (existing function)
-	process_customer_visits()
 
 # === STATUS REPORTING ===
 func get_guild_status_report() -> String:
@@ -1387,17 +1335,16 @@ func serve_customer_beer() -> int:
 		
 		
 func get_adventurer_status_description(adventurer: Dictionary) -> String:
-	"""Get detailed status description for UI display"""
 	match adventurer.status:
-		"Ready":
+		AStatus.READY:
 			return "Available for missions"
-		"Injured":
+		AStatus.WOUNDED:
 			var days = adventurer.get("recovery", 0)
-			return "Injured (" + str(days) + " day" + ("s" if days != 1 else "") + " remaining)"
-		"Resting":
-			var days = adventurer.get("recovery", 0) 
+			return "Wounded (" + str(days) + " day" + ("s" if days != 1 else "") + " remaining)"
+		AStatus.RESTING:
+			var days = adventurer.get("recovery", 0)
 			return "Resting (" + str(days) + " day" + ("s" if days != 1 else "") + " remaining)"
-		"On Mission":
+		AStatus.ON_MISSION:
 			return "Currently on mission"
 		_:
 			return "Status unknown"
@@ -1414,11 +1361,11 @@ func get_guild_availability_report() -> Dictionary:
 	
 	for adv in unavailable:
 		match adv.status:
-			"Resting":
+			AStatus.RESTING:
 				resting_count += 1
-			"Injured": 
+			AStatus.WOUNDED:
 				injured_count += 1
-			"On Mission":
+			AStatus.ON_MISSION:
 				on_mission_count += 1
 	
 	return {
@@ -1542,10 +1489,9 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 		log_message("💡 Visit the recruitment desk immediately to rebuild your guild!")
 
 func handle_adventurer_injury(adventurer: Dictionary, mission: Dictionary):
-	"""Handle injury with extended recovery time"""
-	var injury_severity = randi_range(2, 5)  # 2-5 days for injuries
-	
-	adventurer.status = "Injured"
+	var injury_severity = randi_range(2, 5)
+
+	adventurer.status = AStatus.WOUNDED
 	adventurer.recovery = injury_severity
 	adventurer.injuries_sustained = adventurer.get("injuries_sustained", 0) + 1
 	

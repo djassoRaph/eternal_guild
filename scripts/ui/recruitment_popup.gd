@@ -201,17 +201,17 @@ func _create_adventurer_card(adventurer: Dictionary, parent: VBoxContainer):
 	stats_label.add_theme_color_override("font_color", Color.LIGHT_GRAY)
 	info.add_child(stats_label)
 
-	var status = adventurer.get("status", "Ready")
+	var status = adventurer.get("status", AdventurerStatus.Status.READY)
 	var status_label = Label.new()
-	status_label.text = "Status: " + status
+	status_label.text = "Status: " + AdventurerStatus.to_string_label(status)
 	status_label.add_theme_font_size_override("font_size", 12)
 	var status_color: Color
 	match status:
-		"Ready":      status_color = Color.GREEN
-		"Resting":    status_color = Color.YELLOW
-		"Injured":    status_color = Color.RED
-		"On Mission": status_color = Color.CYAN
-		_:            status_color = Color.GRAY
+		AdventurerStatus.Status.READY:      status_color = Color.GREEN
+		AdventurerStatus.Status.RESTING:    status_color = Color.YELLOW
+		AdventurerStatus.Status.WOUNDED:    status_color = Color.RED
+		AdventurerStatus.Status.ON_MISSION: status_color = Color.CYAN
+		_:                                  status_color = Color.GRAY
 	status_label.add_theme_color_override("font_color", status_color)
 	info.add_child(status_label)
 
@@ -220,7 +220,7 @@ func _create_adventurer_card(adventurer: Dictionary, parent: VBoxContainer):
 	dismiss_btn.text = "Dismiss"
 	dismiss_btn.custom_minimum_size = Vector2(100, 35)
 	dismiss_btn.add_theme_color_override("font_color", Color(0.9, 0.35, 0.3))
-	if status == "On Mission":
+	if status == AdventurerStatus.Status.ON_MISSION:
 		dismiss_btn.disabled = true
 		dismiss_btn.tooltip_text = "On mission"
 	else:
@@ -297,7 +297,7 @@ func create_adventurer() -> Dictionary:
 		"id": randi() % 10000 + 1000,  # Temporary ID
 		"name": adv_name,
 		"class": adv_class,
-		"status": "Ready",
+		"status": AdventurerStatus.Status.READY,
 		"recovery": 0,
 		"strength": stats.strength,
 		"dexterity": stats.dexterity,

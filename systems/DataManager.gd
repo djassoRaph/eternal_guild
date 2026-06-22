@@ -1,7 +1,5 @@
 extends Node
 
-@onready var log_container = %LogContainer
-
 
 var character_classes: Dictionary = {}
 var character_names: Array = []
@@ -583,7 +581,7 @@ func calculate_cost_your_way(character: Dictionary, class_info: Dictionary) -> i
 
 func get_base_adventure_stats() -> Dictionary:
 	return {
-		"status": "Ready",
+		"status": AdventurerStatus.Status.READY,
 		"recovery": 0,
 		"missions_completed": 0,
 		"missions_failed": 0,
