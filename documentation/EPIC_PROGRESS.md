@@ -36,9 +36,9 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ### Story 1.4: Project Structure Migrations
 - [x] `Player.tscn` correctly at `scenes/player/Player.tscn`
 - [x] `PlayerManager.gd:PLAYER_SCENE_PATH` points to `"res://scenes/player/Player.tscn"`
-- [ ] ZonePromptUI **still registered as autoload** in project.godot line 24
-- [ ] `get_node_or_null("/root/ZonePromptUI")` still in PlayerManager.gd line 100
-- [ ] `clear_all_zones()` call still present in PlayerManager.gd
+- [x] ZonePromptUI removed from autoloads — now per-scene CanvasLayer
+- [x] All callers use `ZonePromptUI.find(get_tree())` group lookup instead of `/root/ZonePromptUI`
+- [x] main_tavern.gd and exteriorworld.gd instantiate ZonePromptUI locally
 
 ### Story 1.5: Dual-File Save Architecture Skeleton
 - [~] SaveSystem.gd exists — single file `user://eternal_guild_save.json` with 3-backup rotation

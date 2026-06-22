@@ -1,21 +1,22 @@
 # ZonePromptUI.gd
-# AUTOLOAD SINGLETON - Add to Project Settings > Autoload
-# Shows 2D prompt at bottom of screen when player enters zones
-# Scene-agnostic: works in any scene, zones register themselves
+# Per-scene CanvasLayer — add as a child of any scene that needs zone prompts.
+# Zones register themselves via the "zone_prompt_ui" group.
 extends CanvasLayer
 
 var prompt_label: Label
 var active: bool = false
 var current_zone: Area3D = null
-
-# Track connected zones to avoid duplicate connections
 var connected_zones: Dictionary = {}
 
+static func find(tree: SceneTree) -> Node:
+	var nodes = tree.get_nodes_in_group("zone_prompt_ui")
+	return nodes[0] if not nodes.is_empty() else null
+
 func _ready():
-	# Set layer high so it appears above game UI
 	layer = 100
+	add_to_group("zone_prompt_ui")
 	create_prompt_ui()
-	print("ZonePromptUI singleton ready")
+	print("ZonePromptUI ready")
 
 func create_prompt_ui():
 	"""Create the 2D prompt label"""

@@ -4,9 +4,10 @@ extends Node3D
 
 
 func _ready() -> void:
-	print("ExteriorWorld: Scene loaded")
-	
-	# Wait for everything to initialize
+	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
+	var zui = zui_script.new()
+	add_child(zui)
+
 	await get_tree().process_frame
 	
 	# Check if player exists

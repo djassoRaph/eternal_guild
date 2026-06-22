@@ -34,12 +34,11 @@ func _ready() -> void:
 	print("   Collision layer: ", collision_layer)
 	print("   Collision mask: ", collision_mask)
 	
-	# Register with ZonePromptUI
 	await get_tree().process_frame
-	var zone_ui = get_node_or_null("/root/ZonePromptUI")
-	if zone_ui and zone_ui.has_method("register_zone"):
+	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
+	var zone_ui = zui_script.find(get_tree())
+	if zone_ui:
 		zone_ui.register_zone(self, prompt_text)
-		print("Registered with ZonePromptUI")
 
 
 # =============================================================================
@@ -109,9 +108,9 @@ func _do_transition() -> void:
 	print("   Target: ", exterior_scene_path)
 	print("   Spawn: ", exterior_spawn_position)
 	
-	# Clear zone prompts
-	var zone_ui = get_node_or_null("/root/ZonePromptUI")
-	if zone_ui and zone_ui.has_method("clear_all_zones"):
+	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
+	var zone_ui = zui_script.find(get_tree())
+	if zone_ui:
 		zone_ui.clear_all_zones()
 	
 	# Use PlayerManager if available
