@@ -20,7 +20,7 @@ extends PopupPanel
 
 func _ready():
 	add_to_group("blocks_player")
-	print("🌙 Bedroom Popup ready (Editor UI version)")
+	print("Bedroom Popup ready (Editor UI version)")
 	
 	# Connect button signals
 	buy_3_button.pressed.connect(func(): purchase_firewood(3, 15))
@@ -39,11 +39,11 @@ func update_all_displays():
 	
 	# === UPDATE DAY SUMMARY ===
 	var current_day = GameManager.get_day()
-	summary_title.text = "📊 DAY " + str(current_day) + " SUMMARY"
+	summary_title.text = "DAY " + str(current_day) + " SUMMARY"
 	
-	gold_label.text = "💰 Gold: " + str(GameManager.get_gold())
-	beer_label.text = "🍺 Beer: " + str(GameManager.get_beer()) + " pints"
-	adventurers_label.text = "⚔️ Adventurers: " + str(GameManager.get_adventurer_count())
+	gold_label.text = "Gold: " + str(GameManager.get_gold())
+	beer_label.text = "Beer: " + str(GameManager.get_beer()) + " pints"
+	adventurers_label.text = "Adventurers: " + str(GameManager.get_adventurer_count())
 	
 	# === UPDATE FIREWOOD STOCK ===
 	var current_stock = GameManager.get_firewood_stock()
@@ -97,14 +97,14 @@ func purchase_firewood(bundles: int, cost: int):
 	if GameManager.purchase_firewood(bundles, cost):
 		# Success - refresh the display
 		update_all_displays()
-		GameManager.log_message("✅ Purchase successful! Ready for tomorrow.")
+		GameManager.log_message("Purchase successful! Ready for tomorrow.")
 	else:
 		# Failure - error message already logged by GameManager
-		GameManager.log_message("❌ Purchase failed. Check your gold and storage capacity.")
+		GameManager.log_message("Purchase failed. Check your gold and storage capacity.")
 
 func start_sleep_sequence():
 	"""Begin the sleep/day advancement sequence"""
-	GameManager.log_message("💤 Heading to bed for the night...")
+	GameManager.log_message("Heading to bed for the night...")
 	
 	# Close this popup
 	hide()
@@ -128,7 +128,7 @@ func start_sleep_sequence():
 		fade_system.start_sleep_fade()
 	else:
 		# Fallback if fade system not found
-		print("⚠️ Fade system not found! Advancing day immediately.")
+		print("Fade system not found! Advancing day immediately.")
 		GameManager.despawn_all_patrons()
 		_on_fade_complete()
 
@@ -137,8 +137,8 @@ func _on_fade_complete():
 	# Advance day in GameManager (includes mission resolution, recovery, etc.)
 	GameManager.advance_day()
 
-	print("✅ New day started through bedroom sequence")
-	GameManager.log_message("🌅 A new day dawns at the Eternal Guild!")
+	print("New day started through bedroom sequence")
+	GameManager.log_message("A new day dawns at the Eternal Guild!")
 
 	if GameManager.has_pending_briefing:
 		_show_morning_briefing()
@@ -155,6 +155,6 @@ func _show_morning_briefing():
 		var reports = GameManager.get_and_clear_pending_reports()
 		for report in reports:
 			if report.success:
-				GameManager.log_message("📜 REPORT: " + report.mission_name + " — SUCCESS")
+				GameManager.log_message("REPORT: " + report.mission_name + " — SUCCESS")
 			else:
-				GameManager.log_message("📜 REPORT: " + report.mission_name + " — FAILED")
+				GameManager.log_message("REPORT: " + report.mission_name + " — FAILED")

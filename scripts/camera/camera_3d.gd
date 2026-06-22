@@ -16,7 +16,7 @@ var target_zoom: float = 12.0
 
 
 func _ready() -> void:
-	print("📷 Interior Camera: Initializing...")
+	print("Interior Camera: Initializing...")
 	
 	# Set up orthographic isometric projection
 	projection = PROJECTION_ORTHOGONAL
@@ -28,15 +28,15 @@ func _ready() -> void:
 	
 	# Set cull mask to see player (layer 1) and patrons (layer 2)
 	cull_mask = 3  # Binary: 0b11 = layers 1 and 2
-	print("📷 Interior Camera: Cull mask set to ", cull_mask)
+	print("Interior Camera: Cull mask set to ", cull_mask)
 	
 	# Find player
 	_find_player()
 	
 	if player:
-		print("📷 Interior Camera: Found player at start")
+		print("Interior Camera: Found player at start")
 	else:
-		print("📷 Interior Camera: Will search for player...")
+		print("Interior Camera: Will search for player...")
 
 
 func _find_player() -> void:
@@ -46,7 +46,7 @@ func _find_player() -> void:
 	var players = get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		player = players[0]
-		print("📷 Interior Camera: Found player via group: ", player.get_path())
+		print("Interior Camera: Found player via group: ", player.get_path())
 		return
 	
 	# Method 2: Search in same viewport
@@ -56,7 +56,7 @@ func _find_player() -> void:
 			var found = _search_recursive(child)
 			if found:
 				player = found
-				print("📷 Interior Camera: Found player in viewport: ", player.get_path())
+				print("Interior Camera: Found player in viewport: ", player.get_path())
 				return
 	
 	# Method 3: Search entire scene
@@ -65,7 +65,7 @@ func _find_player() -> void:
 		var found = _search_recursive(root)
 		if found:
 			player = found
-			print("📷 Interior Camera: Found player in scene: ", player.get_path())
+			print("Interior Camera: Found player in scene: ", player.get_path())
 			return
 	
 	# Method 4: Ask PlayerManager
@@ -74,7 +74,7 @@ func _find_player() -> void:
 		var pm_player = pm.get_player()
 		if pm_player and is_instance_valid(pm_player):
 			player = pm_player
-			print("📷 Interior Camera: Got player from PlayerManager")
+			print("Interior Camera: Got player from PlayerManager")
 			return
 
 

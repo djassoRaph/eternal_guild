@@ -119,7 +119,7 @@ func create_basic_recruitment_ui():
 	# --- Section 1: YOUR GUILD ---
 	var roster = GameManager.adventurers
 	var roster_header = Label.new()
-	roster_header.text = "⚔️ YOUR GUILD (" + str(roster.size()) + "/" + str(GameManager.get_max_adventurers()) + ")"
+	roster_header.text = "YOUR GUILD (" + str(roster.size()) + "/" + str(GameManager.get_max_adventurers()) + ")"
 	roster_header.add_theme_font_size_override("font_size", 16)
 	roster_header.add_theme_color_override("font_color", Color.ORANGE)
 	roster_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -141,7 +141,7 @@ func create_basic_recruitment_ui():
 	# --- Section 2: AVAILABLE TODAY ---
 	var recruits = GameManager.get_available_recruits()
 	var applicants_header = Label.new()
-	applicants_header.text = "📋 AVAILABLE TODAY (" + str(recruits.size()) + " applicants)"
+	applicants_header.text = "AVAILABLE TODAY (" + str(recruits.size()) + " applicants)"
 	applicants_header.add_theme_font_size_override("font_size", 16)
 	applicants_header.add_theme_color_override("font_color", Color.CYAN)
 	applicants_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

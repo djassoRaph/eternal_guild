@@ -15,7 +15,7 @@ var target_zoom: float = 25.0
 
 
 func _ready() -> void:
-	print("📷 ExteriorCamera: Initializing...")
+	print("ExteriorCamera: Initializing...")
 	
 	# Set up orthographic isometric view
 	projection = PROJECTION_ORTHOGONAL
@@ -33,7 +33,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_find_player()
 	
-	print("📷 ExteriorCamera: Ready")
+	print("ExteriorCamera: Ready")
 
 
 func _find_player() -> void:
@@ -41,7 +41,7 @@ func _find_player() -> void:
 	var players = get_tree().get_nodes_in_group("player")
 	if players.size() > 0:
 		player = players[0]
-		print("📷 ExteriorCamera: Found player via group")
+		print("ExteriorCamera: Found player via group")
 		return
 	
 	# Search scene
@@ -49,9 +49,9 @@ func _find_player() -> void:
 	player = _search_for_player(root)
 	
 	if player:
-		print("📷 ExteriorCamera: Found player: ", player.name)
+		print("ExteriorCamera: Found player: ", player.name)
 	else:
-		print("📷 ExteriorCamera: No player found yet, will keep looking...")
+		print("ExteriorCamera: No player found yet, will keep looking...")
 
 
 func _search_for_player(node: Node) -> CharacterBody3D:

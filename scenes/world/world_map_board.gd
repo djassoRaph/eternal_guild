@@ -5,7 +5,7 @@ signal board_closed
 const HEX_MAP_SCENE := preload("res://scenes/HexMapTest.tscn")
 const MISSION_SLOT_SCRIPT := preload("res://scenes/world/mission_slot.gd")
 
-# If ۩ (U+06E9) renders as a tofu box, change this one constant to "✦" or any glyph you prefer.
+# If ۩ (U+06E9) renders as a tofu box, change this one constant to "" or any glyph you prefer.
 const RUNE := "۩"
 
 var _sv: SubViewport

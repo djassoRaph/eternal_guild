@@ -22,7 +22,7 @@ var _confirm_panel = null
 signal board_closed
 
 func _ready():
-	print("🎯 Mission Board ready")
+	print("Mission Board ready")
 	GameManager.adventurer_roster_changed.connect(_refresh_mission_display)
 	visible = false
 	add_to_group("mission_board")
@@ -31,7 +31,7 @@ func _ready():
 	var viewport = get_tree().root.get_node_or_null("Node3D/SubViewportContainer")
 	if viewport:
 		viewport.mouse_filter = Control.MOUSE_FILTER_PASS
-		print("🔧 Emergency fix applied!")
+		print("Emergency fix applied!")
 	_subviewport_container = get_tree().root.get_node_or_null("Node3D/SubViewportContainer")
 	if scroll_container:
 		scroll_container.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -50,7 +50,7 @@ func _input(event):
 
 func close_board():
 	"""Properly close the mission board"""
-	print("🚪 Closing mission board")
+	print("Closing mission board")
 	if _subviewport_container:
 		_subviewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
 	board_closed.emit()
@@ -61,8 +61,8 @@ func open_mission_board():
 	var total_adventurers = GameManager.get_adventurer_count()
 	
 	if total_adventurers == 0:
-		send_log_message("❌ No adventurers in your guild!")
-		send_log_message("💡 Visit the recruitment desk to hire adventurers first.")
+		send_log_message("No adventurers in your guild!")
+		send_log_message("Visit the recruitment desk to hire adventurers first.")
 		close_board()
 		return
 	if _subviewport_container:
@@ -70,21 +70,21 @@ func open_mission_board():
 	update_static_ui()
 	populate_missions()
 	visible = true
-	print("✅ Mission board opened")
+	print("Mission board opened")
 
 
 func update_static_ui():
 	"""Update all static UI labels with current game state"""
-	title_label.text = "📋 Guild Mission Board - Day " + str(GameManager.get_day())
+	title_label.text = "Guild Mission Board - Day " + str(GameManager.get_day())
 	
 	var available_missions = GameManager.available_missions
 	var solo_count = available_missions.filter(func(m): return not m.party_required).size()
 	var party_count = available_missions.size() - solo_count
 	
-	mission_stats_label.text = "📊 Available: " + str(available_missions.size()) + " missions (🚶 " + str(solo_count) + " solo, 👥 " + str(party_count) + " party)"
+	mission_stats_label.text = "Available: " + str(available_missions.size()) + " missions (" + str(solo_count) + " solo, " + str(party_count) + " party)"
 	
 	var ready = GameManager.get_ready_adventurers().size()
-	readiness_label.text = "🗡️ Ready: " + str(ready) + " adventurers"
+	readiness_label.text = "Ready: " + str(ready) + " adventurers"
 	
 	if ready >= 2:
 		readiness_label.add_theme_color_override("font_color", Color.GREEN)
@@ -109,13 +109,13 @@ func update_tier_labels():
 		
 		if status.unlocked:
 			if tier == current_tier:
-				label.text = "✅ Tier " + str(tier) + " [CURRENT]"
+				label.text = "Tier " + str(tier) + " [CURRENT]"
 				label.add_theme_color_override("font_color", Color.GREEN)
 			else:
-				label.text = "✅ Tier " + str(tier)
+				label.text = "Tier " + str(tier)
 				label.add_theme_color_override("font_color", Color.DARK_GREEN)
 		else:
-			label.text = "🔒 Tier " + str(tier)
+			label.text = "Tier " + str(tier)
 			label.add_theme_color_override("font_color", Color.GRAY)
 			if status.missing.size() > 0:
 				label.tooltip_text = "Locked: " + "\n".join(status.missing)
@@ -125,18 +125,18 @@ func update_tier_labels():
 		var next_status = GameManager.get_tier_unlock_status(next_tier)
 		
 		if not next_status.unlocked and next_status.missing.size() > 0:
-			progress_label.text = "📈 Next Tier: " + ", ".join(next_status.missing)
+			progress_label.text = "Next Tier: " + ", ".join(next_status.missing)
 			progress_label.visible = true
 		else:
 			progress_label.visible = false
 	else:
-		progress_label.text = "🎉 All tiers unlocked!"
+		progress_label.text = "All tiers unlocked!"
 		progress_label.add_theme_color_override("font_color", Color.GREEN)
 		progress_label.visible = true
 
 func populate_missions():
 	"""Clear and repopulate mission cards"""
-	print("🔄 Populating missions")
+	print("Populating missions")
 	
 	# Clear existing mission cards
 	for child in missions_container.get_children():
@@ -149,7 +149,7 @@ func populate_missions():
 	
 	if available_missions.size() == 0:
 		var no_missions = Label.new()
-		no_missions.text = "📄 No missions available. Check back tomorrow!"
+		no_missions.text = "No missions available. Check back tomorrow!"
 		no_missions.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		no_missions.add_theme_font_size_override("font_size", 14)
 		missions_container.add_child(no_missions)
@@ -226,16 +226,16 @@ func create_mission_card(mission: Dictionary, ready_adventurers: Array):
 		card_instance.setup(mission, ready_adventurers)
 		card_instance.mission_started.connect(_on_mission_card_started)
 	
-	print("   ✓ Card created for: ", mission.get("name", "Unknown"))
+	print("   Card created for: ", mission.get("name", "Unknown"))
 
 func _on_mission_card_started(mission: Dictionary, adventurer: Dictionary):
 	"""Handle when a solo mission card's send button is pressed — show confirmation first"""
-	print("🎯 Mission confirmation requested: ", mission.get("name"), " with ", adventurer.get("name"))
+	print("Mission confirmation requested: ", mission.get("name"), " with ", adventurer.get("name"))
 	show_dispatch_confirm(mission, adventurer)
 
 func _on_party_mission_card_started(mission: Dictionary, adventurers: Array):
 	"""Handle when a party mission card's send button is pressed — show confirmation first"""
-	print("🎯 Party mission confirmation requested: ", mission.get("name"), " with ", adventurers.size(), " adventurers")
+	print("Party mission confirmation requested: ", mission.get("name"), " with ", adventurers.size(), " adventurers")
 	show_party_dispatch_confirm(mission, adventurers)
 
 func execute_solo_mission(adventurer: Dictionary, mission: Dictionary):
@@ -243,8 +243,8 @@ func execute_solo_mission(adventurer: Dictionary, mission: Dictionary):
 	var success_chance = calculate_solo_success_chance(adventurer, mission)
 	var roll = randi() % 100 + 1
 	
-	send_log_message("🗡️ " + adventurer.name + " departs on: " + mission.name)
-	send_log_message("🎲 Success chance: " + str(success_chance) + "% (Rolled: " + str(roll) + ")")
+	send_log_message("" + adventurer.name + " departs on: " + mission.name)
+	send_log_message("Success chance: " + str(success_chance) + "% (Rolled: " + str(roll) + ")")
 	
 	# Complete mission through GameManager
 	GameManager.complete_mission(adventurer, mission, roll <= success_chance)
@@ -283,14 +283,14 @@ func is_mission_assigned(mission: Dictionary) -> bool:
 # Helper functions for UI display
 func get_category_info(category: String) -> Dictionary:
 	var category_data = {
-		"combat": {"name": "Combat Operations", "icon": "⚔️"},
-		"escort": {"name": "Escort & Protection", "icon": "🛡️"},
-		"gathering": {"name": "Resource Gathering", "icon": "🌿"},
-		"investigation": {"name": "Investigation & Scouting", "icon": "🔍"},
-		"delivery": {"name": "Delivery & Transport", "icon": "📦"},
-		"construction": {"name": "Construction & Repair", "icon": "🔨"}
+		"combat": {"name": "Combat Operations", "icon": ""},
+		"escort": {"name": "Escort & Protection", "icon": ""},
+		"gathering": {"name": "Resource Gathering", "icon": ""},
+		"investigation": {"name": "Investigation & Scouting", "icon": ""},
+		"delivery": {"name": "Delivery & Transport", "icon": ""},
+		"construction": {"name": "Construction & Repair", "icon": ""}
 	}
-	return category_data.get(category, {"name": "Miscellaneous", "icon": "📋"})
+	return category_data.get(category, {"name": "Miscellaneous", "icon": ""})
 
 func get_category_color(category: String) -> Color:
 	var colors = {
@@ -349,7 +349,7 @@ func _build_confirm_panel_base(mission: Dictionary) -> PanelContainer:
 	# Duration
 	var duration = mission.get("duration_days", 1)
 	var dur_label = Label.new()
-	dur_label.text = "⏱  Duration: " + str(duration) + " day" + ("s" if duration != 1 else "") + " away"
+	dur_label.text = "Duration: " + str(duration) + " day" + ("s" if duration != 1 else "") + " away"
 	dur_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
 	vbox.add_child(dur_label)
 
@@ -357,16 +357,16 @@ func _build_confirm_panel_base(mission: Dictionary) -> PanelContainer:
 	var danger = mission.get("danger", 1)
 	var skulls = ""
 	for _i in danger:
-		skulls += "💀"
+		skulls += ""
 	var danger_label = Label.new()
-	danger_label.text = "⚠  Danger: " + skulls + " (" + str(danger) + ")"
+	danger_label.text = "Danger: " + skulls + " (" + str(danger) + ")"
 	danger_label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.2))
 	vbox.add_child(danger_label)
 
 	# Reward
 	var reward = mission.get("reward_range", [0, 0])
 	var reward_label = Label.new()
-	reward_label.text = "💰  Reward: " + str(reward[0]) + "–" + str(reward[1]) + " gold"
+	reward_label.text = "Reward: " + str(reward[0]) + "–" + str(reward[1]) + " gold"
 	reward_label.add_theme_color_override("font_color", Color(0.9, 0.8, 0.3))
 	vbox.add_child(reward_label)
 
@@ -381,7 +381,7 @@ func show_dispatch_confirm(mission: Dictionary, adventurer: Dictionary):
 	# Success chance
 	var chance = GameManager.calculate_mission_success_chance(adventurer, mission)
 	var chance_label = Label.new()
-	chance_label.text = "🎲  " + str(chance) + "% chance of success"
+	chance_label.text = "" + str(chance) + "% chance of success"
 	var chance_color: Color
 	if chance >= 70:
 		chance_color = Color(0.3, 0.85, 0.4)
@@ -398,7 +398,7 @@ func show_dispatch_confirm(mission: Dictionary, adventurer: Dictionary):
 	var factors = mission.get("success_factors", [])
 	if factors.size() > 0:
 		var stats_header = Label.new()
-		stats_header.text = "📊  Relevant Stats — " + adventurer.get("name", "Adventurer") + ":"
+		stats_header.text = "Relevant Stats — " + adventurer.get("name", "Adventurer") + ":"
 		stats_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 		vbox.add_child(stats_header)
 		for factor in factors:
@@ -427,7 +427,7 @@ func show_dispatch_confirm(mission: Dictionary, adventurer: Dictionary):
 				effect_text = "Costs more daily wages"
 			if effect_text != "":
 				var trait_label = Label.new()
-				trait_label.text = "⚡  Trait: " + personality.capitalize() + " — " + effect_text
+				trait_label.text = "Trait: " + personality.capitalize() + " — " + effect_text
 				trait_label.add_theme_color_override("font_color", Color(0.85, 0.75, 1.0))
 				trait_label.add_theme_font_size_override("font_size", 12)
 				vbox.add_child(trait_label)
@@ -484,7 +484,7 @@ func show_party_dispatch_confirm(mission: Dictionary, party: Array):
 	var final_chance = clampi(avg_chance + party_bonus, 10, 95)
 
 	var chance_label = Label.new()
-	chance_label.text = "🎲  " + str(final_chance) + "% party chance of success"
+	chance_label.text = "" + str(final_chance) + "% party chance of success"
 	var chance_color: Color
 	if final_chance >= 70:
 		chance_color = Color(0.3, 0.85, 0.4)
@@ -500,7 +500,7 @@ func show_party_dispatch_confirm(mission: Dictionary, party: Array):
 	# Party members with relevant stats
 	var factors = mission.get("success_factors", [])
 	var party_header = Label.new()
-	party_header.text = "👥  Party Members:"
+	party_header.text = "Party Members:"
 	party_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(party_header)
 

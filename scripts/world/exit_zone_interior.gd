@@ -29,7 +29,7 @@ func _ready() -> void:
 	body_exited.connect(_on_body_exited)
 	
 	# Debug: Print our location in scene tree
-	print("✅ Exit zone ready")
+	print("Exit zone ready")
 	print("   Path: ", get_path())
 	print("   Collision layer: ", collision_layer)
 	print("   Collision mask: ", collision_mask)
@@ -50,7 +50,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	
 	if event.is_action_pressed("interact"):
-		print("🚪 Exit zone: E pressed!")
+		print("Exit zone: E pressed!")
 		_do_transition()
 		# Mark input as handled (safely)
 		var vp = get_viewport()
@@ -62,17 +62,17 @@ func _unhandled_input(event: InputEvent) -> void:
 # ZONE DETECTION
 # =============================================================================
 func _on_body_entered(body: Node3D) -> void:
-	print("🔍 Exit zone: Body entered -> ", body.name, " (groups: ", body.get_groups(), ")")
+	print("Exit zone: Body entered -> ", body.name, " (groups: ", body.get_groups(), ")")
 	
 	if body.name == "Player" or body.is_in_group("player"):
 		player_in_zone = true
-		print("✅ Exit zone: PLAYER DETECTED!")
+		print("Exit zone: PLAYER DETECTED!")
 
 
 func _on_body_exited(body: Node3D) -> void:
 	if body.name == "Player" or body.is_in_group("player"):
 		player_in_zone = false
-		print("🚪 Exit zone: Player left")
+		print("Exit zone: Player left")
 
 
 # =============================================================================
@@ -89,7 +89,7 @@ func _physics_process(_delta: float) -> void:
 		if body.name == "Player" or body.is_in_group("player"):
 			if not player_in_zone:
 				player_in_zone = true
-				print("✅ Exit zone: Player detected via overlap check!")
+				print("Exit zone: Player detected via overlap check!")
 			return
 	
 	# If we were in zone but no player found, reset
@@ -105,7 +105,7 @@ func _do_transition() -> void:
 		return
 	
 	transitioning = true
-	print("🚀 Exiting tavern...")
+	print("Exiting tavern...")
 	print("   Target: ", exterior_scene_path)
 	print("   Spawn: ", exterior_spawn_position)
 	

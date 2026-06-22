@@ -47,7 +47,7 @@ func _build_ui():
 	panel.add_child(vbox)
 
 	title_label = Label.new()
-	title_label.text = "☀️ MORNING BRIEFING"
+	title_label.text = "MORNING BRIEFING"
 	title_label.add_theme_font_size_override("font_size", 24)
 	title_label.add_theme_color_override("font_color", Color(0.9, 0.75, 0.4))
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -115,7 +115,7 @@ func show_reports(mission_reports: Array):
 		queue_free()
 		return
 
-	title_label.text = "☀️ MORNING BRIEFING — Day " + str(GameManager.get_day())
+	title_label.text = "MORNING BRIEFING — Day " + str(GameManager.get_day())
 	_show_next_report()
 
 
@@ -124,7 +124,7 @@ func _show_next_report():
 	current_report_index += 1
 
 	if current_report_index >= reports.size():
-		GameManager.log_message("📋 Morning briefing complete. Time to manage the guild.")
+		GameManager.log_message("Morning briefing complete. Time to manage the guild.")
 		queue_free()
 		return
 
@@ -134,7 +134,7 @@ func _show_next_report():
 
 func _display_report(report: Dictionary):
 	"""Show a single mission report"""
-	mission_name_label.text = "📜 " + report.get("mission_name", "Unknown Mission")
+	mission_name_label.text = "" + report.get("mission_name", "Unknown Mission")
 
 	if report.type == "solo":
 		adventurer_label.text = report.get("adventurer_name", "?") + " (" + report.get("adventurer_class", "?") + ")"
@@ -143,14 +143,14 @@ func _display_report(report: Dictionary):
 		adventurer_label.text = "Party of " + str(report.get("party_size", 0)) + ": " + ", ".join(members)
 
 	if report.success:
-		result_label.text = "✅ MISSION SUCCESSFUL"
+		result_label.text = "MISSION SUCCESSFUL"
 		result_label.add_theme_color_override("font_color", Color(0.3, 0.85, 0.4))
 
 		var reward_range = report.get("reward", [0, 0])
 		details_label.text = "Reward earned: " + str(reward_range[0]) + "-" + str(reward_range[1]) + " gold"
 		details_label.text += "\nRoll: " + str(report.roll) + " vs " + str(report.success_chance) + "% chance"
 	else:
-		result_label.text = "💀 MISSION FAILED"
+		result_label.text = "MISSION FAILED"
 		result_label.add_theme_color_override("font_color", Color(0.9, 0.3, 0.3))
 
 		details_label.text = "Roll: " + str(report.roll) + " vs " + str(report.success_chance) + "% chance"
@@ -159,14 +159,14 @@ func _display_report(report: Dictionary):
 			var casualties = report.get("casualties", [])
 			var injured_list = report.get("injured", [])
 			if casualties.size() > 0:
-				details_label.text += "\n☠️ Lost: " + ", ".join(casualties)
+				details_label.text += "\nLost: " + ", ".join(casualties)
 			if injured_list.size() > 0:
-				details_label.text += "\n🩹 Injured: " + ", ".join(injured_list)
+				details_label.text += "\nInjured: " + ", ".join(injured_list)
 		else:
 			if not report.get("alive", true):
-				details_label.text += "\n☠️ " + report.get("adventurer_name", "They") + " did not return."
+				details_label.text += "\n" + report.get("adventurer_name", "They") + " did not return."
 			elif report.get("injured", false):
-				details_label.text += "\n🩹 " + report.get("adventurer_name", "They") + " returned injured."
+				details_label.text += "\n" + report.get("adventurer_name", "They") + " returned injured."
 
 	report_counter.text = "Report " + str(current_report_index + 1) + " of " + str(reports.size())
 

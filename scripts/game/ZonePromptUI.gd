@@ -15,7 +15,7 @@ func _ready():
 	# Set layer high so it appears above game UI
 	layer = 100
 	create_prompt_ui()
-	print("✅ ZonePromptUI singleton ready")
+	print("ZonePromptUI singleton ready")
 
 func create_prompt_ui():
 	"""Create the 2D prompt label"""
@@ -56,7 +56,7 @@ func register_zone(zone: Area3D, prompt_text: String) -> void:
 		return
 	
 	if connected_zones.has(zone):
-		print("⚠️ Zone already registered: ", zone.name)
+		print("Zone already registered: ", zone.name)
 		return
 	
 	# Store zone info
@@ -69,7 +69,7 @@ func register_zone(zone: Area3D, prompt_text: String) -> void:
 	# Clean up when zone is freed
 	zone.tree_exiting.connect(_on_zone_freed.bind(zone))
 	
-	print("✅ Registered zone: ", zone.name, " -> '", prompt_text, "'")
+	print("Registered zone: ", zone.name, " -> '", prompt_text, "'")
 
 func unregister_zone(zone: Area3D) -> void:
 	"""Unregister a zone (call before freeing if needed)"""
@@ -88,7 +88,7 @@ func unregister_zone(zone: Area3D) -> void:
 	if current_zone == zone:
 		hide_prompt()
 	
-	print("🗑️ Unregistered zone: ", zone.name)
+	print("Unregistered zone: ", zone.name)
 
 func show_prompt(text: String) -> void:
 	"""Manually show a prompt (for non-Area3D use cases)"""
@@ -122,7 +122,7 @@ func connect_tavern_zones() -> void:
 	
 	var interactive_parent = get_tree().root.get_node_or_null("Node3D/SubViewportContainer/SubViewport/TavernNavigation/Interactive")
 	if not interactive_parent:
-		print("⚠️ ZonePromptUI: Could not find Interactive parent (not in tavern?)")
+		print("ZonePromptUI: Could not find Interactive parent (not in tavern?)")
 		return
 	
 	var zone_configs = {
@@ -138,9 +138,9 @@ func connect_tavern_zones() -> void:
 		if zone and zone is Area3D:
 			register_zone(zone, zone_configs[zone_name])
 		else:
-			print("⚠️ Could not find tavern zone: ", zone_name)
+			print("Could not find tavern zone: ", zone_name)
 	
-	print("✅ Tavern zones connected")
+	print("Tavern zones connected")
 
 # =============================================================================
 # INTERNAL SIGNAL HANDLERS
@@ -153,7 +153,7 @@ func _on_zone_entered(body: Node3D, zone: Area3D, prompt_text: String) -> void:
 		prompt_label.text = prompt_text
 		prompt_label.visible = true
 		active = true
-		print("🟡 Player entered zone: ", zone.name)
+		print("Player entered zone: ", zone.name)
 
 func _on_zone_exited(body: Node3D, zone: Area3D) -> void:
 	"""Hide prompt when player leaves zone"""
@@ -163,7 +163,7 @@ func _on_zone_exited(body: Node3D, zone: Area3D) -> void:
 			prompt_label.visible = false
 			active = false
 			current_zone = null
-			print("⚪ Player exited zone: ", zone.name)
+			print("Player exited zone: ", zone.name)
 
 func _on_zone_freed(zone: Area3D) -> void:
 	"""Clean up when a zone is freed from tree"""
@@ -171,7 +171,7 @@ func _on_zone_freed(zone: Area3D) -> void:
 		connected_zones.erase(zone)
 		if current_zone == zone:
 			hide_prompt()
-		print("🗑️ Zone freed and cleaned up: ", zone.name if zone else "unknown")
+		print("Zone freed and cleaned up: ", zone.name if zone else "unknown")
 
 func _is_player(body: Node3D) -> bool:
 	"""Check if the body is the player"""
@@ -191,4 +191,4 @@ func clear_all_zones() -> void:
 	"""Call this before scene transitions to clean up"""
 	connected_zones.clear()
 	hide_prompt()
-	print("🧹 All zones cleared")
+	print("All zones cleared")

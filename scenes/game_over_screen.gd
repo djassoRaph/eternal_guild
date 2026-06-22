@@ -15,16 +15,16 @@ func _ready():
 	color_rect.modulate.a = 0.0
 	if main_menu_button and main_menu_button.has_signal("pressed"):
 		main_menu_button.pressed.connect(_on_main_menu_button_pressed)
-		print("✅ Game Over button connected")
+		print("Game Over button connected")
 	else:
-		print("⚠️ Main menu button not found in game over screen")
+		print("Main menu button not found in game over screen")
 	
 	print("GameOverScreen initialized")
 
 
 func show_game_over(reason: String):
 	"""Display game over with fade to black effect"""
-	print("🔴 GAME OVER: ", reason)
+	print("GAME OVER: ", reason)
 	
 	# CRITICAL: Pause the game immediately
 	get_tree().paused = true
@@ -36,8 +36,8 @@ func show_game_over(reason: String):
 	
 	# Set the failure message
 	if message_label:
-		message_label.text = "💔 YOU LOST YOUR TAVERN\n\n" + reason + "\n\nClick below to return to main menu"
-		print("✅ Message set: ", message_label.text)
+		message_label.text = "YOU LOST YOUR TAVERN\n\n" + reason + "\n\nClick below to return to main menu"
+		print("Message set: ", message_label.text)
 	
 	# Fade to black animation
 	await fade_to_black()
@@ -55,7 +55,7 @@ func fade_to_black():
 
 func _on_main_menu_button_pressed():
 	"""Return to main menu"""
-	print("🏠 Returning to main menu...")
+	print("Returning to main menu...")
 	
 	# Unpause the game before changing scenes
 	get_tree().paused = false

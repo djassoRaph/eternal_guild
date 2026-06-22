@@ -10,10 +10,10 @@ func _ready():
 	var card = $SingleMissionCard
 	
 	if card == null:
-		print("❌ ERROR: Card node not found!")
+		print("ERROR: Card node not found!")
 		return
 	
-	print("✅ Card found:", card)
+	print("Card found:", card)
 	
 	var test_mission = {
 		"name": "Clear Slime Nest",
@@ -30,10 +30,10 @@ func _ready():
 	
 	print("before setup", test_mission)
 	await card.setup(test_mission, test_adventurers)
-	print("✅ Setup completed!")
+	print("Setup completed!")
 	
 	card.mission_started.connect(_on_mission_started)
 
 func _on_mission_started(mission, adventurer):
-	print("✅ Mission started: ", mission.name)
-	print("✅ Sent: ", adventurer.name)
+	print("Mission started: ", mission.name)
+	print("Sent: ", adventurer.name)
