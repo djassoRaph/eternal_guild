@@ -36,7 +36,7 @@ func _ready():
 	# Add to player group for easy identification
 	add_to_group("player")
 	
-	print("✅ Player controller ready")
+	print("Player controller ready")
 	print("   Position: ", global_position)
 	print("   Controls: WASD/ZQSD Move | E Interact | Space Jump")
 	
@@ -58,7 +58,7 @@ func _setup_animations():
 		animation_player = _find_animation_player(rogue_model)
 	
 	if animation_player:
-		print("✅ Found AnimationPlayer with animations:")
+		print("Found AnimationPlayer with animations:")
 		for anim_name in animation_player.get_animation_list():
 			print("   - ", anim_name)
 		
@@ -219,7 +219,7 @@ func try_serve_nearby_patron() -> RealisticPatron:
 	if closest.has_method("serve_patron"):
 		var success = closest.serve_patron()
 		if success:
-			print("✅ Served: ", closest.patron_name if closest.get("patron_name") else closest.name)
+			print("Served: ", closest.patron_name if closest.get("patron_name") else closest.name)
 			return closest
 	
 	return null
@@ -262,7 +262,7 @@ func _align_model_to_collision() -> void:
 	if shape is CapsuleShape3D:
 		var capsule_bottom = -shape.height / 2
 		rogue_model.position.y = capsule_bottom
-		print("✅ Model aligned to collision bottom: ", capsule_bottom)
+		print("Model aligned to collision bottom: ", capsule_bottom)
 
 func _disable_model_collision(node: Node) -> void:
 	"""Recursively disable collision on model children to prevent conflicts"""

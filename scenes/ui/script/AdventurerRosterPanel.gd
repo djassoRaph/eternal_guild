@@ -13,7 +13,7 @@ var adventurer_cards: Dictionary = {}
 var is_refreshing: bool = false
 
 func _ready():
-	print("🎯 Adventurer Roster Panel initialized")
+	print("Adventurer Roster Panel initialized")
 	
 	# Connect to GameManager signals
 	if GameManager:
@@ -47,7 +47,7 @@ func show_panel():
 		tween.set_ease(Tween.EASE_OUT)
 		tween.set_trans(Tween.TRANS_CUBIC)
 		tween.tween_property(self, "position:x", 1570, 0.3)
-		print("📂 Opening roster panel")
+		print("Opening roster panel")
 	# If already visible, do nothing (keep it shown)
 
 func hide_panel():
@@ -57,7 +57,7 @@ func hide_panel():
 		tween.set_ease(Tween.EASE_OUT)
 		tween.set_trans(Tween.TRANS_CUBIC)
 		tween.tween_property(self, "position:x", 1920, 0.3)
-		print("📁 Closing roster panel")
+		print("Closing roster panel")
 	# If already hidden, do nothing
 
 
@@ -66,11 +66,11 @@ func refresh_roster():
 	"""Rebuild entire roster from GameManager"""
 	# CRITICAL FIX: Prevent overlapping refreshes
 	if is_refreshing:
-		print("⚠️ Refresh already in progress, skipping...")
+		print("Refresh already in progress, skipping...")
 		return
 	
 	is_refreshing = true
-	print("🔄 Refreshing adventurer roster...")
+	print("Refreshing adventurer roster...")
 	
 	# Clear ALL children from roster_list
 	for child in roster_list.get_children():
@@ -95,7 +95,7 @@ func refresh_roster():
 	
 	# CRITICAL FIX: Release the lock after refresh completes
 	is_refreshing = false
-	print("✅ Roster refresh complete")
+	print("Roster refresh complete")
 
 func _show_empty_roster_message():
 	"""Display message when no adventurers hired"""
@@ -189,7 +189,7 @@ func create_adventurer_card(adventurer: Dictionary):
 		portrait.texture = load(portrait_path)
 	else:
 		# Fallback to colored rectangle (already handled by default)
-		print("⚠️ Portrait not found for class: ", adv_class)
+		print("Portrait not found for class: ", adv_class)
 	
 	# Grey out cards for adventurers who aren't currently Ready
 	var is_ready := false
@@ -203,7 +203,7 @@ func create_adventurer_card(adventurer: Dictionary):
 	# Store card reference
 	adventurer_cards[adventurer_id] = card
 
-	print("✅ Created card for: ", adventurer.get("name"))
+	print("Created card for: ", adventurer.get("name"))
 
 func get_portrait_path(character_class: String) -> String:
 	"""Get portrait file path based on class"""
@@ -212,7 +212,7 @@ func get_portrait_path(character_class: String) -> String:
 
 func _on_roster_changed():
 	"""Called when GameManager adventurer roster changes"""
-	print("🔔 Roster changed signal received!")
+	print("Roster changed signal received!")
 	refresh_roster()
 	show_panel()
 

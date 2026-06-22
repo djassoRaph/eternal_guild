@@ -33,15 +33,15 @@ signal scene_transition_completed(scene_name: String)
 # =============================================================================
 func _ready() -> void:
 	print("========================================")
-	print("🎮 PlayerManager: INITIALIZING...")
+	print("PlayerManager: INITIALIZING...")
 	print("========================================")
 	
 	# Preload player scene if it exists
 	if ResourceLoader.exists(PLAYER_SCENE_PATH):
 		player_scene = load(PLAYER_SCENE_PATH)
-		print("✅ Player scene loaded: ", PLAYER_SCENE_PATH)
+		print("Player scene loaded: ", PLAYER_SCENE_PATH)
 	else:
-		print("⚠️ No Player.tscn at: ", PLAYER_SCENE_PATH)
+		print("No Player.tscn at: ", PLAYER_SCENE_PATH)
 	
 	# Connect to tree signals - multiple methods for reliability
 	get_tree().node_added.connect(_on_node_added)
@@ -50,9 +50,9 @@ func _ready() -> void:
 	# Track current scene
 	if get_tree().current_scene:
 		_last_scene_name = get_tree().current_scene.name
-		print("📍 Initial scene: ", _last_scene_name)
+		print("Initial scene: ", _last_scene_name)
 	
-	print("✅ PlayerManager READY")
+	print("PlayerManager READY")
 	print("========================================")
 
 
@@ -62,20 +62,20 @@ func _ready() -> void:
 func transition_to_scene(scene_path: String, spawn_pos: Vector3 = Vector3.ZERO) -> void:
 	print("")
 	print("========================================")
-	print("🚀 TRANSITION REQUESTED")
+	print("TRANSITION REQUESTED")
 	print("   To: ", scene_path)
 	print("   Spawn: ", spawn_pos)
 	print("========================================")
 	
 	if is_transitioning:
-		print("❌ Already transitioning! Ignoring.")
+		print("Already transitioning! Ignoring.")
 		return
 	
 	# Check scene exists
 	if not ResourceLoader.exists(scene_path):
-		print("❌ ERROR: Scene does not exist: ", scene_path)
+		print("ERROR: Scene does not exist: ", scene_path)
 		return
-	print("✅ Scene file exists")
+	print("Scene file exists")
 	
 	is_transitioning = true
 	
@@ -83,35 +83,35 @@ func transition_to_scene(scene_path: String, spawn_pos: Vector3 = Vector3.ZERO) 
 	if spawn_pos != Vector3.ZERO:
 		pending_spawn_position = spawn_pos
 		has_pending_spawn = true
-		print("📍 Spawn position saved")
+		print("Spawn position saved")
 	
 	# Remove player from current parent
 	if player and is_instance_valid(player):
 		var parent = player.get_parent()
 		if parent:
-			print("📤 Removing player from: ", parent.name)
+			print("Removing player from: ", parent.name)
 			parent.remove_child(player)
 		else:
-			print("⚠️ Player has no parent")
+			print("Player has no parent")
 	else:
-		print("⚠️ No valid player reference")
+		print("No valid player reference")
 	
 	# Clear zones
 	var zui = get_node_or_null("/root/ZonePromptUI")
 	if zui:
 		zui.clear_all_zones()
-		print("🧹 Zones cleared")
+		print("Zones cleared")
 	
 	# DO THE SCENE CHANGE
-	print("🔄 Calling change_scene_to_file()...")
+	print("Calling change_scene_to_file()...")
 	var result = get_tree().change_scene_to_file(scene_path)
-	print("🔄 Result: ", result, " (0 = OK)")
+	print("Result: ", result, " (0 = OK)")
 	
 	if result != OK:
-		print("❌ Scene change FAILED!")
+		print("Scene change FAILED!")
 		is_transitioning = false
 	else:
-		print("✅ Scene change initiated!")
+		print("Scene change initiated!")
 	
 	print("========================================")
 
@@ -121,7 +121,7 @@ func transition_to_scene(scene_path: String, spawn_pos: Vector3 = Vector3.ZERO) 
 # =============================================================================
 func _on_node_added(node: Node) -> void:
 	if node == get_tree().current_scene:
-		print("🔍 Node added is current_scene: ", node.name)
+		print("Node added is current_scene: ", node.name)
 		call_deferred("_handle_new_scene", node)
 
 
@@ -130,7 +130,7 @@ func _on_tree_changed() -> void:
 		return
 	var current = get_tree().current_scene
 	if current and current.name != _last_scene_name:
-		print("🔍 Tree changed, new scene: ", current.name)
+		print("Tree changed, new scene: ", current.name)
 		_last_scene_name = current.name
 		call_deferred("_handle_new_scene", current)
 
@@ -142,7 +142,7 @@ func _process(_delta: float) -> void:
 	
 	var current = get_tree().current_scene
 	if current and current.name != _last_scene_name:
-		print("🔍 Scene change detected via _process: ", current.name)
+		print("Scene change detected via _process: ", current.name)
 		_last_scene_name = current.name
 		call_deferred("_handle_new_scene", current)
 
@@ -153,7 +153,7 @@ func _process(_delta: float) -> void:
 func _handle_new_scene(scene_root: Node) -> void:
 	print("")
 	print("========================================")
-	print("📍 NEW SCENE LOADED: ", scene_root.name)
+	print("NEW SCENE LOADED: ", scene_root.name)
 	print("========================================")
 
 	# Only manage the player in scenes that opt in. The menu and the hex
@@ -161,13 +161,13 @@ func _handle_new_scene(scene_root: Node) -> void:
 	# fall through the void. Scenes that want a player join the
 	# "player_scene" group (set in the editor on the scene root).
 	if not scene_root.is_in_group("player_scene"):
-		print("⏭️  Scene '", scene_root.name, "' is not a player_scene — PlayerManager standing down.")
+		print("Scene '", scene_root.name, "' is not a player_scene — PlayerManager standing down.")
 		is_transitioning = false
 		return
 
 	# Find where to put player
 	var parent_node = _find_player_parent(scene_root)
-	print("📍 Player parent: ", parent_node.get_path() if parent_node else "NONE")
+	print("Player parent: ", parent_node.get_path() if parent_node else "NONE")
 	
 	# Determine spawn position
 	var spawn_pos := Vector3.ZERO
@@ -175,20 +175,20 @@ func _handle_new_scene(scene_root: Node) -> void:
 	if has_pending_spawn:
 		spawn_pos = pending_spawn_position
 		has_pending_spawn = false
-		print("📍 Using pending spawn: ", spawn_pos)
+		print("Using pending spawn: ", spawn_pos)
 	else:
 		var sp = _find_spawn_point(scene_root)
 		if sp:
 			spawn_pos = sp.global_position
-			print("📍 Found spawn point: ", sp.name, " at ", spawn_pos)
+			print("Found spawn point: ", sp.name, " at ", spawn_pos)
 	
 	# Check for existing player in scene
 	var existing = _find_player_in_scene(scene_root)
 	
 	if existing:
-		print("👤 Found existing player in scene")
+		print("Found existing player in scene")
 		if player and player != existing:
-			print("🗑️ Removing duplicate, keeping ours")
+			print("Removing duplicate, keeping ours")
 			if spawn_pos == Vector3.ZERO:
 				spawn_pos = existing.global_position
 			existing.queue_free()
@@ -196,14 +196,14 @@ func _handle_new_scene(scene_root: Node) -> void:
 			# Adopt existing
 			player = existing
 			_setup_player(player)
-			print("✅ Adopted existing player")
+			print("Adopted existing player")
 			is_transitioning = false
 			emit_signal("scene_transition_completed", scene_root.name)
 			return
 	
 	# Add our player to scene
 	if player and is_instance_valid(player):
-		print("📥 Adding player to scene...")
+		print("Adding player to scene...")
 		if parent_node:
 			parent_node.add_child(player)
 		else:
@@ -212,9 +212,9 @@ func _handle_new_scene(scene_root: Node) -> void:
 		if spawn_pos != Vector3.ZERO:
 			player.global_position = spawn_pos
 		
-		print("✅ Player added at: ", player.global_position)
+		print("Player added at: ", player.global_position)
 	else:
-		print("⚠️ No player to add, creating new one...")
+		print("No player to add, creating new one...")
 		player = _create_player(parent_node if parent_node else scene_root, spawn_pos)
 	
 	is_transitioning = false
@@ -276,7 +276,7 @@ func _create_player(parent: Node, pos: Vector3) -> CharacterBody3D:
 	
 	if player_scene:
 		p = player_scene.instantiate()
-		print("✅ Instantiated from Player.tscn")
+		print("Instantiated from Player.tscn")
 	else:
 		p = CharacterBody3D.new()
 		var col = CollisionShape3D.new()
@@ -285,7 +285,7 @@ func _create_player(parent: Node, pos: Vector3) -> CharacterBody3D:
 		shape.height = 1.5
 		col.shape = shape
 		p.add_child(col)
-		print("⚠️ Created basic player (no scene)")
+		print("Created basic player (no scene)")
 	
 	p.name = "Player"
 	parent.add_child(p)

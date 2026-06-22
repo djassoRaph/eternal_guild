@@ -26,7 +26,7 @@ var occupied_tables: Dictionary = {}  # table_index: patron
 var spawn_timer: Timer
 
 func _ready():
-	print("🚀 PatronSpawner initializing...")
+	print("PatronSpawner initializing...")
 	
 	# Set up spawn timer
 	spawn_timer = Timer.new()
@@ -38,7 +38,7 @@ func _ready():
 	# Wait for scene to be ready
 	await get_tree().create_timer(2.0).timeout
 	
-	print("✅ Spawning system ready")
+	print("Spawning system ready")
 	spawn_timer.start()
 	
 	# Spawn first patron
@@ -53,15 +53,15 @@ func _on_spawn_timer_timeout():
 func can_spawn_patron() -> bool:
 	"""Check if we can spawn a new patron"""
 	if active_patrons.size() >= max_patrons:
-		print("⚠️ Max patrons reached (", active_patrons.size(), "/", max_patrons, ")")
+		print("Max patrons reached (", active_patrons.size(), "/", max_patrons, ")")
 		return false
 	
 	if get_available_table() == -1:
-		print("⚠️ No available tables")
+		print("No available tables")
 		return false
 	
 	if GameManager.get_beer() <= 0:
-		print("⚠️ Out of beer!")
+		print("Out of beer!")
 		return false
 	
 	return true
@@ -77,7 +77,7 @@ func spawn_patron():
 	"""Spawn a patron with walking behavior"""
 	var table_index = get_available_table()
 	if table_index == -1:
-		print("❌ No table available")
+		print("No table available")
 		return
 	
 	# Create patron
@@ -103,7 +103,7 @@ func spawn_patron():
 	occupied_tables[table_index] = patron
 	
 	print("🆕 Spawned patron '", patron.patron_name, "' → Table ", table_index)
-	print("🍺 Active: ", active_patrons.size(), "/", max_patrons, " | Tables: ", occupied_tables.size(), "/", table_positions.size())
+	print("Active: ", active_patrons.size(), "/", max_patrons, " | Tables: ", occupied_tables.size(), "/", table_positions.size())
 
 func _on_patron_finished(patron: RealisticPatron):
 	"""Clean up when patron leaves"""
@@ -116,13 +116,13 @@ func _on_patron_finished(patron: RealisticPatron):
 	for table_idx in occupied_tables.keys():
 		if occupied_tables[table_idx] == patron:
 			occupied_tables.erase(table_idx)
-			print("🪑 Table ", table_idx, " is now available")
+			print("Table ", table_idx, " is now available")
 			break
 	
 	# Remove patron from scene
 	patron.queue_free()
 	
-	print("👋 Patron left. Active: ", active_patrons.size(), "/", max_patrons)
+	print("Patron left. Active: ", active_patrons.size(), "/", max_patrons)
 	
 	# Try to spawn replacement
 	if can_spawn_patron() and randf() < 0.7:
@@ -132,7 +132,7 @@ func _on_patron_finished(patron: RealisticPatron):
 
 func _on_patron_wants_service(patron: RealisticPatron):
 	"""Patron signals they want service"""
-	print("🔔 ", patron.patron_name, " wants service!")
+	print("", patron.patron_name, " wants service!")
 	# You can add notification to player here later
 
 # Debug helpers
@@ -144,7 +144,7 @@ func get_available_table_count() -> int:
 
 func despawn_all_patrons():
 	"""Remove all patrons immediately (called when player sleeps)"""
-	print("🌙 Despawning all patrons for night...")
+	print("Despawning all patrons for night...")
 	
 	# Store count for logging
 	var patron_count = active_patrons.size()
@@ -165,5 +165,5 @@ func despawn_all_patrons():
 	active_patrons.clear()
 	occupied_tables.clear()
 	
-	print("✅ Despawned " + str(patron_count) + " patron(s) for the night")
-	print("📊 Active: 0/" + str(max_patrons) + " | Tables: 0/" + str(table_positions.size()))
+	print("Despawned " + str(patron_count) + " patron(s) for the night")
+	print("Active: 0/" + str(max_patrons) + " | Tables: 0/" + str(table_positions.size()))

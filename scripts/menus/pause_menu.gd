@@ -15,33 +15,33 @@ func _ready():
 	# Connect buttons
 	if main_menu_button:
 		main_menu_button.pressed.connect(_on_main_menu_pressed)
-		print("✅ Main Menu button connected")
+		print("Main Menu button connected")
 	else:
-		print("⚠️ Main Menu button not found")
+		print("Main Menu button not found")
 		
 	if load_button:
 		load_button.pressed.connect(_on_load_pressed)
-		print("✅ Load button connected")
+		print("Load button connected")
 	else:
-		print("⚠️ Load button not found")
+		print("Load button not found")
 		
 	if save_button:
 		save_button.pressed.connect(_on_save_pressed)
-		print("✅ Save button connected")
+		print("Save button connected")
 	else:
-		print("⚠️ Save button not found")
+		print("Save button not found")
 		
 	if save_exit_button:
 		save_exit_button.pressed.connect(_on_save_exit_pressed)
-		print("✅ Save & Exit button connected")
+		print("Save & Exit button connected")
 	else:
-		print("⚠️ Save & Exit button not found")
+		print("Save & Exit button not found")
 		
 	if quit_button:
 		quit_button.pressed.connect(_on_quit_pressed)
-		print("✅ Quit button connected")
+		print("Quit button connected")
 	else:
-		print("⚠️ Quit button not found")
+		print("Quit button not found")
 	
 	print("Pause menu initialized with all buttons")
 	
@@ -65,7 +65,7 @@ func _search_for_button(node: Node, button_text: String) -> Button:
 
 func _input(event):
 	if event is InputEventMouseButton:
-		print("🖱️ PAUSE MENU GOT CLICK at: ", event.position)
+		print("PAUSE MENU GOT CLICK at: ", event.position)
 
 func toggle_pause():
 	"""Toggle pause state"""
@@ -73,13 +73,13 @@ func toggle_pause():
 	get_tree().paused = visible
 	
 	if visible:
-		print("⏸️ Game paused")
+		print("Game paused")
 	else:
-		print("▶️ Game resumed")
+		print("Game resumed")
 
 func _on_main_menu_pressed():
 	"""Return to main menu with confirmation"""
-	print("🏠 Main Menu button pressed")
+	print("Main Menu button pressed")
 	show_confirmation(
 		"Return to main menu? Any unsaved progress will be lost.",
 		_return_to_main_menu
@@ -87,14 +87,14 @@ func _on_main_menu_pressed():
 
 func _on_load_pressed():
 	"""Load game from save file"""
-	print("📂 Load button pressed")
+	print("Load button pressed")
 	
 	if not SaveSystem:
-		show_message("❌ Save system not available")
+		show_message("Save system not available")
 		return
 	
 	if not SaveSystem.has_save_file():
-		show_message("❌ No save file found!")
+		show_message("No save file found!")
 		return
 	
 	show_confirmation(
@@ -104,35 +104,35 @@ func _on_load_pressed():
 
 func _on_save_pressed():
 	"""Save current game"""
-	print("💾 Save button pressed")
+	print("Save button pressed")
 	
 	if not SaveSystem:
-		show_message("❌ Save system not available")
+		show_message("Save system not available")
 		return
 	
 	var success = SaveSystem.save_game()
 	if success:
-		show_message("✅ Game saved successfully!")
+		show_message("Game saved successfully!")
 		# Close pause menu after a short delay
 		await get_tree().create_timer(1.0).timeout
 		if visible:  # Only close if still open
 			toggle_pause()
 	else:
-		show_message("❌ Failed to save game")
+		show_message("Failed to save game")
 
 
 func _on_save_exit_pressed():
 	"""Save and exit to main menu"""
-	print("💾🏠 Save & Exit pressed")
+	print("Save & Exit pressed")
 	
 	if SaveSystem:
 		var success = SaveSystem.save_game()
 		if success:
-			show_message("✅ Game saved!")
+			show_message("Game saved!")
 			await get_tree().create_timer(1.0).timeout
 			_return_to_main_menu()
 		else:
-			show_message("❌ Failed to save game\nReturning to menu anyway...")
+			show_message("Failed to save game\nReturning to menu anyway...")
 			await get_tree().create_timer(1.5).timeout
 			_return_to_main_menu()
 	else:
@@ -142,7 +142,7 @@ func _on_save_exit_pressed():
 
 func _on_quit_pressed():
 	"""Quit to desktop with confirmation"""
-	print("👋 Quit button pressed")
+	print("Quit button pressed")
 	show_confirmation(
 		"Quit game?\nAny unsaved progress will be lost.",
 		_quit_game
@@ -151,26 +151,26 @@ func _on_quit_pressed():
 
 func _return_to_main_menu():
 	"""Actually return to main menu"""
-	print("🏠 Returning to main menu...")
+	print("Returning to main menu...")
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
 
 func _load_game():
 	"""Actually load the save file"""
-	print("📂 Loading save file...")
+	print("Loading save file...")
 	
 	if SaveSystem and SaveSystem.load_game():
-		show_message("✅ Game loaded!\nReloading scene...")
+		show_message("Game loaded!\nReloading scene...")
 		await get_tree().create_timer(1.0).timeout
 		# Reload the scene to refresh everything
 		get_tree().paused = false
 		get_tree().reload_current_scene()
 	else:
-		show_message("❌ Failed to load game")
+		show_message("Failed to load game")
 
 func _quit_game():
 	"""Actually quit the application"""
-	print("👋 Quitting game...")
+	print("Quitting game...")
 	get_tree().quit()
 
 # === DIALOG HELPERS ===

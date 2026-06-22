@@ -41,7 +41,7 @@ func _ready():
 	if GameManager.has_signal("day_changed"):
 		GameManager.day_changed.connect(_on_day_changed)
 	else:
-		print("⚠️ GameManager doesn't have day_changed signal!")
+		print("GameManager doesn't have day_changed signal!")
 	
 	# Connect to GameManager fuel changes for visual updates
 	if GameManager.has_signal("fireplace_fuel_changed"):
@@ -54,7 +54,7 @@ func _ready():
 	# Initialize visuals
 	_update_fire_visuals(GameManager.get_fireplace_fuel())
 	
-	print("🔥 Fireplace interaction zone ready - Minigame system active")
+	print("Fireplace interaction zone ready - Minigame system active")
 
 func _process(delta):
 	# Handle state timers
@@ -73,13 +73,13 @@ func _on_player_entered(body):
 	if body.name == "Player":
 		player_nearby = true
 		_show_interaction_prompt()
-		print("🔥 Player near fireplace")
+		print("Player near fireplace")
 
 func _on_player_exited(body):
 	if body.name == "Player":
 		player_nearby = false
 		_hide_interaction_prompt()
-		print("🚶 Player left fireplace")
+		print("Player left fireplace")
 
 func _show_interaction_prompt():
 	"""Show 'E - Manage Fire' prompt"""
@@ -109,12 +109,12 @@ func _on_player_interact():
 	# Check if in cooldown state
 	if current_state == FireplaceState.COOLDOWN:
 		var minutes_left = int(cooldown_remaining / 60.0)
-		GameManager.log_message("😵 Still feeling dizzy from overbreathing... Try again in %d minutes" % minutes_left)
+		GameManager.log_message("Still feeling dizzy from overbreathing... Try again in %d minutes" % minutes_left)
 		return
 	
 	# Check if fire is already burning well
 	if current_state == FireplaceState.BURNING_HIGH:
-		GameManager.log_message("🔥 The fire is roaring nicely! No need to tend it right now.")
+		GameManager.log_message("The fire is roaring nicely! No need to tend it right now.")
 		return
 	
 	# Open minigame for DORMANT, BURNING_LOW, or DYING states
@@ -124,7 +124,7 @@ func _on_player_interact():
 # ===== MINIGAME MANAGEMENT =====
 func _open_minigame():
 	"""Open the fireplace minigame window"""
-	print("🔥 Opening fireplace minigame")
+	print("Opening fireplace minigame")
 	
 	# Instantiate minigame
 	active_minigame = minigame_scene.instantiate()
@@ -148,7 +148,7 @@ func _open_minigame():
 
 func _on_minigame_completed(success: bool, quality: float):
 	"""Handle minigame completion"""
-	print("🔥 Minigame completed - Success: %s, Quality: %.1f" % [success, quality])
+	print("Minigame completed - Success: %s, Quality: %.1f" % [success, quality])
 	
 	# Unpause game
 	get_tree().paused = false
@@ -161,12 +161,12 @@ func _on_minigame_completed(success: bool, quality: float):
 			# High quality fire
 			current_state = FireplaceState.BURNING_HIGH
 			burn_time_remaining = 4.0 * 3600.0  # 4 in-game hours
-			GameManager.log_message("🔥 Perfect! The fire roars to life with beautiful flames!")
+			GameManager.log_message("Perfect! The fire roars to life with beautiful flames!")
 		else:
 			# Moderate quality fire
 			current_state = FireplaceState.BURNING_LOW
 			burn_time_remaining = 3.0 * 3600.0  # 3 in-game hours
-			GameManager.log_message("🔥 Good work! The fire burns steadily.")
+			GameManager.log_message("Good work! The fire burns steadily.")
 		
 		# Update GameManager fuel level (for tip calculations)
 		GameManager.set_fireplace_fuel(fire_quality)
@@ -185,8 +185,8 @@ func _on_minigame_completed(success: bool, quality: float):
 		fire_quality = 0.0
 		GameManager.set_fireplace_fuel(0.0)
 
-		GameManager.log_message("😵 You overexerted yourself! The fire won't light...")
-		GameManager.log_message("💡 Rest for a while before trying again")
+		GameManager.log_message("You overexerted yourself! The fire won't light...")
+		GameManager.log_message("Rest for a while before trying again")
 		
 		# Update visuals to show no fire
 		_update_fire_visuals(0.0)
@@ -212,7 +212,7 @@ func _process_burning(delta):
 			GameManager.set_fireplace_fuel(fire_quality)
 			_update_fire_visuals(fire_quality)
 			state_changed.emit(current_state)
-			GameManager.log_message("🔥 The fire is starting to die down...")
+			GameManager.log_message("The fire is starting to die down...")
 			
 		elif current_state == FireplaceState.BURNING_LOW:
 			# Transition from low to dying
@@ -222,7 +222,7 @@ func _process_burning(delta):
 			GameManager.set_fireplace_fuel(fire_quality)
 			_update_fire_visuals(fire_quality)
 			state_changed.emit(current_state)
-			GameManager.log_message("🔥 The fire needs attention soon!")
+			GameManager.log_message("The fire needs attention soon!")
 
 func _process_dying(delta):
 	"""Process dying state - fire almost out"""
@@ -235,7 +235,7 @@ func _process_dying(delta):
 		GameManager.set_fireplace_fuel(0.0)
 		_update_fire_visuals(0.0)
 		state_changed.emit(current_state)
-		GameManager.log_message("💨 The fire has gone out completely.")
+		GameManager.log_message("The fire has gone out completely.")
 
 func _process_cooldown(delta):
 	"""Process cooldown state - waiting to recover"""
@@ -245,12 +245,12 @@ func _process_cooldown(delta):
 		# Recovered from dizziness
 		current_state = FireplaceState.DORMANT
 		state_changed.emit(current_state)
-		GameManager.log_message("😊 You feel better now. Ready to try lighting the fire again!")
+		GameManager.log_message("You feel better now. Ready to try lighting the fire again!")
 
 # ===== DAY CYCLE INTEGRATION =====
 func _on_day_changed(new_day: int):
 	"""Reset fireplace state on new day — fire goes out overnight"""
-	print("🔥 New day - Fire has gone out overnight")
+	print("New day - Fire has gone out overnight")
 
 	# Reset all state
 	current_state = FireplaceState.DORMANT
@@ -266,7 +266,7 @@ func _on_day_changed(new_day: int):
 
 	state_changed.emit(current_state)
 
-	GameManager.log_message("🔥 The fire has gone out overnight. Light it to earn tips!")
+	GameManager.log_message("The fire has gone out overnight. Light it to earn tips!")
 
 # ===== VISUAL EFFECTS =====
 func _play_ignition_effects():

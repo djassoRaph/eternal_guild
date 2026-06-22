@@ -43,9 +43,9 @@ func _connect_exit_zone() -> void:
 	if exit_zone and exit_zone is Area3D:
 		exit_zone.body_entered.connect(_on_exit_zone_entered)
 		exit_zone.body_exited.connect(_on_exit_zone_exited)
-		print("✅ zone_interactions: Connected to exit zone")
+		print("zone_interactions: Connected to exit zone")
 	else:
-		print("⚠️ zone_interactions: Exit zone not found (this is OK if not in tavern)")
+		print("zone_interactions: Exit zone not found (this is OK if not in tavern)")
 
 
 func _find_node_by_name(root: Node, target: String) -> Node:
@@ -125,7 +125,7 @@ func handle_interaction_priority() -> void:
 		player = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/Player")
 	
 	if not player:
-		print("❌ Player not found!")
+		print("Player not found!")
 		return
 	
 	var served_patron = try_serve_nearby_patron(player)
@@ -165,38 +165,38 @@ func handle_zone_interactions() -> void:
 
 func open_tavern_management() -> void:
 	"""Open beer management popup"""
-	print("🍺 Attempting to open beer popup...")
+	print("Attempting to open beer popup...")
 	var tavern_popup = get_node("/root/Node3D/GameUI/PopupManager/TavernManagementPopup")
 	if tavern_popup:
 		if tavern_popup.visible:
-			print("⚠️ Tavern popup already open!")
+			print("Tavern popup already open!")
 			return
 		
-		print("✅ Calling open_tavern_management...")
+		print("Calling open_tavern_management...")
 		tavern_popup.open_tavern_management()
 		send_log_message("Looking at your stock")
 	else:
-		print("❌ Beer popup not found!")
+		print("Beer popup not found!")
 
 
 func open_mission_board() -> void:
 	"""Open mission board with adventurer check"""
 	
 	if mission_board_open:
-		print("⚠️ Mission board already open!")
+		print("Mission board already open!")
 		return
 	
 	if current_mission_board_instance and is_instance_valid(current_mission_board_instance):
 		if current_mission_board_instance.visible:
-			print("⚠️ Mission board instance already visible!")
+			print("Mission board instance already visible!")
 			return
 		else:
-			print("🧹 Cleaning up invisible mission board instance")
+			print("Cleaning up invisible mission board instance")
 			current_mission_board_instance.queue_free()
 			current_mission_board_instance = null
 	
 	mission_board_open = true
-	print("📋 Opening mission board...")
+	print("Opening mission board...")
 	
 	current_mission_board_instance = WorldMapBoardScene.instantiate()
 	get_tree().root.add_child(current_mission_board_instance)
@@ -207,8 +207,8 @@ func open_mission_board() -> void:
 	
 	var adventurer_count = GameManager.get_adventurer_count()
 	if adventurer_count == 0:
-		send_log_message("❌ You need to hire adventurers before checking the mission board!")
-		send_log_message("💡 Visit the recruitment desk first.")
+		send_log_message("You need to hire adventurers before checking the mission board!")
+		send_log_message("Visit the recruitment desk first.")
 		current_mission_board_instance.queue_free()
 		current_mission_board_instance = null
 		mission_board_open = false
@@ -221,27 +221,27 @@ func open_mission_board() -> void:
 	
 	current_mission_board_instance.board_closed.connect(func():
 		mission_board_open = false
-		print("🔓 Mission board flag reset via board_closed signal")
+		print("Mission board flag reset via board_closed signal")
 	)
 	
 	current_mission_board_instance.tree_exited.connect(func(): 
 		mission_board_open = false
 		current_mission_board_instance = null
-		print("🗑️ Mission board instance destroyed")
+		print("Mission board instance destroyed")
 	)
 
 
 func open_recruitment_desk() -> void:
 	"""Open recruitment desk with duplicate prevention"""
-	print("👥 Opening recruitment desk...")
+	print("Opening recruitment desk...")
 	
 	var recruitment_popup = get_node_or_null("/root/Node3D/GameUI/PopupManager/RecruitmentPopup")
 	if not recruitment_popup:
-		print("❌ Recruitment popup not found!")
+		print("Recruitment popup not found!")
 		return
 	
 	if recruitment_popup.visible:
-		print("⚠️ Recruitment popup already open!")
+		print("Recruitment popup already open!")
 		return
 	
 	recruitment_popup.open_recruitment_desk()
@@ -250,17 +250,17 @@ func open_recruitment_desk() -> void:
 
 func advance_day() -> void:
 	"""Open bedroom popup instead of advancing day directly"""
-	print("🌙 Opening bedroom/quarters...")
+	print("Opening bedroom/quarters...")
 	open_bedroom_popup()
 
 
 func open_bedroom_popup() -> void:
 	"""Open bedroom management popup"""
-	print("🛏️ Attempting to open bedroom popup...")
+	print("Attempting to open bedroom popup...")
 	
 	var bedroom_popup = get_node_or_null("/root/Node3D/GameUI/PopupManager/BedroomPopup")
 	if not bedroom_popup:
-		print("❌ Bedroom popup not found!")
+		print("Bedroom popup not found!")
 		if GameManager.has_method("advance_day"):
 			GameManager.despawn_all_patrons()
 			GameManager.advance_day()
@@ -268,10 +268,10 @@ func open_bedroom_popup() -> void:
 		return
 	
 	if bedroom_popup.visible:
-		print("⚠️ Bedroom popup already open!")
+		print("Bedroom popup already open!")
 		return
 	
-	print("✅ Calling open_bedroom()...")
+	print("Calling open_bedroom()...")
 	bedroom_popup.open_bedroom()
 	send_log_message("Reviewing the day before resting...")
 
@@ -316,7 +316,7 @@ func _on_recruitment_exited(body: Node3D) -> void:
 func _on_nextday_entered(body: Node3D) -> void:
 	if body.name == "Player" or body.is_in_group("player"):
 		player_in_bedroom = true
-		print("✅ Player entered bedroom area - player_in_bedroom =", player_in_bedroom)
+		print("Player entered bedroom area - player_in_bedroom =", player_in_bedroom)
 
 
 func _on_nextday_exited(body: Node3D) -> void:

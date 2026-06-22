@@ -11,7 +11,7 @@ extends CanvasLayer
 # === STATE ===
 var _visible: bool = false
 var _current_tab: int = 0
-var _tab_names: Array = ["📊 State", "💰 Economy", "⚔️ Missions", "👥 NPCs", "💀 Failures"]
+var _tab_names: Array = ["State", "Economy", "Missions", "NPCs", "Failures"]
 var _content_stack: Array = []
 var _state_labels: Dictionary = {}
 
@@ -26,7 +26,7 @@ func _ready() -> void:
 	layer = 100
 	_build_ui()
 	_panel.visible = false
-	print("🛠️ DebugPanel ready — press F12 to toggle")
+	print("DebugPanel ready — press F12 to toggle")
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -54,7 +54,7 @@ func _build_ui() -> void:
 
 	# --- Header ---
 	var header := Label.new()
-	header.text = "🛠️  ETERNAL GUILD — DEBUG PANEL       [F12 closes]"
+	header.text = "ETERNAL GUILD — DEBUG PANEL       [F12 closes]"
 	header.add_theme_font_size_override("font_size", 14)
 	root_vbox.add_child(header)
 	root_vbox.add_child(HSeparator.new())
@@ -136,7 +136,7 @@ func _build_tab_state(parent: VBoxContainer) -> void:
 	_state_labels["mission_detail"] = mission_lbl
 
 	parent.add_child(HSeparator.new())
-	_btn_full(parent, "🔄  Refresh Now", _refresh_state_tab)
+	_btn_full(parent, "Refresh Now", _refresh_state_tab)
 
 func _refresh_state_tab() -> void:
 	if not is_instance_valid(GameManager):
@@ -222,9 +222,9 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "EVENTS")
-	_btn_full(parent, "🏛️  Trigger Tax Event NOW",     _debug_trigger_tax)
-	_btn_full(parent, "🍺  Force Beer Shortage (3d)",   _debug_force_beer_shortage)
-	_btn_full(parent, "♻️  Reset Economy to Start",     _debug_reset_economy)
+	_btn_full(parent, "Trigger Tax Event NOW",     _debug_trigger_tax)
+	_btn_full(parent, "Force Beer Shortage (3d)",   _debug_force_beer_shortage)
+	_btn_full(parent, "Reset Economy to Start",     _debug_reset_economy)
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "JUMP TO DAY")
@@ -236,7 +236,7 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 		btn.pressed.connect(func():
 			GameManager.current_day = target_day
 			GameManager.day_changed.emit(target_day)
-			print("🛠️ Debug: jumped to Day ", target_day)
+			print("Debug: jumped to Day ", target_day)
 		)
 		day_row.add_child(btn)
 
@@ -246,24 +246,24 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 	parent.add_child(tier_row)
 
 	var t2_btn := Button.new()
-	t2_btn.text = "⬆️ Unlock Tier 2"
+	t2_btn.text = "⬆Unlock Tier 2"
 	t2_btn.pressed.connect(func():
 		GameManager.mission_tier_unlocked = 2
 		GameManager.taxes_paid_count = 1
 		GameManager.refresh_available_missions()
-		print("🛠️ Debug: Tier 2 unlocked (taxes_paid_count=1)")
+		print("Debug: Tier 2 unlocked (taxes_paid_count=1)")
 	)
 	tier_row.add_child(t2_btn)
 
 	var t3_btn := Button.new()
-	t3_btn.text = "⬆️ Unlock Tier 3"
+	t3_btn.text = "⬆Unlock Tier 3"
 	t3_btn.pressed.connect(func():
 		GameManager.mission_tier_unlocked = 3
 		GameManager.taxes_paid_count = 2
 		GameManager.tavern_reputation = 50
 		GameManager.total_missions_completed = 10
 		GameManager.refresh_available_missions()
-		print("🛠️ Debug: Tier 3 unlocked (all prerequisites set)")
+		print("Debug: Tier 3 unlocked (all prerequisites set)")
 	)
 	tier_row.add_child(t3_btn)
 
@@ -286,14 +286,14 @@ func _force_fuel(v: float) -> void:
 func _debug_trigger_tax() -> void:
 	if GameManager.has_method("process_tax_day"):
 		GameManager.process_tax_day()
-		print("🛠️ Tax event triggered")
+		print("Tax event triggered")
 	else:
-		print("⚠️  GameManager.process_tax_day() not yet implemented")
+		print("GameManager.process_tax_day() not yet implemented")
 
 func _debug_force_beer_shortage() -> void:
 	_force_beer(0)
 	GameManager.beer_shortage_days = 3
-	print("🛠️ Beer shortage forced — shortage_days = 3")
+	print("Beer shortage forced — shortage_days = 3")
 
 func _debug_reset_economy() -> void:
 	_force_gold(1000)
@@ -302,7 +302,7 @@ func _debug_reset_economy() -> void:
 	_force_fuel(0.5)
 	GameManager.beer_shortage_days = 0
 	GameManager.daily_operating_cost = 5
-	print("🛠️ Economy reset to Day 1 starting values")
+	print("Economy reset to Day 1 starting values")
 
 # ============================================================
 # TAB 2 — MISSION CONTROL
@@ -310,11 +310,11 @@ func _debug_reset_economy() -> void:
 
 func _build_tab_missions(parent: VBoxContainer) -> void:
 	_h(parent, "MISSION CONTROL")
-	_btn_full(parent, "🎲  Force Generate New Missions",        _debug_gen_missions)
-	_btn_full(parent, "✅  Complete All Active — SUCCESS",       func(): _debug_complete_all("success"))
-	_btn_full(parent, "💀  Complete All Active — FAILURE",       func(): _debug_complete_all("failure"))
-	_btn_full(parent, "🎰  Complete All Active — RANDOM",        _debug_complete_random)
-	_btn_full(parent, "⏩  Simulate Day End (no sleep anim)",    _debug_simulate_day_end)
+	_btn_full(parent, "Force Generate New Missions",        _debug_gen_missions)
+	_btn_full(parent, "Complete All Active — SUCCESS",       func(): _debug_complete_all("success"))
+	_btn_full(parent, "Complete All Active — FAILURE",       func(): _debug_complete_all("failure"))
+	_btn_full(parent, "Complete All Active — RANDOM",        _debug_complete_random)
+	_btn_full(parent, "Simulate Day End (no sleep anim)",    _debug_simulate_day_end)
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "TIER UNLOCK")
@@ -342,37 +342,37 @@ func _debug_gen_missions() -> void:
 		for m in missions:
 			lines.append("• " + m.get("name", m.get("title", "Unknown")))
 		_state_labels["avail_missions"].text = "\n".join(lines)
-	print("🛠️ Missions regenerated: ", missions.size())
+	print("Missions regenerated: ", missions.size())
 
 func _debug_complete_all(result: String) -> void:
 	if GameManager.active_missions.is_empty():
-		print("⚠️  No active missions to resolve")
+		print("No active missions to resolve")
 		return
 	for m in GameManager.active_missions.duplicate():
 		if GameManager.has_method("resolve_mission"):
 			GameManager.resolve_mission(m, result)
 		else:
-			print("⚠️  GameManager.resolve_mission() not yet implemented — wire it up when mission system is ready")
+			print("GameManager.resolve_mission() not yet implemented — wire it up when mission system is ready")
 			break
-	print("🛠️ All missions forced → ", result.to_upper())
+	print("All missions forced → ", result.to_upper())
 
 func _debug_complete_random() -> void:
 	for m in GameManager.active_missions.duplicate():
 		var result := "success" if randf() > 0.5 else "failure"
 		if GameManager.has_method("resolve_mission"):
 			GameManager.resolve_mission(m, result)
-	print("🛠️ All missions resolved randomly")
+	print("All missions resolved randomly")
 
 func _debug_set_tier(tier: int) -> void:
 	GameManager.mission_tier_unlocked = tier
-	print("🛠️ Mission tier set to ", tier)
+	print("Mission tier set to ", tier)
 
 func _debug_simulate_day_end() -> void:
 	if GameManager.has_method("advance_day"):
 		GameManager.advance_day()
-		print("🛠️ Day end simulated — now Day ", GameManager.current_day)
+		print("Day end simulated — now Day ", GameManager.current_day)
 	else:
-		print("⚠️  GameManager.advance_day() not found")
+		print("GameManager.advance_day() not found")
 
 # ============================================================
 # TAB 3 — NPC SANDBOX
@@ -385,36 +385,36 @@ func _build_tab_npcs(parent: VBoxContainer) -> void:
 	_btn(spawn_row, "Spawn 1",    func(): _debug_spawn_patrons(1))
 	_btn(spawn_row, "Spawn 5",    func(): _debug_spawn_patrons(5))
 	_btn(spawn_row, "Spawn 10",   func(): _debug_spawn_patrons(10))
-	_btn_full(parent, "🚫  Despawn All Patrons", _debug_despawn_all)
+	_btn_full(parent, "Despawn All Patrons", _debug_despawn_all)
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "ADVENTURER ROSTER")
-	_btn_full(parent, "➕  Add Random Adventurer",  _debug_add_adventurer)
-	_btn_full(parent, "➕  Fill Roster to Max",       _debug_fill_roster)
-	_btn_full(parent, "🗑️   Clear Entire Roster",     _debug_clear_roster)
+	_btn_full(parent, "Add Random Adventurer",  _debug_add_adventurer)
+	_btn_full(parent, "Fill Roster to Max",       _debug_fill_roster)
+	_btn_full(parent, "Clear Entire Roster",     _debug_clear_roster)
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "RECRUITMENT")
-	_btn_full(parent, "🔄  Refresh Daily Recruits", _debug_refresh_recruits)
+	_btn_full(parent, "Refresh Daily Recruits", _debug_refresh_recruits)
 
 func _debug_spawn_patrons(count: int) -> void:
 	var tavern := _find_main_tavern()
 	if tavern and tavern.has_method("spawn_patron"):
 		for i in range(count):
 			tavern.spawn_patron()
-		print("🛠️ Spawned ", count, " patron(s) via MainTavern")
+		print("Spawned ", count, " patron(s) via MainTavern")
 	elif GameManager.has_method("spawn_patron"):
 		for i in range(count):
 			GameManager.spawn_patron()
 	else:
-		print("⚠️  No spawn_patron() found on MainTavern or GameManager — add the group 'main_tavern' to your scene root")
+		print("No spawn_patron() found on MainTavern or GameManager — add the group 'main_tavern' to your scene root")
 
 func _debug_despawn_all() -> void:
 	if GameManager.has_method("despawn_all_patrons"):
 		GameManager.despawn_all_patrons()
-		print("🛠️ All patrons despawned")
+		print("All patrons despawned")
 	else:
-		print("⚠️  GameManager.despawn_all_patrons() not found")
+		print("GameManager.despawn_all_patrons() not found")
 
 func _debug_add_adventurer() -> void:
 	var dummy := {
@@ -429,28 +429,28 @@ func _debug_add_adventurer() -> void:
 		dummy = DataManager.generate_adventurer()
 	GameManager.adventurers.append(dummy)
 	GameManager.adventurer_roster_changed.emit()
-	print("🛠️ Added adventurer: ", dummy.get("name", "?"))
+	print("Added adventurer: ", dummy.get("name", "?"))
 
 func _debug_fill_roster() -> void:
 	var slots := GameManager.max_adventurers - GameManager.adventurers.size()
 	for i in range(slots):
 		_debug_add_adventurer()
-	print("🛠️ Roster filled to max (", GameManager.max_adventurers, ")")
+	print("Roster filled to max (", GameManager.max_adventurers, ")")
 
 func _debug_clear_roster() -> void:
 	GameManager.adventurers.clear()
 	GameManager.adventurer_roster_changed.emit()
-	print("🛠️ Roster cleared")
+	print("Roster cleared")
 
 func _debug_refresh_recruits() -> void:
 	if GameManager.has_method("refresh_recruitment"):
 		GameManager.refresh_recruitment()
-		print("🛠️ Recruitment pool refreshed via GameManager")
+		print("Recruitment pool refreshed via GameManager")
 	elif DataManager.has_method("generate_daily_recruits"):
 		DataManager.generate_daily_recruits()
-		print("🛠️ Recruitment pool refreshed via DataManager")
+		print("Recruitment pool refreshed via DataManager")
 	else:
-		print("⚠️  No refresh_recruitment() found")
+		print("No refresh_recruitment() found")
 
 # ============================================================
 # TAB 4 — FAILURE STATE TESTING
@@ -460,26 +460,26 @@ func _build_tab_failures(parent: VBoxContainer) -> void:
 	_h(parent, "FAILURE STATE TESTING")
 
 	var warn := Label.new()
-	warn.text = "⚠️  These intentionally break the game. Save first."
+	warn.text = "These intentionally break the game. Save first."
 	warn.add_theme_color_override("font_color", Color(1.0, 0.6, 0.1))
 	parent.add_child(warn)
 	parent.add_child(HSeparator.new())
 
-	_btn_full(parent, "💸  Game Over: Bankruptcy",              _go_bankruptcy)
-	_btn_full(parent, "🍺  Game Over: Beer Shortage (3 days)",  _go_beer_shortage)
-	_btn_full(parent, "💀  Game Over: All Adventurers Dead",    _go_all_dead)
-	_btn_full(parent, "🏴  Game Over: Direct Generic Trigger",  _go_direct)
+	_btn_full(parent, "Game Over: Bankruptcy",              _go_bankruptcy)
+	_btn_full(parent, "Game Over: Beer Shortage (3 days)",  _go_beer_shortage)
+	_btn_full(parent, "Game Over: All Adventurers Dead",    _go_all_dead)
+	_btn_full(parent, "Game Over: Direct Generic Trigger",  _go_direct)
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "RECOVERY")
-	_btn_full(parent, "♻️  Full Reset → Day 1 Starting State",  _full_reset)
+	_btn_full(parent, "Full Reset → Day 1 Starting State",  _full_reset)
 
 func _go_bankruptcy() -> void:
 	_force_gold(0)
 	GameManager.daily_operating_cost = 9999
 	if GameManager.has_method("advance_day"):
 		GameManager.advance_day()
-	print("🛠️ Bankruptcy scenario triggered")
+	print("Bankruptcy scenario triggered")
 
 func _go_beer_shortage() -> void:
 	_force_beer(0)
@@ -488,20 +488,20 @@ func _go_beer_shortage() -> void:
 		GameManager.check_game_over_conditions()
 	elif GameManager.has_method("trigger_game_over"):
 		GameManager.trigger_game_over("beer_shortage", "The tavern ran dry for three days. Patrons went elsewhere.")
-	print("🛠️ Beer shortage game over triggered")
+	print("Beer shortage game over triggered")
 
 func _go_all_dead() -> void:
 	GameManager.adventurers.clear()
 	GameManager.adventurer_roster_changed.emit()
 	if GameManager.has_method("trigger_game_over"):
 		GameManager.trigger_game_over("no_adventurers", "Every adventurer under your banner has perished.")
-	print("🛠️ All adventurers killed, game over triggered")
+	print("All adventurers killed, game over triggered")
 
 func _go_direct() -> void:
 	if GameManager.has_method("trigger_game_over"):
 		GameManager.trigger_game_over("test_game_over", "DEBUG: Manual game over trigger.")
 	else:
-		print("⚠️  GameManager.trigger_game_over() not found")
+		print("GameManager.trigger_game_over() not found")
 
 func _full_reset() -> void:
 	_force_gold(1000)
@@ -518,7 +518,7 @@ func _full_reset() -> void:
 	GameManager.active_missions.clear()
 	GameManager.day_changed.emit(1)
 	GameManager.adventurer_roster_changed.emit()
-	print("🛠️ Full reset — Day 1 starting state restored")
+	print("Full reset — Day 1 starting state restored")
 
 # ============================================================
 # SHARED HELPERS

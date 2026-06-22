@@ -28,7 +28,7 @@ func _ready():
 	# Register with ZonePromptUI singleton
 	_register_with_prompt_ui()
 	
-	print("✅ Entrance zone (exterior) ready")
+	print("Entrance zone (exterior) ready")
 
 func _register_with_prompt_ui():
 	"""Register this zone with the ZonePromptUI singleton"""
@@ -38,7 +38,7 @@ func _register_with_prompt_ui():
 	var zone_ui = get_node_or_null("/root/ZonePromptUI")
 	if zone_ui and zone_ui.has_method("register_zone"):
 		zone_ui.register_zone(self, prompt_text)
-		print("✅ Entrance zone registered with ZonePromptUI")
+		print("Entrance zone registered with ZonePromptUI")
 	else:
 		push_warning("EntranceZone: ZonePromptUI singleton not found!")
 
@@ -58,7 +58,7 @@ func _process(_delta: float) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if _is_player(body):
 		player_in_zone = true
-		print("🚪 Player at tavern entrance - Press E to enter")
+		print("Player at tavern entrance - Press E to enter")
 
 func _on_body_exited(body: Node3D) -> void:
 	if _is_player(body):
@@ -77,7 +77,7 @@ func _enter_tavern() -> void:
 		return
 	
 	is_transitioning = true
-	print("🚀 Entering tavern...")
+	print("Entering tavern...")
 	print("   Path: ", interior_scene_path)
 	print("   Spawn: ", interior_spawn_position)
 	
@@ -87,7 +87,7 @@ func _enter_tavern() -> void:
 		pm.transition_to_scene(interior_scene_path, interior_spawn_position)
 	else:
 		# Fallback: direct scene change
-		print("⚠️ PlayerManager not found, using direct scene change")
+		print("PlayerManager not found, using direct scene change")
 		_fallback_transition()
 
 func _fallback_transition() -> void:

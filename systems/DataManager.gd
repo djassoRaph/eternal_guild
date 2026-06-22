@@ -193,7 +193,7 @@ func generate_daily_missions(count: int = 6, settlement_type: String = "default"
 	var selected_missions = []
 	
 	if not mission_types.has("mission_templates"):
-		print("❌ Mission templates not loaded!")
+		print("Mission templates not loaded!")
 		return get_fallback_missions(count)
 	
 	var templates = mission_types["mission_templates"]
@@ -226,7 +226,7 @@ func generate_daily_missions(count: int = 6, settlement_type: String = "default"
 	
 	selected_missions.shuffle()
 	
-	print("✅ Generated ", selected_missions.size(), " varied missions for settlement type: ", settlement_type)
+	print("Generated ", selected_missions.size(), " varied missions for settlement type: ", settlement_type)
 	return selected_missions
 
 func get_available_categories(settlement_type: String) -> Array:
@@ -424,7 +424,7 @@ func generate_daily_missions_with_tiers(count: int = 6, max_tier: int = 1) -> Ar
 	var selected_missions = []
 	
 	if not mission_types.has("mission_templates"):
-		print("❌ Mission templates not loaded!")
+		print("Mission templates not loaded!")
 		return get_fallback_missions(count)
 	
 	var templates = mission_types["mission_templates"]
@@ -435,7 +435,7 @@ func generate_daily_missions_with_tiers(count: int = 6, max_tier: int = 1) -> Ar
 	)
 	
 	if available_templates.size() == 0:
-		print("⚠️ No missions available for current tier level!")
+		print("No missions available for current tier level!")
 		return []
 	
 	# Shuffle and select missions
@@ -446,7 +446,7 @@ func generate_daily_missions_with_tiers(count: int = 6, max_tier: int = 1) -> Ar
 		add_mission_variety(mission)
 		selected_missions.append(mission)
 	
-	print("✅ Generated ", selected_missions.size(), " missions (Max Tier: ", max_tier, ")")
+	print("Generated ", selected_missions.size(), " missions (Max Tier: ", max_tier, ")")
 	return selected_missions
 
 

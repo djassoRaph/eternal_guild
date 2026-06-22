@@ -18,7 +18,7 @@ var adventurer_buttons: Array = []
 signal mission_started(mission: Dictionary, adventurers: Array)
 
 func _ready():
-	print("✅ Party mission card _ready() called")
+	print("Party mission card _ready() called")
 	send_button.pressed.connect(_on_send_button_pressed)
 
 func setup(test_mission: Dictionary, adventurers: Array):
@@ -29,7 +29,7 @@ func setup(test_mission: Dictionary, adventurers: Array):
 	if not is_node_ready():
 		await ready
 	
-	print("🎯 Setting up party mission: ", test_mission.get("name", "Unknown"))
+	print("Setting up party mission: ", test_mission.get("name", "Unknown"))
 	
 	# Populate mission info
 	mission_name_label.text = test_mission.get("name", "Unknown Mission")
@@ -37,7 +37,7 @@ func setup(test_mission: Dictionary, adventurers: Array):
 	
 	var min_reward = test_mission.get("reward_range", [0, 0])[0]
 	var max_reward = test_mission.get("reward_range", [0, 0])[1]
-	reward_label.text = "💰 Reward: " + str(min_reward) + "-" + str(max_reward) + " gold"
+	reward_label.text = "Reward: " + str(min_reward) + "-" + str(max_reward) + " gold"
 	
 	var danger = test_mission.get("danger", 1)
 	danger_label.text = get_danger_text(danger)
@@ -46,16 +46,16 @@ func setup(test_mission: Dictionary, adventurers: Array):
 	# Get required party size
 	var raw = test_mission.get("party_required", 2)
 	var party_size: int = 2 if raw is bool else maxi(2, int(raw))
-	required_label.text = "👥 Requires: " + str(party_size) + " adventurers"
+	required_label.text = "Requires: " + str(party_size) + " adventurers"
 	
 	# Create selection buttons for each adventurer
 	populate_adventurer_buttons(party_size)
 	
-	print("✅ Party mission ready - need ", party_size, " adventurers")
+	print("Party mission ready - need ", party_size, " adventurers")
 
 func populate_adventurer_buttons(party_size: int):
 	"""Create toggle buttons for each available adventurer"""
-	print("🔘 Creating ", available_adventurers.size(), " adventurer buttons")
+	print("Creating ", available_adventurers.size(), " adventurer buttons")
 	
 	# Clear existing buttons
 	for child in adventurer_buttons_container.get_children():
@@ -65,7 +65,7 @@ func populate_adventurer_buttons(party_size: int):
 	
 	if available_adventurers.size() == 0:
 		var no_adventurers = Label.new()
-		no_adventurers.text = "⚠️ No adventurers available"
+		no_adventurers.text = "No adventurers available"
 		adventurer_buttons_container.add_child(no_adventurers)
 		return
 	
@@ -80,9 +80,9 @@ func populate_adventurer_buttons(party_size: int):
 
 		adventurer_buttons.append(btn)
 		adventurer_buttons_container.add_child(btn)
-		print("   ✓ Added button for: ", adv.get("name"))
+		print("   Added button for: ", adv.get("name"))
 	
-	print("✅ Buttons ready - select ", party_size, " to continue")
+	print("Buttons ready - select ", party_size, " to continue")
 
 func _on_adventurer_button_toggled(is_pressed: bool, index: int, btn: Button):
 	var adv = available_adventurers[index]
@@ -97,22 +97,22 @@ func _on_adventurer_button_toggled(is_pressed: bool, index: int, btn: Button):
 		btn.modulate = Color.WHITE
 
 	# Update selection display
-	selection_label.text = "👤 Selected: " + str(selected_adventurers.size()) + " / " + str(party_size)
+	selection_label.text = "Selected: " + str(selected_adventurers.size()) + " / " + str(party_size)
 	send_button.disabled = selected_adventurers.size() != party_size
 
 	if selected_adventurers.size() == party_size:
-		send_button.text = "🗡️ Send Party (" + str(selected_adventurers.size()) + ")"
-		print("✅ Party ready! Can send mission now")
+		send_button.text = "Send Party (" + str(selected_adventurers.size()) + ")"
+		print("Party ready! Can send mission now")
 	else:
-		send_button.text = "🗡️ Send Party"
+		send_button.text = "Send Party"
 
 func _on_send_button_pressed():
 	"""Handle send button press"""
 	if selected_adventurers.size() == 0:
-		print("❌ No adventurers selected!")
+		print("No adventurers selected!")
 		return
 	
-	print("🚀 Party mission started with ", selected_adventurers.size(), " adventurers")
+	print("Party mission started with ", selected_adventurers.size(), " adventurers")
 	for adv in selected_adventurers:
 		print("   - ", adv.get("name"))
 	
@@ -155,12 +155,12 @@ func calculate_party_success_chance() -> int:
 
 func get_danger_text(danger: int) -> String:
 	match danger:
-		1: return "⚪ Safe"
-		2: return "🟡 Low Risk"
-		3: return "🟠 Moderate"
-		4: return "🔴 Dangerous"
-		5: return "🟣 Extreme"
-		_: return "❓ Unknown"
+		1: return "Safe"
+		2: return "Low Risk"
+		3: return "Moderate"
+		4: return "Dangerous"
+		5: return "Extreme"
+		_: return "Unknown"
 
 func get_danger_color(danger: int) -> Color:
 	match danger:

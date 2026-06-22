@@ -14,7 +14,7 @@ signal load_completed(success: bool)
 signal autosave_triggered()
 
 func _ready():
-	print("💾 SaveSystem initialized")
+	print("SaveSystem initialized")
 	setup_autosave_timer()
 	
 	# Connect to GameManager for automatic save triggers
@@ -29,7 +29,7 @@ func setup_autosave_timer():
 	autosave_timer.timeout.connect(_on_autosave_timer_timeout)
 	autosave_timer.autostart = true
 	add_child(autosave_timer)
-	print("⏰ Autosave timer configured (", AUTOSAVE_INTERVAL, " seconds)")
+	print("Autosave timer configured (", AUTOSAVE_INTERVAL, " seconds)")
 
 func _on_autosave_timer_timeout():
 	"""Trigger autosave"""
@@ -66,7 +66,7 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	save_in_progress = true
 	
 	if not silent:
-		print("💾 Saving game state...")
+		print("Saving game state...")
 	
 	# Create backup of existing save
 	create_save_backup()
@@ -93,14 +93,14 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	
 	if success:
 		if not silent:
-			print("✅ Game saved successfully (", save_type, ")")
+			print("Game saved successfully (", save_type, ")")
 			if GameManager.has_method("log_message"):
-				GameManager.log_message("💾 Game saved")
+				GameManager.log_message("Game saved")
 	else:
 		if not silent:
-			print("❌ Save failed!")
+			print("Save failed!")
 		if GameManager.has_method("log_message"):
-			GameManager.log_message("💾 Save failed - check permissions")
+			GameManager.log_message("Save failed - check permissions")
 	
 	return success
 
@@ -152,43 +152,43 @@ func write_save_file(filepath: String, data: Dictionary) -> bool:
 
 func read_save_file(filepath: String) -> Dictionary:
 	"""Read and parse save file - IMPROVED WITH DEBUG"""
-	print("🔍 Attempting to read: ", filepath)
+	print("Attempting to read: ", filepath)
 	
 	if not FileAccess.file_exists(filepath):
-		print("❌ File does not exist: ", filepath)
+		print("File does not exist: ", filepath)
 		return {}
 	
 	var file = FileAccess.open(filepath, FileAccess.READ)
 	if file == null:
 		var error = FileAccess.get_open_error()
-		print("❌ Cannot open save file. Error code: ", error)
+		print("Cannot open save file. Error code: ", error)
 		return {}
 	
 	var json_text = file.get_as_text()
 	file.close()
 	
 	if json_text.is_empty():
-		print("❌ Save file is empty")
+		print("Save file is empty")
 		return {}
 	
-	print("✅ File content length: ", json_text.length(), " characters")
+	print("File content length: ", json_text.length(), " characters")
 	print("   First 100 chars: ", json_text.substr(0, 100))
 	
 	var json = JSON.new()
 	var parse_result = json.parse(json_text)
 	
 	if parse_result != OK:
-		print("❌ JSON parse error at line ", json.get_error_line())
+		print("JSON parse error at line ", json.get_error_line())
 		print("   Error message: ", json.get_error_message())
 		return {}
 	
 	var data = json.data
 	
 	if not data is Dictionary:
-		print("❌ Parsed data is not a Dictionary, it's: ", typeof(data))
+		print("Parsed data is not a Dictionary, it's: ", typeof(data))
 		return {}
 	
-	print("✅ JSON parsed successfully")
+	print("JSON parsed successfully")
 	return data
 # === BACKUP SYSTEM ===
 
@@ -232,34 +232,34 @@ func restore_from_backup(backup_number: int = 1) -> bool:
 
 func validate_save_data(data: Dictionary) -> bool:
 	"""Validate save data integrity"""
-	print("🔍 Validating save data...")
+	print("Validating save data...")
 	
 	var required_fields = ["current_day", "gold", "beer_stock", "adventurers"]
 	
 	for field in required_fields:
 		if not data.has(field):
-			print("❌ Missing required field: ", field)
+			print("Missing required field: ", field)
 			return false
-		print("   ✅ Found: ", field, " = ", data[field])
+		print("   Found: ", field, " = ", data[field])
 	
 	# Accept both int and float for numeric values
 	if not (data["current_day"] is int or data["current_day"] is float):
-		print("❌ current_day is not numeric: ", typeof(data["current_day"]))
+		print("current_day is not numeric: ", typeof(data["current_day"]))
 		return false
 	
 	if int(data["current_day"]) < 1:
-		print("❌ Invalid day value: ", data["current_day"])
+		print("Invalid day value: ", data["current_day"])
 		return false
 	
 	if not (data["gold"] is int or data["gold"] is float):
-		print("❌ gold is not numeric: ", typeof(data["gold"]))
+		print("gold is not numeric: ", typeof(data["gold"]))
 		return false
 	
 	if not data["adventurers"] is Array:
-		print("❌ adventurers is not Array: ", typeof(data["adventurers"]))
+		print("adventurers is not Array: ", typeof(data["adventurers"]))
 		return false
 	
-	print("✅ Save data validation passed")
+	print("Save data validation passed")
 	return true
 
 # === UTILITY FUNCTIONS ===
@@ -333,7 +333,7 @@ func print_save_debug():
 
 func force_save():
 	"""Debug function to force immediate save"""
-	print("🔧 DEBUG: Force saving...")
+	print("DEBUG: Force saving...")
 	save_game_state("debug_save")
 
 func export_save_data() -> String:

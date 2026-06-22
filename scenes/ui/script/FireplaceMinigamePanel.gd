@@ -65,56 +65,56 @@ var placement_tolerance: float = 80.0  # Generous for MVP
 
 # ===== INITIALIZATION =====
 func _ready():
-	print("🔥 Fireplace minigame initializing...")
+	print("Fireplace minigame initializing...")
 	
 	# Debug: Check if all nodes exist
 	if not fireplace_drop_zone:
-		print("❌ ERROR: fireplace_drop_zone not found!")
+		print("ERROR: fireplace_drop_zone not found!")
 	if not log_container:
-		print("❌ ERROR: log_container not found!")
+		print("ERROR: log_container not found!")
 	if not pump_gauge_container:
-		print("❌ ERROR: pump_gauge_container not found!")
+		print("ERROR: pump_gauge_container not found!")
 	if not pump_indicator:
-		print("❌ ERROR: pump_indicator not found!")
+		print("ERROR: pump_indicator not found!")
 	if not green_zone:
-		print("❌ ERROR: green_zone not found!")
+		print("ERROR: green_zone not found!")
 	if not pump_click_area:
-		print("❌ ERROR: pump_click_area not found!")
+		print("ERROR: pump_click_area not found!")
 	if not lungs_bar:
-		print("❌ ERROR: lungs_bar not found!")
+		print("ERROR: lungs_bar not found!")
 	if not ignition_bar:
-		print("❌ ERROR: ignition_bar not found!")
+		print("ERROR: ignition_bar not found!")
 	if not status_label:
-		print("❌ ERROR: status_label not found!")
+		print("ERROR: status_label not found!")
 	if not close_button:
-		print("❌ ERROR: close_button not found!")
+		print("ERROR: close_button not found!")
 	if not start_button:
-		print("❌ ERROR: start_button not found!")
+		print("ERROR: start_button not found!")
 	
-	print("✅ All nodes loaded successfully!")
+	print("All nodes loaded successfully!")
 	
 	# Setup buttons with error checking
 	if close_button:
-		print("🔘 Connecting close button...")
+		print("Connecting close button...")
 		close_button.pressed.connect(_on_close_button_pressed)
-		print("✅ Close button connected")
+		print("Close button connected")
 	else:
-		print("❌ Close button not found!")
+		print("Close button not found!")
 	
 	if start_button:
-		print("🔘 Connecting start button...")
+		print("Connecting start button...")
 		start_button.pressed.connect(_on_start_pumping_pressed)
-		print("✅ Start button connected")
+		print("Start button connected")
 	else:
-		print("❌ Start button not found!")
+		print("Start button not found!")
 	
 	if pump_click_area:
-		print("🔘 Connecting pump area...")
+		print("Connecting pump area...")
 		pump_click_area.button_down.connect(_on_pump_button_down)
 		pump_click_area.button_up.connect(_on_pump_button_up)
-		print("✅ Pump area connected")
+		print("Pump area connected")
 	else:
-		print("❌ Pump click area not found!")
+		print("Pump click area not found!")
 	
 	# Make logs draggable
 	_setup_draggable_logs()
@@ -125,13 +125,13 @@ func _ready():
 	# Initial state
 	_update_status("Drag logs into the fireplace (need at least 2)")
 	
-	print("🔥 Fireplace minigame ready!")
+	print("Fireplace minigame ready!")
 
 func _input(event):
 	"""Handle all input - manual hit detection for logs since gui_input doesn't work on TextureRect"""
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = get_global_mouse_position()
-		print("🖱️ Mouse click detected at: ", mouse_pos, " pressed: ", event.pressed)
+		print("Mouse click detected at: ", mouse_pos, " pressed: ", event.pressed)
 		
 		if event.pressed:
 			# Check if clicking on a log or button
@@ -143,7 +143,7 @@ func _input(event):
 				_stop_dragging_log(mouse_pos)
 			elif is_pumping:
 				# Stop pumping
-				print("💨 MANUALLY DETECTED PUMP RELEASE - Stopping pump!")
+				print("MANUALLY DETECTED PUMP RELEASE - Stopping pump!")
 				_on_pump_button_up()
 		
 		# CRITICAL: Don't consume the event so buttons can still work!
@@ -156,7 +156,7 @@ func _check_log_click(click_pos: Vector2):
 	if current_state == MinigameState.PUMPING and pump_gauge_container:
 		var gauge_rect = pump_gauge_container.get_global_rect()
 		if gauge_rect.has_point(click_pos):
-			print("🎯 MANUALLY DETECTED PUMP GAUGE CLICK - Starting pump!")
+			print("MANUALLY DETECTED PUMP GAUGE CLICK - Starting pump!")
 			_on_pump_button_down()
 			return
 	
@@ -164,7 +164,7 @@ func _check_log_click(click_pos: Vector2):
 	if start_button and not start_button.disabled:
 		var button_rect = start_button.get_global_rect()
 		if button_rect.has_point(click_pos):
-			print("🎯 MANUALLY DETECTED START BUTTON CLICK!")
+			print("MANUALLY DETECTED START BUTTON CLICK!")
 			_on_start_pumping_pressed()
 			return
 	
@@ -172,7 +172,7 @@ func _check_log_click(click_pos: Vector2):
 	if close_button:
 		var close_rect = close_button.get_global_rect()
 		if close_rect.has_point(click_pos):
-			print("🎯 MANUALLY DETECTED CLOSE BUTTON CLICK!")
+			print("MANUALLY DETECTED CLOSE BUTTON CLICK!")
 			_on_close_button_pressed()
 			return
 	
@@ -185,16 +185,16 @@ func _check_log_click(click_pos: Vector2):
 		if log is TextureRect and not log.get_meta("is_placed"):
 			var log_rect = log.get_global_rect()
 			if log_rect.has_point(click_pos):
-				print("🪵 Clicked on log ", log.get_meta("log_index"), "!")
+				print("Clicked on log ", log.get_meta("log_index"), "!")
 				_start_dragging_log(log, click_pos - log.global_position)
 				return
 
 func _setup_draggable_logs():
 	"""Setup logs for manual dragging detection"""
-	print("🪵 Setting up draggable logs (manual hit detection)...")
+	print("Setting up draggable logs (manual hit detection)...")
 	
 	var logs = log_container.get_children()
-	print("🪵 Found ", logs.size(), " log nodes")
+	print("Found ", logs.size(), " log nodes")
 	
 	for i in range(logs.size()):
 		var log = logs[i]
@@ -202,9 +202,9 @@ func _setup_draggable_logs():
 			# Store metadata
 			log.set_meta("log_index", i)
 			log.set_meta("is_placed", false)
-			print("    ✅ Log ", i, " ready for manual detection")
+			print("    Log ", i, " ready for manual detection")
 		else:
-			print("    ❌ Node ", i, " is not a TextureRect!")
+			print("    Node ", i, " is not a TextureRect!")
 
 # ===== LOG DRAGGING SYSTEM =====
 # Note: Using manual _input() hit detection instead of gui_input 
@@ -221,7 +221,7 @@ func _start_dragging_log(log: TextureRect, local_pos: Vector2):
 	add_child(log)
 	log.global_position = global_pos
 	
-	print("🪵 Started dragging log ", log.get_meta("log_index"))
+	print("Started dragging log ", log.get_meta("log_index"))
 
 func _stop_dragging_log(drop_position: Vector2):
 	"""Stop dragging and check if dropped in fireplace"""
@@ -248,7 +248,7 @@ func _place_log_in_fireplace(log: TextureRect, drop_position: Vector2):
 	# For Control nodes, we need to calculate relative position manually
 	var local_pos = drop_position - fireplace_drop_zone.global_position
 	
-	print("🪵 Placing log at local pos: ", local_pos)
+	print("Placing log at local pos: ", local_pos)
 	
 	# Calculate distance from optimal spot
 	var distance = local_pos.distance_to(optimal_log_spot)
@@ -271,15 +271,15 @@ func _place_log_in_fireplace(log: TextureRect, drop_position: Vector2):
 	
 	# Feedback
 	var quality_text = _get_quality_feedback(quality)
-	print("🪵 Log placed! Quality: ", quality_text, " (", quality, ")")
+	print("Log placed! Quality: ", quality_text, " (", quality, ")")
 	
 	# Generate new optimal spot for next log
 	_generate_new_optimal_spot()
 	
 	# Check if ready to pump
-	print("🔍 Checking readiness: logs_placed = ", logs_placed)
+	print("Checking readiness: logs_placed = ", logs_placed)
 	if logs_placed >= 2:
-		print("✅ Enough logs! Enabling button...")
+		print("Enough logs! Enabling button...")
 		current_state = MinigameState.READY_TO_PUMP
 		start_button.disabled = false
 		_update_status("Ready! Click 'Start Pumping' when ready (" + str(logs_placed) + "/5 logs placed)")
@@ -303,7 +303,7 @@ func _return_log_to_stack(log: TextureRect):
 	log.position = Vector2.ZERO
 	log.modulate = Color(1, 1, 1, 1)
 	
-	print("🪵 Log returned to stack")
+	print("Log returned to stack")
 
 func _calculate_placement_quality(distance: float) -> float:
 	"""Calculate placement quality based on distance from optimal spot"""
@@ -338,19 +338,19 @@ func _generate_new_optimal_spot():
 		randf_range(margin, drop_zone_size.y - margin)
 	)
 	
-	print("🎯 New optimal spot: ", optimal_log_spot)
+	print("New optimal spot: ", optimal_log_spot)
 	
 	# TODO: Optionally show visual hint (subtle glow or X marker)
 
 # ===== PUMP PHASE =====
 func _on_start_pumping_pressed():
 	"""Start the pumping phase"""
-	print("🔥 START PUMPING BUTTON PRESSED!")
+	print("START PUMPING BUTTON PRESSED!")
 	print("   Current state: ", current_state)
 	print("   Logs placed: ", logs_placed)
 	
 	if current_state != MinigameState.READY_TO_PUMP:
-		print("   ❌ Wrong state! Need READY_TO_PUMP")
+		print("   Wrong state! Need READY_TO_PUMP")
 		return
 	
 	current_state = MinigameState.PUMPING
@@ -359,23 +359,23 @@ func _on_start_pumping_pressed():
 	
 	_update_status("Hold the pump gauge to blow air! Watch the green zone!")
 	
-	print("🔥 Pumping phase started!")
+	print("Pumping phase started!")
 
 func _on_pump_button_down():
 	"""Player started holding pump button"""
-	print("🔥 _on_pump_button_down called! Current state: ", current_state)
+	print("_on_pump_button_down called! Current state: ", current_state)
 	
 	if current_state != MinigameState.PUMPING:
-		print("   ❌ Wrong state! Not in PUMPING mode")
+		print("   Wrong state! Not in PUMPING mode")
 		return
 	
 	is_pumping = true
-	print("💨 Started pumping - is_pumping = true")
+	print("Started pumping - is_pumping = true")
 
 func _on_pump_button_up():
 	"""Player released pump button"""
 	is_pumping = false
-	print("💨 Stopped pumping")
+	print("Stopped pumping")
 
 # ===== MAIN LOOP =====
 func _process(delta: float):
@@ -415,7 +415,7 @@ func _process_pumping(delta: float):
 	
 	# Debug every 30 frames
 	if Engine.get_process_frames() % 30 == 0:
-		print("⚙️ Processing pump: is_pumping=", is_pumping, " pressure=", pump_pressure, " ignition=", ignition_progress, " lungs=", lung_capacity)
+		print("Processing pump: is_pumping=", is_pumping, " pressure=", pump_pressure, " ignition=", ignition_progress, " lungs=", lung_capacity)
 	
 	if is_pumping:
 		# BUILD PRESSURE while holding
@@ -520,9 +520,9 @@ func _win_minigame(quality: float):
 	current_state = MinigameState.SUCCESS
 	
 	var quality_text = "Perfect!" if quality >= 80.0 else "Good!"
-	_update_status("🔥 SUCCESS! " + quality_text + " The fire roars to life!")
+	_update_status("SUCCESS! " + quality_text + " The fire roars to life!")
 	
-	print("🎉 Minigame won! Quality: ", quality)
+	print("Minigame won! Quality: ", quality)
 	
 	# Wait a moment, then emit completion
 	await get_tree().create_timer(1.5).timeout
@@ -533,9 +533,9 @@ func _fail_minigame(reason: String):
 	"""Failed to light fire"""
 	current_state = MinigameState.FAILURE
 	
-	_update_status("💀 FAILED: " + reason)
+	_update_status("FAILED: " + reason)
 	
-	print("😵 Minigame failed: ", reason)
+	print("Minigame failed: ", reason)
 	
 	# Wait a moment, then emit completion
 	await get_tree().create_timer(2.0).timeout
@@ -549,7 +549,7 @@ func _update_status(message: String):
 
 func _on_close_button_pressed():
 	"""Give up and close minigame"""
-	print("❌ CLOSE BUTTON PRESSED - Player gave up on minigame")
+	print("CLOSE BUTTON PRESSED - Player gave up on minigame")
 	
 	# Unpause game first
 	get_tree().paused = false

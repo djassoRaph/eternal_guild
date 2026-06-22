@@ -15,7 +15,7 @@ var selected_adventurer: Dictionary = {}
 signal mission_started(mission: Dictionary, adventurer: Dictionary)
 
 func _ready():
-	print("✅ Mission card _ready() called")
+	print("Mission card _ready() called")
 	print("   Dropdown node path check: ", adventurer_dropdown.get_path())
 	print("   Dropdown is valid: ", is_instance_valid(adventurer_dropdown))
 	
@@ -26,11 +26,11 @@ func _ready():
 	# Connect signals PROPERLY
 	if not adventurer_dropdown.item_selected.is_connected(_on_adventurer_selected):
 		adventurer_dropdown.item_selected.connect(_on_adventurer_selected)
-		print("✅ Connected item_selected signal")
+		print("Connected item_selected signal")
 	
 	if not send_button.pressed.is_connected(_on_send_button_pressed):
 		send_button.pressed.connect(_on_send_button_pressed)
-		print("✅ Connected send_button pressed signal")
+		print("Connected send_button pressed signal")
 
 func setup(test_mission: Dictionary, adventurers: Array):
 	"""Setup mission card with data"""
@@ -40,7 +40,7 @@ func setup(test_mission: Dictionary, adventurers: Array):
 	if not is_node_ready():
 		await ready
 	
-	print("🎯 Setting up mission card for: ", test_mission.get("name", "Unknown"))
+	print("Setting up mission card for: ", test_mission.get("name", "Unknown"))
 	
 	# Populate mission info
 	mission_name_label.text = test_mission.get("name", "Unknown Mission")
@@ -48,7 +48,7 @@ func setup(test_mission: Dictionary, adventurers: Array):
 	
 	var min_reward = test_mission.get("reward_range", [0, 0])[0]
 	var max_reward = test_mission.get("reward_range", [0, 0])[1]
-	reward_label.text = "💰 Reward: " + str(min_reward) + "-" + str(max_reward) + " gold"
+	reward_label.text = "Reward: " + str(min_reward) + "-" + str(max_reward) + " gold"
 	
 	var danger = test_mission.get("danger", 1)
 	danger_label.text = get_danger_text(danger)
@@ -58,14 +58,14 @@ func setup(test_mission: Dictionary, adventurers: Array):
 
 func populate_adventurer_dropdown():
 	"""Populate dropdown with available adventurers"""
-	print("🔽 Populating dropdown with ", available_adventurers.size(), " adventurers")
+	print("Populating dropdown with ", available_adventurers.size(), " adventurers")
 	
 	# Clear everything
 	adventurer_dropdown.clear()
 	selected_adventurer = {}
 	
 	if available_adventurers.size() == 0:
-		adventurer_dropdown.add_item("⚠️ No adventurers available")
+		adventurer_dropdown.add_item("No adventurers available")
 		adventurer_dropdown.disabled = true
 		send_button.disabled = true
 		return
@@ -78,26 +78,26 @@ func populate_adventurer_dropdown():
 	for adv in available_adventurers:
 		var text = adv.get("name", "Unknown") + " (" + adv.get("class", "?") + ")"
 		adventurer_dropdown.add_item(text)
-		print("   ✓ Added: ", text)
+		print("   Added: ", text)
 	
 	# Start with placeholder selected, button disabled
 	adventurer_dropdown.selected = 0
 	adventurer_dropdown.disabled = false
 	send_button.disabled = true
-	send_button.text = "🗡️ Send on Mission"
+	send_button.text = "Send on Mission"
 	
-	print("✅ Dropdown ready with ", adventurer_dropdown.item_count, " items")
+	print("Dropdown ready with ", adventurer_dropdown.item_count, " items")
 
 		
 func _on_adventurer_selected(index: int):
 	"""Handle adventurer selection from dropdown"""
-	print("🎯 Adventurer selected - Index: ", index)
+	print("Adventurer selected - Index: ", index)
 	
 	if index == 0:
 		print("   → Placeholder selected, disabling button")
 		selected_adventurer = {}
 		send_button.disabled = true
-		send_button.text = "🗡️ Send on Mission"
+		send_button.text = "Send on Mission"
 		return
 		
 	var adv_index = index - 1
@@ -105,21 +105,21 @@ func _on_adventurer_selected(index: int):
 		var chance = calculate_success_chance()
 		selected_adventurer = available_adventurers[adv_index]
 		send_button.disabled = false
-		send_button.text = "🗡️ Send (" + str(chance) + "% success)"
-		print("✅ Selected: ", selected_adventurer.get("name"))
+		send_button.text = "Send (" + str(chance) + "% success)"
+		print("Selected: ", selected_adventurer.get("name"))
 	else:
-		print("❌ Invalid adventurer index: ", index)
+		print("Invalid adventurer index: ", index)
 		selected_adventurer = {}
 		send_button.disabled = true
-		send_button.text = "🗡️ Send on Mission"
+		send_button.text = "Send on Mission"
 
 func _on_send_button_pressed():
 	"""Handle send button press"""
 	if selected_adventurer.is_empty():
-		print("❌ No adventurer selected!")
+		print("No adventurer selected!")
 		return
 	
-	print("🚀 Mission started! ", selected_adventurer.get("name"), " -> ", mission_data.get("name"))
+	print("Mission started! ", selected_adventurer.get("name"), " -> ", mission_data.get("name"))
 	mission_started.emit(mission_data, selected_adventurer)
 
 func calculate_success_chance() -> int:
@@ -143,12 +143,12 @@ func calculate_success_chance() -> int:
 
 func get_danger_text(danger: int) -> String:
 	match danger:
-		1: return "⚪ Safe"
-		2: return "🟡 Low Risk"
-		3: return "🟠 Moderate"
-		4: return "🔴 Dangerous"
-		5: return "🟣 Extreme"
-		_: return "❓ Unknown"
+		1: return "Safe"
+		2: return "Low Risk"
+		3: return "Moderate"
+		4: return "Dangerous"
+		5: return "Extreme"
+		_: return "Unknown"
 
 func get_danger_color(danger: int) -> Color:
 	match danger:

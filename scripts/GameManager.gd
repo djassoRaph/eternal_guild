@@ -65,7 +65,7 @@ var tier_requirements = {
 
 # === INITIALIZATION ===
 func _ready():
-	print("🎮 GameManager singleton initialized")
+	print("GameManager singleton initialized")
 	print("Initial state - Gold: ", gold, " Beer: ", beer_stock, " Day: ", current_day)
 	DataManager.data_ready.connect(_on_data_ready)
 	_bridge_signals_to_buses()
@@ -100,17 +100,17 @@ func add_gold(amount: int):
 	"""Add gold and notify all systems"""
 	gold += amount
 	gold_changed.emit(gold)
-	print("💰 Added ", amount, " gold. Total: ", gold)
+	print("Added ", amount, " gold. Total: ", gold)
 
 func spend_gold(amount: int) -> bool:
 	"""Spend gold if sufficient funds available"""
 	if gold >= amount:
 		gold -= amount
 		gold_changed.emit(gold)
-		print("💸 Spent ", amount, " gold. Remaining: ", gold)
+		print("Spent ", amount, " gold. Remaining: ", gold)
 		return true
 	else:
-		print("❌ Insufficient gold. Need ", amount, " but have ", gold)
+		print("Insufficient gold. Need ", amount, " but have ", gold)
 		return false
 
 func get_gold() -> int:
@@ -121,20 +121,20 @@ func purchase_firewood(bundles: int, cost: int) -> bool:
 	"""Purchase firewood for the fireplace"""
 	# Check storage capacity
 	if firewood_stock + bundles > max_firewood_storage:
-		log_message("⚠️ Not enough storage space! (Max: " + str(max_firewood_storage) + " bundles)")
+		log_message("Not enough storage space! (Max: " + str(max_firewood_storage) + " bundles)")
 		return false
 	
 	# Check if can afford
 	if not spend_gold(cost):
-		log_message("❌ Insufficient gold to buy firewood (Need " + str(cost) + " gold)")
+		log_message("Insufficient gold to buy firewood (Need " + str(cost) + " gold)")
 		return false
 	
 	# Purchase successful
 	firewood_stock += bundles
 	firewood_changed.emit(firewood_stock)
 	
-	log_message("🪵 Purchased " + str(bundles) + " bundle(s) of firewood for " + str(cost) + " gold")
-	log_message("📦 Firewood stock: " + str(firewood_stock) + "/" + str(max_firewood_storage))
+	log_message("Purchased " + str(bundles) + " bundle(s) of firewood for " + str(cost) + " gold")
+	log_message("Firewood stock: " + str(firewood_stock) + "/" + str(max_firewood_storage))
 	
 	return true
 
@@ -145,17 +145,17 @@ func add_beer(amount: int):
 	"""Add beer stock and notify systems"""
 	beer_stock += amount
 	beer_changed.emit(beer_stock)
-	print("🍺 Added ", amount, " beer. Total: ", beer_stock)
+	print("Added ", amount, " beer. Total: ", beer_stock)
 
 func consume_beer(amount: int) -> bool:
 	"""Consume beer if available"""
 	if beer_stock >= amount:
 		beer_stock -= amount
 		beer_changed.emit(beer_stock)
-		print("🍻 Consumed ", amount, " beer. Remaining: ", beer_stock)
+		print("Consumed ", amount, " beer. Remaining: ", beer_stock)
 		return true
 	else:
-		print("❌ Insufficient beer. Need ", amount, " but have ", beer_stock)
+		print("Insufficient beer. Need ", amount, " but have ", beer_stock)
 		return false
 
 func get_beer() -> int:
@@ -220,7 +220,7 @@ func send_on_mission(adventurer: Dictionary, mission: Dictionary, hex_id: String
 
 	active_missions.append(active_entry)
 
-	log_message("🗡️ " + adventurer.name + " departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
+	log_message("" + adventurer.name + " departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
 
 	adventurer_roster_changed.emit()
 	mission_dispatched.emit([adventurer], mission, hex_id)
@@ -247,7 +247,7 @@ func send_party_on_mission(party: Array, mission: Dictionary, hex_id: String = "
 	active_missions.append(active_entry)
 
 	var names = ", ".join(party.map(func(a): return a.name))
-	log_message("🗡️ Party departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
+	log_message("Party departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
 	log_message("   Party: " + names)
 
 	adventurer_roster_changed.emit()
@@ -304,7 +304,7 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 			var bonus = int(reward * trait_data.reward_bonus)
 			if bonus > 0:
 				reward += bonus
-				log_message("🍀 " + adventurer.name + "'s luck paid off! +" + str(bonus) + " bonus gold.")
+				log_message("" + adventurer.name + "'s luck paid off! +" + str(bonus) + " bonus gold.")
 
 		add_gold(reward)
 		adventurer.missions_completed += 1
@@ -318,11 +318,11 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		tavern_reputation += 2
 		GameManager.check_tier_unlocks()
 
-		log_message("✅ SUCCESS! " + adventurer.name + " completed " + mission.name + " and earned " + str(reward) + " gold!")
-		log_message("😴 " + adventurer.name + " rests for 1 day to recover their strength")
+		log_message("SUCCESS! " + adventurer.name + " completed " + mission.name + " and earned " + str(reward) + " gold!")
+		log_message("" + adventurer.name + " rests for 1 day to recover their strength")
 	else:
 		adventurer.missions_failed += 1
-		log_message("💥 FAILED! " + adventurer.name + " failed the mission: " + mission.name)
+		log_message("FAILED! " + adventurer.name + " failed the mission: " + mission.name)
 
 		# FAILURE ONLY: Handle injury and death consequences
 		if adventurer.get("injured", false):
@@ -346,7 +346,7 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 	if success:
 		var reward = randi_range(mission.reward_range[0], mission.reward_range[1])
 		add_gold(reward)
-		log_message("✅ PARTY SUCCESS! Completed " + mission.name + " and earned " + str(reward) + " gold!")
+		log_message("PARTY SUCCESS! Completed " + mission.name + " and earned " + str(reward) + " gold!")
 		
 		for adventurer in party:
 			# SUCCESS: All party members need rest
@@ -356,9 +356,9 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 			adventurer.gold_earned += reward / party.size()
 			check_adventurer_level_up(adventurer)
 		
-		log_message("😴 Party members rest for 1 day after their successful mission")
+		log_message("Party members rest for 1 day after their successful mission")
 	else:
-		log_message("💥 PARTY FAILED! Mission " + mission.name + " was catastrophic")
+		log_message("PARTY FAILED! Mission " + mission.name + " was catastrophic")
 		for adventurer in party:
 			handle_party_failure_consequences(adventurer, mission)
 			# CRITICAL FIX: Emit signal so UI updates
@@ -390,10 +390,10 @@ func process_mission_returns():
 			var mission_name = entry.mission.get("name", "Unknown")
 			var days_left = entry.days_remaining
 			if entry.get("is_party_mission", false):
-				log_message("📍 Party on " + mission_name + " — " + str(days_left) + " day" + ("s" if days_left > 1 else "") + " remaining")
+				log_message("Party on " + mission_name + " — " + str(days_left) + " day" + ("s" if days_left > 1 else "") + " remaining")
 			else:
 				var adv_name = entry.adventurer.get("name", "Someone")
-				log_message("📍 " + adv_name + " on " + mission_name + " — " + str(days_left) + " day" + ("s" if days_left > 1 else "") + " remaining")
+				log_message("" + adv_name + " on " + mission_name + " — " + str(days_left) + " day" + ("s" if days_left > 1 else "") + " remaining")
 
 	resolved_indices.reverse()
 	for idx in resolved_indices:
@@ -501,26 +501,26 @@ func process_adventurer_recovery():
 
 				match old_status:
 					AStatus.WOUNDED:
-						log_message("🩹 " + adventurer.name + " has fully recovered from injuries!")
+						log_message("" + adventurer.name + " has fully recovered from injuries!")
 					AStatus.RESTING:
-						log_message("😊 " + adventurer.name + " is refreshed and ready for new missions!")
+						log_message("" + adventurer.name + " is refreshed and ready for new missions!")
 			else:
 				match adventurer.status:
 					AStatus.WOUNDED:
-						log_message("🏥 " + adventurer.name + " continues healing (" + str(adventurer.recovery) + " days remaining)")
+						log_message("" + adventurer.name + " continues healing (" + str(adventurer.recovery) + " days remaining)")
 					AStatus.RESTING:
-						log_message("😴 " + adventurer.name + " is still resting (" + str(adventurer.recovery) + " days remaining)")
+						log_message("" + adventurer.name + " is still resting (" + str(adventurer.recovery) + " days remaining)")
 
 
 func check_tax_deadline():
 	var days_until_tax = tax_due_day - current_day
 
 	if days_until_tax == 7:
-		log_message("📋 Tax payment due in 7 days. Amount: " + str(1000 + adventurers.size() * 5) + " gold.")
+		log_message("Tax payment due in 7 days. Amount: " + str(1000 + adventurers.size() * 5) + " gold.")
 	elif days_until_tax == 3:
-		log_message("⚠️ Tax payment due in 3 days! Need " + str(1000 + adventurers.size() * 5) + " gold.")
+		log_message("Tax payment due in 3 days! Need " + str(1000 + adventurers.size() * 5) + " gold.")
 	elif days_until_tax == 1:
-		log_message("🚨 Tax payment due TOMORROW! Need " + str(1000 + adventurers.size() * 5) + " gold!")
+		log_message("Tax payment due TOMORROW! Need " + str(1000 + adventurers.size() * 5) + " gold!")
 	elif days_until_tax <= 0:
 		handle_tax_payment()
 
@@ -531,17 +531,17 @@ func handle_tax_payment():
 		tax_due_day += 30
 		tax_grace_days = 0
 		taxes_paid_count += 1
-		log_message("✅ Paid " + str(tax_amount) + " gold in taxes. Next due: Day " + str(tax_due_day))
+		log_message("Paid " + str(tax_amount) + " gold in taxes. Next due: Day " + str(tax_due_day))
 		check_tier_unlocks()
 	else:
 		tax_grace_days += 1
-		log_message("⚠️ OVERDUE: Cannot pay taxes (" + str(tax_amount) + " gold needed). Grace period: " + str(tax_grace_days) + "/3 days.")
+		log_message("OVERDUE: Cannot pay taxes (" + str(tax_amount) + " gold needed). Grace period: " + str(tax_grace_days) + "/3 days.")
 
 		if tax_grace_days >= 3:
 			trigger_game_over("bankruptcy", "Failed to pay taxes after 3-day grace period. The guild is seized.")
 		else:
 			var days_left = 3 - tax_grace_days
-			log_message("💡 " + str(days_left) + " day(s) remaining before the guild is shut down.")
+			log_message("" + str(days_left) + " day(s) remaining before the guild is shut down.")
 		
 		
 # === LOGGING SYSTEM ===
@@ -559,12 +559,12 @@ func generate_daily_recruits(count: int = 3):
 	"""Generate new recruits for the day"""
 	daily_recruits.clear()
 	
-	print("🔄 Generating ", count, " new recruits for day ", current_day)
+	print("Generating ", count, " new recruits for day ", current_day)
 	daily_recruits = generate_fallback_recruits(count)
 	recruit_refresh_day = current_day
 	
 	# Log the new recruits
-	log_message("📢 New adventurers seeking employment at the guild!")
+	log_message("New adventurers seeking employment at the guild!")
 	for recruit in daily_recruits:
 		var cost = recruit.get("hiring_cost", 10)
 		log_message("• " + recruit.name + " the " + recruit.class + " (Hiring cost: " + str(cost) + " gold)")
@@ -654,7 +654,7 @@ func remove_hired_recruit(recruit: Dictionary):
 	for i in range(daily_recruits.size()):
 		if daily_recruits[i].get("id") == recruit.get("id"):
 			daily_recruits.remove_at(i)
-			print("✅ Removed hired recruit: ", recruit.name)
+			print("Removed hired recruit: ", recruit.name)
 			break
 
 func despawn_all_patrons():
@@ -662,7 +662,7 @@ func despawn_all_patrons():
 	var patron_spawner = get_node_or_null("/root/Node3D/SubViewportContainer/SubViewport/TavernNavigation/PatronSpawner")
 	if patron_spawner and patron_spawner.has_method("despawn_all_patrons"):
 		patron_spawner.despawn_all_patrons()
-		log_message("🌙 All patrons have left for the night")
+		log_message("All patrons have left for the night")
 
 func get_firewood_stock() -> int:
 	return firewood_stock
@@ -681,8 +681,8 @@ func advance_day():
 	day_changed.emit(current_day)
 	fireplace_fuel = 0.0  # Fire dies completely
 	fireplace_fuel_changed.emit(fireplace_fuel)
-	log_message("🌅 Day " + str(current_day) + " begins - the fire has gone out overnight")
-	print("🌅 Day ", current_day, " begins!")
+	log_message("Day " + str(current_day) + " begins - the fire has gone out overnight")
+	print("Day ", current_day, " begins!")
 	log_message("=== Day " + str(current_day) + " ===")
 	
 	# Process recovery FIRST (makes adventurers available)
@@ -703,7 +703,7 @@ func advance_day():
 	
 	# Check for complete guild collapse
 	if adventurers.size() == 0 and beer_shortage_days > 0:
-		log_message("💀 GUILD COLLAPSE: No adventurers remain!")
+		log_message("GUILD COLLAPSE: No adventurers remain!")
 		log_message("Consider hiring new recruits and restocking beer immediately.")
 	
 	# Recruitment and mission refresh
@@ -713,15 +713,15 @@ func advance_day():
 	
 	if current_day % 2 == 0:
 		refresh_available_missions()
-		log_message("📋 New guild contracts have been posted!")
+		log_message("New guild contracts have been posted!")
 	
 	# End of day summary with availability
 	var availability_report = get_guild_availability_report()
-	log_message("💰 Gold: " + str(gold) + " | 🍺 Beer: " + str(beer_stock) + " pints | 👥 Available: " + str(availability_report["ready"]) + "/" + str(adventurers.size()))
+	log_message("Gold: " + str(gold) + " | Beer: " + str(beer_stock) + " pints | Available: " + str(availability_report["ready"]) + "/" + str(adventurers.size()))
 
 	# Soft-lock detection
 	if adventurers.size() == 0 and gold < 8 and daily_recruits.size() == 0:
-		log_message("💀 The guild cannot recover. No adventurers, no funds, no prospects.")
+		log_message("The guild cannot recover. No adventurers, no funds, no prospects.")
 		trigger_game_over("soft_lock", "The Eternal Guild fades into history — abandoned and forgotten.")
 
 
@@ -767,17 +767,17 @@ func cleanup_expired_recruitment_candidates():
 func dismiss_adventurer(adventurer: Dictionary) -> bool:
 	"""Remove an adventurer from the roster. Cannot dismiss if on mission."""
 	if adventurer.get("status") == AStatus.ON_MISSION:
-		log_message("⚠️ Cannot dismiss " + adventurer.get("name", "?") + " — they are currently on a mission.")
+		log_message("Cannot dismiss " + adventurer.get("name", "?") + " — they are currently on a mission.")
 		return false
 
 	var severance = 5  # Flat severance cost
 	adventurers.erase(adventurer)
 	tavern_reputation = max(0, tavern_reputation - 1)  # Small reputation hit
-	log_message("👋 " + adventurer.get("name", "?") + " has been dismissed from the guild.")
+	log_message("" + adventurer.get("name", "?") + " has been dismissed from the guild.")
 	if spend_gold(severance):
-		log_message("💰 Paid " + str(severance) + " gold severance.")
+		log_message("Paid " + str(severance) + " gold severance.")
 	else:
-		log_message("⚠️ Could not afford severance pay.")
+		log_message("Could not afford severance pay.")
 	adventurer_roster_changed.emit()
 	return true
 
@@ -786,13 +786,13 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	var hiring_cost = recruit.get("hiring_cost", 10)
 	
 	if not spend_gold(hiring_cost):
-		log_message("❌ Insufficient gold to hire " + recruit.name + " (Need " + str(hiring_cost) + " gold)")
+		log_message("Insufficient gold to hire " + recruit.name + " (Need " + str(hiring_cost) + " gold)")
 		return false
 		
 	if adventurers.size() >= max_adventurers:
-		print("❌ Roster full! Cannot hire ", recruit.name)
+		print("Roster full! Cannot hire ", recruit.name)
 		add_gold(hiring_cost)  # Refund
-		log_message("❌ Roster full! Cannot hire more adventurers (Maximum: " + str(max_adventurers) + ")")
+		log_message("Roster full! Cannot hire more adventurers (Maximum: " + str(max_adventurers) + ")")
 		return false
 	
 	# Clean recruit data and add to roster
@@ -806,14 +806,14 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	remove_hired_recruit(recruit)  # Remove from available pool
 	adventurer_roster_changed.emit()
 	
-	log_message("🎉 Hired " + recruit.name + " the " + recruit.class + " for " + str(hiring_cost) + " gold!")
-	log_message("📊 Current roster: " + str(adventurers.size()) + "/" + str(max_adventurers) + " adventurers")
+	log_message("Hired " + recruit.name + " the " + recruit.class + " for " + str(hiring_cost) + " gold!")
+	log_message("Current roster: " + str(adventurers.size()) + "/" + str(max_adventurers) + " adventurers")
 	
 	return true
 
 # === SAVE/LOAD SYSTEM ===
 func get_save_data() -> Dictionary:
-	print("💾 Gathering save data...")
+	print("Gathering save data...")
 
 	var save_adventurers = adventurers.duplicate(true)
 	for adv in save_adventurers:
@@ -875,7 +875,7 @@ func get_save_data() -> Dictionary:
 
 func load_save_data(data: Dictionary):
 	"""Load game state from save data - COMPLETE VERSION"""
-	print("📂 Loading save data into GameManager...")
+	print("Loading save data into GameManager...")
 	
 	# Core resources
 	gold = int(data.get("gold", 10))
@@ -942,7 +942,7 @@ func load_save_data(data: Dictionary):
 	fireplace_fuel_changed.emit(fireplace_fuel)
 	adventurer_roster_changed.emit()
 	
-	print("✅ Game state loaded successfully")
+	print("Game state loaded successfully")
 	print("   Day: ", current_day)
 	print("   Gold: ", gold)
 	print("   Beer: ", beer_stock)
@@ -992,7 +992,7 @@ func trigger_game_over(failure_type: String, reason: String):
 
 func reset_game_state():
 	"""Reset GameManager to initial state - COMPLETE VERSION"""
-	print("🔄 Resetting game state...")
+	print("Resetting game state...")
 	
 	# Core resources
 	gold = 10
@@ -1035,7 +1035,7 @@ func reset_game_state():
 	fireplace_fuel_changed.emit(fireplace_fuel)
 	adventurer_roster_changed.emit()
 	
-	print("✅ Game state reset to initial values")
+	print("Game state reset to initial values")
 
 
 
@@ -1048,7 +1048,7 @@ func process_adventurer_beer_consumption() -> bool:
 		beer_shortage_days = 0  # Reset when no adventurers
 		return true
 	
-	print("🍺 Processing beer consumption: Need ", pints_needed, " pints, have ", beer_stock, " pints")
+	print("Processing beer consumption: Need ", pints_needed, " pints, have ", beer_stock, " pints")
 	
 	if beer_stock >= pints_needed:
 		# Sufficient beer - happy adventurers
@@ -1059,13 +1059,13 @@ func process_adventurer_beer_consumption() -> bool:
 		for adventurer in adventurers:
 			adventurer_morale[adventurer.get("id", adventurer.name)] = 3
 		
-		log_message("✅ Adventurers enjoyed their daily rations (" + str(pints_needed) + " pints)")
-		log_message("🙂 Guild morale is high - adventurers are content!")
+		log_message("Adventurers enjoyed their daily rations (" + str(pints_needed) + " pints)")
+		log_message("Guild morale is high - adventurers are content!")
 		return true
 	else:
 		# Beer shortage - apply harsh consequences
 		beer_shortage_days += 1
-		log_message("🚨 BEER SHORTAGE - Day " + str(beer_shortage_days) + "!")
+		log_message("BEER SHORTAGE - Day " + str(beer_shortage_days) + "!")
 		log_message("Need " + str(pints_needed) + " pints, only have " + str(beer_stock) + " pints")
 		
 		apply_beer_shortage_consequences()
@@ -1093,7 +1093,7 @@ func apply_beer_shortage_consequences():
 			
 func apply_day_1_shortage():
 	"""Day 1 shortage: Immediate mission penalty"""
-	log_message("💔 Day 1 Shortage Effects:")
+	log_message("Day 1 Shortage Effects:")
 	log_message("• Adventurer morale dropping")
 	log_message("• Mission success rates reduced by 25%")
 	log_message("• Adventurers grumbling about poor conditions")
@@ -1113,7 +1113,7 @@ func apply_day_1_shortage():
 
 func apply_day_2_shortage():
 	"""Day 2 shortage: Mission penalties + departure risk"""
-	log_message("💀 Day 2 Shortage Effects:")
+	log_message("Day 2 Shortage Effects:")
 	log_message("• Mission success rates reduced by 50%")
 	log_message("• Adventurers considering leaving the guild")
 	log_message("• Guild reputation at risk")
@@ -1128,18 +1128,18 @@ func apply_day_2_shortage():
 	for adventurer in leaving_adventurers:
 		adventurers.erase(adventurer)
 		adventurer_morale.erase(adventurer.get("id", adventurer.name))
-		log_message("💔 " + adventurer.name + " (" + adventurer.class + ") left the guild!")
+		log_message("" + adventurer.name + " (" + adventurer.class + ") left the guild!")
 		log_message("\"" + adventurer.name + " said: 'I can't work under these conditions!'\"")
 	
 	if leaving_adventurers.size() > 0:
-		log_message("⚠️ " + str(leaving_adventurers.size()) + " adventurer(s) abandoned the guild!")
+		log_message("" + str(leaving_adventurers.size()) + " adventurer(s) abandoned the guild!")
 		adventurer_roster_changed.emit()
 	else:
-		log_message("😮‍💨 Fortunately, all adventurers decided to stay... for now.")
+		log_message("Fortunately, all adventurers decided to stay... for now.")
 
 func apply_extended_shortage():
 	"""Day 3+ shortage: Guaranteed departures"""
-	log_message("☠️ Day " + str(beer_shortage_days) + " Shortage - Critical!")
+	log_message("Day " + str(beer_shortage_days) + " Shortage - Critical!")
 	log_message("• Guild conditions are unbearable")
 	log_message("• Adventurers abandoning their posts")
 	log_message("• Reputation plummeting throughout the region")
@@ -1148,7 +1148,7 @@ func apply_extended_shortage():
 	if adventurers.size() > 0:
 		var leaving = adventurers.pop_back()
 		adventurer_morale.erase(leaving.get("id", leaving.name))
-		log_message("💔 " + leaving.name + " (" + leaving.class + ") abandoned the guild!")
+		log_message("" + leaving.name + " (" + leaving.class + ") abandoned the guild!")
 		
 		var harsh_messages = [
 			"\"" + leaving.name + " packed their belongings in disgust.\"",
@@ -1160,8 +1160,8 @@ func apply_extended_shortage():
 		adventurer_roster_changed.emit()
 		
 		if adventurers.size() == 0:
-			log_message("🏚️ All adventurers have abandoned the guild!")
-			log_message("💀 The tavern sits empty, your reputation in ruins...")
+			log_message("All adventurers have abandoned the guild!")
+			log_message("The tavern sits empty, your reputation in ruins...")
 
 # === MISSION SUCCESS RATE MODIFICATIONS ===
 func get_beer_shortage_penalty() -> int:
@@ -1201,10 +1201,10 @@ func calculate_mission_success_with_beer_effects(base_chance: int, adventurer: D
 	
 	# Log the effects for transparency
 	if shortage_penalty > 0:
-		log_message("⚠️ Beer shortage penalty: -" + str(shortage_penalty) + "%")
+		log_message("Beer shortage penalty: -" + str(shortage_penalty) + "%")
 	if morale_effect != 0:
 		var effect_text = "+" if morale_effect > 0 else ""
-		log_message("😊 " + adventurer.name + " morale effect: " + effect_text + str(morale_effect) + "%")
+		log_message("" + adventurer.name + " morale effect: " + effect_text + str(morale_effect) + "%")
 	
 	# Ensure minimum 5% chance, maximum 95%
 	return clampi(modified_chance, 5, 95)
@@ -1213,9 +1213,9 @@ func calculate_mission_success_with_beer_effects(base_chance: int, adventurer: D
 func process_daily_operations_with_beer():
 	var wage_cost = adventurers.size()  # 1 gold per adventurer
 	if spend_gold(wage_cost):
-		log_message("💰 Paid " + str(wage_cost) + " gold in adventurer wages")
+		log_message("Paid " + str(wage_cost) + " gold in adventurer wages")
 	else:
-		log_message("💸 WARNING: Could not afford adventurer wages!")
+		log_message("WARNING: Could not afford adventurer wages!")
 
 # === STATUS REPORTING ===
 func get_guild_status_report() -> String:
@@ -1227,10 +1227,10 @@ func get_guild_status_report() -> String:
 	report += "Adventurers: " + str(adventurers.size()) + "/" + str(max_adventurers) + "\n"
 	
 	if beer_shortage_days > 0:
-		report += "⚠️ BEER SHORTAGE: Day " + str(beer_shortage_days) + "\n"
+		report += "BEER SHORTAGE: Day " + str(beer_shortage_days) + "\n"
 		report += "Mission Penalty: -" + str(get_beer_shortage_penalty()) + "%\n"
 	else:
-		report += "✅ Beer supplies adequate\n"
+		report += "Beer supplies adequate\n"
 	
 	# Morale breakdown
 	var high_morale = 0
@@ -1254,17 +1254,17 @@ func add_beer_pints(pints: int):
 	"""Add beer stock in pints and notify systems"""
 	beer_stock += pints
 	beer_changed.emit(beer_stock)
-	print("🍺 Added ", pints, " pint(s). Total: ", beer_stock, " pints")
+	print("Added ", pints, " pint(s). Total: ", beer_stock, " pints")
 
 func consume_beer_pints(pints: int) -> bool:
 	"""Consume beer pints if available"""
 	if beer_stock >= pints:
 		beer_stock -= pints
 		beer_changed.emit(beer_stock)
-		print("🍻 Consumed ", pints, " pint(s). Remaining: ", beer_stock, " pints")
+		print("Consumed ", pints, " pint(s). Remaining: ", beer_stock, " pints")
 		return true
 	else:
-		print("❌ Insufficient beer. Need ", pints, " pints but have ", beer_stock, " pints")
+		print("Insufficient beer. Need ", pints, " pints but have ", beer_stock, " pints")
 		return false
 
 func get_beer_pints() -> int:
@@ -1284,7 +1284,7 @@ func set_fireplace_fuel(new_value: float):
 func stoke_fireplace() -> bool:
 	"""Use firewood to increase fire level"""
 	if firewood_stock <= 0:
-		log_message("❌ No firewood available! Buy some from your quarters.")
+		log_message("No firewood available! Buy some from your quarters.")
 		return false
 	
 	# Consume 1 bundle
@@ -1296,7 +1296,7 @@ func stoke_fireplace() -> bool:
 	fireplace_fuel = min(100.0, fireplace_fuel + 25.0)
 	fireplace_fuel_changed.emit(fireplace_fuel)
 	
-	log_message("🔥 Stoked the fire! (" + str(int(old_fuel)) + "% → " + str(int(fireplace_fuel)) + "%)")
+	log_message("Stoked the fire! (" + str(int(old_fuel)) + "% → " + str(int(fireplace_fuel)) + "%)")
 	
 	return true
 
@@ -1347,9 +1347,9 @@ func serve_customer_beer() -> int:
 		daily_patron_visits += 1  # Track for statistics
 
 		if tip > 0:
-			log_message("🍺 Served 1 pint: " + str(payment) + "g + " + str(tip) + "g tip (" + tip_info.comfort_desc + " — Fire: " + str(tip_info.fire_percent) + "%)")
+			log_message("Served 1 pint: " + str(payment) + "g + " + str(tip) + "g tip (" + tip_info.comfort_desc + " — Fire: " + str(tip_info.fire_percent) + "%)")
 		else:
-			log_message("🍺 Served 1 pint: " + str(payment) + "g — No tip! (" + tip_info.comfort_desc + ")")
+			log_message("Served 1 pint: " + str(payment) + "g — No tip! (" + tip_info.comfort_desc + ")")
 		
 		return total
 	else:
@@ -1407,16 +1407,16 @@ func log_daily_availability_status():
 	var report = get_guild_availability_report()
 	
 	if report["ready"] == 0:
-		log_message("⚠️ NO ADVENTURERS AVAILABLE for missions today!")
+		log_message("NO ADVENTURERS AVAILABLE for missions today!")
 	elif report["ready"] == report["total_adventurers"]:
-		log_message("✅ All " + str(report["total_adventurers"]) + " adventurers are ready for missions")
+		log_message("All " + str(report["total_adventurers"]) + " adventurers are ready for missions")
 	else:
-		log_message("📊 Guild Status: " + str(report["ready"]) + "/" + str(report["total_adventurers"]) + " adventurers available")
+		log_message("Guild Status: " + str(report["ready"]) + "/" + str(report["total_adventurers"]) + " adventurers available")
 		
 		if report["injured"] > 0:
-			log_message("🏥 " + str(report["injured"]) + " adventurer(s) recovering from injuries")
+			log_message("" + str(report["injured"]) + " adventurer(s) recovering from injuries")
 		if report["resting"] > 0:
-			log_message("😴 " + str(report["resting"]) + " adventurer(s) resting after missions")
+			log_message("" + str(report["resting"]) + " adventurer(s) resting after missions")
 
 func check_adventurer_level_up(adventurer: Dictionary):
 	"""Placeholder for level up system"""
@@ -1429,8 +1429,8 @@ func handle_party_failure_consequences(adventurer: Dictionary, mission: Dictiona
 	
 	var death_roll = randf()
 	
-	log_message("⚠️ " + adventurer.name + " faces danger (Level " + str(adventurer_level) + " vs Danger " + str(mission.danger) + ")")
-	log_message("🎲 Death chance: " + str(int(death_chance * 100)) + "% (Rolled: " + str(int(death_roll * 100)) + ")")
+	log_message("" + adventurer.name + " faces danger (Level " + str(adventurer_level) + " vs Danger " + str(mission.danger) + ")")
+	log_message("Death chance: " + str(int(death_chance * 100)) + "% (Rolled: " + str(int(death_roll * 100)) + ")")
 	
 	if death_roll < death_chance:
 		# ADVENTURER DIES
@@ -1493,7 +1493,7 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 		adventurer.name + " fell in battle, but their courage will be remembered"
 	]
 	
-	log_message("💀 " + death_messages[randi() % death_messages.size()])
+	log_message("" + death_messages[randi() % death_messages.size()])
 	
 	# Remove from adventurer roster
 	adventurers.erase(adventurer)
@@ -1502,14 +1502,14 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 	# Death has economic consequences - funeral costs
 	var funeral_cost = randi_range(5, 15)
 	if spend_gold(funeral_cost):
-		log_message("💰 Paid " + str(funeral_cost) + " gold for " + adventurer.name + "'s funeral")
+		log_message("Paid " + str(funeral_cost) + " gold for " + adventurer.name + "'s funeral")
 	else:
-		log_message("💸 Could not afford proper funeral rites for " + adventurer.name)
+		log_message("Could not afford proper funeral rites for " + adventurer.name)
 	
 	# Check for guild collapse
 	if adventurers.size() == 0:
-		log_message("🏚️ ALL ADVENTURERS HAVE PERISHED!")
-		log_message("💡 Visit the recruitment desk immediately to rebuild your guild!")
+		log_message("ALL ADVENTURERS HAVE PERISHED!")
+		log_message("Visit the recruitment desk immediately to rebuild your guild!")
 
 func handle_adventurer_injury(adventurer: Dictionary, mission: Dictionary):
 	var injury_severity = randi_range(2, 5)
@@ -1518,8 +1518,8 @@ func handle_adventurer_injury(adventurer: Dictionary, mission: Dictionary):
 	adventurer.recovery = injury_severity
 	adventurer.injuries_sustained = adventurer.get("injuries_sustained", 0) + 1
 	
-	log_message("🏥 " + adventurer.name + " survived but is badly injured")
-	log_message("⏰ " + adventurer.name + " needs " + str(injury_severity) + " day(s) to recover")
+	log_message("" + adventurer.name + " survived but is badly injured")
+	log_message("" + adventurer.name + " needs " + str(injury_severity) + " day(s) to recover")
 
 
 
@@ -1530,13 +1530,13 @@ func check_tier_unlocks():
 	# Check Tier 2 unlock
 	if mission_tier_unlocked == 1 and taxes_paid_count >= 1:
 		mission_tier_unlocked = 2
-		log_message("🎉 TIER 2 MISSIONS UNLOCKED!")
+		log_message("TIER 2 MISSIONS UNLOCKED!")
 		log_message("New contract types are now available at the mission board.")
 	
 	# Check Tier 3 unlock
 	elif mission_tier_unlocked == 2 and tavern_reputation >= 50 and current_day >= 60 and total_missions_completed >= 10:
 		mission_tier_unlocked = 3
-		log_message("🎉 TIER 3 MISSIONS UNLOCKED!")
+		log_message("TIER 3 MISSIONS UNLOCKED!")
 		log_message("Elite contracts are now available - high risk, high reward!")
 	
 	# Refresh missions if tier changed
@@ -1585,12 +1585,12 @@ func refresh_available_missions():
 			available_missions.append(mission)
 		mission_refresh_day = current_day
 		missions_changed.emit()
-		print("✅ Refreshed missions (Tier ", mission_tier_unlocked, "): ", available_missions.size(), " missions loaded")
+		print("Refreshed missions (Tier ", mission_tier_unlocked, "): ", available_missions.size(), " missions loaded")
 	else:
 		# Fallback
 		var fallback_missions = generate_fallback_missions()
 		available_missions.clear()
 		for mission in fallback_missions:
 			available_missions.append(mission)
-		print("⚠️ Using fallback missions")
+		print("Using fallback missions")
 	WorldManager.assign_missions_to_hexes(available_missions)

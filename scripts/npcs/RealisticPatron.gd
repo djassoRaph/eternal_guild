@@ -56,12 +56,12 @@ signal patron_finished(patron: RealisticPatron)
 signal wants_to_be_served(patron: RealisticPatron)
 
 func _ready():
-	print("🧍 RealisticPatron initializing...")
+	print("RealisticPatron initializing...")
 	
 	add_to_group("patrons")  # ← ADD THIS LINE
 	collision_mask = 0b00000001
 	collision_layer = 0b00000010
-	print("🛡️ Patron collision: Layer 2, Mask 1 (no NPC-to-NPC collision)")
+	print("Patron collision: Layer 2, Mask 1 (no NPC-to-NPC collision)")
 
 	# Swap to a random model before anything else
 	_swap_to_random_model()
@@ -102,7 +102,7 @@ func _ready():
 		nav_agent.avoidance_mask = 0b00000010
 		nav_agent.navigation_finished.connect(_on_navigation_finished)
 
-	print("✅ Patron ready")
+	print("Patron ready")
 
 # =============================================================================
 # RANDOM MODEL SWAP
@@ -127,13 +127,13 @@ func _swap_to_random_model():
 	patron_body_mesh.name = "PatronModel"
 	add_child(patron_body_mesh)
 
-	print("🎭 Patron model: ", model_path.get_file())
+	print("Patron model: ", model_path.get_file())
 
 	# Find AnimationPlayer inside the loaded model
 	animation_player = _find_animation_player(patron_body_mesh)
 
 	if animation_player:
-		print("✅ Patron AnimationPlayer found")
+		print("Patron AnimationPlayer found")
 		_patron_play_animation("Idle")
 	else:
 		push_warning("RealisticPatron: No AnimationPlayer in " + model_path.get_file())
@@ -222,7 +222,7 @@ func _on_navigation_finished():
 			_leave_tavern()
 
 func _arrive_at_table():
-	print("🪑 ", patron_name, " arrived at table ", table_index)
+	print("", patron_name, " arrived at table ", table_index)
 	current_state = PatronState.SITTING_WAITING
 	_patron_play_animation("Idle")
 
@@ -233,7 +233,7 @@ func _arrive_at_table():
 	sitting_timer.start()
 
 func _leave_tavern():
-	print("🚪 ", patron_name, " reached the exit and is leaving")
+	print("", patron_name, " reached the exit and is leaving")
 	patron_finished.emit(self)
 
 # =============================================================================
@@ -250,11 +250,11 @@ func can_be_served_by(player_position: Vector3) -> bool:
 
 func serve_patron():
 	if current_state != PatronState.SITTING_WAITING:
-		print("❌ Patron is not waiting for service.")
+		print("Patron is not waiting for service.")
 		return false
 
 	if not GameManager.consume_beer_pints(1):
-		print("⚠️ Out of beer!")
+		print("Out of beer!")
 		return false
 
 	sitting_timer.stop()
@@ -266,7 +266,7 @@ func serve_patron():
 	drinking_timer.wait_time = randf_range(8.0, 15.0)
 	drinking_timer.start()
 
-	print("🍺 ", patron_name, " is now drinking")
+	print("", patron_name, " is now drinking")
 	return true
 
 # =============================================================================
@@ -278,11 +278,11 @@ func on_sitting_timer_timeout():
 		wants_service = true
 		service_indicator.visible = true
 		wants_to_be_served.emit(self)
-		print("🍺 ", patron_name, " wants service!")
+		print("", patron_name, " wants service!")
 
 func on_drinking_timer_timeout():
 	if current_state == PatronState.DRINKING:
-		print("💰 ", patron_name, " finished drinking. Pays ", payment_amount, "g")
+		print("", patron_name, " finished drinking. Pays ", payment_amount, "g")
 		GameManager.add_gold(payment_amount)
 		var origin_note = " (from " + patron_origin + ")" if patron_origin != "" else ""
 		GameManager.log_message("• " + patron_name + origin_note + " finished drinking. Pays " + str(payment_amount) + " gold")
@@ -295,7 +295,7 @@ func on_drinking_timer_timeout():
 		await get_tree().process_frame
 		if nav_agent:
 			nav_agent.target_position = entrance_position
-			print("🚶 ", patron_name, " is walking to exit at ", entrance_position)
+			print("", patron_name, " is walking to exit at ", entrance_position)
 		else:
 			_leave_tavern()
 
@@ -352,9 +352,9 @@ func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int):
 	var picked = origins[randi() % origins.size()]
 	patron_origin = picked["label"]
 	var origin_type: String = picked["type"]
-	print("🗺️ ", patron_name, " is from ", patron_origin, " (", origin_type, ")")
+	print("", patron_name, " is from ", patron_origin, " (", origin_type, ")")
 
 	await get_tree().create_timer(0.1).timeout
 	if nav_agent:
 		nav_agent.target_position = table_position
-		print("🎯 ", patron_name, " walking to table ", table_index, " at ", table_position)
+		print("", patron_name, " walking to table ", table_index, " at ", table_position)

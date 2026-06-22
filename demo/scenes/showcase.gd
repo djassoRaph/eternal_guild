@@ -51,13 +51,13 @@ func _initialize() -> void:
 	if is_tutorial:
 		_populate_agent_files("res://demo/agents/tutorial/")
 		begin_tutorial.text = "End Tutorial"
-		navigation_hint.text = "Navigate ➤"
+		navigation_hint.text = "Navigate "
 		scene_title.text = "Tutorial"
 		_on_agent_selection_id_pressed(0)
 	else:
 		_populate_agent_files("res://demo/agents/")
 		begin_tutorial.text = "Begin Tutorial"
-		navigation_hint.text = "Select Agent ➤"
+		navigation_hint.text = "Select Agent "
 		scene_title.text = "Showcase"
 		_on_agent_selection_id_pressed(0)
 

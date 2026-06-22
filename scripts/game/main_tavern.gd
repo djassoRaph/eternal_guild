@@ -58,13 +58,13 @@ func _on_day_changed(new_day: int):
 
 func advance_day():
 	"""Handle bedroom/sleep interaction - UPDATED FOR BEDROOM POPUP"""
-	print("🌙 Opening bedroom/quarters...")
+	print("Opening bedroom/quarters...")
 	var bedroom_popup = get_node("/root/Node3D/GameUI/PopupManager/BedroomPopup")
 	if bedroom_popup and bedroom_popup.has_method("open_bedroom"):
 		bedroom_popup.open_bedroom()
 		log_message("Reviewing the day before resting...")
 	else:
-		print("❌ Bedroom popup not found!")
+		print("Bedroom popup not found!")
 		# Fallback: advance day immediately
 		if GameManager.has_method("advance_day"):
 			GameManager.despawn_all_patrons()
@@ -130,12 +130,12 @@ func _input(event):
 		var mission_boards = get_tree().get_nodes_in_group("mission_board")
 		for board in mission_boards:
 			if board.visible:
-				print("🚪 Closing mission board with ESC")
+				print("Closing mission board with ESC")
 				board.visible = false
 				return  # ESC handled - stop here
 		
 		# No mission board open, toggle pause menu
-		print("⏸️ Toggling pause menu with ESC")
+		print("Toggling pause menu with ESC")
 		toggle_pause_menu()
 		return  # ESC handled - stop here
 	
@@ -161,7 +161,7 @@ func _input(event):
 			print("Game state reset!")
 		
 		elif event.keycode == KEY_B:
-			print("🔴 Testing Game Over Screen...")
+			print("Testing Game Over Screen...")
 			GameManager.trigger_game_over("test_game_over", "TEST: Manual game over triggered with B key")
 
 func toggle_pause_menu():
@@ -169,8 +169,8 @@ func toggle_pause_menu():
 	var svc = get_node_or_null("SubViewportContainer")
 	if svc:
 		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE if pause_menu.visible else Control.MOUSE_FILTER_STOP
-		print("🖱️ SVC mouse_filter is now: ", svc.mouse_filter)  # Should print 2 when paused
-	print("🖱️ PauseMenu visible: ", pause_menu.visible)
+		print("SVC mouse_filter is now: ", svc.mouse_filter)  # Should print 2 when paused
+	print("PauseMenu visible: ", pause_menu.visible)
 
 func _on_main_menu_button_pressed() -> void:
 	SaveSystem.save_game()
@@ -251,7 +251,7 @@ func _on_firewood_changed(new_amount: int):
 	"""Update firewood display when stock changes"""
 	if firewood_label:
 		var max_storage = GameManager.get_max_firewood_storage()
-		firewood_label.text = "🪵 Wood: " + str(new_amount) + "/" + str(max_storage)
+		firewood_label.text = "Wood: " + str(new_amount) + "/" + str(max_storage)
 
 func _on_fuel_changed(new_percentage: float):
 	"""Update fuel display when fire level changes — show comfort impact"""
@@ -262,19 +262,19 @@ func _on_fuel_changed(new_percentage: float):
 
 		if fuel_int >= 75:
 			color = Color.GREEN
-			status_text = "🔥 Fire: " + str(fuel_int) + "% — Cozy! +tips"
+			status_text = "Fire: " + str(fuel_int) + "% — Cozy! +tips"
 		elif fuel_int >= 50:
 			color = Color.YELLOW
-			status_text = "🔥 Fire: " + str(fuel_int) + "% — Warm"
+			status_text = "Fire: " + str(fuel_int) + "% — Warm"
 		elif fuel_int >= 25:
 			color = Color.ORANGE
-			status_text = "🔥 Fire: " + str(fuel_int) + "% — Chilly"
+			status_text = "Fire: " + str(fuel_int) + "% — Chilly"
 		elif fuel_int > 0:
 			color = Color.RED
-			status_text = "🔥 Fire: " + str(fuel_int) + "% — Cold! No tips"
+			status_text = "Fire: " + str(fuel_int) + "% — Cold! No tips"
 		else:
 			color = Color.RED
-			status_text = "🔥 Fire: OUT — No tips!"
+			status_text = "Fire: OUT — No tips!"
 
 		fuel_label.text = status_text
 		fuel_label.add_theme_color_override("font_color", color)
@@ -285,7 +285,7 @@ func _update_day_phase_display():
 		return
 
 	var day = GameManager.get_day()
-	phase_label.text = "☀️ Day " + str(day) + " — Morning"
+	phase_label.text = "Day " + str(day) + " — Morning"
 	phase_label.add_theme_color_override("font_color", Color(0.9, 0.8, 0.5))
 		
 func _init_zone_prompts():
@@ -293,6 +293,6 @@ func _init_zone_prompts():
 	if ZonePromptUI:
 		# This will find and connect all tavern interaction zones
 		ZonePromptUI.connect_tavern_zones()
-		print("✅ Tavern zone prompts initialized")
+		print("Tavern zone prompts initialized")
 	else:
 		push_warning("MainTavern: ZonePromptUI not found!")

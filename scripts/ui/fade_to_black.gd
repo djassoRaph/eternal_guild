@@ -15,7 +15,7 @@ func _ready():
 	
 	# Create sleep message
 	sleep_text = Label.new()
-	sleep_text.text = "🌙 Resting at the Eternal Guild..."
+	sleep_text.text = "Resting at the Eternal Guild..."
 	sleep_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sleep_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	sleep_text.add_theme_font_size_override("font_size", 24)
