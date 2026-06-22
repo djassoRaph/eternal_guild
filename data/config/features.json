@@ -1,0 +1,11 @@
+{
+	"firewood_system": true,
+	"patron_recruitment": true,
+	"mission_tiers": true,
+	"world_map_missions": true,
+	"codex_persistence": false,
+	"quest_chains": false,
+	"faction_reputation": false,
+	"tavern_upgrades": false,
+	"modding_api": false
+}

@@ -1,6 +1,9 @@
 extends Node
 
 
+var game_config: Dictionary = {}
+var features: Dictionary = {}
+
 var character_classes: Dictionary = {}
 var character_names: Array = []
 var character_traits: Dictionary = {}
@@ -30,6 +33,7 @@ func _ready():
 	load_all_base_data()
 
 func load_all_base_data():
+	load_config_data()
 	load_character_data()
 	load_mission_data()
 	load_economy_data()
@@ -37,6 +41,17 @@ func load_all_base_data():
 	load_settlement_data()
 	print("All base data loaded")
 	data_ready.emit()
+
+func load_config_data():
+	game_config = load_data_file("res://data/config/game_config.json", {})
+	features = load_data_file("res://data/config/features.json", {})
+	data_loaded.emit("config")
+
+func get_config(key: String, fallback = null) -> Variant:
+	return game_config.get(key, fallback)
+
+func get_feature(key: String) -> bool:
+	return features.get(key, false)
 
 func load_character_data():
 	character_classes = load_data_file("res://data/characters/classes.json", {})

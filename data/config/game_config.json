@@ -1,0 +1,14 @@
+{
+	"starting_gold": 1000,
+	"starting_beer": 5,
+	"starting_firewood": 0,
+	"starting_fireplace_fuel": 0.0,
+
+	"max_adventurers": 8,
+	"max_firewood_storage": 10,
+	"tax_due_day": 30,
+	"daily_operating_cost": 1,
+
+	"autosave_interval_seconds": 300,
+	"max_backup_files": 3
+}

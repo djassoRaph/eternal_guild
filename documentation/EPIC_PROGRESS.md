@@ -27,10 +27,11 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [ ] GameManager still holds all signals directly (gold_changed, beer_changed, day_changed, adventurer_roster_changed, missions_changed, recruitment_pool_changed, game_over_triggered, firewood_changed, fireplace_fuel_changed, mission_dispatched, missions_resolved, morning_briefing_ready)
 
 ### Story 1.3: Configuration Spine
-- [ ] `data/config/` directory does not exist
-- [ ] `game_config.json` does not exist — `max_adventurers = 5` hardcoded in GameManager.gd line 8
-- [ ] `features.json` does not exist
-- [ ] No `DataManager.get_config()` or `DataManager.get_feature()` methods
+- [x] `data/config/` directory created
+- [x] `game_config.json` created — starting values, max_adventurers, firewood, tax, autosave
+- [x] `features.json` created — feature flags for gating incomplete systems
+- [x] `DataManager.get_config()` and `DataManager.get_feature()` methods added
+- [x] `GameManager._apply_config()` reads from config; `reset_game_state()` reuses it
 
 ### Story 1.4: Project Structure Migrations
 - [x] `Player.tscn` correctly at `scenes/player/Player.tscn`
