@@ -681,6 +681,15 @@ func despawn_all_patrons():
 func get_firewood_stock() -> int:
 	return firewood_stock
 
+func consume_firewood(amount: int) -> int:
+	"""Consume up to `amount` firewood bundles (used by the fireplace minigame). Returns the amount actually consumed."""
+	var consumed: int = min(amount, firewood_stock)
+	if consumed > 0:
+		firewood_stock -= consumed
+		firewood_changed.emit(firewood_stock)
+		log_message("Burned " + str(consumed) + " log(s). Firewood: " + str(firewood_stock) + "/" + str(max_firewood_storage))
+	return consumed
+
 func get_fireplace_fuel() -> float:
 	return fireplace_fuel
 

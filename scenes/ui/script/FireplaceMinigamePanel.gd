@@ -31,6 +31,7 @@ var current_state: MinigameState = MinigameState.PLACING_LOGS
 # ===== LOG MANAGEMENT =====
 var max_logs: int = 5
 var logs_placed: int = 0
+var available_firewood: int = 5  # Set by fireplace_zone before _ready — caps placeable logs to real firewood stock
 var dragging_log = null
 var drag_offset: Vector2 = Vector2.ZERO
 var placed_log_positions: Array = []  # Track where logs were placed
@@ -55,8 +56,8 @@ const MIN_QUALITY_THRESHOLD: float = 50.0
 
 # ===== GREEN ZONE WIGGLE =====
 var green_zone_center: float = 400.0  # Base position
-var green_zone_wiggle_speed: float = 1.5  # Oscillation speed (was 2.0 - now slower)
-var green_zone_wiggle_amount: float = 35.0  # How far it moves (was 50 - now less movement)
+var green_zone_wiggle_speed: float = 2.5  # Oscillation speed — livelier target (feel-tune to taste)
+var green_zone_wiggle_amount: float = 60.0  # How far it drifts — more movement = more challenge (feel-tune to taste)
 var wiggle_time: float = 0.0
 
 # ===== OPTIMAL LOG PLACEMENT =====
@@ -190,19 +191,29 @@ func _check_log_click(click_pos: Vector2):
 				return
 
 func _setup_draggable_logs():
-	"""Setup logs for manual dragging detection"""
+	"""Setup logs for manual dragging detection. Only as many logs as the player has firewood are usable."""
 	print("Setting up draggable logs (manual hit detection)...")
-	
+
 	var logs = log_container.get_children()
-	print("Found ", logs.size(), " log nodes")
-	
+	print("Found ", logs.size(), " log nodes; available firewood = ", available_firewood)
+
+	var usable: int = min(available_firewood, logs.size())
 	for i in range(logs.size()):
 		var log = logs[i]
 		if log is TextureRect:
 			# Store metadata
 			log.set_meta("log_index", i)
-			log.set_meta("is_placed", false)
-			print("    Log ", i, " ready for manual detection")
+			if i < usable:
+				# Backed by real firewood — playable
+				log.set_meta("is_placed", false)
+				log.visible = true
+				log.modulate = Color(1, 1, 1, 1)
+				print("    Log ", i, " ready for manual detection")
+			else:
+				# No firewood for this log — hide and lock it out (is_placed=true makes click-detection skip it)
+				log.set_meta("is_placed", true)
+				log.visible = false
+				print("    Log ", i, " disabled (insufficient firewood)")
 		else:
 			print("    Node ", i, " is not a TextureRect!")
 
