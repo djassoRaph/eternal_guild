@@ -13,7 +13,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 1: Foundation Architecture & Modding Groundwork
-**Status: ~25% — Critical infrastructure still missing**
+**Status: ~95% — All 9 stories implemented; pending: editor verification of GdUnit4 tests + Stories 1.1/1.2 checkbox update**
 
 ### Story 1.1: Tech Debt Resolution
 - [x] Duplicate `systems/PlayerManager.gd` deleted
@@ -55,20 +55,26 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] Day-end sequence can call `pause_minigame()` on any `MinigameInterface` subclass without knowing concrete type
 
 ### Story 1.7: Plugin Installation Suite
-- [x] **LimboAI** — files present in `addons/limboai/` (GDExtension) — **but NOT in editor_plugins enabled list** (needs manual enable)
+- [x] **LimboAI** — GDExtension in `addons/limboai/`, auto-loads via `.gdextension` (no plugin.cfg needed)
 - [x] **Debug Menu (Calinou)** — installed, enabled, registered as autoload
-- [ ] **GdUnit4** — NOT installed anywhere in project
-- [ ] **QuestSystem 2** evaluation — NOT documented
+- [x] **GdUnit4** v6.1.3 — installed in `addons/gdUnit4/`, enabled in editor_plugins
+- [x] **QuestSystem 2** evaluation — documented in `game-architecture.md` D8 Plugin Decisions Log (QS2 default, yggdrasil backup)
 - [x] **dialogue_manager** — installed and active
 - [x] **asset_placer** — installed and active (dev tool)
 
 ### Story 1.8: Modding Foundation Stubs
-- [ ] No MOD-8 hook methods on GameManager (on_patron_spawned, on_mission_resolved, etc.)
-- [ ] No `data/config/factions.json`
-- [~] Some data-driven content exists (JSON files in data/) but hardcoded class names remain in GDScript (MOD-2 violations: `"Fighter"`, `"Rogue"`, etc. used as literals)
+- [x] 5 MOD-8 hook methods on GameManager: `on_patron_spawned`, `on_mission_resolved`, `on_day_advanced`, `on_adventurer_hired`, `on_adventurer_died` — each emits to domain bus
+- [x] Hooks wired into existing code paths (advance_day, hire_adventurer, handle_adventurer_death, _resolve_mission)
+- [x] `data/config/factions.json` — rival guilds + 5 biome definitions with schema_version
+- [x] `WorldManager.load_faction_data()` reads factions.json at startup
+- [x] 3 hardcoded class/name lists replaced with `DataManager.get_config()` lookups (GameManager fallback recruits, recruitment_popup classes + names)
+- [x] `adventurer_classes` and `adventurer_names` added to game_config.json
 
 ### Story 1.9: Failsafe Test Suite
-- [ ] GdUnit4 not installed — no automated tests exist
+- [x] GdUnit4 installed (Story 1.7)
+- [x] `test/failsafe_test.gd` — 4 tests: save/load round-trip, loot RNG distribution, mission success formula, AdventurerStatus transitions
+- [x] `GameManager.roll_loot()` static method created for loot distribution (gold 75% / equipment 20% / artifact 5%)
+- [ ] Tests need to be run in Godot editor to verify green — requires editor restart with GdUnit4 active
 
 ---
 

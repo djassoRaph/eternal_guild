@@ -1,0 +1,15 @@
+{
+	"schema_version": 1,
+	"rival_guild_names": [
+		"Golden Lions Guild",
+		"Black Raven Company",
+		"Silver Compass Society"
+	],
+	"biomes": [
+		{"name": "Verdant Lowlands", "description": "Fertile plains surrounding the hamlet"},
+		{"name": "Thornwood Forest", "description": "Dense ancient woodland, home to beasts and bandits"},
+		{"name": "Ashfall Peaks", "description": "Volcanic mountain range with rich mineral deposits"},
+		{"name": "Mistfen Marshes", "description": "Foggy wetlands where the dead do not always rest"},
+		{"name": "Ironveil Coast", "description": "Rocky shoreline with hidden coves and shipwrecks"}
+	]
+}

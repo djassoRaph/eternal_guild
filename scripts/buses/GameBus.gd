@@ -5,3 +5,6 @@ signal game_over_triggered(reason: String)
 signal morning_briefing_ready(reports: Array)
 signal critical_error(reason: String)
 signal game_error_triggered
+signal patron_spawned(patron_data: Dictionary)
+signal mission_resolved(mission_result: Dictionary)
+signal day_advanced(day_number: int)
