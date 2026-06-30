@@ -197,6 +197,9 @@ func log_message(message: String):
 		if not is_inside_tree():
 			return
 		await get_tree().process_frame
+		# Scene may change mid-coroutine (e.g. Save & Exit to main menu) — re-check before EACH get_tree()
+		if not is_inside_tree():
+			return
 		await get_tree().process_frame
 
 		if not is_inside_tree():
@@ -205,6 +208,8 @@ func log_message(message: String):
 
 		if log_container.get_v_scroll_bar():
 			var vbar = log_container.get_v_scroll_bar()
+			if not is_inside_tree():
+				return
 			await get_tree().process_frame
 			if not is_inside_tree():
 				return
