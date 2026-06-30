@@ -268,8 +268,8 @@ func create_recruit_applicant() -> Dictionary:
 
 func create_adventurer() -> Dictionary:
 	"""Create an adventurer with random stats"""
-	var adventurer_names = ["Brom", "Ezren", "Kael", "Lyra", "Nim", "Tarin", "Zara", "Garrick", "Mira", "Thorne", "Elira", "Doran", "Sylas", "Iris", "Raphio", "Aiden", "Cora", "Finn", "Runa", "Tobias"]
-	var adventurer_classes = ["Fighter", "Rogue", "Mage", "Healer"]
+	var adventurer_names = DataManager.get_config("adventurer_names", ["Brom", "Ezren", "Kael", "Lyra", "Nim", "Tarin", "Zara", "Garrick", "Mira", "Thorne", "Elira", "Doran", "Sylas", "Iris", "Raphio", "Aiden", "Cora", "Finn", "Runa", "Tobias"])
+	var adventurer_classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Healer"])
 	
 	var adv_name = adventurer_names[randi() % adventurer_names.size()]
 	var adv_class = adventurer_classes[randi() % adventurer_classes.size()]

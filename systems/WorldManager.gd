@@ -14,12 +14,14 @@ var chosen_center: Dictionary = {}   # the tavern_site hex the player picked
 
 # --- Loaded Game Data ---
 var capital_definitions: Dictionary = {}
+var faction_data: Dictionary = {}
 const CAPITALS_DATA_PATH = "res://data/settlements/capitals.json"
+const FACTIONS_DATA_PATH = "res://data/config/factions.json"
 
 
 func _ready():
-	print("capitals.json called.")
 	_load_capital_definitions()
+	load_faction_data()
 
 # Called by the world map when the player confirms their tavern spot,
 # and by GameManager.load_save_data() when restoring from a save file.
@@ -85,3 +87,16 @@ func _load_capital_definitions():
 		capital_definitions = content
 	else:
 		print("WorldManager Error: Failed to parse capitals.json.")
+
+
+func load_faction_data():
+	if not FileAccess.file_exists(FACTIONS_DATA_PATH):
+		print("[WorldManager] factions.json not found at ", FACTIONS_DATA_PATH)
+		return
+	var file = FileAccess.open(FACTIONS_DATA_PATH, FileAccess.READ)
+	var content = JSON.parse_string(file.get_as_text())
+	if content:
+		faction_data = content
+		print("[WorldManager] Factions loaded: ", faction_data.get("rival_guild_names", []).size(), " rivals, ", faction_data.get("biomes", []).size(), " biomes")
+	else:
+		print("[WorldManager] Failed to parse factions.json")

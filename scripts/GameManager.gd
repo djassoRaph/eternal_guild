@@ -417,10 +417,13 @@ func process_mission_returns():
 
 func _resolve_mission(entry: Dictionary) -> Dictionary:
 	"""Roll the dice for a completed mission and return a report dictionary."""
+	var result: Dictionary
 	if entry.get("is_party_mission", false):
-		return _resolve_party_mission(entry)
+		result = _resolve_party_mission(entry)
 	else:
-		return _resolve_solo_mission(entry)
+		result = _resolve_solo_mission(entry)
+	on_mission_resolved(result)
+	return result
 
 
 func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
@@ -583,8 +586,8 @@ func generate_daily_recruits(count: int = 3):
 func generate_fallback_recruits(count: int) -> Array:
 	"""Generate recruits when DataManager is not available"""
 	var recruits = []
-	var classes = ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"]
-	var names = ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"]
+	var classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"])
+	var names = DataManager.get_config("adventurer_names", ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"])
 	
 	for i in count:
 		var recruit = {
@@ -690,6 +693,7 @@ func advance_day():
 	"""Enhanced day advancement with availability reporting"""
 	current_day += 1
 	day_changed.emit(current_day)
+	on_day_advanced(current_day)
 	fireplace_fuel = 0.0  # Fire dies completely
 	fireplace_fuel_changed.emit(fireplace_fuel)
 	log_message("Day " + str(current_day) + " begins - the fire has gone out overnight")
@@ -816,10 +820,11 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	adventurers.append(new_adventurer)
 	remove_hired_recruit(recruit)  # Remove from available pool
 	adventurer_roster_changed.emit()
-	
+	on_adventurer_hired(new_adventurer)
+
 	log_message("Hired " + recruit.name + " the " + recruit.class + " for " + str(hiring_cost) + " gold!")
 	log_message("Current roster: " + str(adventurers.size()) + "/" + str(max_adventurers) + " adventurers")
-	
+
 	return true
 
 # === SAVE/LOAD SYSTEM ===
@@ -1436,6 +1441,15 @@ func handle_party_failure_consequences(adventurer: Dictionary, mission: Dictiona
 		# INJURED BUT SURVIVES
 		handle_adventurer_injury(adventurer, mission)
 
+static func roll_loot() -> String:
+	var roll = randf()
+	if roll < 0.05:
+		return "artifact"
+	elif roll < 0.25:
+		return "equipment"
+	else:
+		return "gold"
+
 func calculate_death_chance(adventurer_level: int, mission_danger: int) -> float:
 	"""Calculate death chance based on your design requirements"""
 	var base_death_chance: float
@@ -1495,7 +1509,8 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 	# Remove from adventurer roster
 	adventurers.erase(adventurer)
 	adventurer_roster_changed.emit()
-	
+	on_adventurer_died(adventurer)
+
 	# Death has economic consequences - funeral costs
 	var funeral_cost = randi_range(5, 15)
 	if spend_gold(funeral_cost):
@@ -1591,3 +1606,26 @@ func refresh_available_missions():
 			available_missions.append(mission)
 		print("Using fallback missions")
 	WorldManager.assign_missions_to_hexes(available_missions)
+
+
+# === MOD-8 PLUGIN HOOKS ===
+
+# MOD-8 plugin hook — logic added per system epic
+func on_patron_spawned(patron_data: Dictionary) -> void:
+	GameBus.patron_spawned.emit(patron_data)
+
+# MOD-8 plugin hook — logic added per system epic
+func on_mission_resolved(mission_result: Dictionary) -> void:
+	GameBus.mission_resolved.emit(mission_result)
+
+# MOD-8 plugin hook — logic added per system epic
+func on_day_advanced(day_number: int) -> void:
+	GameBus.day_advanced.emit(day_number)
+
+# MOD-8 plugin hook — logic added per system epic
+func on_adventurer_hired(adventurer_data: Dictionary) -> void:
+	AdventurerBus.adventurer_hired.emit(adventurer_data)
+
+# MOD-8 plugin hook — logic added per system epic
+func on_adventurer_died(adventurer_data: Dictionary) -> void:
+	AdventurerBus.adventurer_died.emit(adventurer_data)

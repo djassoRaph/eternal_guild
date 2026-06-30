@@ -10,5 +10,8 @@
 	"daily_operating_cost": 1,
 
 	"autosave_interval_seconds": 300,
-	"max_backup_files": 3
+	"max_backup_files": 3,
+
+	"adventurer_classes": ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"],
+	"adventurer_names": ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"]
 }
