@@ -119,6 +119,10 @@ func _on_player_interact():
 	
 	# Open minigame for DORMANT, BURNING_LOW, or DYING states
 	if current_state in [FireplaceState.DORMANT, FireplaceState.BURNING_LOW, FireplaceState.DYING]:
+		# Can't light a fire without firewood — need at least 2 logs to build it
+		if GameManager.get_firewood_stock() < 2:
+			GameManager.log_message("Not enough firewood to light the fire (need 2). Buy some from your quarters.")
+			return
 		_open_minigame()
 
 # ===== MINIGAME MANAGEMENT =====
@@ -132,7 +136,10 @@ func _open_minigame():
 	
 	# CRITICAL: Set minigame to process even when paused
 	active_minigame.process_mode = Node.PROCESS_MODE_ALWAYS
-	
+
+	# Connect the minigame's logs to real firewood stock (caps how many logs can be placed)
+	active_minigame.available_firewood = GameManager.get_firewood_stock()
+
 	get_tree().root.add_child(active_minigame)
 	
 	# Pause game - player and NPCs will freeze
@@ -154,7 +161,10 @@ func _on_minigame_completed(success: bool, quality: float):
 	get_tree().paused = false
 	
 	if success:
-		# SUCCESS - Fire is lit!
+		# SUCCESS - Fire is lit! Burn the firewood (logs) used to build it.
+		var logs_used: int = active_minigame.logs_placed if active_minigame else 2
+		GameManager.consume_firewood(logs_used)
+
 		fire_quality = quality
 		
 		if quality >= 80:
