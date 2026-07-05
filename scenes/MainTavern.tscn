@@ -1,4 +1,4 @@
-[gd_scene load_steps=111 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=112 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="PackedScene" uid="uid://dbomj4nofjjcc" path="res://assets/environment/furniture/bench.glb" id="1_m4lj6"]
@@ -44,6 +44,7 @@
 [ext_resource type="PackedScene" uid="uid://bw7suf2mjnf8w" path="res://scenes/ui/MissionBoard.tscn" id="30_ocxae"]
 [ext_resource type="PackedScene" uid="uid://b2m46soecam60" path="res://scenes/ui/debug_panel.tscn" id="32_ocxae"]
 [ext_resource type="Script" uid="uid://bkmu2w0hiyj1n" path="res://scenes/game_over_screen.gd" id="33_xtcff"]
+[ext_resource type="Script" uid="uid://b7ph34uiot0rh" path="res://scripts/menus/pause_menu.gd" id="36_u7xbe"]
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
 vertices = PackedVector3Array(-4.65, 0.417485, -18.5553, -4.65, 0.417485, -17.3053, -4.15, 0.417485, -17.0553, 1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, 14.1, 0.417485, -15.5553, 14.6, 0.417485, -18.5553, 5.85, 0.417485, -13.0553, 7.35, 0.417485, -13.0553, 7.35, 0.417485, -13.5553, 1.1, 0.417485, -13.5553, -4.15, 0.417485, -11.0553, -3.65, 0.417485, -10.8053, -4.15, 0.417485, -5.55527, -2.9, 0.417485, -5.55527, 1.85, 0.417485, -6.80527, 2.85, 0.417485, -11.0553, -2.65, 0.417485, -5.05527, 9.1, 0.417485, -13.0553, 14.1, 0.417485, -13.5553, 12.35, 0.417485, -8.30527, 12.6, 0.417485, -6.55527, 14.1, 0.417485, -6.55527, 12.35, 0.417485, -8.80527, 4.85, 0.417485, -9.55527, 4.6, 0.417485, -8.05527, 5.1, 0.417485, -6.80527, 7.1, 0.417485, -11.3053, 5.85, 0.417485, -10.8053, 6.35, 0.417485, -5.55527, 8.1, 0.417485, -5.05527, 10.35, 0.417485, -6.30527, 11.1, 0.417485, -8.30527, 10.85, 0.417485, -8.55527, 9.6, 0.417485, -10.5553, 12.1, 0.417485, -10.8053, 10.6, 0.417485, -12.3053, 3.6, 0.417485, -5.30527, 3.35, 0.417485, -6.30527, -2.4, 0.417485, -1.05527, -2.9, 0.417485, -0.555265, -4.15, 0.417485, -0.555265, -4.15, 0.417485, 3.69473, 5.35, 0.417485, 3.69473, 5.35, 0.417485, -3.80527, 12.1, 0.417485, -5.30527, 10.1, 0.417485, -3.55527, 14.1, 0.417485, 3.94473, 6.6, 0.417485, -3.30527, -4.15, 1.41749, -1.55527, -3.4, 1.41749, -1.55527, -3.4, 1.41749, -4.05527, -4.15, 1.41749, -4.30527, 7.1, 0.167485, 5.44473, 7.1, 0.167485, 7.69473, 14.1, 0.167485, 7.69473, 14.1, 0.167485, 5.44473)
@@ -933,6 +934,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 1, 2)
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 unique_name_in_owner = true
 visible = false
+script = ExtResource("36_u7xbe")
 
 [node name="PauseBackground" type="Control" parent="PauseMenu"]
 modulate = Color(1, 1, 1, 0.7)
@@ -957,7 +959,7 @@ offset_bottom = 85.5
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MainMenuButton" type="Button" parent="PauseMenu/VBoxContainer"]
+[node name="MainMenuButton" type="Button" parent="PauseMenu/VBoxContainer" groups=["player_scene"]]
 layout_mode = 2
 text = "Main Menu"
 
@@ -1346,6 +1348,4 @@ text = "Main Menu"
 
 [node name="DebugPanel" parent="." instance=ExtResource("32_ocxae")]
 
-[connection signal="pressed" from="PauseMenu/VBoxContainer/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
-[connection signal="pressed" from="PauseMenu/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
 [connection signal="pressed" from="GameOverScreen/CenterContainer/VBoxContainer/MainMenuButton" to="GameOverScreen" method="_on_main_menu_button_pressed"]

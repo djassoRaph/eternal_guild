@@ -13,18 +13,18 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 1: Foundation Architecture & Modding Groundwork
-**Status: ~95% — All 9 stories implemented; pending: editor verification of GdUnit4 tests + Stories 1.1/1.2 checkbox update**
+**Status: ✅ 100% DONE — all 9 stories implemented; failsafe suite run & GREEN (27/27). Verified 2026-06-24.**
 
 ### Story 1.1: Tech Debt Resolution
 - [x] Duplicate `systems/PlayerManager.gd` deleted
 - [x] `assign_adventurer_to_mission()` orphan removed from GameManager.gd
 - [x] `"on_mission"` match arms fixed to `"On Mission"` (correct capitalization)
-- [ ] **AdventurerStatus enum** (`scripts/resources/adventurer_status.gd`) — NOT CREATED. Still using string-based status (`"Ready"`, `"On Mission"`, `"Injured"`, `"Resting"`, `"Dead"`)
-- [ ] `@onready var log_container = %LogContainer` still on line 2 of `systems/DataManager.gd` — NOT DELETED
+- [x] **AdventurerStatus enum** (`scripts/resources/adventurer_status.gd`) — CREATED + adopted (verified used in GameManager, DataManager, AdventurerRosterPanel, recruitment_popup, debug_panel, failsafe_test) — 2026-06-24
+- [x] Dead `@onready var log_container` removed from `systems/DataManager.gd` — verified 2026-06-24
 
-### Story 1.2: Domain-Split EventBus
-- [ ] `scripts/buses/` directory does not exist — **zero bus autoloads created**
-- [ ] GameManager still holds all signals directly (gold_changed, beer_changed, day_changed, adventurer_roster_changed, missions_changed, recruitment_pool_changed, game_over_triggered, firewood_changed, fireplace_fuel_changed, mission_dispatched, missions_resolved, morning_briefing_ready)
+### Story 1.2: Domain-Split EventBus — DONE (verified 2026-06-24)
+- [x] `scripts/buses/` exists with all 6 buses: GameBus, AdventurerBus, EconomyBus, WorldBus, GuildBus, LegacyBus
+- [x] GameManager routes signals through the domain buses (e.g. `firewood_changed → EconomyBus.firewood_changed`). [Spot-check recommended: confirm all *consumers* subscribe via buses, not just GameManager forwarding]
 
 ### Story 1.3: Configuration Spine
 - [x] `data/config/` directory created
@@ -74,12 +74,12 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] GdUnit4 installed (Story 1.7)
 - [x] `test/failsafe_test.gd` — 4 tests: save/load round-trip, loot RNG distribution, mission success formula, AdventurerStatus transitions
 - [x] `GameManager.roll_loot()` static method created for loot distribution (gold 75% / equipment 20% / artifact 5%)
-- [ ] Tests need to be run in Godot editor to verify green — requires editor restart with GdUnit4 active
+- [x] Failsafe suite RUN & GREEN — **27/27 pass** (save round-trip, loot bands, mission formula, status transitions), verified 2026-06-24. NOTE: these are NOT GdUnit4/editor tests — `test/failsafe_test.gd` is a standalone headless script. Re-run anytime: `"<godot>" --headless --script res://test/failsafe_test.gd --path "F:\GAME I AM MAKING\shiningsun"`
 
 ---
 
 ## Epic 2: Main Menu, Pause Menu & Game Settings
-**Status: ~40% — Basic menu scaffolding, needs polish**
+**Status: ~90% — 2.1 / 2.2 / 2.3 / 2.4 DONE. Only remaining: New Game→tavern flow polish (2.1) — overlaps Epic 6 world-map rework. (2026-07-05)**
 
 ### Story 2.1: Main Menu Scene — PARTIAL
 - [x] `MainMenu.tscn` + `main_menu.gd` — Start, Continue, Quit buttons exist
@@ -87,16 +87,21 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [~] New Game → transitions to HexMapTest scene — **NOTE (Raphael): not at expected quality**
 - [~] Continue → loads save then transitions to MainTavern — load has known issues
 - [x] Quit → `get_tree().quit()`
-- [ ] No "overwrite existing save" confirmation on New Game when save exists
-- [ ] No Settings button wired
+- [x] "Overwrite existing save" confirmation on New Game when a save exists (2026-07-05)
+- [x] Settings button wired — opens the settings overlay from Main Menu + Pause Menu (2026-07-05)
 
-### Story 2.2: Settings Screen — NOT DONE
-- [ ] No settings scene exists
-- [ ] No volume sliders
-- [ ] No `user://settings.cfg` handling
+### Story 2.2: Settings Screen — DONE (2026-07-05, verified headless)
+- [x] `SettingsManager` autoload — loads / applies / saves settings; `default_bus_layout.tres` adds Master/Music/SFX buses
+- [x] Volume sliders (Master/Music/SFX) drive the audio buses; Fullscreen toggle
+- [x] `user://settings.cfg` save/load round-trip (verified 0.5 → save → load → 0.5)
+- [x] Code-built settings overlay (`scripts/menus/settings_menu.gd`), reachable from Main Menu + Pause Menu
+- NOTE: Master affects all audio immediately; Music/SFX buses are wired but only affect players explicitly assigned to those buses (audio categorization is future work)
 
-### Story 2.3: Keybinding Remapper — NOT DONE
-- [ ] Not implemented
+### Story 2.3: Keybinding Remapper — DONE (2026-07-05, verified headless)
+- [x] Rebind Move Forward/Back/Left/Right, Jump, Interact via the Settings overlay "Controls" section
+- [x] Click-to-listen: click a key button → press a new key → rebinds (Esc cancels); uses physical keycodes (keyboard-layout independent)
+- [x] Persisted to `user://settings.cfg` `[input]` and re-applied on startup (SettingsManager)
+- [x] "Reset Controls to Default" restores project defaults (verified E→K→reset→E headless)
 
 ### Story 2.4: Pause Menu & Save Handler — DONE
 - [x] Full pause menu: Save, Load, Save & Exit, Main Menu, Quit

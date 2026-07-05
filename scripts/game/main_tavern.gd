@@ -172,14 +172,8 @@ func toggle_pause_menu():
 		print("SVC mouse_filter is now: ", svc.mouse_filter)  # Should print 2 when paused
 	print("PauseMenu visible: ", pause_menu.visible)
 
-func _on_main_menu_button_pressed() -> void:
-	SaveSystem.save_game()
-	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
-
-func _on_quit_button_pressed() -> void:
-	SaveSystem.save_game()
-	get_tree().quit()
+# Pause-menu buttons (Main Menu / Save / Load / Save & Exit / Quit) are owned by
+# pause_menu.gd, attached to the PauseMenu CanvasLayer. main_tavern only shows/hides it.
 
 # === LOGGING SYSTEM ===
 func log_message(message: String):

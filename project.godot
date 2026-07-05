@@ -32,6 +32,7 @@ DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
 DebugMenu="*res://addons/debug_menu/debug_menu.tscn"
 MCPRuntime="*res://addons/godot_mcp_runtime/mcp_runtime_autoload.gd"
 McpInteractionServer="*res://mcp_interaction_server.gd"
+SettingsManager="*res://scripts/autoload/settings_manager.gd"
 
 [display]
 

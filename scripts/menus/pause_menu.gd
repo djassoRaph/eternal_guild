@@ -43,6 +43,14 @@ func _ready():
 	else:
 		print("Quit button not found")
 	
+	# Settings button (created in code, placed just above Quit)
+	var settings_button := Button.new()
+	settings_button.text = "Settings"
+	settings_button.pressed.connect(_on_settings_pressed)
+	$VBoxContainer.add_child(settings_button)
+	if quit_button:
+		$VBoxContainer.move_child(settings_button, quit_button.get_index())
+
 	print("Pause menu initialized with all buttons")
 	
 
@@ -122,21 +130,16 @@ func _on_save_pressed():
 
 
 func _on_save_exit_pressed():
-	"""Save and exit to main menu"""
+	"""Save, then return to the main menu."""
 	print("Save & Exit pressed")
-	
+
 	if SaveSystem:
-		var success = SaveSystem.save_game()
-		if success:
-			show_message("Game saved!")
-			await get_tree().create_timer(1.0).timeout
-			_return_to_main_menu()
-		else:
-			show_message("Failed to save game\nReturning to menu anyway...")
-			await get_tree().create_timer(1.5).timeout
-			_return_to_main_menu()
-	else:
-		_return_to_main_menu()
+		var success := SaveSystem.save_game()
+		if not success:
+			push_warning("Save & Exit: save failed — returning to menu anyway")
+	# Exit immediately. Do NOT gate the transition on a timed await + modal "Game saved!"
+	# dialog — that popup was swallowing the exit, so it only ever saved.
+	_return_to_main_menu()
 
 
 
@@ -148,6 +151,10 @@ func _on_quit_pressed():
 		_quit_game
 	)
 
+
+func _on_settings_pressed():
+	"""Open the settings overlay (works over the paused game)"""
+	add_child(preload("res://scripts/menus/settings_menu.gd").new())
 
 func _return_to_main_menu():
 	"""Actually return to main menu"""
