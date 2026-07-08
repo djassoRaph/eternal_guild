@@ -9,6 +9,17 @@
 	"tax_due_day": 30,
 	"daily_operating_cost": 1,
 
+	"warn_gold_below": 20,
+	"warn_beer_below": 2,
+	"warn_comfort_below": 25,
+	"notification_duration_seconds": 4.0,
+	"notification_cooldown_seconds": 15.0,
+
+	"fire_burn_high_seconds": 240,
+	"fire_burn_low_seconds": 120,
+	"fire_dying_seconds": 60,
+	"fire_cooldown_seconds": 30,
+
 	"autosave_interval_seconds": 300,
 	"max_backup_files": 3,
 

@@ -114,7 +114,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 3: The Living Tavern — Core Day Loop
-**Status: ~75% — Core loop fully functional**
+**Status: ~95% — 3.3 firewood authority, 3.4 beer authority, 3.5 HUD notifications all DONE 2026-07-05. Only remaining: 3.4 coin-payment animation (visual juice).**
 
 - [x] **Day cycle** — `advance_day()` processes all daily events in sequence
 - [x] **Patron spawn** — PatronSpawner with timer-based spawn, up to 3 concurrent (configurable)
@@ -127,7 +127,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] **Beer shortage consequences** — escalating: Day 1 = -25% mission penalty, Day 2 = 50% departure chance, Day 3+ = guaranteed departures
 - [x] **Soft-lock detection** (FR-6) — triggers game over when 0 adventurers + <8g + no recruits
 - [x] **GameOverScreen.tscn** exists for game over display
-- [ ] **HUD notifications** for non-blocking warnings — log_message goes to console + scene log, but no floating HUD notifications
+- [x] **HUD notifications** — `NotificationManager` autoload (2026-07-05): non-blocking top-center banners for low gold/beer/comfort, edge-triggered + cooldown + max-2, config thresholds in `game_config.json`. Verified headless.
 
 ---
 

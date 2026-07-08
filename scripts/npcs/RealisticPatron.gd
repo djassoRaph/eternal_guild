@@ -284,6 +284,15 @@ func on_drinking_timer_timeout():
 	if current_state == PatronState.DRINKING:
 		print("", patron_name, " finished drinking. Pays ", payment_amount, "g")
 		GameManager.add_gold(payment_amount)
+
+		# Coin-burst juice at the patron (Story 3.4 visual reward + SFX)
+		var coin_burst = preload("res://scripts/fx/coin_reward.gd").new()
+		var burst_host = get_parent()
+		if burst_host:
+			burst_host.add_child(coin_burst)
+			coin_burst.global_position = global_position + Vector3(0, 1.5, 0)
+			coin_burst.burst()
+
 		var origin_note = " (from " + patron_origin + ")" if patron_origin != "" else ""
 		GameManager.log_message("• " + patron_name + origin_note + " finished drinking. Pays " + str(payment_amount) + " gold")
 

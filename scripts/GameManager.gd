@@ -158,16 +158,23 @@ func add_beer(amount: int):
 	beer_changed.emit(beer_stock)
 	print("Added ", amount, " beer. Total: ", beer_stock)
 
+func consume_drink(drink_type: String, amount: int = 1) -> bool:
+	"""SINGLE authority for drink consumption (Story 3.4). Beer is the MVP drink; add
+	mead/cider/wine cases here as they come online. Returns false if stock is short (no crash)."""
+	match drink_type:
+		"beer":
+			if beer_stock < amount:
+				return false
+			beer_stock -= amount
+			beer_changed.emit(beer_stock)
+			return true
+		_:
+			push_warning("consume_drink: unknown drink '%s'" % drink_type)
+			return false
+
 func consume_beer(amount: int) -> bool:
-	"""Consume beer if available"""
-	if beer_stock >= amount:
-		beer_stock -= amount
-		beer_changed.emit(beer_stock)
-		print("Consumed ", amount, " beer. Remaining: ", beer_stock)
-		return true
-	else:
-		print("Insufficient beer. Need ", amount, " but have ", beer_stock)
-		return false
+	"""Thin wrapper — routes through consume_drink() (the single authority)."""
+	return consume_drink("beer", amount)
 
 func get_beer() -> int:
 	"""Get current beer stock"""
@@ -1268,15 +1275,8 @@ func add_beer_pints(pints: int):
 	print("Added ", pints, " pint(s). Total: ", beer_stock, " pints")
 
 func consume_beer_pints(pints: int) -> bool:
-	"""Consume beer pints if available"""
-	if beer_stock >= pints:
-		beer_stock -= pints
-		beer_changed.emit(beer_stock)
-		print("Consumed ", pints, " pint(s). Remaining: ", beer_stock, " pints")
-		return true
-	else:
-		print("Insufficient beer. Need ", pints, " pints but have ", beer_stock, " pints")
-		return false
+	"""Thin wrapper — routes through consume_drink() (the single authority)."""
+	return consume_drink("beer", pints)
 
 func get_beer_pints() -> int:
 	"""Get current beer stock in pints"""
@@ -1292,24 +1292,8 @@ func set_fireplace_fuel(new_value: float):
 	if int(old_fuel) != int(fireplace_fuel):
 		fireplace_fuel_changed.emit(fireplace_fuel)
 
-func stoke_fireplace() -> bool:
-	"""Use firewood to increase fire level"""
-	if firewood_stock <= 0:
-		log_message("No firewood available! Buy some from your quarters.")
-		return false
-	
-	# Consume 1 bundle
-	firewood_stock -= 1
-	firewood_changed.emit(firewood_stock)
-	
-	# Add 25% fuel (capped at 100%)
-	var old_fuel = fireplace_fuel
-	fireplace_fuel = min(100.0, fireplace_fuel + 25.0)
-	fireplace_fuel_changed.emit(fireplace_fuel)
-	
-	log_message("Stoked the fire! (" + str(int(old_fuel)) + "% → " + str(int(fireplace_fuel)) + "%)")
-	
-	return true
+# stoke_fireplace() removed 2026-07-05 — dead code (zero callers). Fireplace stoking runs through
+# the minigame → consume_firewood(), which is now the single firewood drain authority. (Story 3.3)
 
 func _process(_delta):
 	# Fireplace fuel is now managed entirely by fireplace_zone.gd state machine

@@ -169,7 +169,9 @@ func toggle_pause_menu():
 	var svc = get_node_or_null("SubViewportContainer")
 	if svc:
 		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE if pause_menu.visible else Control.MOUSE_FILTER_STOP
-		print("SVC mouse_filter is now: ", svc.mouse_filter)  # Should print 2 when paused
+		# Freeze the whole game world (player, patrons, fireplace drain) while the menu is up.
+		# We DISABLE the game subtree instead of get_tree().paused so this script keeps catching ESC.
+		svc.process_mode = Node.PROCESS_MODE_DISABLED if pause_menu.visible else Node.PROCESS_MODE_INHERIT
 	print("PauseMenu visible: ", pause_menu.visible)
 
 # Pause-menu buttons (Main Menu / Save / Load / Save & Exit / Quit) are owned by

@@ -13,9 +13,21 @@ enum FireplaceState {
 }
 
 var current_state: FireplaceState = FireplaceState.DORMANT
-var fire_quality: float = 0.0  # 0-100
+var fire_quality: float = 0.0  # 0-100, continuously drains while burning
 var cooldown_remaining: float = 0.0
-var burn_time_remaining: float = 0.0
+
+# Band durations (seconds) — loaded from game_config.json. Each is how long fire_quality
+# takes to drain across one band (100->50, 50->20, 20->0); ~7-min full burn for testing.
+var _burn_high: float = 240.0
+var _burn_low: float = 120.0
+var _dying: float = 60.0
+var _fail_cooldown: float = 30.0
+
+# Fuel-band thresholds (%): fire_quality glides down through these and the burning
+# state is derived from whichever band it sits in.
+const FUEL_HIGH_FLOOR: float = 50.0
+const FUEL_LOW_FLOOR: float = 20.0
+var _last_pushed_fuel: int = -1  # throttles HUD pushes to whole-% changes
 
 # ===== PLAYER INTERACTION =====
 var player_nearby: bool = false
@@ -47,6 +59,13 @@ func _ready():
 	if GameManager.has_signal("fireplace_fuel_changed"):
 		GameManager.fireplace_fuel_changed.connect(_update_fire_visuals)
 	
+	# Burn durations from config (tunable — see game_config.json)
+	if DataManager:
+		_burn_high = float(DataManager.get_config("fire_burn_high_seconds", _burn_high))
+		_burn_low = float(DataManager.get_config("fire_burn_low_seconds", _burn_low))
+		_dying = float(DataManager.get_config("fire_dying_seconds", _dying))
+		_fail_cooldown = float(DataManager.get_config("fire_cooldown_seconds", _fail_cooldown))
+
 	# Get references to visual elements
 	fire_light = get_node_or_null("../../../Furniture/Fireplace/FireLight")
 	fire_particles = get_node_or_null("../../../Furniture/Fireplace/FireParticles")
@@ -59,12 +78,8 @@ func _ready():
 func _process(delta):
 	# Handle state timers
 	match current_state:
-		FireplaceState.BURNING_HIGH:
-			_process_burning(delta)
-		FireplaceState.BURNING_LOW:
-			_process_burning(delta)
-		FireplaceState.DYING:
-			_process_dying(delta)
+		FireplaceState.BURNING_HIGH, FireplaceState.BURNING_LOW, FireplaceState.DYING:
+			_process_fire_decay(delta)
 		FireplaceState.COOLDOWN:
 			_process_cooldown(delta)
 
@@ -165,17 +180,22 @@ func _on_minigame_completed(success: bool, quality: float):
 		var logs_used: int = active_minigame.logs_placed if active_minigame else 2
 		GameManager.consume_firewood(logs_used)
 
-		fire_quality = quality
-		
-		if quality >= 80:
-			# High quality fire
+		# Stoke: ADD this light's quality on top of whatever is still burning (capped at
+		# 100) so re-lighting a dying fire builds it back up instead of resetting to 0.
+		fire_quality = min(100.0, fire_quality + quality)
+		_last_pushed_fuel = -1  # force a fresh HUD push
+
+		# Derive the burning state from the new fuel level
+		if fire_quality > FUEL_HIGH_FLOOR:
 			current_state = FireplaceState.BURNING_HIGH
-			burn_time_remaining = 4.0 * 3600.0  # 4 in-game hours
+		elif fire_quality > FUEL_LOW_FLOOR:
+			current_state = FireplaceState.BURNING_LOW
+		else:
+			current_state = FireplaceState.DYING
+
+		if fire_quality >= 80.0:
 			GameManager.log_message("Perfect! The fire roars to life with beautiful flames!")
 		else:
-			# Moderate quality fire
-			current_state = FireplaceState.BURNING_LOW
-			burn_time_remaining = 3.0 * 3600.0  # 3 in-game hours
 			GameManager.log_message("Good work! The fire burns steadily.")
 		
 		# Update GameManager fuel level (for tip calculations)
@@ -191,7 +211,7 @@ func _on_minigame_completed(success: bool, quality: float):
 	else:
 		# FAILURE - Fire didn't light
 		current_state = FireplaceState.COOLDOWN
-		cooldown_remaining = 2.0 * 3600.0  # 2 in-game hours
+		cooldown_remaining = _fail_cooldown
 		fire_quality = 0.0
 		GameManager.set_fireplace_fuel(0.0)
 
@@ -209,43 +229,55 @@ func _on_minigame_completed(success: bool, quality: float):
 		active_minigame = null
 
 # ===== STATE PROCESSING =====
-func _process_burning(delta):
-	"""Process burning states - count down burn time"""
-	burn_time_remaining -= delta
-	
-	if burn_time_remaining <= 0:
-		if current_state == FireplaceState.BURNING_HIGH:
-			# Transition from high to low
-			current_state = FireplaceState.BURNING_LOW
-			burn_time_remaining = 2.0 * 3600.0  # 2 more hours
-			fire_quality *= 0.5
-			GameManager.set_fireplace_fuel(fire_quality)
-			_update_fire_visuals(fire_quality)
-			state_changed.emit(current_state)
-			GameManager.log_message("The fire is starting to die down...")
-			
-		elif current_state == FireplaceState.BURNING_LOW:
-			# Transition from low to dying
-			current_state = FireplaceState.DYING
-			burn_time_remaining = 30.0 * 60.0  # 30 minutes
-			fire_quality *= 0.3
-			GameManager.set_fireplace_fuel(fire_quality)
-			_update_fire_visuals(fire_quality)
-			state_changed.emit(current_state)
-			GameManager.log_message("The fire needs attention soon!")
+func _process_fire_decay(delta):
+	"""Continuously drain fire_quality so the HUD % ticks down smoothly every frame
+	instead of snapping at stage boundaries. Drain rate depends on the band — a lower
+	fire fades faster (100->50 over _burn_high, 50->20 over _burn_low, 20->0 over _dying)."""
+	var rate: float
+	if fire_quality > FUEL_HIGH_FLOOR:
+		rate = (100.0 - FUEL_HIGH_FLOOR) / max(_burn_high, 0.001)
+	elif fire_quality > FUEL_LOW_FLOOR:
+		rate = (FUEL_HIGH_FLOOR - FUEL_LOW_FLOOR) / max(_burn_low, 0.001)
+	else:
+		rate = FUEL_LOW_FLOOR / max(_dying, 0.001)
 
-func _process_dying(delta):
-	"""Process dying state - fire almost out"""
-	burn_time_remaining -= delta
-	
-	if burn_time_remaining <= 0:
-		# Fire goes out completely
+	fire_quality = max(0.0, fire_quality - rate * delta)
+
+	if fire_quality <= 0.0:
 		current_state = FireplaceState.DORMANT
-		fire_quality = 0.0
+		_last_pushed_fuel = 0
 		GameManager.set_fireplace_fuel(0.0)
 		_update_fire_visuals(0.0)
 		state_changed.emit(current_state)
 		GameManager.log_message("The fire has gone out completely.")
+		return
+
+	_apply_fire_state()
+
+func _apply_fire_state():
+	"""Derive the burning state from the current fuel band (logging each crossing) and
+	push the value to the HUD only when the whole-number % changes — smooth, not 60x/s."""
+	var new_state := current_state
+	if fire_quality > FUEL_HIGH_FLOOR:
+		new_state = FireplaceState.BURNING_HIGH
+	elif fire_quality > FUEL_LOW_FLOOR:
+		new_state = FireplaceState.BURNING_LOW
+	else:
+		new_state = FireplaceState.DYING
+
+	if new_state != current_state:
+		current_state = new_state
+		state_changed.emit(current_state)
+		if new_state == FireplaceState.BURNING_LOW:
+			GameManager.log_message("The fire is starting to die down...")
+		elif new_state == FireplaceState.DYING:
+			GameManager.log_message("The fire needs attention soon!")
+
+	var pct := int(round(fire_quality))
+	if pct != _last_pushed_fuel:
+		_last_pushed_fuel = pct
+		GameManager.set_fireplace_fuel(fire_quality)
+		_update_fire_visuals(fire_quality)
 
 func _process_cooldown(delta):
 	"""Process cooldown state - waiting to recover"""
@@ -266,7 +298,7 @@ func _on_day_changed(new_day: int):
 	current_state = FireplaceState.DORMANT
 	fire_quality = 0.0
 	cooldown_remaining = 0.0
-	burn_time_remaining = 0.0
+	_last_pushed_fuel = -1
 
 	# Update GameManager through the proper setter
 	GameManager.set_fireplace_fuel(0.0)
