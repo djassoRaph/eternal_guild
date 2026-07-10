@@ -1,266 +1,181 @@
-# 🏰 Eternal Guild
+# 🏰 Chronicles of the Eternal Guild
 
-**Pre-Alpha 0.1.0 - "First Blood" Release**
+**Pre-Alpha — a cozy tavern sim about the heroes you send to die.**
 
-> A hardcore isometric tavern management game where you run a guild hall, hire adventurers, send them on deadly missions, and try not to go bankrupt or get everyone killed. Inspired by Dwarf Fortress, Rimworld, and the "dying is fun" philosophy of classic roguelikes.
+> You never pick up a sword. You pour the drinks, light the fire, and choose *who* walks out the door — then live with who comes back. A 3D guild-tavern management sim wrapped around a roguelite **legacy loop**, where every adventurer is a named soul with a Tarot card, and the gut-punch is the **End-of-Day Reveal** when they return… or don't.
 
-![Tavern Management](https://img.shields.io/badge/Status-Pre--Alpha-orange) ![Godot](https://img.shields.io/badge/Godot-4.3+-blue) ![Genre](https://img.shields.io/badge/Genre-Tavern%20Management-purple)
+![Status](https://img.shields.io/badge/Status-Pre--Alpha-orange) ![Godot](https://img.shields.io/badge/Godot-4.4.1-blue) ![Genre](https://img.shields.io/badge/Genre-Management%20Sim-purple)
+
+*Working title / Godot project name: **ShiningSun** · Repo: [djassoRaph/eternal_guild](https://github.com/djassoRaph/eternal_guild)*
+
+---
+
+## 🎯 The Pitch (the soul, not just the systems)
+
+You're a retired adventurer running a guild hall. By day the tavern lives — patrons drink, the fire crackles, gold trickles in scaled by how **cozy** you keep the place. But the real game is **dispatch**: send named adventurers to a dangerous world map, then wait. At day's end they come home **one at a time** — whole, wounded, or not at all. No dice shown, no battle log. Just their name, and whether they made it.
+
+Do it long enough and your **fallen guilds return as rivals** in later runs. You choose an **heir**, and begin again. That's the Eternal Guild.
+
+**Design pillars:** Complicity & Consequence · Deep Character Investment · Meaningful Management · Legacy & Mystery.
 
 ---
 
 ## ⚠️ Pre-Alpha Warning
 
-**THIS IS A PRE-ALPHA BUILD!** What does that mean?
+Real talk: this is **playable but raw**. You're an early tester, not a player.
 
--  **Core systems work** - You can hire, assign missions, serve beer
--  **No tutorial** - Figure it out yourself, adventurer!
--  **Game Over untested** - I literally forgot to test this... let me know if it works! 😅
--  **Bugs expected** - Please report them!
--  **No save system yet** - Play in one sitting or start over
--  **Balance is rough** - Economy might be too easy or impossibly hard
+- ✅ **The core day-loop works** — walk the tavern, tend the fire, serve patrons, hire & dispatch adventurers, survive to the next day.
+- ✅ **Menus, settings & saving exist now** — main menu, pause, volume + keybind settings, save-on-exit + Continue.
+- 🚧 **Balance is rough** — the economy might be too kind or brutally unfair.
+- 🚧 **The Reveal is a placeholder** — it still shows the dice math; the real "no numbers, just the person" version is coming.
+- 🐛 **Bugs expected** — please report the weird stuff. Have fun breaking it.
 
-**Translation:** This is playable but raw. You're an early tester, not a player. Expect jank. Report weirdness. Have fun breaking things!
-
----
-
-## 🎮 What Can You Do Right Now?
-
-### Tavern Management
-- **Run a guild tavern** in a cozy isometric 3D pixel art world
-- **Serve beer to patrons** (when they spawn... sometimes they do!)
-- **Manage your beer inventory** - Buy stock, don't run out
-- **Track your gold** - Income from patrons, expenses from everything
-
-### Adventurer System
-- **Hire adventurers** from daily applicants (different classes, skills, costs)
-- **Assign missions** - Solo or party-based jobs
-- **Send them to probable death** - Missions are dangerous!
-- **Watch them come back** - Or not. Death is permanent.
-- **Complete missions** - Earn rewards (if they survive)
-
-### Economic Survival
-- **Pay daily costs** - Adventurer wages, operating expenses
-- **Balance income vs expenses** - Go bankrupt and... well, presumably you lose?
-- **Progress through days** - Each day brings new challenges and opportunities
+> **Milestone:** Epics 1–3 complete (foundation · menus/audio · the living-tavern day-loop). **Epic 4** (adventurer roster + Tarot data foundation) is next.
 
 ---
 
-## 🎯 How to Play (There's No Tutorial!)
+## 🎮 What Works Right Now (Epics 1–3)
 
-### Starting Out
-1. **Day 1:** You start with some gold and 0 beers
-2. **Hire adventurers** - Click the recruitment desk
-3. **Buy more beer** - Click the bar/beer barrels
-4. **Assign missions** - Click the mission board
-5. **Advance the day** - Click "Next Day" button
-6. **Don't go broke** - That's... probably important?
+### The Living Tavern
+- Walk your avatar around a **3D tavern** (WASD/ZQSD + jump; **E** to interact — all rebindable in Settings).
+- **Patrons arrive and drink** — they pay gold scaled by your **Comfort** level, with a little **3-coin burst + clink** when they settle up.
+- **Tend the fireplace** with a firewood minigame — a lit fire **decays continuously** (roaring → low → dying → out) and Comfort (and tips) fall with it. Re-light to **stoke** it back up.
+- **Morning briefing** each day: who's returning, who's still deployed, pending warnings.
+- **Non-blocking HUD notifications** when gold / beer / fire run low — no pausing the game.
 
-### Controls
-- **WASD / Arrow Keys** - Move camera/player (depending on the scene)
-- **Mouse Click** - Interact with zones (desk, board, bar, etc.)
-- **E Key** - Interact with NPCs (when they're nearby)
-- **UI Popups** - Click buttons, manage your guild
+### The Guild
+- **Hire adventurers** from a daily applicant pool (classes, stats, costs).
+- **Dispatch** them to missions on the world map (click an adventurer → pick a mission).
+- **Missions auto-resolve** — you don't fight, you *decide*. Rewards if they live; a permanent empty chair if they don't.
+- **Economy** with a **soft-lock guard** — gold in from patrons, out to wages and costs; run fully dry and the run ends.
 
-### Strategic Tips
-- **Start with 1-2 adventurers** - Don't hire everyone on day 1
-- **Check mission requirements** - Solo vs party missions(unlocked after 30 days.)
-- **Watch your beer stock** - Patrons need drinks
-- **Mission rewards vary** - Higher risk = higher reward
-- **Adventurers can DIE** - Don't get too attached
+### Systems & Polish
+- Full **main menu / pause / settings** — audio buses with volume sliders, fullscreen toggle, **keybind remapper**.
+- **Save & load** — save-on-exit and **Continue** from the main menu work; manual save from the pause menu is in *(full in-session round-trip still being hardened)*.
+- **Autoload event-bus architecture** (GameBus / EconomyBus / AdventurerBus / WorldBus / GuildBus / LegacyBus) keeps systems decoupled.
 
 ---
 
-## 🛠️ Current Features (Pre-Alpha 0.1.0)
+## 🗺️ The Vision (not built yet — where this is heading)
 
-### ✅ Implemented & Working
-- [x] Core tavern management loop
-- [x] Patron spawning and basic AI
-- [x] Recruitment system with daily applicants
-- [x] Mission assignment and completion
-- [x] Beer inventory management
-- [x] Gold/economy tracking
-- [x] Day/night progression (mechanical, not visual yet)
-- [x] Multiple character classes (Warrior, Rogue, Mage, Cleric, Ranger)
-- [x] Isometric 3D pixel art rendering
-- [x] Atmospheric lighting and Studio Ghibli-inspired aesthetic
-
-### 🚧 Partially Working (Known Issues)
-- [x] **Patron service cycle** - Patrons spawn but don't always order/pay
-- [ ] **Economic balance** - Might be too easy or too hard
-- [ ] **Mission difficulty** - Death rates not properly tuned
-- [ ] **Performance** - Can lag with multiple NPCs
-- [x] **Game Over screen** - Untested! Literally forgot to test this 😬
-- [x] **Save/load system** - Basic loading is working. Ingame save and loading isn't. Exit game and continue from main menu is. 
-
-### ❌ Not Yet Implemented
-- [ ] Patron conversations and quest-giving
-- [ ] Advanced adventurer progression
-- [ ] Multiple tavern locations (procedural world system)
-- [ ] Tax system and economic pressure
-- [ ] Reputation tracking
-- [ ] Tutorial or onboarding
-- [ ] Sound effects and music
-- [ ] Controller support
+- **The End-of-Day Reveal, done right** — adventurers return one at a time, *no dice, no numbers*; the death beat breaks rhythm and just says *"she didn't come back."*
+- **78 Tarot adventurers** — every hire carries a unique Tarot card + a commissioned portrait; the 22 Major Arcana evolve across a story arc.
+- **The roguelite legacy loop** — up to 10 settlements per run; at the end you pick an **heir** and begin again, and your **past guilds return as rivals**.
+- **The hidden hand** — a metaphysical meta-arc read through **ambient villager gossip**, never a quest log.
+- **Tax pressure, reputation, staff automation (the Onibi fire-spirit, Bartender, managers), farmland & brewing.**
 
 ---
 
-## Known Bugs & Issues
+## 🕹️ How to Play (no tutorial yet!)
 
-### Critical (Might Break Your Game)
-- **Game Over state untested** - If you hit 0 gold or lose all adventurers... try it out.
-- **No save system** - If you close the game, you lose everything
-- **Occasional NPC spawn failures** - Patrons might not appear some days
+1. **Name your guild.** You start with some gold and no beer.
+2. **Buy beer & firewood** from your quarters, and **tend the fire** — keep Comfort up for better tips.
+3. **Hire adventurers** at the recruitment desk.
+4. **Dispatch** them to missions on the world map.
+5. **Advance the day** by resting in your quarters — then watch who returns.
+6. **Don't go broke, don't lose everyone.**
 
-### Annoying (But Playable)
-- **Performance hiccups** during NPC spawning
-- **Economic balance** needs serious tuning
-- **Mission success rates** feel random (they are, but need better feedback)
-- **UI can overlap** if you open multiple popups
-
-### Cosmetic (Ignore These)
-- Some visual glitches with pixel shader -> will get serious when I start getting my own assets. 
-- Lighting sometimes pops when changing days weird.
-- Fade to Black is not working properly. 
-
-**Found a bug not listed here?** Please report it! (See Contributing section)
+**Controls:** `WASD` / `ZQSD` move · `E` interact · mouse for UI · `Esc` pauses. All rebindable in **Settings**.
 
 ---
 
-## System Requirements
+## 🛠️ Feature Status
 
-### Minimum
-- **OS:** Windows 10
-- **Processor:** Dual-core 2.5 GHz
-- **Memory:** 4 GB RAM
-- **Graphics:** OpenGL 3.3 compatible
-- **Storage:** 160 MB available space
+### ✅ Working (Epics 1–3)
+- [x] 3D tavern, avatar movement, proximity + E interaction
+- [x] Main menu, pause menu, settings (audio / fullscreen / keybinds)
+- [x] Save-on-exit + Continue from main menu
+- [x] Patron spawning, beer service, gold × Comfort tips (+ coin-burst SFX)
+- [x] Fireplace comfort minigame — continuous decay + re-light stoking
+- [x] Single-authority firewood & beer economy
+- [x] Morning briefing + non-blocking HUD warnings
+- [x] Hire pool, mission dispatch, auto-resolve, soft-lock game-over guard
+- [x] Event-bus architecture (6 domain buses)
 
----
+### 🚧 Rough / Partial
+- [ ] Economic & mission balance (needs real tuning)
+- [ ] The End-of-Day Reveal (placeholder — still shows the dice)
+- [ ] Full in-session save/load round-trip
+- [ ] Music & ambient audio (the SFX layer just got started)
 
-## Installation
-
-### Download Release Build
-1. Ask Raphael for the zip/exe.
-2. Download the latest pre-alpha build for your platform
-3. Extract the archive
-4. Run `EternalGuild.exe` (Windows)
-5. Start playing (and breaking things)!
-
----
-
-## Art & Design Philosophy
-
-**Visual Style:**
-- Isometric 3D with pixel art post-processing
-- Warm orange tavern lighting (fireplace atmosphere)
-- Cyan/blue magical accents inside wood.
-- Studio Ghibli-inspired warmth and coziness
-
-**Gameplay Philosophy:**
-- **Meaningful challenge** - Difficulty creates better stories
-- **Permanent consequences** - Death is permanent, choices matter
-- **Economic pressure** - Resource management is core
-- **"Dying is fun"** - Inspired by Dwarf Fortress and roguelikes
-- **Strategic depth** - Multiple paths to success (or failure)
+### ❌ Not Yet (see Vision / Roadmap)
+- [ ] Tarot cards & portraits on adventurers *(Epic 4)*
+- [ ] Tutorial / onboarding *(Epic 5)*
+- [ ] Tax cycle & full game-over screen *(Epic 13)*
+- [ ] Reputation, staff/Onibi automation, farmland & brewing
+- [ ] Legacy loop — heir selection, rival guilds, multiple settlements
 
 ---
 
-## Roadmap & Future Vision
+## 🐛 Known Issues
+- **Balance** is untuned — expect wild swings.
+- **The Reveal** exposes the dice roll (rework planned).
+- **Save/load** mid-session can be flaky; **save-on-exit is the reliable path**.
+- Occasional NPC spawn hiccups and minor lighting pops on day change.
 
-### Short-Term (Pre-Alpha → Alpha)
-- [x] Fix game over state and test it properly
-- [ ] Implement save/load system
-- [ ] Balance economy and mission difficulty
-- [ ] Add patron conversation system
-- [ ] Create basic tutorial/onboarding
-- [ ] Performance optimization
-- [ ] Sound effects and ambient audio
-
-### Mid-Term (Alpha → Beta)
-- [x] Adventurer progression and leveling
-- [ ] Reputation and faction systems
-- [ ] Tax escalation and economic pressure
-- [ ] Multiple patron types (merchants, nobles, quest-givers)
-- [ ] Injury system (not just death)
-- [ ] Tavern upgrades and renovations
-
-### Long-Term (Beta → 1.0)
-- [ ] **Procedural world system** - Choose from 10 unique settlements
-- [ ] Settlement-specific content (missions, NPCs, economies)
-- [ ] Multiple victory conditions (economic, military, political)
-- [ ] Faction warfare and guild politics
-- [ ] Community modding support
-
-### Vision (Post-1.0)
-- **Content platform** - User-generated settlements and campaigns
-- **Mod workshop** - Easy content creation tools
-- **Procedural generation** - Infinite settlement variety
-- **Multiplayer guilds** - Cooperative management (maybe?)
+**Found something else? Please report it** (see Contributing).
 
 ---
 
-## Contributing & Feedback
+## 💻 Running It
 
-### How to Help Right Now
-1. **Play the pre-alpha** - Break things, find bugs
-2. **Report issues** - Use GitHub Issues or [contact method]
-3. **Share feedback** - What's fun? What's frustrating?
-4. **Suggest features** - What would make this better?
+### From a release build
+Ask Raphael for the latest zip/exe, extract, run the executable (Windows), and break things.
 
-### Reporting Bugs
-**Good bug report:**
-- What you were doing
-- What you expected to happen
-- What actually happened
-- Steps to reproduce (if possible)
-- Screenshots/videos if relevant
+### From source (Godot 4.4.1)
+1. Clone: `git clone https://github.com/djassoRaph/eternal_guild`
+2. Open the project in **Godot 4.4.1** — the LimboAI GDExtension is vendored in `addons/`, so no extra install needed.
+3. Press **Play**. The main scene is the main menu.
 
-**Example:**
-> "I hired 3 adventurers, assigned them to 'Escort Merchant' mission, advanced the day, and the game froze. Expected: Mission resolves and adventurers return. Actual: Stuck on loading screen."
-
-### Feature Requests
-Want to see something in the game? Open an issue with:
-- Clear description of the feature
-- Why it would be fun/useful
-- How it fits with the game's philosophy
+**Minimum specs:** Windows 10 · dual-core 2.5 GHz · 4 GB RAM · OpenGL 3.3 · ~200 MB storage.
 
 ---
 
-## License & Credits
-
-### License
-This project is licensed under [LICENSE TYPE] - see LICENSE.md for details
-
-### Credits
-- **Engine:** [Godot Engine 4.3+](https://godotengine.org/)
-- **3D Models:** [KayKit Adventurers Pack](https://kaylousberg.com/)
-- **Inspiration:** Dwarf Fortress, Rimworld, Graveyard Keeper, Dave the Diver
-- **Developer:** [Your Name/Studio]
-
-### Special Thanks
-- Godot community for engine support
-- Early testers who survived the pre-alpha
-- Coffee, for making this possible
+## 🎨 Art & Tone
+- **3D worldspace with a painterly / pixel-art post-process** *(aspiration — the current build is clean low-poly KayKit + an edge shader on the way there).*
+- **Warm hearth-lit interiors** (Ghibli / Spiritfarer coziness) against a **sparser, uneasier outside world**.
+- **"Both true at once"** — cozy *and* complicit. You're the kind soul pouring the beer *and* the one sending people to die.
 
 ---
 
-## Contact & Community
+## 🗓️ Roadmap
+- **Now:** Epic 4 — Adventurer Roster & the Tarot data foundation.
+- **Next:** Epic 5 tutorial · Epic 13 tax cycle + full game-over · the Reveal rework.
+- **Mid:** reputation, staff automation (Onibi fire-spirit), farmland & brewing, an injury system.
+- **Long:** the legacy loop — heirs, rival guilds, up to 10 settlements, and the run-end **"Reading."**
 
-- **GitHub:** [github.com/djassoRaph/eternal_guild/tree/shiningsun](https://github.com/djassoRaph/eternal_guild/tree/shiningsun)
-- **Discord:** [To Do Discord Server]
-- **Twitter/X:** [@Raphiosi]
+*(Full design lives in the GDD, architecture, and epics docs — see `documentation/` and the planning workspace.)*
+
+---
+
+## 🤝 Contributing & Feedback
+
+Play it, break it, report it.
+
+**A good bug report:** what you were doing → what you expected → what actually happened → steps to reproduce → a screenshot/clip if handy.
+
+> *Example: "I hired 3 adventurers, sent them on 'Escort Merchant,' advanced the day, and the game froze. Expected: mission resolves and they return. Actual: stuck on a loading screen."*
+
+Feature idea? Open an issue: what it is, why it's fun, and how it fits the game's soul.
+
+---
+
+## 📜 License & Credits
+- **License:** _TODO — pick one and add `LICENSE.md`._
+- **Engine:** [Godot Engine 4.4.1](https://godotengine.org/)
+- **Behaviour trees:** LimboAI · **Dialogue:** Dialogue Manager
+- **3D models:** [KayKit Adventurers](https://kaylousberg.com/) (Kay Lousberg)
+- **Design & code:** Raphael ([@djassoRaph](https://github.com/djassoRaph))
+- **Tonal north stars:** Spiritfarer, Studio Ghibli, the "stories from systems" of Dwarf Fortress / RimWorld, and Disco Elysium's ambient voice.
+- **Special thanks:** the Godot community, early testers, and coffee.
+
+---
+
+## 📫 Contact
+- **GitHub:** [github.com/djassoRaph/eternal_guild](https://github.com/djassoRaph/eternal_guild)
+- **Twitter/X:** [@Raphiosi](https://twitter.com/Raphiosi)
 - **Email:** contact@raphaelreck.com
 
 ---
 
-## Final Words from the Dev
-
-
-
-**— Raphael**
-
----
-
-*Last Updated: 12/10/25*  
-*Version: Pre-Alpha 0.1.0 "First Blood"*  
-*Built with Godot 4.3 and questionable decision-making*
+*Last updated: 2026-07-08 · Pre-Alpha (Epics 1–3 complete) · Built with Godot 4.4.1 and stubbornly good intentions.*

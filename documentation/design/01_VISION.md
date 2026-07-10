@@ -53,7 +53,7 @@ is the character identity across roster, reveal, and Arcana progression.
 
 ## What this game is NOT
 
-- Not a battle-report reader. Mission detail stays off-screen, forever.
+- Not a battle-report reader. Mission calculations stays off-screen.
 - Not an open-ended procedural sandbox. Ten settlements, one fixed map per run.
 - Not a hero RPG. The player stays upstairs.
 - Not gore-dark. Melancholy, not misery.
