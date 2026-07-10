@@ -1,5 +1,5 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-06-21 — Verified by reading actual source code.
+Updated: 2026-07-08 (Epic 4 refresh). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
@@ -132,27 +132,49 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 4: The Adventurer Roster
-**Status: ~70% — Functional roster, missing Tarot/portrait**
+**Status: ~75% — 4.1 / 4.4 / 4.5 DONE (2026-07-08, verified headless). 4.2 / 4.3 PARKED on Tarot portraits (Guilo commission).**
 
-- [x] **Hire adventurer** — from daily recruit pool, deducts hiring cost (stat-based pricing), adds to roster
-- [x] **Daily wages** — 1g per adventurer per day (with trait cost_multiplier)
-- [x] **Dismiss adventurer** (FR-10) — 5g fee, -1 reputation, cannot dismiss if on mission
-- [x] **Roster panel display** — AdventurerRosterPanel.gd + AdventurerCard.tscn (class, status, stats)
-- [x] **Recruit generation** — 5 classes (Fighter/Rogue/Mage/Ranger/Cleric) with stat bonuses, personality traits, backgrounds
-- [x] **Recruit availability window** — recruits expire after 3-7 days
-- [x] **Max adventurer cap** — 5 (hardcoded, should be in config)
-- [x] **Roster cap enforcement** — hire blocked + refund when full
-- [x] **Recruitment refresh** — every 2 days, 2-4 new recruits generated
-- [x] **Patron recruitment pool** — separate path for patron-to-adventurer conversion
-- [ ] **Tarot card identifier** not stored in adventurer records (FR-27)
-- [ ] **Portrait socket** not implemented (FR-30)
-- [ ] No unique persistent ID system beyond incremental int
+### Story 4.1: Daily Hire Pool Generation — ✅ DONE
+- [x] 3–5 recruits/day from config (`hire_pool_min/max`)
+- [x] **78-card Tarot deck** (`data/config/tarot_deck.json`) + `DataManager.get_tarot_deck / get_tarot_card / get_all_tarot_ids`
+- [x] Enriched record: **unique Tarot card**, experience tier, daily wage, drink preference — all data-driven (MOD-2)
+- [x] Unique-card rule: no dupe in pool, none on roster, none re-offered after hire (`hired_tarot_cards`)
+- [x] `AdventurerBus.recruitment_pool_changed` emitted; verified (78 = 22 major/56 minor, pool 3–5, 0 dupes)
+
+### Story 4.2: Hire an Adventurer — ⏸️ PARKED (Tarot portraits)
+- [x] `hire_adventurer()` — gold gate, roster-cap + refund, unique ID, adds READY, removes from pool; Tarot card carried onto the roster record
+- [ ] Hire/recruit UI + portrait display — deferred until Tarot portraits land
+
+### Story 4.3: Roster Panel Display — ⏸️ PARKED (Tarot portraits)
+- [x] Panel renders name, class+level, color-coded status, wage; greys non-Ready; refreshes on roster/day change (audit done)
+- [ ] Delta: show Tarot card + drink pref, portrait from `adventurer.portrait` + silhouette fallback, un-hardcode wage, "Returns in N days" — gated on portraits
+
+### Story 4.4: Daily Wage Deduction — ✅ DONE (verified unit + integration)
+- [x] `apply_daily_wages()` — per-adventurer `daily_wage`, all statuses except DEAD, runs before the morning briefing
+- [x] Gold floors at 0 + warning log; empty roster = no-op; emits `gold_changed` once → EconomyBus; fires exactly once in `advance_day` (old flat-wage path stripped — no double-charge)
+
+### Story 4.5: Dismiss an Adventurer — ✅ DONE
+- [x] Confirm prompt "Dismiss [Name]? Costs 5 gold and −1 Reputation" (cancel = nothing)
+- [x] Blocked if ON_MISSION or gold < 5 (adventurer remains — fixed the old remove-before-check bug); on confirm: −5g, −1 rep, removed, `adventurer_roster_changed` + `gold_changed` emitted
+
+### Cross-cutting fix (2026-07-08) — save/load status "Unknown"
+- [x] Godot's `JSON.parse` floatifies saved ints and GDScript `match` won't coerce float→int, so hiring a save-carried recruit showed "Status: Unknown". Fixed via `_normalize_adventurer_ints()` on hire + on load (roster + recruits) + defensive coercion in the roster panel (also cleans "5.0 days" → "5 days"). Existing saves self-heal on next Continue.
+
+### Still pending
+- [ ] **Portrait socket** — recruits carry `adventurer.portrait` (Tarot card path) but UIs still show class portraits; wiring is Story 4.3, gated on Guilo's Tarot portraits
+- [ ] Class list 5-vs-4 (code: Fighter/Rogue/Mage/Ranger/Cleric · GDD MVP: Fighter/Rogue/Mage/Healer) — reconcile before class-tied content (see TECH_DEBT)
+- [ ] Duplicate recruit generator in `DataManager` (parallel to the active GameManager path) — consolidate in 4.3 (see TECH_DEBT)
 
 ---
 
 ## Epic 5: Tutorial & Onboarding
-**Status: 0% — Not started**
-- [ ] No tutorial system, no hard-gate beats, no guild naming
+**Status: 0% — Not started. ⚠️ BLOCKED-by-design: build AFTER Epics 6 & 7 settle.**
+Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn't build mechanics), so its gates depend on those systems being final — building it now = throwaway work:
+- **5.3** (narrate the first Reveal) needs **Epic 7** — currently a placeholder payout screen slated for rework.
+- **5.5** (send a quest) needs **Epic 6** World Map dispatch — flagged by Raphael for rework.
+- **5.1** (guild naming) needs `codex.dat` `run_count` + `guild_name` in the save (Epic 11 hardening).
+
+- [ ] 5.1 Guild Naming + Tavern Discovery · 5.2 Serve-Beer gate · 5.3 Reveal gate · 5.4 Recruit gate · 5.5 Send-Quest gate — all Run-1-only hard gates
 
 ---
 

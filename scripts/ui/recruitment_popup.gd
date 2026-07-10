@@ -475,53 +475,8 @@ func send_log_message(message: String):
 
 # ENHANCED PORTRAIT SYSTEM (Future expansion)
 func get_character_portrait_texture(character: Dictionary) -> Texture2D:
-	"""Get portrait texture for character - works with or without portrait files"""
-	var npc_class_name = character.get("class", "Fighter")
-	var gender = character.get("gender", "male")
-	
-	# Try to load class-specific portrait
-	var portrait_path = "res://assets/portraits/" + npc_class_name.to_lower() + ".png"
-	
-	if FileAccess.file_exists(portrait_path):
-		return load(portrait_path)
-	
-	# Try generic class portrait
-	portrait_path = "res://assets/portraits/" + npc_class_name.to_lower() + ".png"
-	if FileAccess.file_exists(portrait_path):
-		return load(portrait_path)
-	
-	# Generate colored portrait based on class
-	return generate_placeholder_portrait(npc_class_name, gender)
-
-func generate_placeholder_portrait(npc_class_name: String, gender: String) -> ImageTexture:
-	"""Generate a colored placeholder portrait"""
-	var image = Image.create(64, 64, false, Image.FORMAT_RGB8)
-	
-	# Class-based colors
-	var color = Color.GRAY
-	match npc_class_name.to_lower():
-		"fighter": color = Color.RED
-		"rogue": color = Color.GREEN
-		"mage": color = Color.BLUE
-		"healer": color = Color.YELLOW
-		"barbarian": color = Color.ORANGE
-		"ranger": color = Color.DARK_GREEN
-	
-	# Lighter color for female characters
-	if gender == "female":
-		color = color.lightened(0.3)
-	
-	image.fill(color)
-	
-	# Add simple border
-	for x in range(64):
-		for y in range(64):
-			if x < 2 or x > 61 or y < 2 or y > 61:
-				image.set_pixel(x, y, Color.BLACK)
-	
-	var texture = ImageTexture.new()
-	texture.create_from_image(image)
-	return texture
+	"""Shared portrait resolution (Story 7.5) — Tarot art → class portrait → class-colored silhouette."""
+	return PortraitSocket.resolve_texture(character)
 
 func create_enhanced_recruit_card_with_portrait(recruit: Dictionary, parent: VBoxContainer):
 	"""Enhanced recruit card with portrait (future feature)"""

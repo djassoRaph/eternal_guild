@@ -1,0 +1,13 @@
+{
+	"_comment": "Silhouette fallback colours per class (Story 7.5) — used when a portrait texture is missing/unloaded. Hex RGB. MOD-2: no hardcoded colours in code.",
+	"classes": {
+		"Fighter": "#b0472e",
+		"Rogue": "#3f9b5a",
+		"Mage": "#3b6fb0",
+		"Healer": "#c9a23a",
+		"Ranger": "#2f7d4a",
+		"Cleric": "#a07acb",
+		"Barbarian": "#c8722e"
+	},
+	"default": "#7a7a7a"
+}

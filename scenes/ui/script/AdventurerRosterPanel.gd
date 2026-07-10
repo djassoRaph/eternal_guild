@@ -189,13 +189,8 @@ func create_adventurer_card(adventurer: Dictionary):
 	# Daily wage
 	wage_label.text = "Daily Cost: 1 gold"
 	
-	# Set portrait based on class
-	var portrait_path = get_portrait_path(adv_class)
-	if FileAccess.file_exists(portrait_path):
-		portrait.texture = load(portrait_path)
-	else:
-		# Fallback to colored rectangle (already handled by default)
-		print("Portrait not found for class: ", adv_class)
+	# Portrait via shared socket: Tarot art → class portrait → class-colored silhouette (Story 7.5)
+	portrait.texture = PortraitSocket.resolve_texture(adventurer)
 	
 	# Grey out cards for adventurers who aren't currently Ready
 	var is_ready := false
@@ -210,11 +205,6 @@ func create_adventurer_card(adventurer: Dictionary):
 	adventurer_cards[adventurer_id] = card
 
 	print("Created card for: ", adventurer.get("name"))
-
-func get_portrait_path(character_class: String) -> String:
-	"""Get portrait file path based on class"""
-	var class_lower = character_class.to_lower()
-	return "res://assets/portraits/" + class_lower + ".png"
 
 func _on_roster_changed():
 	"""Called when GameManager adventurer roster changes"""
