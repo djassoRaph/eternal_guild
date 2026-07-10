@@ -1,5 +1,5 @@
 # Eternal Guild — Tech Debt & Deferred Items
-Captured during the world-map dispatch work (Steps A–C2). Updated 2026-07-05.
+Captured during the world-map dispatch work (Steps A–C2). Updated 2026-07-08 (Epic 4.1).
 
 ## ~~Confirmed dead / orphaned code~~ — RESOLVED 2026-06-21
 All items in this section have been fixed and verified via live scene tree inspection:
@@ -26,7 +26,12 @@ They happen to agree today, but this is fragile. Now that `assign_adventurer_to_
 
 ## ~~Single-authority resource drains (Epic 3 / FR-3, FR-1)~~ — RESOLVED 2026-07-05
 - ✅ **Firewood.** `GameManager.consume_firewood()` is the sole drain. Dead `stoke_fireplace()` (zero callers) removed. Verified: exactly one `firewood_stock -=` in the codebase. (Story 3.3.)
-- ✅ **Beer.** Added `GameManager.consume_drink(drink_type, amount)` as the single authority; `consume_beer()` / `consume_beer_pints()` are now thin wrappers that delegate to it. Verified: exactly one `beer_stock -=` in the codebase. (Story 3.4 — authority done; the coin-payment animation is still pending.)
+- ✅ **Beer.** Added `GameManager.consume_drink(drink_type, amount)` as the single authority; `consume_beer()` / `consume_beer_pints()` are now thin wrappers that delegate to it. Verified: exactly one `beer_stock -=` in the codebase. (Story 3.4 — authority done; the coin-burst payment animation + `SfxManager` are now built too, 2026-07-08.)
+
+## Epic 4 (Adventurer Roster) — flags raised during Story 4.1
+- **Duplicate recruit generator in `DataManager`.** The *active* hire-pool path is `GameManager.generate_daily_recruits()` → `generate_fallback_recruits()` (enriched in 4.1 with Tarot card / experience tier / wage / drink). `DataManager` carries a *second, parallel* generator — `generate_complete_character()`, `generate_daily_applicants()`, `generateSingleAdventurer()`, reading `data/characters/classes.json` — that the day loop does **not** call. Two sources of truth for "a recruit." Consolidate onto one authority (recommend: keep the GameManager path, or move generation into DataManager and have GameManager delegate) during **Story 4.3**. The `number in generateSingleAdventurer` unused-param warning lives in this dead path.
+- **Class list: code vs GDD.** `game_config.json` ships **5** classes (Fighter/Rogue/Mage/**Ranger/Cleric**); the GDD MVP specifies **4** (Fighter/Rogue/Mage/**Healer**). Kept the working 5 for now — reconcile deliberately (rename Cleric→Healer + drop Ranger, or amend the GDD) before locking class-tied content (drink affinity in Epic 15, evolution art in Epic 17).
+- **Portraits moving to Tarot cards.** Recruits now carry a `portrait` path from their assigned Tarot card (placeholder art until commissioned). This supersedes the class-based portrait lookup — roster/reveal UIs should read `adventurer.portrait` (MOD-3) rather than class. Wire in **Story 4.3**; makes the "Portrait not found for Ranger/Cleric" cosmetic item below moot.
 
 ## To verify when building C3 (dispatch commit)
 - **Mission-board open gate.** Opening the board currently refuses with "You need to hire adventurers first" when the roster is empty. CHECK whether this gate keys off roster *size* (have any adventurers) or *available* count (have Ready ones). If it keys off availability, dispatching all adventurers could lock the player out of opening the board to see in-flight missions or next-day offerings — a soft-lock-adjacent edge that only becomes reachable once C3 makes "all adventurers busy" a real state.
@@ -37,13 +42,13 @@ Both will get real testing in C3 when dispatch makes adventurers non-Ready and m
 - **No-double-assign across slots** — never exercised (all C2-era missions were `required_adventurers: 1`, so only one slot existed).
 
 ## Cosmetic / deferred
-- `⚠️ Portrait not found for class: Ranger` / `Cleric` — roster cards fall back to no portrait for some classes. Missing portrait assets, not a logic bug.
+- `⚠️ Portrait not found for class: Ranger` / `Cleric` — roster cards fall back to no portrait for some classes. Missing portrait assets, not a logic bug. *(Superseded once UIs read `adventurer.portrait` from the Tarot card — see the Epic 4 section above.)*
 
 ## GDScript warnings (pre-existing, non-blocking)
 Captured from startup output — all are warnings, not runtime errors:
 - Unused parameters: `mod_name` in `register_mod_data()`, `number` in `generateSingleAdventurer()`, `completed_missions` in `get_next_chain_mission()`, `failure_type` in `trigger_game_over()`, `adventurer` in `check_adventurer_level_up()`, `mission` in `handle_adventurer_injury()`, `reason` in `_on_game_over()` — prefix with `_` to silence
 - Unused locals: `chain_missions`, `beer_adequate` — prefix with `_`
-- Unused signals: `recruitment_pool_changed`, `missions_resolved` — either connect or remove
+- Unused signals: ~~`recruitment_pool_changed`~~ (now emitted on pool generation + bridged to `AdventurerBus`, Epic 4.1), `missions_resolved` — connect or remove
 - Shadowed names: local `ready` shadows `Node.ready` signal; `for name in` shadows `Node.name` — rename iterators
 - Integer division truncation (2 instances) — cast to float if decimal needed
 - Ternary type mismatch (2 instances) — ensure both arms return same type

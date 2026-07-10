@@ -18,6 +18,7 @@ var max_firewood_storage: int = 10
 var daily_patron_visits: int = 0  # Track patrons for fuel drain
 var mission_tier_unlocked: int = 1
 var next_adventurer_id: int = 1
+var hired_tarot_cards: Array = []   # Tarot card ids hired this run — never re-offered (Epic 4.1)
 var tax_due_day: int = 30
 var tax_grace_days: int = 0  # Days into grace period after missed tax (0 = not in grace)
 var daily_operating_cost: int = 5
@@ -576,8 +577,12 @@ func log_message(message: String):
 		main_scene.log_message(message)
 
 # === RECRUITMENT SYSTEM ===
-func generate_daily_recruits(count: int = 3):
-	"""Generate new recruits for the day"""
+func generate_daily_recruits(count: int = -1):
+	"""Generate the daily hire pool. count < 0 → use hire_pool_min/max from config (Epic 4.1)."""
+	if count < 0:
+		var lo = int(DataManager.get_config("hire_pool_min", 3))
+		var hi = int(DataManager.get_config("hire_pool_max", 5))
+		count = randi_range(lo, max(lo, hi))
 	daily_recruits.clear()
 	
 	print("Generating ", count, " new recruits for day ", current_day)
@@ -588,15 +593,33 @@ func generate_daily_recruits(count: int = 3):
 	log_message("New adventurers seeking employment at the guild!")
 	for recruit in daily_recruits:
 		var cost = recruit.get("hiring_cost", 10)
-		log_message("• " + recruit.name + " the " + recruit.class + " (Hiring cost: " + str(cost) + " gold)")
+		log_message("• " + recruit.name + " the " + recruit.class + " — " + str(recruit.get("tarot_name", "")) + " (Hiring cost: " + str(cost) + " gold)")
+
+	# Notify listeners → bridges to AdventurerBus.recruitment_pool_changed (Epic 4.1)
+	recruitment_pool_changed.emit()
 
 func generate_fallback_recruits(count: int) -> Array:
 	"""Generate recruits when DataManager is not available"""
 	var recruits = []
 	var classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"])
 	var names = DataManager.get_config("adventurer_names", ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"])
-	
+	var drinks = DataManager.get_config("drink_preferences", ["beer", "mead", "none"])
+	var tiers = DataManager.get_config("experience_tiers", ["Novice", "Seasoned", "Veteran"])
+	var wage_min = int(DataManager.get_config("adventurer_wage_min", 1))
+	var wage_max = int(DataManager.get_config("adventurer_wage_max", 3))
+	# Unique-Tarot pool: whole deck minus cards on the roster and hired this run (Epic 4.1)
+	var deck_available = not DataManager.get_all_tarot_ids().is_empty()
+	var available_cards = _get_available_tarot_ids()
+
 	for i in count:
+		var card_id = ""
+		if deck_available:
+			if available_cards.is_empty():
+				break  # deck exhausted — cannot assign a unique card
+			card_id = available_cards.pop_back()
+		var card = DataManager.get_tarot_card(card_id) if card_id != "" else {}
+		var drink = drinks[randi() % drinks.size()] if drinks.size() > 0 else "none"
+
 		var recruit = {
 			"id": generate_recruit_id(),
 			"name": names[randi() % names.size()],
@@ -606,7 +629,11 @@ func generate_fallback_recruits(count: int) -> Array:
 			"missions_completed": 0,
 			"missions_failed": 0,
 			"gold_earned": 0,
-			"injuries_sustained": 0
+			"injuries_sustained": 0,
+			"tarot_card": card_id,
+			"tarot_name": card.get("name", ""),
+			"portrait": card.get("portrait", ""),
+			"drink_preference": drink,
 		}
 		
 		# Generate random stats
@@ -637,6 +664,8 @@ func generate_fallback_recruits(count: int) -> Array:
 		# Calculate hiring cost based on stats
 		var stat_total = recruit.strength + recruit.dexterity + recruit.intelligence + recruit.endurance
 		recruit.hiring_cost = max(8, stat_total * 2 + randi_range(-5, 10))
+		recruit.experience_tier = _tier_for_stat_total(stat_total, tiers)
+		recruit.daily_wage = _wage_for_tier(recruit.experience_tier, tiers, wage_min, wage_max)
 		
 		# Add personality and background flavor
 		var personalities = ["Brave", "Cautious", "Greedy", "Noble", "Mysterious", "Cheerful", "Grim", "Ambitious"]
@@ -649,6 +678,40 @@ func generate_fallback_recruits(count: int) -> Array:
 		recruits.append(recruit)
 	
 	return recruits
+
+func _get_available_tarot_ids() -> Array:
+	"""All deck card ids minus those on the roster and hired this run, shuffled. Epic 4.1."""
+	var used := {}
+	for adv in adventurers:
+		var c = adv.get("tarot_card", "")
+		if c != "":
+			used[c] = true
+	for c in hired_tarot_cards:
+		used[c] = true
+	var available: Array = []
+	for id in DataManager.get_all_tarot_ids():
+		if id != "" and not used.has(id):
+			available.append(id)
+	available.shuffle()
+	return available
+
+func _tier_for_stat_total(total: int, tiers: Array) -> String:
+	"""Map a recruit's stat total onto the experience-tier bands (data-driven). Epic 4.1."""
+	if tiers.is_empty():
+		return "Novice"
+	var t = clampf(float(total - 10) / 25.0, 0.0, 0.999)  # stat totals span ~10..35
+	var idx = clampi(int(t * tiers.size()), 0, tiers.size() - 1)
+	return tiers[idx]
+
+func _wage_for_tier(tier: String, tiers: Array, wmin: int, wmax: int) -> int:
+	"""Scale daily wage across [wmin..wmax] by tier index. Epic 4.1."""
+	if tiers.size() <= 1:
+		return wmin
+	var idx = tiers.find(tier)
+	if idx < 0:
+		idx = 0
+	var frac = float(idx) / float(tiers.size() - 1)
+	return int(round(wmin + frac * (wmax - wmin)))
 
 func generate_unique_id() -> int:
 	var id = next_adventurer_id
@@ -718,6 +781,9 @@ func advance_day():
 	
 	# Process recovery FIRST (makes adventurers available)
 	process_adventurer_recovery()
+
+	# Deduct daily wages before the morning briefing (Story 4.4)
+	apply_daily_wages()
 	
 	# Show availability status
 	log_daily_availability_status()
@@ -740,7 +806,7 @@ func advance_day():
 	# Recruitment and mission refresh
 	var days_since_recruit_refresh = current_day - recruit_refresh_day
 	if days_since_recruit_refresh >= 2 or daily_recruits.size() == 0:
-		generate_daily_recruits(randi_range(2, 4))
+		generate_daily_recruits()  # config-driven count — hire_pool_min/max (Epic 4.1)
 	
 	if current_day % 2 == 0:
 		refresh_available_missions()
@@ -802,13 +868,14 @@ func dismiss_adventurer(adventurer: Dictionary) -> bool:
 		return false
 
 	var severance = 5  # Flat severance cost
+	if gold < severance:
+		log_message("Not enough gold to dismiss " + adventurer.get("name", "?") + " (need " + str(severance) + ").")
+		return false  # blocked — adventurer remains, nothing deducted
+
+	spend_gold(severance)  # deducts + emits gold_changed → EconomyBus
+	tavern_reputation = max(0, tavern_reputation - 1)  # -1 reputation
 	adventurers.erase(adventurer)
-	tavern_reputation = max(0, tavern_reputation - 1)  # Small reputation hit
-	log_message("" + adventurer.get("name", "?") + " has been dismissed from the guild.")
-	if spend_gold(severance):
-		log_message("Paid " + str(severance) + " gold severance.")
-	else:
-		log_message("Could not afford severance pay.")
+	log_message("" + adventurer.get("name", "?") + " has been dismissed (paid " + str(severance) + " gold, -1 reputation).")
 	adventurer_roster_changed.emit()
 	return true
 
@@ -833,7 +900,11 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	new_adventurer.erase("background") 
 	new_adventurer.erase("availability")
 	
+	_normalize_adventurer_ints(new_adventurer)  # coerce JSON-loaded floats/strings → int (status "Unknown" fix)
 	adventurers.append(new_adventurer)
+	var hired_card = new_adventurer.get("tarot_card", "")
+	if hired_card != "" and not hired_tarot_cards.has(hired_card):
+		hired_tarot_cards.append(hired_card)  # never re-offer this card this run (Epic 4.1)
 	remove_hired_recruit(recruit)  # Remove from available pool
 	adventurer_roster_changed.emit()
 	on_adventurer_hired(new_adventurer)
@@ -842,6 +913,16 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	log_message("Current roster: " + str(adventurers.size()) + "/" + str(max_adventurers) + " adventurers")
 
 	return true
+
+func _normalize_adventurer_ints(adv: Dictionary) -> void:
+	"""Godot's JSON.parse loads saved ints as floats (and roster statuses as strings). Coerce an
+	adventurer/recruit's integer fields back so status enums match and displays don't show '5.0'."""
+	if adv.has("status"):
+		var s = adv["status"]
+		adv["status"] = AdventurerStatus.from_save(s) if s is String else int(s)
+	for k in ["recovery", "hiring_cost", "daily_wage", "id", "strength", "dexterity", "intelligence", "endurance", "missions_completed", "missions_failed", "gold_earned", "injuries_sustained"]:
+		if adv.has(k) and adv[k] is float:
+			adv[k] = int(adv[k])
 
 # === SAVE/LOAD SYSTEM ===
 func get_save_data() -> Dictionary:
@@ -920,8 +1001,7 @@ func load_save_data(data: Dictionary):
 	# Adventurers
 	adventurers = data.get("adventurers", [])
 	for adv in adventurers:
-		if adv.has("status") and adv.status is String:
-			adv.status = AdventurerStatus.from_save(adv.status)
+		_normalize_adventurer_ints(adv)
 	max_adventurers = DataManager.get_config("max_adventurers", 5)
 	
 	# Beer shortage tracking
@@ -934,6 +1014,8 @@ func load_save_data(data: Dictionary):
 	
 	# Recruitment
 	daily_recruits = data.get("daily_recruits", [])
+	for rec in daily_recruits:
+		_normalize_adventurer_ints(rec)
 	recruit_refresh_day = int(data.get("recruit_refresh_day", 0))
 	
 	# Missions
@@ -1035,6 +1117,7 @@ func reset_game_state():
 	daily_recruits.clear()
 	recruit_refresh_day = 0
 	patron_recruitment_pool.clear()
+	hired_tarot_cards.clear()  # fresh deck for a new run (Epic 4.1)
 	
 	# Missions
 	available_missions.clear()
@@ -1228,12 +1311,29 @@ func calculate_mission_success_with_beer_effects(base_chance: int, adventurer: D
 	return clampi(modified_chance, 5, 95)
 
 # === DAILY PROCESSING INTEGRATION ===
+func apply_daily_wages() -> int:
+	"""Deduct each roster adventurer's daily wage (all statuses except DEAD) at day start,
+	before the morning briefing. Gold floors at 0 (never negative). Empty roster = no-op.
+	Emits gold_changed once. Story 4.4."""
+	var total := 0
+	for adv in adventurers:
+		if adv.get("status") == AStatus.DEAD:
+			continue  # dead adventurers draw no wage (defensive — should be removed at Reveal)
+		total += int(adv.get("daily_wage", 1))
+	if total <= 0:
+		return 0  # nothing owed — no deduction, no signal
+	var paid := total
+	if total > gold:
+		paid = gold  # pay what we can; floor at 0
+		log_message("[GameManager] warn: insufficient gold for wages on day " + str(current_day))
+	gold = max(0, gold - paid)
+	gold_changed.emit(gold)
+	log_message("Paid " + str(paid) + " gold in adventurer wages (" + str(total) + " owed).")
+	return paid
+
 func process_daily_operations_with_beer():
-	var wage_cost = adventurers.size()  # 1 gold per adventurer
-	if spend_gold(wage_cost):
-		log_message("Paid " + str(wage_cost) + " gold in adventurer wages")
-	else:
-		log_message("WARNING: Could not afford adventurer wages!")
+	# Wages moved to apply_daily_wages() (Story 4.4 — per-adventurer, runs before the briefing).
+	pass
 
 # === STATUS REPORTING ===
 func get_guild_status_report() -> String:

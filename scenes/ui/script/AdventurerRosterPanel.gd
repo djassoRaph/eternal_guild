@@ -122,18 +122,24 @@ func _get_adventurer_level(adventurer: Dictionary) -> int:
 	else:
 		return 6
 
+func _coerce_status(s) -> int:
+	# Godot JSON loads saved statuses as floats (and roster ones as strings); coerce to the enum int.
+	if s is String:
+		return AdventurerStatus.from_save(s)
+	return int(s)
+
 func _get_status_display(adventurer: Dictionary) -> String:
-	match adventurer.status:
+	match _coerce_status(adventurer.get("status", AdventurerStatus.Status.READY)):
 		AdventurerStatus.Status.READY:
 			return "Ready"
 		AdventurerStatus.Status.ON_MISSION:
 			var mission_name = adventurer.get("current_mission", "Unknown Mission")
 			return "On Mission: " + str(mission_name)
 		AdventurerStatus.Status.WOUNDED:
-			var days = adventurer.get("recovery", 0)
+			var days = int(adventurer.get("recovery", 0))
 			return "Wounded (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
 		AdventurerStatus.Status.RESTING:
-			var days = adventurer.get("recovery", 0)
+			var days = int(adventurer.get("recovery", 0))
 			return "Resting (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
 		_:
 			return "Unknown"
@@ -167,7 +173,7 @@ func create_adventurer_card(adventurer: Dictionary):
 	class_label.text = adv_class + " (Level " + str(level) + ")"
 	
 	# Status with color coding
-	var status = adventurer.get("status", AdventurerStatus.Status.READY)
+	var status = _coerce_status(adventurer.get("status", AdventurerStatus.Status.READY))
 	status_label.text = "Status: " + _get_status_display(adventurer)
 
 	match status:

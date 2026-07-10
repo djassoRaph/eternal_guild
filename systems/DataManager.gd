@@ -3,6 +3,7 @@ extends Node
 
 var game_config: Dictionary = {}
 var features: Dictionary = {}
+var tarot_deck: Array = []   # Full 78-card Tarot deck (data/config/tarot_deck.json) — Epic 4
 
 var character_classes: Dictionary = {}
 var character_names: Array = []
@@ -45,6 +46,8 @@ func load_all_base_data():
 func load_config_data():
 	game_config = load_data_file("res://data/config/game_config.json", {})
 	features = load_data_file("res://data/config/features.json", {})
+	var deck_data = load_data_file("res://data/config/tarot_deck.json", {"cards": []})
+	tarot_deck = deck_data.get("cards", [])
 	data_loaded.emit("config")
 
 func get_config(key: String, fallback = null) -> Variant:
@@ -52,6 +55,22 @@ func get_config(key: String, fallback = null) -> Variant:
 
 func get_feature(key: String) -> bool:
 	return features.get(key, false)
+
+# --- Tarot deck (Epic 4) ---
+func get_tarot_deck() -> Array:
+	return tarot_deck
+
+func get_tarot_card(card_id: String) -> Dictionary:
+	for c in tarot_deck:
+		if c.get("id", "") == card_id:
+			return c
+	return {}
+
+func get_all_tarot_ids() -> Array:
+	var ids: Array = []
+	for c in tarot_deck:
+		ids.append(c.get("id", ""))
+	return ids
 
 func load_character_data():
 	character_classes = load_data_file("res://data/characters/classes.json", {})

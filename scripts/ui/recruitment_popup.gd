@@ -228,6 +228,18 @@ func _create_adventurer_card(adventurer: Dictionary, parent: VBoxContainer):
 	card_content.add_child(dismiss_btn)
 
 func _on_dismiss_pressed(adventurer: Dictionary):
+	# Story 4.5: confirm before dismissing (5 gold + -1 reputation)
+	var confirm = ConfirmationDialog.new()
+	confirm.title = "Dismiss Adventurer"
+	confirm.dialog_text = "Dismiss " + adventurer.get("name", "?") + "?\nCosts 5 gold and -1 Reputation."
+	confirm.ok_button_text = "Dismiss"
+	add_child(confirm)
+	confirm.confirmed.connect(func(): _confirm_dismiss(adventurer))
+	confirm.confirmed.connect(confirm.queue_free)
+	confirm.canceled.connect(confirm.queue_free)
+	confirm.popup_centered()
+
+func _confirm_dismiss(adventurer: Dictionary):
 	if GameManager.dismiss_adventurer(adventurer):
 		hide()
 		await get_tree().create_timer(0.1).timeout

@@ -24,5 +24,12 @@
 	"max_backup_files": 3,
 
 	"adventurer_classes": ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"],
-	"adventurer_names": ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"]
+	"adventurer_names": ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"],
+
+	"hire_pool_min": 3,
+	"hire_pool_max": 5,
+	"adventurer_wage_min": 1,
+	"adventurer_wage_max": 3,
+	"drink_preferences": ["beer", "mead", "none"],
+	"experience_tiers": ["Novice", "Seasoned", "Veteran"]
 }
