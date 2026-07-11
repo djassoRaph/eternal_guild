@@ -455,6 +455,8 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 		"mission_name": mission.get("name", "Unknown"),
 		"adventurer_name": adventurer.get("name", "Unknown"),
 		"adventurer_class": adventurer.get("class", "Unknown"),
+		"portrait": adventurer.get("portrait", ""),
+		"adventurer_id": adventurer.get("id", ""),
 		"success": success,
 		"roll": roll,
 		"success_chance": success_chance,

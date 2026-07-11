@@ -35,6 +35,7 @@ var available_firewood: int = 5  # Set by fireplace_zone before _ready — caps 
 var dragging_log = null
 var drag_offset: Vector2 = Vector2.ZERO
 var placed_log_positions: Array = []  # Track where logs were placed
+var target_marker: Control  # glowing ring showing where to drop the next log
 
 # ===== PUMP MECHANICS =====
 var is_pumping: bool = false
@@ -66,73 +67,114 @@ var placement_tolerance: float = 80.0  # Generous for MVP
 
 # ===== INITIALIZATION =====
 func _ready():
-	print("Fireplace minigame initializing...")
-	
-	# Debug: Check if all nodes exist
-	if not fireplace_drop_zone:
-		print("ERROR: fireplace_drop_zone not found!")
-	if not log_container:
-		print("ERROR: log_container not found!")
-	if not pump_gauge_container:
-		print("ERROR: pump_gauge_container not found!")
-	if not pump_indicator:
-		print("ERROR: pump_indicator not found!")
-	if not green_zone:
-		print("ERROR: green_zone not found!")
-	if not pump_click_area:
-		print("ERROR: pump_click_area not found!")
-	if not lungs_bar:
-		print("ERROR: lungs_bar not found!")
-	if not ignition_bar:
-		print("ERROR: ignition_bar not found!")
-	if not status_label:
-		print("ERROR: status_label not found!")
-	if not close_button:
-		print("ERROR: close_button not found!")
-	if not start_button:
-		print("ERROR: start_button not found!")
-	
-	print("All nodes loaded successfully!")
-	
-	# Setup buttons with error checking
-	if close_button:
-		print("Connecting close button...")
-		close_button.pressed.connect(_on_close_button_pressed)
-		print("Close button connected")
-	else:
-		print("Close button not found!")
-	
+	# CloseButton.pressed is wired in the .tscn; wire the rest here (manual hit-detection backs these up).
 	if start_button:
-		print("Connecting start button...")
 		start_button.pressed.connect(_on_start_pumping_pressed)
-		print("Start button connected")
-	else:
-		print("Start button not found!")
-	
 	if pump_click_area:
-		print("Connecting pump area...")
 		pump_click_area.button_down.connect(_on_pump_button_down)
 		pump_click_area.button_up.connect(_on_pump_button_up)
-		print("Pump area connected")
-	else:
-		print("Pump click area not found!")
-	
-	# Make logs draggable
+
+	_apply_hearth_theme()
 	_setup_draggable_logs()
-	
-	# Generate first optimal spot
+	_create_target_marker()
+	_update_status("Drag logs onto the glowing spot in the pit (at least 2).")
+
+	await get_tree().process_frame  # let layout settle so the pit has a real size
 	_generate_new_optimal_spot()
-	
-	# Initial state
-	_update_status("Drag logs into the fireplace (need at least 2)")
-	
-	print("Fireplace minigame ready!")
+
+func _apply_hearth_theme():
+	"""Warm hearth restyle — applied in code so the .tscn stays structural."""
+	var amber := Color(0.90, 0.58, 0.24)
+	var cream := Color(0.94, 0.88, 0.72)
+	var ember := Color(0.72, 0.28, 0.12)
+
+	var frame := StyleBoxFlat.new()
+	frame.bg_color = Color(0.14, 0.10, 0.08, 0.98)
+	frame.border_color = Color(0.55, 0.34, 0.16, 0.95)
+	frame.set_border_width_all(3)
+	frame.set_corner_radius_all(12)
+	frame.set_content_margin_all(6)
+	var mc := get_node_or_null("CenterContainer/MinigameContainer")
+	if mc:
+		mc.add_theme_stylebox_override("panel", frame)
+
+	var base := "CenterContainer/MinigameContainer/MarginContainer/MainVBox/"
+	var title := get_node_or_null(base + "TitleLabel")
+	if title:
+		title.add_theme_color_override("font_color", amber)
+	if status_label:
+		status_label.add_theme_color_override("font_color", cream)
+	var pit_bg := get_node_or_null(base + "ContentHBox/FireplaceArea/MarginContainer/FireplaceBackground")
+	if pit_bg:
+		pit_bg.color = Color(0.09, 0.05, 0.03, 1.0)
+
+	# Section labels + the pump-zone explanation (clarity)
+	var pump_label := get_node_or_null(base + "WindPumpSection/PumpLabel")
+	if pump_label:
+		pump_label.text = "💨 Wind Pump — hold to fill the green, ease off the yellow"
+		pump_label.add_theme_color_override("font_color", cream)
+	for lbl_path in ["LungCapacitySection/LungsLabel", "IgnitionProgressSection/IgnitionLabel", "ContentHBox/LogStackArea/StackTitle"]:
+		var lbl := get_node_or_null(base + lbl_path)
+		if lbl:
+			lbl.add_theme_color_override("font_color", cream)
+
+	_style_bar(ignition_bar, Color(0.88, 0.38, 0.14), Color(0.18, 0.10, 0.07))
+	_style_bar(lungs_bar, Color(0.38, 0.62, 0.85), Color(0.10, 0.14, 0.18))
+	_style_button(start_button, ember, cream)
+	_style_button(close_button, Color(0.28, 0.24, 0.20), cream)
+	if pump_indicator:
+		pump_indicator.color = cream
+
+func _style_bar(bar, fill: Color, bg: Color):
+	if not bar:
+		return
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = fill
+	fs.set_corner_radius_all(4)
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = bg
+	bs.set_corner_radius_all(4)
+	bar.add_theme_stylebox_override("fill", fs)
+	bar.add_theme_stylebox_override("background", bs)
+
+func _style_button(btn, bg: Color, fg: Color):
+	if not btn:
+		return
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.set_corner_radius_all(6)
+	s.set_content_margin_all(8)
+	btn.add_theme_stylebox_override("normal", s)
+	var h := StyleBoxFlat.new()
+	h.bg_color = bg.lightened(0.18)
+	h.set_corner_radius_all(6)
+	h.set_content_margin_all(8)
+	btn.add_theme_stylebox_override("hover", h)
+	btn.add_theme_color_override("font_color", fg)
+
+func _create_target_marker():
+	"""A glowing ring showing where to drop the next log — fixes the invisible-target flaw."""
+	target_marker = Panel.new()
+	target_marker.custom_minimum_size = Vector2(72, 72)
+	target_marker.size = Vector2(72, 72)
+	target_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.95, 0.6, 0.25, 0.13)
+	s.border_color = Color(1.0, 0.72, 0.32, 0.75)
+	s.set_border_width_all(3)
+	s.set_corner_radius_all(36)
+	target_marker.add_theme_stylebox_override("panel", s)
+	if fireplace_drop_zone:
+		fireplace_drop_zone.add_child(target_marker)
+
+func _update_target_marker():
+	if target_marker:
+		target_marker.position = optimal_log_spot - target_marker.size / 2
 
 func _input(event):
 	"""Handle all input - manual hit detection for logs since gui_input doesn't work on TextureRect"""
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		var mouse_pos = get_global_mouse_position()
-		print("Mouse click detected at: ", mouse_pos, " pressed: ", event.pressed)
 		
 		if event.pressed:
 			# Check if clicking on a log or button
@@ -290,14 +332,11 @@ func _place_log_in_fireplace(log: TextureRect, drop_position: Vector2):
 	# Check if ready to pump
 	print("Checking readiness: logs_placed = ", logs_placed)
 	if logs_placed >= 2:
-		print("Enough logs! Enabling button...")
 		current_state = MinigameState.READY_TO_PUMP
 		start_button.disabled = false
-		_update_status("Ready! Click 'Start Pumping' when ready (" + str(logs_placed) + "/5 logs placed)")
-		print("   State: ", current_state)
-		print("   Button disabled: ", start_button.disabled)
+		_update_status(quality_text + " placement! Ready to pump — or add up to " + str(max_logs - logs_placed) + " more (" + str(logs_placed) + "/5).")
 	else:
-		_update_status("Good! Place at least " + str(2 - logs_placed) + " more log(s)")
+		_update_status(quality_text + " placement! Place at least " + str(2 - logs_placed) + " more log.")
 
 func _return_log_to_stack(log: TextureRect):
 	"""Return log to original position in stack"""
@@ -341,36 +380,31 @@ func _get_quality_feedback(quality: float) -> String:
 func _generate_new_optimal_spot():
 	"""Generate a new random optimal log placement position"""
 	var drop_zone_size = fireplace_drop_zone.size
-	
+	# Fall back to a sensible area if the pit hasn't been laid out yet (avoids off-pit targets)
+	if drop_zone_size.x < 120 or drop_zone_size.y < 120:
+		drop_zone_size = Vector2(360, 260)
+
 	# Random position within fireplace, with some margin
 	var margin = 50.0
 	optimal_log_spot = Vector2(
-		randf_range(margin, drop_zone_size.x - margin),
-		randf_range(margin, drop_zone_size.y - margin)
+		randf_range(margin, max(margin + 1.0, drop_zone_size.x - margin)),
+		randf_range(margin, max(margin + 1.0, drop_zone_size.y - margin))
 	)
 	
-	print("New optimal spot: ", optimal_log_spot)
-	
-	# TODO: Optionally show visual hint (subtle glow or X marker)
+	_update_target_marker()
 
 # ===== PUMP PHASE =====
 func _on_start_pumping_pressed():
 	"""Start the pumping phase"""
-	print("START PUMPING BUTTON PRESSED!")
-	print("   Current state: ", current_state)
-	print("   Logs placed: ", logs_placed)
-	
 	if current_state != MinigameState.READY_TO_PUMP:
-		print("   Wrong state! Need READY_TO_PUMP")
 		return
-	
+
 	current_state = MinigameState.PUMPING
 	start_button.disabled = true
 	start_button.text = "PUMPING..."
-	
-	_update_status("Hold the pump gauge to blow air! Watch the green zone!")
-	
-	print("Pumping phase started!")
+	if target_marker:
+		target_marker.visible = false  # placing done — hide the target
+	_update_status("Hold the gauge to pump — catch the green sweet spot, avoid the yellow!")
 
 func _on_pump_button_down():
 	"""Player started holding pump button"""
@@ -394,6 +428,10 @@ func _process(delta: float):
 	if dragging_log:
 		dragging_log.global_position = get_global_mouse_position() - drag_offset
 	
+	# Pulse the target marker while placing logs
+	if target_marker and target_marker.visible:
+		target_marker.modulate.a = 0.55 + 0.45 * sin(Time.get_ticks_msec() / 280.0)
+
 	# Update pump indicator position
 	_update_pump_indicator()
 	
@@ -423,11 +461,6 @@ func _update_green_zone_wiggle(delta: float):
 
 func _process_pumping(delta: float):
 	"""Handle pumping mechanics - pressure builds when holding, decays when released"""
-	
-	# Debug every 30 frames
-	if Engine.get_process_frames() % 30 == 0:
-		print("Processing pump: is_pumping=", is_pumping, " pressure=", pump_pressure, " ignition=", ignition_progress, " lungs=", lung_capacity)
-	
 	if is_pumping:
 		# BUILD PRESSURE while holding
 		pump_pressure += PRESSURE_BUILD_RATE * delta

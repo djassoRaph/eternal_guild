@@ -14,6 +14,7 @@
 	"warn_comfort_below": 25,
 	"notification_duration_seconds": 4.0,
 	"notification_cooldown_seconds": 15.0,
+	"reveal_death_pause_seconds": 2.0,
 
 	"fire_burn_high_seconds": 240,
 	"fire_burn_low_seconds": 120,

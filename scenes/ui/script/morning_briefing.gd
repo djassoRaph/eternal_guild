@@ -14,6 +14,10 @@ var result_label: Label
 var details_label: Label
 var continue_button: Button
 var report_counter: Label
+var portrait_socket: TextureRect
+var flavor_label: Label
+var panel_style: StyleBoxFlat
+var _death_pause_active: bool = false
 
 func _ready():
 	layer = 100
@@ -33,13 +37,13 @@ func _build_ui():
 	panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(600, 400)
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.11, 0.1, 1.0)
-	style.border_color = Color(0.8, 0.65, 0.3, 0.6)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(24)
-	panel.add_theme_stylebox_override("panel", style)
+	panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.12, 0.11, 0.1, 1.0)
+	panel_style.border_color = Color(0.8, 0.65, 0.3, 0.6)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(8)
+	panel_style.set_content_margin_all(24)
+	panel.add_theme_stylebox_override("panel", panel_style)
 	center.add_child(panel)
 
 	var vbox = VBoxContainer.new()
@@ -54,6 +58,13 @@ func _build_ui():
 	vbox.add_child(title_label)
 
 	vbox.add_child(HSeparator.new())
+
+	portrait_socket = TextureRect.new()
+	portrait_socket.custom_minimum_size = Vector2(96, 96)
+	portrait_socket.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait_socket.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait_socket.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(portrait_socket)
 
 	mission_name_label = Label.new()
 	mission_name_label.text = ""
@@ -86,6 +97,13 @@ func _build_ui():
 	details_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	details_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(details_label)
+
+	flavor_label = Label.new()
+	flavor_label.add_theme_font_size_override("font_size", 13)
+	flavor_label.add_theme_color_override("font_color", Color(0.6, 0.58, 0.5))
+	flavor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	flavor_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(flavor_label)
 
 	var spacer2 = Control.new()
 	spacer2.custom_minimum_size = Vector2(0, 8)
@@ -136,6 +154,19 @@ func _display_report(report: Dictionary):
 	"""Show a single mission report"""
 	mission_name_label.text = "" + report.get("mission_name", "Unknown Mission")
 
+	# Portrait + fate-based tone (Story 7.2) — solo only; party is the group panel (7.4)
+	var fate := "returned"
+	if report.get("type", "solo") == "solo":
+		var alive: bool = report.get("alive", true)
+		var injured: bool = report.get("injured", false)
+		fate = "dead" if not alive else ("wounded" if injured else "returned")
+		_apply_fate(report, fate)
+	else:
+		portrait_socket.texture = null
+		panel_style.border_color = Color(0.8, 0.65, 0.3, 0.6)
+		panel_style.bg_color = Color(0.12, 0.11, 0.1, 1.0)
+		flavor_label.text = ""
+
 	if report.type == "solo":
 		adventurer_label.text = report.get("adventurer_name", "?") + " (" + report.get("adventurer_class", "?") + ")"
 	else:
@@ -175,9 +206,70 @@ func _display_report(report: Dictionary):
 	else:
 		continue_button.text = "Begin the Day"
 
+	# Death beat — forced pause before the advance button appears (Story 7.3)
+	if fate == "dead":
+		_begin_death_pause()
+	else:
+		_death_pause_active = false
+		continue_button.visible = true
+		continue_button.modulate.a = 1.0
+
+
+func _apply_fate(report: Dictionary, fate: String) -> void:
+	"""Story 7.2 — portrait (emotional state), panel tone (warm/muted/still), and a flavor line."""
+	var cls: String = report.get("adventurer_class", "")
+	var state := "" if fate == "returned" else fate
+	portrait_socket.texture = PortraitSocket.resolve_texture({
+		"portrait": report.get("portrait", ""),
+		"class": cls,
+		"id": report.get("adventurer_id", "")
+	}, state)
+	match fate:
+		"dead":
+			panel_style.border_color = Color(0.35, 0.33, 0.33, 0.85)
+			panel_style.bg_color = Color(0.08, 0.08, 0.09, 1.0)
+			portrait_socket.modulate = Color(0.55, 0.55, 0.6, 1.0)  # still, desaturated
+		"wounded":
+			panel_style.border_color = Color(0.72, 0.45, 0.3, 0.75)
+			panel_style.bg_color = Color(0.13, 0.11, 0.10, 1.0)
+			portrait_socket.modulate = Color(0.9, 0.85, 0.82, 1.0)
+		_:
+			panel_style.border_color = Color(0.85, 0.68, 0.35, 0.7)  # warm
+			panel_style.bg_color = Color(0.14, 0.12, 0.10, 1.0)
+			portrait_socket.modulate = Color(1, 1, 1, 1)
+	flavor_label.text = _flavor_line(cls, fate)
+
+func _flavor_line(_cls: String, fate: String) -> String:
+	"""Placeholder flavor — Story 7.6 replaces this with a data-driven (class, outcome) JSON dict."""
+	var pool: Array
+	match fate:
+		"dead":
+			pool = ["They didn't come back.", "The chair sits empty tonight.", "One less name at the table."]
+		"wounded":
+			pool = ["Bloodied, but breathing.", "They'll mend — given time.", "Home, and hurting."]
+		_:
+			pool = ["Back with stories to tell.", "Safe, and richer for it.", "The road was kind today."]
+	return pool[randi() % pool.size()]
+
+func _begin_death_pause() -> void:
+	"""Story 7.3 — hide the advance button, hold for reveal_death_pause_seconds, then fade it in.
+	Runs independently per death panel. Input is ignored while _death_pause_active."""
+	_death_pause_active = true
+	continue_button.visible = false
+	continue_button.modulate.a = 0.0
+	var dur := float(DataManager.get_config("reveal_death_pause_seconds", 2.0))
+	await get_tree().create_timer(dur).timeout
+	if not is_instance_valid(continue_button):
+		return
+	_death_pause_active = false
+	continue_button.visible = true
+	var t := create_tween()
+	t.tween_property(continue_button, "modulate:a", 1.0, 0.4)
 
 func _on_continue_pressed():
 	"""Player acknowledges this report"""
+	if _death_pause_active:
+		return  # forced pause — input silently ignored (Story 7.3)
 	_show_next_report()
 
 

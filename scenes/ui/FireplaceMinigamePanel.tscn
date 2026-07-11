@@ -255,5 +255,3 @@ disabled = true
 text = "Start Pumping!"
 
 [connection signal="pressed" from="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer/CloseButton" to="." method="_on_close_button_pressed"]
-[connection signal="button_down" from="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer/StartPumpingButton" to="." method="_on_start_pumping_button_button_down"]
-[connection signal="button_up" from="CenterContainer/MinigameContainer/MarginContainer/MainVBox/ButtonContainer/StartPumpingButton" to="." method="_on_start_pumping_button_button_up"]

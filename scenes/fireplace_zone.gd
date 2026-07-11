@@ -141,6 +141,15 @@ func _on_player_interact():
 		_open_minigame()
 
 # ===== MINIGAME MANAGEMENT =====
+func _exit_tree():
+	# If the minigame is still open when this zone leaves the tree (e.g. Esc → Main Menu mid-game),
+	# free it so it doesn't orphan on the root and linger over the next scene — and un-pause. (Bugfix)
+	if active_minigame and is_instance_valid(active_minigame):
+		active_minigame.queue_free()
+		active_minigame = null
+	if get_tree():
+		get_tree().paused = false
+
 func _open_minigame():
 	"""Open the fireplace minigame window"""
 	print("Opening fireplace minigame")
