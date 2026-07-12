@@ -18,6 +18,9 @@ var portrait_socket: TextureRect
 var flavor_label: Label
 var panel_style: StyleBoxFlat
 var _death_pause_active: bool = false
+var _flavor_data: Dictionary = {}
+var _last_flavor: String = ""
+var group_row: HBoxContainer
 
 func _ready():
 	layer = 100
@@ -65,6 +68,12 @@ func _build_ui():
 	portrait_socket.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait_socket.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vbox.add_child(portrait_socket)
+
+	group_row = HBoxContainer.new()
+	group_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	group_row.add_theme_constant_override("separation", 16)
+	group_row.visible = false
+	vbox.add_child(group_row)
 
 	mission_name_label = Label.new()
 	mission_name_label.text = ""
@@ -162,10 +171,7 @@ func _display_report(report: Dictionary):
 		fate = "dead" if not alive else ("wounded" if injured else "returned")
 		_apply_fate(report, fate)
 	else:
-		portrait_socket.texture = null
-		panel_style.border_color = Color(0.8, 0.65, 0.3, 0.6)
-		panel_style.bg_color = Color(0.12, 0.11, 0.1, 1.0)
-		flavor_label.text = ""
+		fate = _apply_group(report)
 
 	if report.type == "solo":
 		adventurer_label.text = report.get("adventurer_name", "?") + " (" + report.get("adventurer_class", "?") + ")"
@@ -217,6 +223,9 @@ func _display_report(report: Dictionary):
 
 func _apply_fate(report: Dictionary, fate: String) -> void:
 	"""Story 7.2 — portrait (emotional state), panel tone (warm/muted/still), and a flavor line."""
+	portrait_socket.visible = true
+	if group_row:
+		group_row.visible = false
 	var cls: String = report.get("adventurer_class", "")
 	var state := "" if fate == "returned" else fate
 	portrait_socket.texture = PortraitSocket.resolve_texture({
@@ -239,17 +248,99 @@ func _apply_fate(report: Dictionary, fate: String) -> void:
 			portrait_socket.modulate = Color(1, 1, 1, 1)
 	flavor_label.text = _flavor_line(cls, fate)
 
-func _flavor_line(_cls: String, fate: String) -> String:
-	"""Placeholder flavor — Story 7.6 replaces this with a data-driven (class, outcome) JSON dict."""
-	var pool: Array
-	match fate:
+func _apply_group(report: Dictionary) -> String:
+	"""Story 7.4 — side-by-side member portraits, party tone, shared flavor, Connection flag."""
+	portrait_socket.visible = false
+	group_row.visible = true
+	for c in group_row.get_children():
+		c.queue_free()
+
+	var members: Array = report.get("members", [])
+	var any_dead := false
+	var any_wounded := false
+	var majors_survived := 0
+	for m in members:
+		var m_fate: String = m.get("fate", "returned")
+		if m_fate == "dead":
+			any_dead = true
+		elif m_fate == "wounded":
+			any_wounded = true
+		if m_fate != "dead" and str(m.get("tarot_card", "")).begins_with("major_"):
+			majors_survived += 1
+		group_row.add_child(_make_member_tile(m))
+
+	var party_fate := "dead" if any_dead else ("wounded" if any_wounded else "returned")
+	match party_fate:
 		"dead":
-			pool = ["They didn't come back.", "The chair sits empty tonight.", "One less name at the table."]
+			panel_style.border_color = Color(0.35, 0.33, 0.33, 0.85)
+			panel_style.bg_color = Color(0.08, 0.08, 0.09, 1.0)
 		"wounded":
-			pool = ["Bloodied, but breathing.", "They'll mend — given time.", "Home, and hurting."]
+			panel_style.border_color = Color(0.72, 0.45, 0.3, 0.75)
+			panel_style.bg_color = Color(0.13, 0.11, 0.10, 1.0)
 		_:
-			pool = ["Back with stories to tell.", "Safe, and richer for it.", "The road was kind today."]
-	return pool[randi() % pool.size()]
+			panel_style.border_color = Color(0.85, 0.68, 0.35, 0.7)
+			panel_style.bg_color = Color(0.14, 0.12, 0.10, 1.0)
+
+	var flavor := _flavor_line("", party_fate)
+	if majors_survived >= 2:
+		flavor += "   ✦ A bond was forged."
+		# Connection → codex.dat is the patch point for Epic 18 (codex.dat not built yet)
+		print("[Reveal] Connection forged between %d Major Arcana (codex patch point)" % majors_survived)
+	flavor_label.text = flavor
+	return party_fate
+
+func _make_member_tile(m: Dictionary) -> Control:
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 4)
+	var pic := TextureRect.new()
+	pic.custom_minimum_size = Vector2(72, 72)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var m_fate: String = m.get("fate", "returned")
+	pic.texture = PortraitSocket.resolve_texture(m, "" if m_fate == "returned" else m_fate)
+	if m_fate == "dead":
+		pic.modulate = Color(0.55, 0.55, 0.6, 1.0)  # still / desaturated
+	elif m_fate == "wounded":
+		pic.modulate = Color(0.9, 0.85, 0.82, 1.0)
+	vb.add_child(pic)
+	var nm := Label.new()
+	nm.text = str(m.get("name", "?"))
+	nm.add_theme_font_size_override("font_size", 12)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(nm)
+	return vb
+
+func _flavor_line(cls: String, fate: String) -> String:
+	"""Story 7.6 — data-driven (class, outcome) flavor: ≥3 variants, no immediate repeat, safe fallback."""
+	if _flavor_data.is_empty():
+		_load_flavor_data()
+	var by_class: Dictionary = _flavor_data.get("lines", {})
+	var variants: Array = by_class.get(cls.to_lower(), {}).get(fate, [])
+	if variants.is_empty():
+		variants = _flavor_data.get("fallback", {}).get(fate, [])
+	if variants.is_empty():
+		push_warning("[RevealSequencer] no flavor line for (%s, %s), using fallback" % [cls, fate])
+		return "..."
+	var choice: String = variants[randi() % variants.size()]
+	if variants.size() >= 3:
+		var guard := 0
+		while choice == _last_flavor and guard < 6:
+			choice = variants[randi() % variants.size()]
+			guard += 1
+	_last_flavor = choice
+	return choice
+
+func _load_flavor_data():
+	var path := "res://data/reveal/flavor_lines.json"
+	if not FileAccess.file_exists(path):
+		_flavor_data = {"lines": {}, "fallback": {}}
+		return
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		_flavor_data = {"lines": {}, "fallback": {}}
+		return
+	var data = JSON.parse_string(f.get_as_text())
+	_flavor_data = data if data is Dictionary else {"lines": {}, "fallback": {}}
 
 func _begin_death_pause() -> void:
 	"""Story 7.3 — hide the advance button, hold for reveal_death_pause_seconds, then fade it in.

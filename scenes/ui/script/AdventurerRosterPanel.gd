@@ -12,6 +12,16 @@ var adventurer_cards: Dictionary = {}
 # CRITICAL FIX: Prevent overlapping refresh calls
 var is_refreshing: bool = false
 
+# Slide-in/out panel geometry
+const HIDDEN_X := 1920.0
+const SHOWN_X := 1570.0
+
+# Explicit open/closed state. Do NOT derive this from the animating position.x —
+# rapid Tab presses or roster changes during the 0.3s slide would race against each
+# other and leave the panel stuck (the "adventurers not displaying" bug).
+var is_open: bool = false
+var _slide_tween: Tween
+
 func _ready():
 	print("Adventurer Roster Panel initialized")
 	
@@ -23,42 +33,49 @@ func _ready():
 	# Initial population
 	refresh_roster()
 	
-	# Start hidden (off-screen to the right)
-	position.x = 1920  # Off-screen
+	# Start hidden (parked off-screen right). `is_open` — not position.x — is the source of truth.
+	is_open = false
+	position.x = HIDDEN_X
 	visible = true
 
 func _input(event):
-	"""Handle Tab key to toggle panel"""
+	"""Tab toggles the roster panel."""
 	if event.is_action_pressed("ui_focus_next"):  # Tab key
 		toggle_panel()
+		get_viewport().set_input_as_handled()  # don't also shift UI focus on Tab
 
 
 func toggle_panel():
-	"""Toggle panel visibility (used by Tab key)"""
-	if position.x >= 1920:  # Currently hidden
-		show_panel()
-	else:  # Currently visible
+	"""Toggle visibility. Keys off explicit `is_open`, never the animating position."""
+	if is_open:
 		hide_panel()
+	else:
+		show_panel()
+
+func _slide_to(target_x: float) -> void:
+	# Reuse a single tween so competing show/hide calls can't fight over position.x.
+	if _slide_tween and _slide_tween.is_running():
+		_slide_tween.kill()
+	_slide_tween = create_tween()
+	_slide_tween.set_ease(Tween.EASE_OUT)
+	_slide_tween.set_trans(Tween.TRANS_CUBIC)
+	_slide_tween.tween_property(self, "position:x", target_x, 0.3)
 
 func show_panel():
-	"""Slide panel in from right (only if currently hidden)"""
-	if position.x >= 1920:  # Currently hidden
-		var tween = create_tween()
-		tween.set_ease(Tween.EASE_OUT)
-		tween.set_trans(Tween.TRANS_CUBIC)
-		tween.tween_property(self, "position:x", 1570, 0.3)
-		print("Opening roster panel")
-	# If already visible, do nothing (keep it shown)
+	"""Slide the panel in from the right."""
+	if is_open:
+		return
+	is_open = true
+	_slide_to(SHOWN_X)
+	print("Opening roster panel")
 
 func hide_panel():
-	"""Slide panel out to right (only if currently visible)"""
-	if position.x < 1920:  # Currently visible
-		var tween = create_tween()
-		tween.set_ease(Tween.EASE_OUT)
-		tween.set_trans(Tween.TRANS_CUBIC)
-		tween.tween_property(self, "position:x", 1920, 0.3)
-		print("Closing roster panel")
-	# If already hidden, do nothing
+	"""Slide the panel out to the right."""
+	if not is_open:
+		return
+	is_open = false
+	_slide_to(HIDDEN_X)
+	print("Closing roster panel")
 
 
 
@@ -207,10 +224,11 @@ func create_adventurer_card(adventurer: Dictionary):
 	print("Created card for: ", adventurer.get("name"))
 
 func _on_roster_changed():
-	"""Called when GameManager adventurer roster changes"""
+	"""Roster data changed — rebuild the cards. Visibility stays under the player's control
+	(Tab); we no longer force the panel open on every change, which previously made Tab
+	unpredictable and flew the panel in during mission dispatch."""
 	print("Roster changed signal received!")
 	refresh_roster()
-	show_panel()
 
 func _on_day_changed(new_day: int):
 	"""Called when day advances - refresh to update recovery timers"""

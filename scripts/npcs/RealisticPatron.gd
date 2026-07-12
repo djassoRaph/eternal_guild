@@ -29,6 +29,7 @@ var has_been_served = false
 var payment_amount: int = 8
 var patron_name: String = "Patron"
 var patron_origin: String = ""
+var patron_origin_type: String = ""   # traveler/local/soldier/trader — keys ambient chatter (Story 8.4)
 
 # Visuals
 var service_indicator: MeshInstance3D
@@ -267,6 +268,7 @@ func serve_patron():
 	drinking_timer.start()
 
 	print("", patron_name, " is now drinking")
+	_start_ambient_chatter()  # Story 8.4 — a floating one-liner while they drink
 	return true
 
 # =============================================================================
@@ -307,6 +309,36 @@ func on_drinking_timer_timeout():
 			print("", patron_name, " is walking to exit at ", entrance_position)
 		else:
 			_leave_tavern()
+
+# =============================================================================
+# AMBIENT CHATTER (Story 8.4)
+# =============================================================================
+
+func _start_ambient_chatter() -> void:
+	# After a short beat, float one ambient line above the patron's head. Fire-and-forget:
+	# called without await so it never blocks the serve path.
+	await get_tree().create_timer(randf_range(1.5, 3.0)).timeout
+	if current_state != PatronState.DRINKING:
+		return  # left or got interrupted — skip
+	var line := _pick_ambient_line()
+	if line == "" or line == "...":
+		return
+	# preload by path (like coin_reward) so this compiles even before the editor scans the
+	# new script into the global class registry.
+	var bubble = preload("res://scripts/fx/patron_speech_bubble.gd").new()
+	add_child(bubble)  # child of the patron, so it rides along and cleans up with them
+	bubble.say(line)
+
+func _pick_ambient_line() -> String:
+	# Data-driven (MOD-2): lines live in data/dialogue/patron_lines.json under "ambient",
+	# keyed by origin type, with a "default" fallback.
+	if DataManager == null:
+		return ""
+	var ctx := patron_origin_type if patron_origin_type != "" else "default"
+	var line := DataManager.get_dialogue_line("ambient", ctx)
+	if line == "..." and ctx != "default":
+		line = DataManager.get_dialogue_line("ambient", "default")
+	return line
 
 # =============================================================================
 # INITIALIZATION
@@ -360,8 +392,8 @@ func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int):
 	]
 	var picked = origins[randi() % origins.size()]
 	patron_origin = picked["label"]
-	var origin_type: String = picked["type"]
-	print("", patron_name, " is from ", patron_origin, " (", origin_type, ")")
+	patron_origin_type = picked["type"]
+	print("", patron_name, " is from ", patron_origin, " (", patron_origin_type, ")")
 
 	await get_tree().create_timer(0.1).timeout
 	if nav_agent:

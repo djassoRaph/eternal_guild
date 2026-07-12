@@ -1,0 +1,40 @@
+{
+	"_comment": "Reveal flavor lines keyed by (class, outcome). Story 7.6 — data-driven (MOD-2), ≥3 variants per key, no-repeat-in-a-row handled by the sequencer. Outcomes: returned / wounded / dead. Fallback covers any class/outcome without an entry.",
+	"lines": {
+		"fighter": {
+			"returned": ["Came back grinning, sword notched and story ready.", "Walked in like they never doubted it. Maybe they didn't.", "Dust and blood — but that's a fighter's kind of clean."],
+			"wounded": ["Favouring one arm, and waving off the fuss anyway.", "Took a beating and gave a worse one — still, they're limping.", "Won the fight, lost some skin. Sore for a while."],
+			"dead": ["They stood their ground. That's where they stayed.", "The last thing they did was hold the line.", "A fighter's death — facing it, not fleeing it."]
+		},
+		"rogue": {
+			"returned": ["Slipped back in without a sound, pockets heavier.", "No one saw them leave, no one saw them return. Typical.", "Grinning at a secret they won't share."],
+			"wounded": ["A rare misstep — and a rarer wound to show for it.", "Quick, but not quite quick enough this time.", "Cut where the shadows didn't quite reach."],
+			"dead": ["Even the quick run out of corners eventually.", "No clever way out of this one.", "They vanished for good this time."]
+		},
+		"mage": {
+			"returned": ["Returned murmuring about something read in the ruins.", "Robes singed, eyes bright with what they'd learned.", "Home already, sketching a rune only they understand."],
+			"wounded": ["Magic has a price. This time it was paid in blood.", "A spell went wrong — or a foe went right.", "Drained and burned, but still muttering incantations."],
+			"dead": ["Their last spell wasn't enough. Few ever are.", "The runes went quiet with them.", "Knowledge died with them in the dark."]
+		},
+		"ranger": {
+			"returned": ["Back from the wilds with mud, meat, and good news.", "Read the land like a page and came home wiser.", "The forest let this one leave. Not all are so lucky."],
+			"wounded": ["Something out there was faster than the arrow.", "Limped in on a trail of their own blood.", "The wilds bit back this time."],
+			"dead": ["The wild kept them. It usually does, in the end.", "No trail led back for this one.", "They became part of the country they loved."]
+		},
+		"cleric": {
+			"returned": ["Returned with a blessing and a weary smile.", "Faith held where the road did not.", "Home whole, crediting something larger than themselves."],
+			"wounded": ["Even the faithful bleed. They tended others first.", "Hurt, but still asking after everyone else.", "Their prayers guarded the party, not quite themselves."],
+			"dead": ["They gave their last blessing freely.", "Faith walked them all the way to the end.", "Gone to whatever they believed was waiting."]
+		},
+		"healer": {
+			"returned": ["Returned with steady hands and everyone's thanks.", "Mended the party and made it home besides.", "Home, quietly proud of who they kept alive."],
+			"wounded": ["Spent themselves keeping others whole.", "Healed everyone but themselves, it seems.", "Hurt in the saving of someone else."],
+			"dead": ["They saved the others. Not themselves.", "The healer's last act was for someone else.", "Gone — and the party lives because of it."]
+		}
+	},
+	"fallback": {
+		"returned": ["Home, and richer for the road.", "Back at the hearth, none the worse.", "The road was kind this time."],
+		"wounded": ["Bloodied, but breathing.", "They'll mend, given time and beer.", "Home, and hurting — but home."],
+		"dead": ["They didn't come back.", "The chair sits empty tonight.", "One less name at the table."]
+	}
+}

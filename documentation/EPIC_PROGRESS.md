@@ -1,7 +1,14 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-07-08 (Epic 4 refresh). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-07-12 (Story 8.4 ambient chat · distance-aware quest placement · New Game reset fix · roster Tab fix). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
+
+## Snapshot (2026-07-12)
+**Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
+**In progress:** Epic 4 (~85%) · Epic 6 (~55%) · Epic 8 (~65%, Story 8.4 ambient chat done) · Epic 11 (~50%) · Epic 14 (~15%).
+**Eternal layer:** deaths now write to `codex.dat` cemetery (Story 7.1) — feeds Epics 18/19, but the viewer scenes aren't built.
+**Recent (2026-07-12):** ambient patron speech bubbles (8.4) · distance-aware quest placement (6) · New Game state-reset bug fixed (2.1/11) · roster-panel Tab toggle fixed (4.3).
+**Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
 ---
 
@@ -57,7 +64,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ### Story 1.7: Plugin Installation Suite
 - [x] **LimboAI** — GDExtension in `addons/limboai/`, auto-loads via `.gdextension` (no plugin.cfg needed)
 - [x] **Debug Menu (Calinou)** — installed, enabled, registered as autoload
-- [x] **GdUnit4** v6.1.3 — installed in `addons/gdUnit4/`, enabled in editor_plugins
+- [~] **GdUnit4** — NOT actually installed (no `addons/gdUnit4/`, not in editor_plugins). The failsafe suite (Story 1.9) is a **standalone headless script** instead, so this never blocked Epic 1. Install only if editor-integrated tests are wanted later.
 - [x] **QuestSystem 2** evaluation — documented in `game-architecture.md` D8 Plugin Decisions Log (QS2 default, yggdrasil backup)
 - [x] **dialogue_manager** — installed and active
 - [x] **asset_placer** — installed and active (dev tool)
@@ -71,7 +78,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] `adventurer_classes` and `adventurer_names` added to game_config.json
 
 ### Story 1.9: Failsafe Test Suite
-- [x] GdUnit4 installed (Story 1.7)
+- [~] GdUnit4 NOT installed — the suite is a standalone headless script (no plugin dependency), so this is fine
 - [x] `test/failsafe_test.gd` — 4 tests: save/load round-trip, loot RNG distribution, mission success formula, AdventurerStatus transitions
 - [x] `GameManager.roll_loot()` static method created for loot distribution (gold 75% / equipment 20% / artifact 5%)
 - [x] Failsafe suite RUN & GREEN — **27/27 pass** (save round-trip, loot bands, mission formula, status transitions), verified 2026-06-24. NOTE: these are NOT GdUnit4/editor tests — `test/failsafe_test.gd` is a standalone headless script. Re-run anytime: `"<godot>" --headless --script res://test/failsafe_test.gd --path "F:\GAME I AM MAKING\shiningsun"`
@@ -79,12 +86,12 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 2: Main Menu, Pause Menu & Game Settings
-**Status: ~90% — 2.1 / 2.2 / 2.3 / 2.4 DONE. Only remaining: New Game→tavern flow polish (2.1) — overlaps Epic 6 world-map rework. (2026-07-05)**
+**Status: ~92% — 2.1 / 2.2 / 2.3 / 2.4 DONE; New Game state-reset bug fixed 2026-07-12. Remaining: New Game→tavern flow polish (2.1) overlaps Epic 6 rework.**
 
 ### Story 2.1: Main Menu Scene — PARTIAL
 - [x] `MainMenu.tscn` + `main_menu.gd` — Start, Continue, Quit buttons exist
 - [x] Continue button disabled when no save file exists (`has_save_game()` check)
-- [~] New Game → transitions to HexMapTest scene — **NOTE (Raphael): not at expected quality**
+- [x] New Game → **resets all game state** (`reset_game_state()`) then transitions to HexMapTest — fixed 2026-07-12 (was inheriting the prior session's Day/gold/roster in-memory; see Epic 11)
 - [~] Continue → loads save then transitions to MainTavern — load has known issues
 - [x] Quit → `get_tree().quit()`
 - [x] "Overwrite existing save" confirmation on New Game when a save exists (2026-07-05)
@@ -114,7 +121,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 3: The Living Tavern — Core Day Loop
-**Status: ~95% — 3.3 firewood authority, 3.4 beer authority, 3.5 HUD notifications all DONE 2026-07-05. Only remaining: 3.4 coin-payment animation (visual juice).**
+**Status: ✅ ~100% — firewood/beer authority + HUD notifications DONE 2026-07-05; 3.4 coin-payment animation + SFX DONE 2026-07-11. Fireplace re-spec'd to continuous decay + additive stoking; minigame polished (target marker, hearth theme, exit-orphan fix).**
 
 - [x] **Day cycle** — `advance_day()` processes all daily events in sequence
 - [x] **Patron spawn** — PatronSpawner with timer-based spawn, up to 3 concurrent (configurable)
@@ -128,11 +135,13 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] **Soft-lock detection** (FR-6) — triggers game over when 0 adventurers + <8g + no recruits
 - [x] **GameOverScreen.tscn** exists for game over display
 - [x] **HUD notifications** — `NotificationManager` autoload (2026-07-05): non-blocking top-center banners for low gold/beer/comfort, edge-triggered + cooldown + max-2, config thresholds in `game_config.json`. Verified headless.
+- [x] **Coin-payment reward** (Story 3.4 juice, 2026-07-11) — `scripts/fx/coin_reward.gd` procedural 3-coin burst on patron payment + `SfxManager` autoload (pooled SFX on the SFX bus, `coins.mp3` / `cointinkle.wav`)
+- [x] **Fireplace continuous decay + additive stoking** (2026-07-11) — re-spec'd from stepped to continuous drain; stoking adds onto current fuel (no reset); config-driven rates. Minigame polished: glowing target marker at the optimal spot, warm hearth theme, debug strip; exit-to-menu orphan bug fixed
 
 ---
 
 ## Epic 4: The Adventurer Roster
-**Status: ~75% — 4.1 / 4.4 / 4.5 DONE (2026-07-08, verified headless). 4.2 / 4.3 PARKED on Tarot portraits (Guilo commission).**
+**Status: ~85% — 4.1 / 4.4 / 4.5 DONE (2026-07-08). 4.3 portrait socket now BUILT (Story 7.5) — renders class silhouettes today, Guilo's Tarot art swaps in via data with zero code change. Only 4.2 hire-UI polish + minor 4.3 deltas remain.**
 
 ### Story 4.1: Daily Hire Pool Generation — ✅ DONE
 - [x] 3–5 recruits/day from config (`hire_pool_min/max`)
@@ -145,9 +154,11 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] `hire_adventurer()` — gold gate, roster-cap + refund, unique ID, adds READY, removes from pool; Tarot card carried onto the roster record
 - [ ] Hire/recruit UI + portrait display — deferred until Tarot portraits land
 
-### Story 4.3: Roster Panel Display — ⏸️ PARKED (Tarot portraits)
+### Story 4.3: Roster Panel Display — 🔨 MOSTLY DONE (portrait socket built; awaiting Guilo art for the final swap)
 - [x] Panel renders name, class+level, color-coded status, wage; greys non-Ready; refreshes on roster/day change (audit done)
-- [ ] Delta: show Tarot card + drink pref, portrait from `adventurer.portrait` + silhouette fallback, un-hardcode wage, "Returns in N days" — gated on portraits
+- [x] **Tab-toggle display bug fixed** (2026-07-12) — panel derived open/closed from the animating `position.x` and force-showed on every roster change, so Tab raced the slide and often hid instead of showing ("adventurers not displaying"). Now uses an explicit `is_open` flag + single reused tween; Tab is the sole authority
+- [x] **Portrait socket wired** (Story 7.5) — roster panel + recruitment popup render `PortraitSocket.resolve_texture(adventurer)`: Tarot portrait when present, else class portrait, else class-colored silhouette (never blank). Guilo's Tarot art drops in via `adventurer.portrait` with **zero code change**
+- [ ] Remaining delta: show Tarot card name + drink pref, un-hardcode wage display, "Returns in N days" countdown
 
 ### Story 4.4: Daily Wage Deduction — ✅ DONE (verified unit + integration)
 - [x] `apply_daily_wages()` — per-adventurer `daily_wage`, all statuses except DEAD, runs before the morning briefing
@@ -161,16 +172,16 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] Godot's `JSON.parse` floatifies saved ints and GDScript `match` won't coerce float→int, so hiring a save-carried recruit showed "Status: Unknown". Fixed via `_normalize_adventurer_ints()` on hire + on load (roster + recruits) + defensive coercion in the roster panel (also cleans "5.0 days" → "5 days"). Existing saves self-heal on next Continue.
 
 ### Still pending
-- [ ] **Portrait socket** — recruits carry `adventurer.portrait` (Tarot card path) but UIs still show class portraits; wiring is Story 4.3, gated on Guilo's Tarot portraits
+- [x] **Portrait socket** — BUILT (Story 7.5): `scripts/ui/portrait_socket.gd` `PortraitSocket.resolve_texture()` (Tarot → class portrait → class-colored silhouette), wired into roster panel + recruitment popup. Guilo's art swaps in via data only
 - [ ] Class list 5-vs-4 (code: Fighter/Rogue/Mage/Ranger/Cleric · GDD MVP: Fighter/Rogue/Mage/Healer) — reconcile before class-tied content (see TECH_DEBT)
 - [ ] Duplicate recruit generator in `DataManager` (parallel to the active GameManager path) — consolidate in 4.3 (see TECH_DEBT)
 
 ---
 
 ## Epic 5: Tutorial & Onboarding
-**Status: 0% — Not started. ⚠️ BLOCKED-by-design: build AFTER Epics 6 & 7 settle.**
+**Status: 0% — Not started. ⚠️ BLOCKED-by-design: build AFTER Epic 6 settles (Epic 7 now DONE, so the Reveal gate is unblocked).**
 Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn't build mechanics), so its gates depend on those systems being final — building it now = throwaway work:
-- **5.3** (narrate the first Reveal) needs **Epic 7** — currently a placeholder payout screen slated for rework.
+- **5.3** (narrate the first Reveal) — ✅ dependency cleared: **Epic 7 is complete** (Stories 7.1–7.6). Buildable whenever the tutorial pass begins.
 - **5.5** (send a quest) needs **Epic 6** World Map dispatch — flagged by Raphael for rework.
 - **5.1** (guild naming) needs `codex.dat` `run_count` + `guild_name` in the save (Epic 11 hardening).
 
@@ -179,13 +190,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 6: World Map, World Generation & Mission Dispatch
-**Status: ~50% — Generation works, dispatch needs rework**
+**Status: ~55% — Generation + distance-aware placement work; mission count / group-mission display + Latest News still need rework**
 
 - [x] **Hex map generation** — seeded RNG, simplex noise + radial falloff, biomes (sea/grass/forest/mountain)
 - [x] **Settlement placement** — configurable count, minimum spacing enforcement
 - [x] **World persisted** — `WorldManager.set_generated_world()` stores records; `display_mode` re-renders without regenerating
 - [x] **Tavern hex selection** — player picks center (signal `tavern_hex_selected`)
-- [x] **Missions assigned to hexes** — `WorldManager.assign_missions_to_hexes()` distributes missions to eligible tiles
+- [x] **Missions assigned to hexes** — `WorldManager.assign_missions_to_hexes()` is now **distance-aware** (2026-07-12): a quest's distance from the tavern scales with `duration_days` (+ a touch of danger), so 1-day errands land near and long/dangerous ones sit far. Tunable via `mission_hexes_per_day` / `mission_distance_spread`
 - [x] **Mission dispatch** — `send_on_mission()` / `send_party_on_mission()` with duration tracking
 - [x] **Active mission timers** — tick down daily in `process_mission_returns()`
 - [x] **Hex lock** — dispatched hex marked `locked`, freed on resolution
@@ -198,30 +209,30 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [ ] **Latest News feed** (FR-19b) — not implemented
 - [ ] **Hex Strategy Map plugin evaluation** — not documented
 - [~] **World NOT yet saved to disk** per WorldManager comment: "Saving to disk is a later step (gated on the load-game fix)"
-- **NOTE (Raphael):** Map currently only displays 3 missions, randomly placed. Needs rework — not the system desired. Post-30-day group missions not displayed either.
+- **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). Still to rework: only ~3-4 missions shown at once, and post-30-day group missions aren't displayed.
 
 ---
 
 ## Epic 7: The End-of-Day Reveal
-**Status: ~30% — Basic mission reports exist, not the "sacred ritual"**
+**Status: ~95% — Stories 7.1–7.6 shipped (the "sacred ritual" reveal + crash-safe persistence). Only the optional "Begin the Day" closing flourish remains.**
 
 - [x] **Morning briefing sequence** — panels shown one at a time, "Report N of M" counter
 - [x] **Report contains**: mission name, adventurer name/class, success/fail, alive/injured/dead status
 - [x] **Solo + party report types** with different data shapes
 - [x] **Mission resolution consequences** — success: +gold, +1 day rest. Failure: injury (2-5 days), possible death
 - [x] **Personality trait effects on resolution** — Reckless = extra injury chance, Lucky = bonus reward
-- [ ] **Three visual variants** (RETURNED warm / WOUNDED muted / DEAD forced pause) — NOT implemented, all reports use same panel style
-- [ ] **Forced death pause** (2s Timer block, fade-in advance button) — NOT implemented
-- [ ] **Portrait emotional states** — no portrait system at all
-- [ ] **Flavor lines** from class+outcome dictionary (3+ variants per combo) — NOT implemented
-- [ ] **Group panel** with Connection flag — reports are sequential, no side-by-side layout
-- [ ] **"Begin the Day"** closing ceremony — advance button exists but no ceremony
-- [ ] **Reveal-before-display pattern** — deaths are processed during resolution (not saved to codex.dat first, since codex.dat doesn't exist)
+- [x] **Three visual variants** (RETURNED warm / WOUNDED muted / DEAD dark) — **Story 7.2**, single reveal panel recolors by fate via stored `panel_style`
+- [x] **Forced death pause** — **Story 7.3**, continue button hidden, `reveal_death_pause_seconds` (2.0) timer, then fade back in; input blocked during the pause
+- [x] **Portrait emotional states** — **Story 7.5**, `PortraitSocket.resolve_texture(adv, emotional_state)` with 4-tier fallback (emotional variant → Tarot portrait → class portrait → class-colored silhouette); never null (MOD-6)
+- [x] **Flavor lines** from class+outcome dictionary — **Story 7.6**, data-driven `data/reveal/flavor_lines.json` (6 classes × 3 outcomes × 3 lines + fallback), no-repeat-in-a-row (MOD-2)
+- [x] **Group panel** with Connection flag — **Story 7.4**, side-by-side member tiles, party-wide tone, "✦ A bond was forged" when ≥2 Major Arcana survive (codex patch point for Epic 18)
+- [ ] **"Begin the Day"** closing ceremony — advance button exists; dedicated ceremony flourish still optional (not scoped as a 7.x story)
+- [x] **Reveal-before-display pattern** — **Story 7.1**, mission outcomes + deaths committed to `codex.dat` (cemetery record: id/name/class/tarot_card/hire_day/death_day/missions) and to savegame **before** the reveal plays; `LegacyBus.adventurer_died` fired at the death; reveal is now purely cosmetic + crash-safe
 
 ---
 
 ## Epic 8: PatronNPC Systems & Ambient Life
-**Status: ~40% — MVP placeholder, not production-ready**
+**Status: ~65% — core loop solid (5 patrons, serve, coin reward); Story 8.4 ambient chat done. Remaining: 8.5 eavesdropping + FSM state-granularity.**
 
 - [~] **PatronNPC FSM** — `WALKING_TO_TABLE → SITTING_WAITING → DRINKING → LEAVING` (4 states, not 6 as architecture specifies WALKING→SEATED→WAITING→SERVED→DRINKING→LEAVING). **MVP-quality only — animations are placeholder, not real character animations.**
 - [x] **NavigationAgent3D movement** — patrons walk to table, walk to exit
@@ -230,15 +241,15 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Service system** — player must be within 3.0 distance, patron shows yellow sphere indicator
 - [x] **Timer-based behavior** — sit 2-5s, drink 8-15s
 - [x] **Table management** — 5 positions, occupied tracking, availability check
-- [x] **Up to 3 concurrent** (max_patrons configurable @export)
+- [x] **Up to 5 concurrent** (max_patrons configurable @export) — playtest-confirmed `5/5`
 - [x] **Payment with comfort-based tip** — base 6-12g random + fire comfort multiplier
 - [x] **No-beer check** — won't spawn if beer is 0, won't serve if no stock
 - [x] **Patron flavor** — random name (first + surname), random origin ("the bridge crossroads", "the guard post", etc.)
 - [x] **Spawn replacement** — 70% chance to spawn new patron after one leaves (5-15s delay)
 - [x] **Despawn all** — `despawn_all_patrons()` for night/day-end
-- [ ] **Eavesdropping proximity trigger** (FR-50) — not implemented
-- [ ] **Dialogue Manager integration** — no ambient patron lines from dialogue system
-- [ ] **Up to 5 patrons** per FR-1 — currently max 3
+- [x] **Story 8.4 — Ambient patron dialogue** (2026-07-12) — billboarded `Label3D` speech bubbles above drinking patrons; origin-keyed lines from `patron_lines.json` `ambient` (MOD-2), staggered pop-in/fade. `PatronSpeechBubble` (`scripts/fx/`) is the swap point for a richer panel (8.4-B/C) later. (Lightweight Label3D per the AC — not the full Dialogue Manager.)
+- [x] **Up to 5 patrons** per FR-1 — now 5/5 (was mis-tracked as "max 3")
+- [ ] **8.5 Eavesdropping proximity trigger** (FR-50) — not built; trigger + notification are ~70% buildable now, but the "add rumour to Latest News feed" sink waits on Epic 6
 
 ---
 
@@ -256,7 +267,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 11: Campaign Save & Load
-**Status: ~45% — Basic save works, load has issues, not architecture-compliant**
+**Status: ~50% — Basic save works; New Game reset bug fixed 2026-07-12; load still has open issues (fire fuel, disk-save window)**
 
 - [x] **Single-file JSON save** — `user://eternal_guild_save.json`
 - [x] **3-backup rotation** — `create_save_backup()` rotates backup1→2→3
@@ -271,7 +282,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **`codex.dat`** — eternal cross-run persistence (fallen heroes, achievements, run stats)
 - [x] **Atomic writes** — write to `.tmp` then rename
 - [ ] **FR-36 player spawn at morning point** — PlayerManager uses SpawnPoint nodes but unclear if save/load respects this
-- **NOTE (Raphael):** Load isn't working as expected — needs debugging/rework
+- [x] **New Game state-reset fixed** (2026-07-12) — `reset_game_state()` now also clears `active_missions`, `pending_reports`, `has_pending_briefing`, `tavern_reputation`, `taxes_paid_count`, `tax_grace_days`, `mission_tier_unlocked`; `_start_new_game()` calls it so a New Game no longer inherits the prior session's state.
+- **NOTE (Raphael):** Load still needs a pass — (a) fireplace fuel loads as 0% (traced to a post-load reset, not yet fixed); (b) the old disk save isn't overwritten until the new game's Day-2 autosave, so New Game→quit-before-Day-2 → Continue loads the old game.
 
 ---
 
@@ -324,14 +336,14 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 |------|--------|-------|
 | 15: Farmland & Drinks | 0% | No farmland, no drink types beyond beer |
 | 16: Staff & Automation | 0% | LimboAI installed but not enabled; no staff NPCs |
-| 17: Tarot Evolution | 0% | No Tarot system at all |
-| 18: Codex | 0% | No codex.dat, no Dragon Eye Book scene |
-| 19: Memorial & Cemetery | 0% | No memorial wall, no cemetery scene |
+| 17: Tarot Evolution | ~5% | 78-card deck data + `DataManager` Tarot API exist and recruits carry a unique card (Epic 4.1); no evolution/leveling mechanic yet |
+| 18: Codex | ~10% | `codex.dat` exists and now records fallen heroes (via Story 7.1); no Dragon Eye Book viewer scene yet |
+| 19: Memorial & Cemetery | ~10% | Cemetery *data* now written to `codex.dat.fallen_heroes` (Story 7.1); no memorial wall / cemetery scene yet |
 | 20: Guild Fame | 0% | No fame system |
 | 21: The Reading | 0% | No run-end ceremony |
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
-| 24: Audio & Ambient | 0% | No audio system beyond Godot defaults |
+| 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
 
 ---
 
@@ -345,8 +357,9 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | debug_menu (Calinou) | Epic 1 | ✅ Installed, enabled, autoload registered |
 | godot_mcp_editor | Dev tool (MCP) | ✅ Installed & enabled |
 | godot_mcp_runtime | Dev tool (MCP) | ✅ Installed & enabled |
-| GdUnit4 | Epic 1 (test suite) | ❌ **Not installed** |
-| QuestSystem 2 | Epic 9, 23 | ❌ Not installed, **evaluation not done** |
+| auto_reload | Dev tool (hot-reload) | ✅ Installed & enabled |
+| GdUnit4 | Epic 1 (test suite) | ❌ Not installed — failsafe suite is a standalone headless script instead (no dependency) |
+| QuestSystem 2 | Epic 9, 23 | ⚠️ Not installed; **evaluation done** — QS2 chosen, yggdrasil backup (game-architecture.md D8) |
 | Hex Strategy Map | Epic 6 (evaluate) | ❌ Not evaluated |
 
 ---
@@ -364,12 +377,17 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | `data/settlements/capitals.json` | Faction capital definitions | WorldManager |
 | `data/economy/items.json` | Item definitions | (exists, not yet wired to loot system) |
 | `data/dialogue/patron_lines.json` | Patron ambient lines | (exists, unclear if active) |
+| `data/config/game_config.json` | All balance values (hire pool, wages, drink prefs, fire, reveal pause…) | DataManager / GameManager |
+| `data/config/features.json` | Feature flags for gating incomplete systems | DataManager |
+| `data/config/factions.json` | Rival guilds + 5 biome definitions | WorldManager |
+| `data/config/tarot_deck.json` | 78-card Tarot deck (archetype layer) — id/name/arcana/suit/portrait/art_brief | DataManager (`get_tarot_deck/get_tarot_card`) |
+| `data/config/class_colors.json` | Per-class silhouette colors + default | PortraitSocket |
+| `data/reveal/flavor_lines.json` | Reveal flavor lines keyed by class × outcome (+ fallback) | morning_briefing (Story 7.6) |
 
-**Missing data files (required by architecture):**
-- `data/config/game_config.json` — all balance values
-- `data/config/features.json` — feature flags
-- `data/config/factions.json` — rival guild names, biome definitions
-- `data/config/drink_affinity.json` — drink → adventurer class mappings
+**Missing data files (still absent):**
+- `data/config/drink_affinity.json` — drink → adventurer class mappings (drink *preferences* currently live in `game_config.json`; a dedicated affinity map is the architecture target)
+
+_(Correction 2026-07-11: `game_config.json`, `features.json`, and `factions.json` were previously listed here as "missing" — they have existed since Stories 1.3 / 1.8. Fixed.)_
 
 ---
 
@@ -384,7 +402,7 @@ A player can:
 6. Serve patrons manually (proximity + interact) for gold + tip
 7. Open recruitment popup, hire adventurers with stats/classes/personalities
 8. Open mission board, dispatch solo/party adventurers on timed missions
-9. Advance the day → morning briefing shows mission results (success/fail/injury/death)
+9. Advance the day → the End-of-Day Reveal plays: per-adventurer portraits, fate-toned panels (returned/wounded/dead), authored flavor lines, a forced pause on death, and group panels with party bonds — deaths are written to the `codex.dat` cemetery
 10. Manage beer shortage consequences (escalating morale damage)
 11. Pay taxes every 30 days or face bankruptcy game over
 12. Save/Load/Continue from main menu
@@ -393,24 +411,19 @@ A player can:
 
 ---
 
-## Blocking Gaps for Next Development
+## Blocking Gaps & Next Development
 
-**Must complete before building new features (Epic 1 remainder):**
+**Epic 1 groundwork is 100% complete** — the old pre-flight checklist that lived here (AdventurerStatus enum, 6 EventBuses, config spine, `schema_version`, `codex.dat` skeleton, MinigameInterface, ZonePromptUI de-autoload) is all done and verified (27/27 failsafe GREEN). The one item never actually done — **install GdUnit4** — turned out to be unnecessary; the failsafe suite is a standalone headless script.
 
-1. **Delete DataManager.gd line 2** (`@onready var log_container = %LogContainer`)
-2. **Create AdventurerStatus enum** — replace all string status comparisons
-3. **Create 6 EventBus autoloads** — decouple GameManager's 12+ signals
-4. **Create `data/config/game_config.json`** — externalize `max_adventurers` and all balance values
-5. **Create `data/config/features.json`** — feature flags
-6. **Remove ZonePromptUI from autoloads** — convert to per-scene child node
-7. **Add `schema_version` to save data** — future-proofing
-8. **Create `codex.dat` skeleton** — needed before Memorial, Codex, or Legacy features
-9. **Enable LimboAI in editor_plugins** — needed for Epic 16
-10. **Install GdUnit4** — needed for test suite
-11. **Create MinigameInterface base class**
+**Current blockers / rework (2026-07-11):**
+1. **Load / Continue rework** (Epic 11) — Raphael reports load isn't behaving; needs a debugging pass. Blocks world-to-disk save (Epic 6) and Continue polish (Epic 2.1).
+2. **World Map dispatch rework** (Epic 6) — only 3 random missions shown; not the desired system; post-30-day group missions not surfaced.
+3. **Guilo Tarot portraits** — unblocks the final art swap in Epic 4.3 / recruitment / the Reveal (the socket already renders silhouettes, zero code change to swap the art in).
+4. **Class list 5-vs-4 reconciliation** (code Fighter/Rogue/Mage/Ranger/Cleric vs GDD MVP Fighter/Rogue/Mage/Healer) — before class-tied content.
+5. **Duplicate recruit generator** in `DataManager` — consolidate with the active GameManager path.
 
-**After Epic 1, highest-value next work for Kickstarter demo:**
-- Epic 7 (Reveal) — upgrade morning briefing to the emotional "sacred ritual" panels
-- Epic 6 completion — save world to disk, Latest News feed
-- Epic 11 hardening — schema_version, codex.dat
-- Epic 8 — bump patrons to 5, add eavesdropping, Dialogue Manager lines
+**Highest-value next work for the Kickstarter demo:**
+- **Codex / Memorial viewer** (Epics 18/19) — cemetery data now writes to `codex.dat` (Story 7.1) but has no in-game viewer; the Dragon Eye Book / memorial wall makes those deaths visible & meaningful.
+- **Epic 6 completion** — the map rework, save world to disk, Latest News feed.
+- **Epic 8** — bump patrons to 5, add the eavesdropping trigger, wire Dialogue Manager ambient lines.
+- **Epic 5 (Tutorial)** — the Reveal gate (5.3) is now unblocked (Epic 7 done); still waits on Epic 6 for the send-quest gate (5.5).

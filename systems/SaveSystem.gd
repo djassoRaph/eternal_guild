@@ -169,10 +169,23 @@ func save_codex() -> bool:
 	return _save_codex()
 
 func record_fallen_hero(adventurer: Dictionary) -> void:
+	# Story 7.1 — the cemetery/memorial record, written at the moment of death (before the
+	# reveal panels play) so a crash mid-reveal still leaves the codex correct.
+	var adv_id = adventurer.get("id", -1)
+	# Guard against double-recording the same hero if the death path is ever re-entered.
+	if adv_id != -1:
+		for existing in codex_data.get("fallen_heroes", []):
+			if existing.get("id", -2) == adv_id:
+				return
+	var death_day = GameManager.current_day
 	var entry = {
+		"id": adv_id,
 		"name": adventurer.get("name", "Unknown"),
 		"class": adventurer.get("class", "Unknown"),
-		"day_fallen": GameManager.current_day,
+		"tarot_card": adventurer.get("tarot_card", ""),
+		"hire_day": adventurer.get("hire_day", -1),
+		"death_day": death_day,
+		"day_fallen": death_day,  # legacy alias for pre-7.1 readers
 		"missions_completed": adventurer.get("missions_completed", 0),
 		"timestamp": Time.get_unix_time_from_system(),
 	}

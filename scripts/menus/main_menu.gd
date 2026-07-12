@@ -44,6 +44,9 @@ func _on_start_button_pressed():
 		_start_new_game()
 
 func _start_new_game():
+	# GameManager is an autoload — it holds state for the whole session. Wipe any in-memory
+	# state from a prior game or Continue so a New Game never inherits the old day/gold/roster.
+	GameManager.reset_game_state()
 	get_tree().change_scene_to_file(HEX_MAP_SCENE)
 
 func _on_continue_button_pressed():

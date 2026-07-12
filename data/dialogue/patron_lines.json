@@ -38,6 +38,33 @@
 			"This place used to be better."
 		]
 	},
+	"ambient": {
+		"default": [
+			"Now that's a proper pint.",
+			"A good fire and a full cup — can't ask for more.",
+			"This is the part of the day I look forward to."
+		],
+		"traveler": [
+			"The road's long, but this ale makes it worth the miles.",
+			"Haven't sat by a fire this warm in weeks.",
+			"One more of these and I might just stay the night."
+		],
+		"local": [
+			"Same seat, same ale. Some things you don't change.",
+			"Heard the miller's boy went off adventuring. Madness.",
+			"Nothing rounds off a long day like this."
+		],
+		"soldier": [
+			"Quiet night. I'll take quiet nights.",
+			"Off duty, and this cup's the only order I'll follow.",
+			"The keep can wait. This tankard can't."
+		],
+		"trader": [
+			"Good day at market, better evening here.",
+			"I've drunk in richer towns. None friendlier.",
+			"A fair price and a full cup — that's a good day."
+		]
+	},
 	"origin_flavor": {
 		"traveler": {
 			"service_request": [

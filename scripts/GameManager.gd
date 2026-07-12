@@ -420,6 +420,11 @@ func process_mission_returns():
 
 	if pending_reports.size() > 0:
 		has_pending_briefing = true
+		# Story 7.1 (Reveal-Before-Display) — every outcome is already applied to game state
+		# (roster, gold, statuses) and every death is already in codex.dat. Persist the save
+		# NOW, before the reveal sequencer plays, so the panels are purely cosmetic and a
+		# crash or quit mid-reveal still leaves an already-correct save on disk.
+		SaveSystem.save_game_state("reveal_presave", true)
 		morning_briefing_ready.emit(pending_reports)
 
 
@@ -490,10 +495,28 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 	var casualties = party.filter(func(a): return a.get("status") == AStatus.DEAD)
 	var injured = party.filter(func(a): return a.get("status") == AStatus.WOUNDED)
 
+	var members := []
+	for a in party:
+		var st = a.get("status")
+		var m_fate := "returned"
+		if st == AStatus.DEAD:
+			m_fate = "dead"
+		elif st == AStatus.WOUNDED:
+			m_fate = "wounded"
+		members.append({
+			"name": a.get("name", "?"),
+			"class": a.get("class", ""),
+			"portrait": a.get("portrait", ""),
+			"id": a.get("id", ""),
+			"tarot_card": a.get("tarot_card", ""),
+			"fate": m_fate
+		})
+
 	return {
 		"type": "party",
 		"mission_name": mission.get("name", "Unknown"),
 		"party_members": member_names,
+		"members": members,
 		"party_size": party.size(),
 		"success": success,
 		"roll": roll,
@@ -903,6 +926,7 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	new_adventurer.erase("availability")
 	
 	_normalize_adventurer_ints(new_adventurer)  # coerce JSON-loaded floats/strings → int (status "Unknown" fix)
+	new_adventurer["hire_day"] = current_day  # Story 7.1 — cemetery record shows "served day X→Y"
 	adventurers.append(new_adventurer)
 	var hired_card = new_adventurer.get("tarot_card", "")
 	if hired_card != "" and not hired_tarot_cards.has(hired_card):
@@ -1123,6 +1147,17 @@ func reset_game_state():
 	
 	# Missions
 	available_missions.clear()
+	active_missions.clear()      # adventurers currently out — must not carry into a new run
+	pending_reports.clear()
+	has_pending_briefing = false
+	mission_refresh_day = 1
+
+	# Progression / run stats (a New Game must not inherit the previous run's progress)
+	total_missions_completed = 0
+	tavern_reputation = 0
+	taxes_paid_count = 0
+	tax_grace_days = 0
+	mission_tier_unlocked = 1
 	
 	# Game state
 	game_over_active = false
@@ -1601,6 +1636,12 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 	
 	log_message("" + death_messages[randi() % death_messages.size()])
 	
+	# Story 7.1 — commit the death to the eternal layer BEFORE any reveal panel plays:
+	# cemetery/codex record first, then the legacy-layer signal, then drop from the active
+	# roster. The morning-briefing reveal only ever reads this already-committed state.
+	SaveSystem.record_fallen_hero(adventurer)
+	LegacyBus.adventurer_died.emit(adventurer)
+
 	# Remove from adventurer roster
 	adventurers.erase(adventurer)
 	adventurer_roster_changed.emit()

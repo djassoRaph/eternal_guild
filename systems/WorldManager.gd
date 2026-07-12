@@ -56,19 +56,93 @@ func load_save_data(data: Dictionary) -> void:
 func assign_missions_to_hexes(missions: Array) -> void:
 	if world_map.is_empty():
 		return
+	# Clear old, non-locked assignments.
 	for hex in world_map:
 		if not hex.get("locked", false):
 			hex["active_mission"] = null
+
+	# Eligible hexes, each annotated with its hex-distance from the tavern.
+	var center_coord := _center_coord()
 	var eligible: Array = []
 	for hex in world_map:
-		if hex["is_center"] or hex["is_zone"] or hex.get("locked", false) or hex.get("biome", "") == "sea":
+		if hex.get("is_center", false) or hex.get("is_zone", false) or hex.get("locked", false) or hex.get("biome", "") == "sea":
 			continue
-		eligible.append(hex)
-	eligible.shuffle()
-	var count := mini(missions.size(), eligible.size())
-	for i in count:
-		eligible[i]["active_mission"] = missions[i]
-	print("[WorldManager] Assigned ", count, " missions to hex tiles")
+		eligible.append({"hex": hex, "d": _hex_distance(center_coord, _coord_of(hex))})
+	if eligible.is_empty():
+		return
+	var max_d := 1
+	for e in eligible:
+		max_d = maxi(max_d, e["d"])
+
+	# Place each mission near its "reach" — a distance that scales with the quest's
+	# duration (and a little with danger). Short/easy quests land close to the tavern;
+	# long/dangerous ones sit farther out. Fixes 1-day quests spawning across the map.
+	var used := {}
+	var placed := 0
+	for mission in missions:
+		var band := _distance_band_for(mission, max_d)
+		var target := randf_range(band.x, band.y)
+		var idx := _closest_unused_to(eligible, used, target)
+		if idx == -1:
+			break  # every eligible hex is taken
+		eligible[idx]["hex"]["active_mission"] = mission
+		used[idx] = true
+		placed += 1
+	print("[WorldManager] Assigned ", placed, " missions (distance-aware, max reach ", max_d, ") to hex tiles")
+
+
+func _distance_band_for(mission: Dictionary, max_d: int) -> Vector2:
+	# Reach grows ~linearly with quest length (hexes per travel-day) plus a touch of danger.
+	# Tunable via game_config.json; sensible defaults so no config edit is required.
+	var per_day: float = DataManager.get_config("mission_hexes_per_day", 3.0)
+	var spread: float = DataManager.get_config("mission_distance_spread", 2.0)
+	var dur := float(mission.get("duration_days", 1))
+	var danger := float(mission.get("danger", 1))
+	var reach := dur * per_day + (danger - 1.0)
+	var lo := maxf(1.0, reach - spread)
+	var hi := minf(reach + spread, float(max_d))
+	if lo > hi:
+		lo = hi
+	return Vector2(lo, hi)
+
+
+func _closest_unused_to(eligible: Array, used: Dictionary, target: float) -> int:
+	# The free eligible hex whose distance is nearest `target`.
+	var best := -1
+	var best_diff := INF
+	for i in eligible.size():
+		if used.has(i):
+			continue
+		var diff: float = absf(float(eligible[i]["d"]) - target)
+		if diff < best_diff:
+			best_diff = diff
+			best = i
+	return best
+
+
+func _center_coord() -> Vector2i:
+	return _coord_to_vec(chosen_center.get("coord"))
+
+
+func _coord_of(hex: Dictionary) -> Vector2i:
+	return _coord_to_vec(hex.get("coord"))
+
+
+func _coord_to_vec(c) -> Vector2i:
+	if c is Vector2i:
+		return c
+	if c is Vector2:
+		return Vector2i(int(c.x), int(c.y))
+	if c is Array and c.size() == 2:
+		return Vector2i(int(c[0]), int(c[1]))
+	return Vector2i.ZERO
+
+
+func _hex_distance(a: Vector2i, b: Vector2i) -> int:
+	# Axial (q, r) → cube distance.
+	var dq := a.x - b.x
+	var dr := a.y - b.y
+	return int((abs(dq) + abs(dq + dr) + abs(dr)) / 2.0)
 
 
 # --- Data Loading ---

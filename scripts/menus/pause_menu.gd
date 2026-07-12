@@ -71,10 +71,6 @@ func _search_for_button(node: Node, button_text: String) -> Button:
 	
 	return null
 
-func _input(event):
-	if event is InputEventMouseButton:
-		print("PAUSE MENU GOT CLICK at: ", event.position)
-
 func toggle_pause():
 	"""Toggle pause state"""
 	visible = !visible
