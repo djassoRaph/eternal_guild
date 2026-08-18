@@ -43,13 +43,20 @@ func _ready():
 	else:
 		print("Quit button not found")
 	
-	# Settings button (created in code, placed just above Quit)
+	# Settings + Codex buttons (created in code, placed just above Quit)
 	var settings_button := Button.new()
 	settings_button.text = "Settings"
 	settings_button.pressed.connect(_on_settings_pressed)
 	$VBoxContainer.add_child(settings_button)
 	if quit_button:
 		$VBoxContainer.move_child(settings_button, quit_button.get_index())
+
+	var codex_button := Button.new()
+	codex_button.text = "Codex"
+	codex_button.pressed.connect(_on_codex_pressed)
+	$VBoxContainer.add_child(codex_button)
+	if quit_button:
+		$VBoxContainer.move_child(codex_button, quit_button.get_index())
 
 	print("Pause menu initialized with all buttons")
 	
@@ -151,6 +158,10 @@ func _on_quit_pressed():
 func _on_settings_pressed():
 	"""Open the settings overlay (works over the paused game)"""
 	add_child(preload("res://scripts/menus/settings_menu.gd").new())
+
+func _on_codex_pressed():
+	"""Open the Codex overlay (works over the paused game)"""
+	add_child(preload("res://scripts/menus/codex_menu.gd").new())
 
 func _return_to_main_menu():
 	"""Actually return to main menu"""

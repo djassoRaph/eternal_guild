@@ -18,16 +18,25 @@ func _ready():
 
 
 func _add_settings_button() -> void:
-	# Settings button created in code, placed just above Quit
+	# Settings + Codex buttons created in code, placed just above Quit
 	var settings_button := Button.new()
 	settings_button.text = "Settings"
 	settings_button.pressed.connect(_on_settings_pressed)
 	$VBoxContainer.add_child(settings_button)
 	$VBoxContainer.move_child(settings_button, quit_button.get_index())
 
+	var codex_button := Button.new()
+	codex_button.text = "Codex"
+	codex_button.pressed.connect(_on_codex_pressed)
+	$VBoxContainer.add_child(codex_button)
+	$VBoxContainer.move_child(codex_button, quit_button.get_index())
+
 
 func _on_settings_pressed() -> void:
 	add_child(preload("res://scripts/menus/settings_menu.gd").new())
+
+func _on_codex_pressed() -> void:
+	add_child(preload("res://scripts/menus/codex_menu.gd").new())
 
 func _on_start_button_pressed():
 	# Guard against silently overwriting an existing save (Story 2.1)
