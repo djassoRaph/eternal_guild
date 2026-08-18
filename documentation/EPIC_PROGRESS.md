@@ -1,13 +1,13 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-18 (Codex/Memorial viewer shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
 ## Snapshot (2026-08-18)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~85%) · Epic 6 (~55%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~15%) · Epic 18 (~30%) · Epic 19 (~30%).
+**In progress:** Epic 4 (~85%) · Epic 6 (~60%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~15%) · Epic 18 (~30%) · Epic 19 (~30%).
 **Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece.
-**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`.
+**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board.
 **Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
 **Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
@@ -191,7 +191,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 6: World Map, World Generation & Mission Dispatch
-**Status: ~55% — Generation + distance-aware placement work; mission count / group-mission display + Latest News still need rework**
+**Status: ~60% — Generation + distance-aware placement work; Latest News feed shipped (2026-08-18); mission count / group-mission display still need rework**
 
 - [x] **Hex map generation** — seeded RNG, simplex noise + radial falloff, biomes (sea/grass/forest/mountain)
 - [x] **Settlement placement** — configurable count, minimum spacing enforcement
@@ -207,7 +207,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **World map assets** — coast variants, forest/mountain toppers, decorative props, tavern building
 - [x] **Data-driven missions** — `data/missions/mission_types.json` + fallback generation
 - [~] **Pre-dispatch panel** (FR-19) — mission board shows info, but unclear if full "estimated success %" is shown before confirm
-- [~] **Latest News feed** (FR-19b) — the feed UI isn't built, but eavesdropped rumours (Story 8.5) now queue into `WorldManager.overheard_rumours`, ready to drain when the feed lands
+- [x] **Latest News feed** (FR-19b, 2026-08-18) — top-left panel on the World Map board drains `WorldManager.overheard_rumours` (Story 8.5), 5 most recent, newest first; placeholder message when empty. `scenes/world/world_map_board.gd`
 - [ ] **Hex Strategy Map plugin evaluation** — not documented
 - [~] **World NOT yet saved to disk** per WorldManager comment: "Saving to disk is a later step (gated on the load-game fix)"
 - **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). Still to rework: only ~3-4 missions shown at once, and post-30-day group missions aren't displayed.
