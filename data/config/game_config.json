@@ -34,6 +34,8 @@
 	"drink_preferences": ["beer", "mead", "none"],
 	"experience_tiers": ["Novice", "Seasoned", "Veteran"],
 
+	"rumour_mission_chance": 0.2,
+
 	"reputation_tiers": [
 		{"threshold": 0,   "label": "Unknown",   "tip_bonus": 0.0, "recruit_stat_bonus": 0},
 		{"threshold": 25,  "label": "Known",     "tip_bonus": 0.1, "recruit_stat_bonus": 1},

@@ -251,6 +251,23 @@ func _fire_rumour() -> void:
 	WorldBus.settlement_event.emit({"type": "rumour", "text": line})
 	NotificationManager.show_banner("Overheard: " + line)
 	print("[Eavesdrop] Rumour overheard (Latest News patch point): ", line)
+	_maybe_spawn_rumour_mission()
+
+func _maybe_spawn_rumour_mission() -> void:
+	# A rumour has a chance to become an actual contract on the World Map, not just flavor text.
+	var chance: float = DataManager.get_config("rumour_mission_chance", 0.2)
+	if randf() > chance:
+		return
+	var candidates: Array = DataManager.generate_daily_missions_with_tiers(1, GameManager.mission_tier_unlocked)
+	if candidates.is_empty():
+		return
+	var mission: Dictionary = candidates[0]
+	if not WorldManager.assign_one_mission(mission):
+		return  # no free hex right now — the rumour stays just flavor this time
+	var follow_up := "A new contract has appeared on the board, spurred by what you overheard."
+	WorldManager.overheard_rumours.append(follow_up)
+	NotificationManager.show_banner(follow_up)
+	print("[Eavesdrop] Rumour spawned a mission: ", mission.get("name", "?"))
 
 func _pick_rumour_line() -> String:
 	if _rumours.is_empty():

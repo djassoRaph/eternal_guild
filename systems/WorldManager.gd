@@ -92,6 +92,39 @@ func assign_missions_to_hexes(missions: Array) -> void:
 	print("[WorldManager] Assigned ", placed, " missions (distance-aware, max reach ", max_d, ") to hex tiles")
 
 
+func assign_one_mission(mission: Dictionary) -> bool:
+	"""Place a single mission on the nearest free eligible hex, using the same distance-band
+	logic as assign_missions_to_hexes() — but additive-only (never clears other hexes' missions).
+	Used for rumour-triggered mission spawns (Epic 6 / eavesdropping patch point). Returns false
+	if there's no world yet or no free hex to place it on."""
+	if world_map.is_empty():
+		return false
+
+	var center_coord := _center_coord()
+	var eligible: Array = []
+	for hex in world_map:
+		if hex.get("is_center", false) or hex.get("is_zone", false) or hex.get("locked", false) or hex.get("biome", "") == "sea":
+			continue
+		if hex.get("active_mission", null) != null:
+			continue
+		eligible.append({"hex": hex, "d": _hex_distance(center_coord, _coord_of(hex))})
+	if eligible.is_empty():
+		return false
+
+	var max_d := 1
+	for e in eligible:
+		max_d = maxi(max_d, e["d"])
+
+	var band := _distance_band_for(mission, max_d)
+	var target := randf_range(band.x, band.y)
+	var idx := _closest_unused_to(eligible, {}, target)
+	if idx == -1:
+		return false
+
+	eligible[idx]["hex"]["active_mission"] = mission
+	return true
+
+
 func _distance_band_for(mission: Dictionary, max_d: int) -> Vector2:
 	# Reach grows ~linearly with quest length (hexes per travel-day) plus a touch of danger.
 	# Tunable via game_config.json; sensible defaults so no config edit is required.
