@@ -1,13 +1,13 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
 ## Snapshot (2026-08-18)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~85%) · Epic 6 (~60%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~15%) · Epic 18 (~30%) · Epic 19 (~30%).
+**In progress:** Epic 4 (~85%) · Epic 6 (~60%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
 **Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece.
-**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board.
+**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now.
 **Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
 **Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
@@ -318,16 +318,18 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 14: Reputation & Tavern Disturbances
-**Status: ~15% — Reputation tracked but no effects/display**
+**Status: ~40% — Tiers, HUD display, and effects shipped (2026-08-18, T3-2). Disturbance system still not started.**
 
-- [x] `tavern_reputation` integer tracked in GameManager
+- [x] `tavern_reputation` integer tracked in GameManager, mutated only via `adjust_reputation()` (single authority)
 - [x] +2 reputation on successful mission
+- [x] -1 reputation on mission failure (2026-08-18) — previously only moved on success/dismiss
 - [x] -1 reputation on adventurer dismiss
 - [x] Tier system partially uses reputation (tier 3 requires reputation >= 50)
-- [ ] **No 5-tier label** (Unknown → Known → Trusted → Respected → Honored)
-- [ ] **No reputation effects** on patron tips or recruit quality
+- [x] **5-tier label** (2026-08-18) — Unknown → Known → Trusted → Respected → Honored, data-driven via `data/config/game_config.json` `reputation_tiers`, `GameManager.get_reputation_tier()`
+- [x] **Reputation effects** (2026-08-18) — tier's `tip_bonus` applied in `calculate_patron_tip()`; `recruit_stat_bonus` applied to rolled stats in `generate_fallback_recruits()`
+- [x] **HUD display** (2026-08-18) — "Reputation: N (Tier)" in the tavern top stats bar, code-built, updates live via the new `reputation_changed` signal (bridged to `GuildBus`, previously an empty stub)
 - [ ] **No disturbance system** (pickpocket, drunk, rare visitor)
-- [ ] **No reputation decay**
+- [ ] **No reputation decay over time** (only moves on success/failure/dismiss — no passive drift)
 - [ ] **No reputation display** in HUD
 
 ---
