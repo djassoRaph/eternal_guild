@@ -36,6 +36,7 @@ signal fireplace_fuel_changed(new_percentage: float)
 signal mission_dispatched(adventurers: Array, mission, hex_id: String)
 signal missions_resolved(reports)
 signal morning_briefing_ready(reports)
+signal reputation_changed(new_value: int)
 
 
 var mission_refresh_day: int = 1
@@ -92,6 +93,7 @@ func _bridge_signals_to_buses():
 	recruitment_pool_changed.connect(func(): AdventurerBus.recruitment_pool_changed.emit())
 	mission_dispatched.connect(func(a, m, h): AdventurerBus.mission_dispatched.emit(a, m, h))
 	missions_resolved.connect(func(r): AdventurerBus.missions_resolved.emit(r))
+	reputation_changed.connect(func(v): GuildBus.reputation_changed.emit(v))
 	missions_changed.connect(func(): AdventurerBus.missions_changed.emit())
 	
 
@@ -124,6 +126,21 @@ func spend_gold(amount: int) -> bool:
 	else:
 		print("Insufficient gold. Need ", amount, " but have ", gold)
 		return false
+
+func adjust_reputation(delta: int) -> void:
+	"""Single-authority reputation mutator (Epic 14) — clamps at 0, emits reputation_changed."""
+	tavern_reputation = maxi(0, tavern_reputation + delta)
+	reputation_changed.emit(tavern_reputation)
+
+func get_reputation_tier() -> Dictionary:
+	"""Highest reputation_tiers entry (data/config/game_config.json) the guild currently qualifies
+	for. Tiers must be sorted ascending by threshold. Never empty — falls back to the base tier."""
+	var tiers: Array = DataManager.get_config("reputation_tiers", [])
+	var current := {"threshold": 0, "label": "Unknown", "tip_bonus": 0.0, "recruit_stat_bonus": 0}
+	for t in tiers:
+		if tavern_reputation >= int(t.get("threshold", 0)):
+			current = t
+	return current
 
 func get_gold() -> int:
 	"""Get current gold amount"""
@@ -334,13 +351,14 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		adventurer.recovery = 1
 
 		total_missions_completed += 1
-		tavern_reputation += 2
+		adjust_reputation(2)
 		GameManager.check_tier_unlocks()
 
 		log_message("SUCCESS! " + adventurer.name + " completed " + mission.name + " and earned " + str(reward) + " gold!")
 		log_message("" + adventurer.name + " rests for 1 day to recover their strength")
 	else:
 		adventurer.missions_failed += 1
+		adjust_reputation(-1)
 		log_message("FAILED! " + adventurer.name + " failed the mission: " + mission.name)
 
 		# FAILURE ONLY: Handle injury and death consequences
@@ -378,6 +396,7 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 		log_message("Party members rest for 1 day after their successful mission")
 	else:
 		log_message("PARTY FAILED! Mission " + mission.name + " was catastrophic")
+		adjust_reputation(-1)  # one reputation hit per failed mission, not per party member
 		for adventurer in party:
 			handle_party_failure_consequences(adventurer, mission)
 			# CRITICAL FIX: Emit signal so UI updates
@@ -635,6 +654,7 @@ func generate_fallback_recruits(count: int) -> Array:
 	# Unique-Tarot pool: whole deck minus cards on the roster and hired this run (Epic 4.1)
 	var deck_available = not DataManager.get_all_tarot_ids().is_empty()
 	var available_cards = _get_available_tarot_ids()
+	var reputation_stat_bonus: int = get_reputation_tier().get("recruit_stat_bonus", 0)  # Epic 14
 
 	for i in count:
 		var card_id = ""
@@ -661,11 +681,12 @@ func generate_fallback_recruits(count: int) -> Array:
 			"drink_preference": drink,
 		}
 		
-		# Generate random stats
-		recruit.strength = randi_range(2, 8)
-		recruit.dexterity = randi_range(2, 8) 
-		recruit.intelligence = randi_range(2, 8)
-		recruit.endurance = randi_range(2, 8)
+		# Generate random stats — reputation_stat_bonus rewards a well-regarded guild with
+		# slightly better recruits (Epic 14 / T3-2)
+		recruit.strength = randi_range(2, 8) + reputation_stat_bonus
+		recruit.dexterity = randi_range(2, 8) + reputation_stat_bonus
+		recruit.intelligence = randi_range(2, 8) + reputation_stat_bonus
+		recruit.endurance = randi_range(2, 8) + reputation_stat_bonus
 		
 		# Class-based stat adjustments
 		match recruit.class:
@@ -898,7 +919,7 @@ func dismiss_adventurer(adventurer: Dictionary) -> bool:
 		return false  # blocked — adventurer remains, nothing deducted
 
 	spend_gold(severance)  # deducts + emits gold_changed → EconomyBus
-	tavern_reputation = max(0, tavern_reputation - 1)  # -1 reputation
+	adjust_reputation(-1)
 	adventurers.erase(adventurer)
 	log_message("" + adventurer.get("name", "?") + " has been dismissed (paid " + str(severance) + " gold, -1 reputation).")
 	adventurer_roster_changed.emit()
@@ -1487,10 +1508,11 @@ func _process(_delta):
 
 
 func calculate_patron_tip() -> Dictionary:
-	"""Calculate tip based on fireplace comfort level. Returns breakdown for UI feedback."""
+	"""Calculate tip based on fireplace comfort level + reputation (Epic 14). Returns breakdown for UI feedback."""
 	var base_tip = 6.0
 	var comfort_ratio = fireplace_fuel / 100.0
-	var tip_amount = int(base_tip * comfort_ratio)
+	var reputation_bonus: float = get_reputation_tier().get("tip_bonus", 0.0)
+	var tip_amount = int(base_tip * comfort_ratio * (1.0 + reputation_bonus))
 
 	var comfort_desc = ""
 	if comfort_ratio >= 0.75:
@@ -1506,7 +1528,8 @@ func calculate_patron_tip() -> Dictionary:
 		"amount": tip_amount,
 		"comfort_ratio": comfort_ratio,
 		"comfort_desc": comfort_desc,
-		"fire_percent": int(fireplace_fuel)
+		"fire_percent": int(fireplace_fuel),
+		"reputation_bonus": reputation_bonus
 	}
 
 

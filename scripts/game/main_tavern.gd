@@ -13,6 +13,8 @@ extends Node3D
 @onready var fuel_label = $GameUI/TopStatsBar/FuelLabel
 @onready var phase_label = $GameUI/TopStatsBar/PhaseLabel
 
+var reputation_label: Label  # code-built (Epic 14) — no scene-file changes needed
+
 
 func _ready():
 	await get_tree().process_frame
@@ -31,13 +33,19 @@ func _ready():
 	
 	GameManager.firewood_changed.connect(_on_firewood_changed)
 	GameManager.fireplace_fuel_changed.connect(_on_fuel_changed)
-	
+	GameManager.reputation_changed.connect(_on_reputation_changed)
+
+	# Reputation label — code-built and appended to the existing TopStatsBar (Epic 14)
+	reputation_label = Label.new()
+	$GameUI/TopStatsBar.add_child(reputation_label)
+
 	# Initialize UI with current GameManager values
 	_on_gold_changed(GameManager.get_gold())
 	_on_beer_changed(GameManager.get_beer())
 	_on_day_changed(GameManager.get_day())
 	_on_firewood_changed(GameManager.get_firewood_stock())
 	_on_fuel_changed(GameManager.get_fireplace_fuel())
+	_on_reputation_changed(GameManager.tavern_reputation)
 	
 	print("UI connected to GameManager signals")
 
@@ -46,6 +54,12 @@ func _ready():
 func _on_gold_changed(new_amount: int):
 	"""Update gold display when GameManager gold changes"""
 	gold_label.text = "Gold: " + str(new_amount)
+
+func _on_reputation_changed(new_value: int):
+	"""Update reputation display when GameManager reputation changes (Epic 14)"""
+	if reputation_label:
+		var tier: Dictionary = GameManager.get_reputation_tier()
+		reputation_label.text = "Reputation: " + str(new_value) + " (" + str(tier.get("label", "Unknown")) + ")"
 
 func _on_beer_changed(new_amount: int):
 	"""Update beer display when GameManager beer changes"""
