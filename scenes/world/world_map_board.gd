@@ -77,6 +77,7 @@ func _ready() -> void:
 	add_child(_marker_layer)
 
 	_build_bubble()
+	_build_news_panel()
 
 	var hint := Label.new()
 	hint.text = "Press ESC to close"
@@ -120,6 +121,62 @@ func _build_bubble() -> void:
 	_bubble_danger.add_theme_font_size_override("font_size", 12)
 	_bubble_danger.visible = false
 	vbox.add_child(_bubble_danger)
+
+
+# ── Latest News (Epic 6 / FR-19b) — drains WorldManager.overheard_rumours ──────
+
+const _NEWS_MAX_LINES := 5
+
+func _build_news_panel() -> void:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = Vector2(260.0, 0.0)
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.position = Vector2(16.0, 16.0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.08, 0.07, 0.90)
+	style.border_color = Color(0.80, 0.60, 0.20, 0.70)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(10.0)
+	panel.add_theme_stylebox_override("panel", style)
+	add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_theme_constant_override("separation", 4)
+	panel.add_child(vbox)
+
+	var header := Label.new()
+	header.text = "Latest News"
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.add_theme_font_size_override("font_size", 14)
+	header.add_theme_color_override("font_color", Color(0.90, 0.80, 0.30, 1.0))
+	vbox.add_child(header)
+	vbox.add_child(HSeparator.new())
+
+	var rumours: Array = WorldManager.overheard_rumours
+	if rumours.is_empty():
+		var placeholder := Label.new()
+		placeholder.text = "No word from the road yet. Loiter near drinking patrons back at the tavern to overhear rumours."
+		placeholder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		placeholder.add_theme_font_size_override("font_size", 12)
+		placeholder.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1.0))
+		placeholder.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(placeholder)
+		return
+
+	# Most recent first, capped so the panel can't grow unbounded over a long run.
+	var recent := rumours.slice(maxi(0, rumours.size() - _NEWS_MAX_LINES), rumours.size())
+	recent.reverse()
+	for line in recent:
+		var entry := Label.new()
+		entry.text = "• " + str(line)
+		entry.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry.add_theme_font_size_override("font_size", 12)
+		entry.add_theme_color_override("font_color", Color(0.82, 0.80, 0.75, 1.0))
+		entry.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(entry)
 
 
 func _input(event: InputEvent) -> void:
