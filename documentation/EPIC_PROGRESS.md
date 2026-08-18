@@ -1,13 +1,14 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-07-15 (serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · 8.4 ambient chat). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-18 (Codex/Memorial viewer shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
-## Snapshot (2026-07-12)
+## Snapshot (2026-08-18)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~85%) · Epic 6 (~55%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~15%).
-**Eternal layer:** deaths now write to `codex.dat` cemetery (Story 7.1) — feeds Epics 18/19, but the viewer scenes aren't built.
-**Recent (2026-07-12):** ambient patron speech bubbles (8.4) · distance-aware quest placement (6) · New Game state-reset bug fixed (2.1/11) · roster-panel Tab toggle fixed (4.3) · player+patron position save/restore (11) · fire-fuel load fixed (Raphael).
+**In progress:** Epic 4 (~85%) · Epic 6 (~55%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~15%) · Epic 18 (~30%) · Epic 19 (~30%).
+**Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece.
+**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`.
+**Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
 **Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
 ---
@@ -338,8 +339,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 15: Farmland & Drinks | 0% | No farmland, no drink types beyond beer |
 | 16: Staff & Automation | 0% | LimboAI installed but not enabled; no staff NPCs |
 | 17: Tarot Evolution | ~5% | 78-card deck data + `DataManager` Tarot API exist and recruits carry a unique card (Epic 4.1); no evolution/leveling mechanic yet |
-| 18: Codex | ~10% | `codex.dat` exists and now records fallen heroes (via Story 7.1); no Dragon Eye Book viewer scene yet |
-| 19: Memorial & Cemetery | ~10% | Cemetery *data* now written to `codex.dat.fallen_heroes` (Story 7.1); no memorial wall / cemetery scene yet |
+| 18: Codex | ~30% | **Basic viewer shipped (2026-08-18)** — `scripts/menus/codex_menu.gd`, a code-built overlay (same pattern as `settings_menu.gd`) reachable from Main Menu + Pause Menu, shows guild-wide stats (runs/best day/gold/missions). Not yet the full "Dragon Eye Book" presentation — plain list UI, no dedicated art/theming pass |
+| 19: Memorial & Cemetery | ~30% | **Basic viewer shipped (2026-08-18)** — same `codex_menu.gd` renders `codex.dat.fallen_heroes` (name/class/Tarot card/hire+death day/missions completed) with `PortraitSocket` portraits, verified live against real save data. Not yet a dedicated memorial wall / cemetery scene — this is a list, not the eventual set-piece |
 | 20: Guild Fame | 0% | No fame system |
 | 21: The Reading | 0% | No run-end ceremony |
 | 22: Legacy Transition | 0% | No LegacyTransition class |
