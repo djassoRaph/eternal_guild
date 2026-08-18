@@ -951,6 +951,35 @@ func _normalize_adventurer_ints(adv: Dictionary) -> void:
 			adv[k] = int(adv[k])
 
 # === SAVE/LOAD SYSTEM ===
+
+# Set by load_save_data() so the Continue flow can return the player to the scene they saved in.
+var saved_player_scene: String = ""
+
+func _player_pos_array() -> Array:
+	if PlayerManager and is_instance_valid(PlayerManager.player):
+		var p = PlayerManager.player.global_position
+		return [p.x, p.y, p.z]
+	return []
+
+func _current_scene_path() -> String:
+	var cs = get_tree().current_scene
+	return cs.scene_file_path if cs else ""
+
+# Patrons captured at save time, held here until the tavern's PatronSpawner restores them.
+var restored_patrons: Array = []
+
+func consume_restored_patrons() -> Array:
+	var p := restored_patrons
+	restored_patrons = []
+	return p
+
+func _gather_patrons_save() -> Array:
+	var out: Array = []
+	for p in get_tree().get_nodes_in_group("patrons"):
+		if is_instance_valid(p) and p.has_method("to_save"):
+			out.append(p.to_save())
+	return out
+
 func get_save_data() -> Dictionary:
 	print("Gathering save data...")
 
@@ -1004,7 +1033,14 @@ func get_save_data() -> Dictionary:
 		"tax_grace_days": tax_grace_days,
 
 		# World map (hex grid needed by mission board after load)
-		"world_data": WorldManager.get_save_data()
+		"world_data": WorldManager.get_save_data(),
+
+		# Player position + the scene they were in (restored on Continue)
+		"player_position": _player_pos_array(),
+		"player_scene": _current_scene_path(),
+
+		# Live patrons (restored at their exact positions/state on load)
+		"patrons_active": _gather_patrons_save(),
 	}
 
 	print("   Saved: ", data.keys().size(), " fields")
@@ -1067,6 +1103,14 @@ func load_save_data(data: Dictionary):
 	var world_data = data.get("world_data", {})
 	if not world_data.is_empty():
 		WorldManager.load_save_data(world_data)
+
+	# Player position — hand it to PlayerManager so the loaded scene spawns the player there.
+	var ppos = data.get("player_position", [])
+	if ppos is Array and ppos.size() == 3:
+		PlayerManager.pending_spawn_position = Vector3(ppos[0], ppos[1], ppos[2])
+		PlayerManager.has_pending_spawn = true
+	saved_player_scene = data.get("player_scene", "")
+	restored_patrons = data.get("patrons_active", [])
 
 	# Reset game over state
 	game_over_active = false

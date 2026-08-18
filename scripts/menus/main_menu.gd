@@ -51,7 +51,11 @@ func _start_new_game():
 
 func _on_continue_button_pressed():
 	if SaveSystem.load_game():
-		get_tree().change_scene_to_file(TAVERN_SCENE)
+		# Return the player to the scene they saved in (falls back to the tavern).
+		var target = GameManager.saved_player_scene
+		if target == "" or not ResourceLoader.exists(target):
+			target = TAVERN_SCENE
+		get_tree().change_scene_to_file(target)
 
 func _on_quit_button_pressed():
 	"""Quit game"""

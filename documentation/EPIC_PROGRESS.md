@@ -1,13 +1,13 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-07-12 (Story 8.4 ambient chat · distance-aware quest placement · New Game reset fix · roster Tab fix). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-07-15 (serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · 8.4 ambient chat). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
 ## Snapshot (2026-07-12)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~85%) · Epic 6 (~55%) · Epic 8 (~65%, Story 8.4 ambient chat done) · Epic 11 (~50%) · Epic 14 (~15%).
+**In progress:** Epic 4 (~85%) · Epic 6 (~55%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~15%).
 **Eternal layer:** deaths now write to `codex.dat` cemetery (Story 7.1) — feeds Epics 18/19, but the viewer scenes aren't built.
-**Recent (2026-07-12):** ambient patron speech bubbles (8.4) · distance-aware quest placement (6) · New Game state-reset bug fixed (2.1/11) · roster-panel Tab toggle fixed (4.3).
+**Recent (2026-07-12):** ambient patron speech bubbles (8.4) · distance-aware quest placement (6) · New Game state-reset bug fixed (2.1/11) · roster-panel Tab toggle fixed (4.3) · player+patron position save/restore (11) · fire-fuel load fixed (Raphael).
 **Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
 ---
@@ -206,7 +206,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **World map assets** — coast variants, forest/mountain toppers, decorative props, tavern building
 - [x] **Data-driven missions** — `data/missions/mission_types.json` + fallback generation
 - [~] **Pre-dispatch panel** (FR-19) — mission board shows info, but unclear if full "estimated success %" is shown before confirm
-- [ ] **Latest News feed** (FR-19b) — not implemented
+- [~] **Latest News feed** (FR-19b) — the feed UI isn't built, but eavesdropped rumours (Story 8.5) now queue into `WorldManager.overheard_rumours`, ready to drain when the feed lands
 - [ ] **Hex Strategy Map plugin evaluation** — not documented
 - [~] **World NOT yet saved to disk** per WorldManager comment: "Saving to disk is a later step (gated on the load-game fix)"
 - **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). Still to rework: only ~3-4 missions shown at once, and post-30-day group missions aren't displayed.
@@ -232,13 +232,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 8: PatronNPC Systems & Ambient Life
-**Status: ~65% — core loop solid (5 patrons, serve, coin reward); Story 8.4 ambient chat done. Remaining: 8.5 eavesdropping + FSM state-granularity.**
+**Status: ~75% — core loop solid (5 patrons, serve, coin reward); Stories 8.4 ambient chat + 8.5 eavesdropping done; serve beer-emote polish. Remaining: FSM state-granularity (8.1).**
 
 - [~] **PatronNPC FSM** — `WALKING_TO_TABLE → SITTING_WAITING → DRINKING → LEAVING` (4 states, not 6 as architecture specifies WALKING→SEATED→WAITING→SERVED→DRINKING→LEAVING). **MVP-quality only — animations are placeholder, not real character animations.**
 - [x] **NavigationAgent3D movement** — patrons walk to table, walk to exit
 - [x] **Random model swap** — picks from 5 KayKit adventurer GLBs per patron
 - [x] **Animations** — Idle and Running_A via AnimationPlayer (from GLB models)
-- [x] **Service system** — player must be within 3.0 distance, patron shows yellow sphere indicator
+- [x] **Service system** — player within 3.0m; patron shows a **beer-mug emote** above the head (2026-07-15, replaced the old yellow sphere)
 - [x] **Timer-based behavior** — sit 2-5s, drink 8-15s
 - [x] **Table management** — 5 positions, occupied tracking, availability check
 - [x] **Up to 5 concurrent** (max_patrons configurable @export) — playtest-confirmed `5/5`
@@ -249,7 +249,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Despawn all** — `despawn_all_patrons()` for night/day-end
 - [x] **Story 8.4 — Ambient patron dialogue** (2026-07-12) — billboarded `Label3D` speech bubbles above drinking patrons; origin-keyed lines from `patron_lines.json` `ambient` (MOD-2), staggered pop-in/fade. `PatronSpeechBubble` (`scripts/fx/`) is the swap point for a richer panel (8.4-B/C) later. (Lightweight Label3D per the AC — not the full Dialogue Manager.)
 - [x] **Up to 5 patrons** per FR-1 — now 5/5 (was mis-tracked as "max 3")
-- [ ] **8.5 Eavesdropping proximity trigger** (FR-50) — not built; trigger + notification are ~70% buildable now, but the "add rumour to Latest News feed" sink waits on Epic 6
+- [x] **8.5 Eavesdropping proximity trigger** (FR-50, 2026-07-15) — loitering near 2+ drinking patrons overhears a rumour: `NotificationManager` banner + `WorldBus.settlement_event(payload)` + queued to `WorldManager.overheard_rumours`; once per group per day; rumour text fills {place}/{faction} from world data (MOD-7). Latest News feed sink is the Epic 6 patch-point (pool ready to drain).
 
 ---
 
@@ -267,7 +267,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 11: Campaign Save & Load
-**Status: ~50% — Basic save works; New Game reset bug fixed 2026-07-12; load still has open issues (fire fuel, disk-save window)**
+**Status: ~58% — save + player/patron position restore work; New Game reset + fire-fuel load fixed 2026-07-12. Remaining: disk-save overwrite window; full architecture-compliance.**
 
 - [x] **Single-file JSON save** — `user://eternal_guild_save.json`
 - [x] **3-backup rotation** — `create_save_backup()` rotates backup1→2→3
@@ -281,9 +281,10 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **`schema_version`** — save versioned with migration support
 - [x] **`codex.dat`** — eternal cross-run persistence (fallen heroes, achievements, run stats)
 - [x] **Atomic writes** — write to `.tmp` then rename
-- [ ] **FR-36 player spawn at morning point** — PlayerManager uses SpawnPoint nodes but unclear if save/load respects this
+- [x] **Player position + scene saved/restored** (2026-07-12, **confirmed in-game**) — `player_position` / `player_scene` in the save; `PlayerManager` pending-spawn puts the player back where they saved, and Continue routes to the saved scene
+- [x] **Patron exact-restore** (2026-07-12, **confirmed in-game**) — each patron's position/state/model/identity serialized (`RealisticPatron.to_save`) and rebuilt by `PatronSpawner.restore_patrons()` on load (day-boundary autosaves have none, since night despawn runs first)
 - [x] **New Game state-reset fixed** (2026-07-12) — `reset_game_state()` now also clears `active_missions`, `pending_reports`, `has_pending_briefing`, `tavern_reputation`, `taxes_paid_count`, `tax_grace_days`, `mission_tier_unlocked`; `_start_new_game()` calls it so a New Game no longer inherits the prior session's state.
-- **NOTE (Raphael):** Load still needs a pass — (a) fireplace fuel loads as 0% (traced to a post-load reset, not yet fixed); (b) the old disk save isn't overwritten until the new game's Day-2 autosave, so New Game→quit-before-Day-2 → Continue loads the old game.
+- **NOTE (Raphael):** Load pass — (a) ~~fireplace fuel loads as 0%~~ **fixed 2026-07-12**; (b) old disk save isn't overwritten until the new game's Day-2 autosave (New Game→quit-before-Day-2 → Continue loads the old game) — **still open**; (c) ~~player + patron positions~~ **DONE 2026-07-12** (player scene+position; patrons rebuilt at exact position/state/model).
 
 ---
 

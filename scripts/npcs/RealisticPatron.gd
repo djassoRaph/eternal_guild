@@ -32,9 +32,10 @@ var patron_origin: String = ""
 var patron_origin_type: String = ""   # traveler/local/soldier/trader — keys ambient chatter (Story 8.4)
 
 # Visuals
-var service_indicator: MeshInstance3D
+var service_indicator: Sprite3D
 var patron_body_mesh: Node3D       # Set dynamically after model swap
 var animation_player: AnimationPlayer = null  # NEW
+var current_model_path: String = ""  # remembered so save/restore keeps the same model
 
 # All available patron models — add more paths here anytime
 var character_models = [
@@ -110,16 +111,18 @@ func _ready():
 # =============================================================================
 
 func _swap_to_random_model():
-	"""Remove any existing model child and load a random one"""
-	# Remove old hardcoded model node (e.g. Mage in RealisticPatron.tscn)
+	_swap_to_model(character_models[randi() % character_models.size()])
+
+func _swap_to_model(model_path: String) -> void:
+	"""Load a specific model, replacing any current one. Used for random spawn AND save-restore."""
+	# Remove the existing model (the .tscn's built-in one on first call, or a prior PatronModel
+	# on restore). Never remove the service indicator, timers, collision, or nav agent.
 	for child in get_children():
-		if child is Node3D and not child is CollisionShape3D and not child is NavigationAgent3D:
+		if child is Node3D and not (child is CollisionShape3D) and not (child is NavigationAgent3D) and child != service_indicator:
 			child.queue_free()
 
-	# Pick a random model
-	var model_path = character_models[randi() % character_models.size()]
+	current_model_path = model_path
 	var model_resource = load(model_path)
-
 	if not model_resource:
 		push_warning("RealisticPatron: Could not load model: " + model_path)
 		return
@@ -127,14 +130,11 @@ func _swap_to_random_model():
 	patron_body_mesh = model_resource.instantiate()
 	patron_body_mesh.name = "PatronModel"
 	add_child(patron_body_mesh)
-
 	print("Patron model: ", model_path.get_file())
 
 	# Find AnimationPlayer inside the loaded model
 	animation_player = _find_animation_player(patron_body_mesh)
-
 	if animation_player:
-		print("Patron AnimationPlayer found")
 		_patron_play_animation("Idle")
 	else:
 		push_warning("RealisticPatron: No AnimationPlayer in " + model_path.get_file())
@@ -345,23 +345,118 @@ func _pick_ambient_line() -> String:
 # =============================================================================
 
 func create_service_indicator():
-	service_indicator = MeshInstance3D.new()
+	# A little billboarded beer emote above the head instead of a raw yellow sphere.
+	service_indicator = Sprite3D.new()
 	service_indicator.name = "ServiceIndicator"
-
-	var sphere = SphereMesh.new()
-	sphere.radius = 0.25
-	sphere.height = 0.5
-	service_indicator.mesh = sphere
-
-	var material = StandardMaterial3D.new()
-	material.albedo_color = Color.YELLOW
-	material.emission_enabled = true
-	material.emission = Color.YELLOW * 0.8
-	service_indicator.material_override = material
-
+	service_indicator.texture = _get_service_emote_texture()
+	service_indicator.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	service_indicator.no_depth_test = true
+	service_indicator.pixel_size = 0.006
 	service_indicator.position = Vector3(0, 2.2, 0)
 	service_indicator.visible = false
 	add_child(service_indicator)
+
+static var _emote_tex: Texture2D = null
+
+static func _get_service_emote_texture() -> Texture2D:
+	# Draw a beer mug inside a parchment bubble once, then reuse for every patron.
+	if _emote_tex:
+		return _emote_tex
+	var s := 96
+	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var cream := Color(0.98, 0.93, 0.85)
+	var border := Color(0.94, 0.62, 0.15)
+	var mug := Color(0.72, 0.40, 0.12)
+	var foam := Color(0.98, 0.96, 0.90)
+	var c := s / 2.0
+	var r := s * 0.46
+	for y in s:
+		for x in s:
+			var d := Vector2(x - c, y - c).length()
+			if d <= r:
+				img.set_pixel(x, y, border if d > r - 3.0 else cream)
+	var bx0 := int(s * 0.34); var bx1 := int(s * 0.58)
+	var by0 := int(s * 0.36); var by1 := int(s * 0.70)
+	for y in range(by0, by1):
+		for x in range(bx0, bx1):
+			img.set_pixel(x, y, mug)
+	for y in range(int(s * 0.29), by0 + 3):
+		for x in range(bx0 - 1, bx1 + 1):
+			img.set_pixel(x, y, foam)
+	var hx0 := bx1; var hx1 := int(s * 0.70)
+	var hy0 := int(s * 0.46); var hy1 := int(s * 0.62)
+	for y in range(hy0, hy1):
+		for x in range(hx0, hx1):
+			if x == hx0 or x == hx1 - 1 or y == hy0 or y == hy1 - 1:
+				img.set_pixel(x, y, mug)
+	_emote_tex = ImageTexture.create_from_image(img)
+	return _emote_tex
+
+# =============================================================================
+# SAVE / RESTORE (exact patron restore on load)
+# =============================================================================
+
+func to_save() -> Dictionary:
+	return {
+		"position": [global_position.x, global_position.y, global_position.z],
+		"state": current_state,
+		"table_index": table_index,
+		"name": patron_name,
+		"origin": patron_origin,
+		"origin_type": patron_origin_type,
+		"payment": payment_amount,
+		"has_been_served": has_been_served,
+		"wants_service": wants_service,
+		"model_path": current_model_path,
+	}
+
+func restore_from_save(save: Dictionary, table_pos: Vector3, entrance: Vector3, idx: int) -> void:
+	table_position = table_pos
+	entrance_position = entrance
+	table_index = idx
+	patron_name = save.get("name", patron_name)
+	patron_origin = save.get("origin", "")
+	patron_origin_type = save.get("origin_type", "")
+	payment_amount = int(save.get("payment", 8))
+	has_been_served = save.get("has_been_served", false)
+
+	var mp: String = save.get("model_path", "")
+	if mp != "":
+		_swap_to_model(mp)
+
+	var pos = save.get("position", [])
+	if pos is Array and pos.size() == 3:
+		global_position = Vector3(pos[0], pos[1], pos[2])
+
+	_enter_restored_state(int(save.get("state", PatronState.SITTING_WAITING)), save)
+
+func _enter_restored_state(st: int, save: Dictionary) -> void:
+	current_state = st
+	match st:
+		PatronState.DRINKING:
+			if patron_body_mesh:
+				patron_body_mesh.scale.y = 0.8
+			_patron_play_animation("Idle")
+			drinking_timer.wait_time = randf_range(8.0, 15.0)
+			drinking_timer.start()
+		PatronState.SITTING_WAITING:
+			if patron_body_mesh:
+				patron_body_mesh.scale.y = 0.8
+			_patron_play_animation("Idle")
+			if save.get("wants_service", false):
+				wants_service = true
+				if service_indicator:
+					service_indicator.visible = true
+			else:
+				sitting_timer.wait_time = randf_range(2.0, 5.0)
+				sitting_timer.start()
+		PatronState.WALKING_TO_TABLE:
+			if nav_agent:
+				nav_agent.target_position = table_position
+		PatronState.LEAVING:
+			if nav_agent:
+				nav_agent.target_position = entrance_position
 
 func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int):
 	table_position = target_table

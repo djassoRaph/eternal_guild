@@ -1,0 +1,15 @@
+{
+	"_comment": "Overheard rumours (Story 8.5). {place} = a world biome, {faction} = a rival guild — filled from factions.json / world data (MOD-7). Fallbacks used if data is missing.",
+	"lines": [
+		"They say the roads through {place} aren't safe after dark.",
+		"Word is the {faction} is recruiting sellswords again.",
+		"A caravan went missing crossing {place}, or so they claim.",
+		"Someone found old ruins deep in {place} — untouched, they swear.",
+		"The {faction} banner was seen flying where it had no business being.",
+		"Folk out by {place} have been paying good coin for guild work.",
+		"There's talk of something stirring in {place}.",
+		"A stranger's been asking after adventurers, headed for {place}.",
+		"They whisper the {faction} lost a whole company in {place}.",
+		"Merchants won't cross {place} anymore without an armed escort."
+	]
+}

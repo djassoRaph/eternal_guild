@@ -11,6 +11,7 @@ var world_map: Array = []
 var capitals: Array = []
 var landmarks: Array = []
 var chosen_center: Dictionary = {}   # the tavern_site hex the player picked
+var overheard_rumours: Array = []    # Story 8.5 — eavesdropped rumours; drained by the Latest News feed (Epic 6)
 
 # --- Loaded Game Data ---
 var capital_definitions: Dictionary = {}
