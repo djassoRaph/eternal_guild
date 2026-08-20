@@ -1,13 +1,13 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
 ## Snapshot (2026-08-18)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~85%) · Epic 6 (~65%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~65%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
+**In progress:** Epic 4 (~87%) · Epic 6 (~65%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~65%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
 **Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece.
-**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads.
+**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads. Class list reconciled (Epic 4) — dropped Ranger, renamed Cleric→Healer to match the GDD's 4-class set, which every other file already used.
 **Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
 **Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
@@ -142,7 +142,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 4: The Adventurer Roster
-**Status: ~85% — 4.1 / 4.4 / 4.5 DONE (2026-07-08). 4.3 portrait socket now BUILT (Story 7.5) — renders class silhouettes today, Guilo's Tarot art swaps in via data with zero code change. Only 4.2 hire-UI polish + minor 4.3 deltas remain.**
+**Status: ~87% — 4.1 / 4.4 / 4.5 DONE (2026-07-08). 4.3 portrait socket now BUILT (Story 7.5) — renders class silhouettes today, Guilo's Tarot art swaps in via data with zero code change. Class list reconciled 2026-08-18. Only 4.2 hire-UI polish + the duplicate-generator consolidation remain.**
 
 ### Story 4.1: Daily Hire Pool Generation — ✅ DONE
 - [x] 3–5 recruits/day from config (`hire_pool_min/max`)
@@ -174,7 +174,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 
 ### Still pending
 - [x] **Portrait socket** — BUILT (Story 7.5): `scripts/ui/portrait_socket.gd` `PortraitSocket.resolve_texture()` (Tarot → class portrait → class-colored silhouette), wired into roster panel + recruitment popup. Guilo's art swaps in via data only
-- [ ] Class list 5-vs-4 (code: Fighter/Rogue/Mage/Ranger/Cleric · GDD MVP: Fighter/Rogue/Mage/Healer) — reconcile before class-tied content (see TECH_DEBT)
+- [x] **Class list reconciled** (2026-08-18) — was 5 (Fighter/Rogue/Mage/Ranger/Cleric) vs. the GDD MVP's 4 (Fighter/Rogue/Mage/Healer). `class_colors.json`, `data/characters/classes.json`, and `recruitment_popup.gd` already used the GDD's 4; the active path (`game_config.json` + `GameManager.generate_fallback_recruits()`) was the one that had drifted — reconciled to match. See TECH_DEBT.
 - [ ] Duplicate recruit generator in `DataManager` (parallel to the active GameManager path) — consolidate in 4.3 (see TECH_DEBT)
 
 ---

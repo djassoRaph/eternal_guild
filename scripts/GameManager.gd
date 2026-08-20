@@ -645,7 +645,7 @@ func generate_daily_recruits(count: int = -1):
 func generate_fallback_recruits(count: int) -> Array:
 	"""Generate recruits when DataManager is not available"""
 	var recruits = []
-	var classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"])
+	var classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Healer"])
 	var names = DataManager.get_config("adventurer_names", ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"])
 	var drinks = DataManager.get_config("drink_preferences", ["beer", "mead", "none"])
 	var tiers = DataManager.get_config("experience_tiers", ["Novice", "Seasoned", "Veteran"])
@@ -699,11 +699,7 @@ func generate_fallback_recruits(count: int) -> Array:
 			"Mage":
 				recruit.intelligence += 2
 				recruit.dexterity += 1
-			"Ranger":
-				recruit.dexterity += 1
-				recruit.endurance += 1
-				recruit.intelligence += 1
-			"Cleric":
+			"Healer":
 				recruit.intelligence += 1
 				recruit.endurance += 2
 		

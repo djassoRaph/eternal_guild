@@ -419,7 +419,7 @@ func _debug_despawn_all() -> void:
 func _debug_add_adventurer() -> void:
 	var dummy := {
 		"name": "Debug Hero " + str(GameManager.adventurers.size() + 1),
-		"class": ["Warrior","Ranger","Mage","Cleric","Rogue"][randi() % 5],
+		"class": ["Fighter","Rogue","Mage","Healer"][randi() % 4],
 		"level": 1,
 		"status": AdventurerStatus.Status.READY,
 		"id": "dbg_" + str(Time.get_ticks_msec())

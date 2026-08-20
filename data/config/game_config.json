@@ -24,7 +24,7 @@
 	"autosave_interval_seconds": 300,
 	"max_backup_files": 3,
 
-	"adventurer_classes": ["Fighter", "Rogue", "Mage", "Ranger", "Cleric"],
+	"adventurer_classes": ["Fighter", "Rogue", "Mage", "Healer"],
 	"adventurer_names": ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"],
 
 	"hire_pool_min": 3,
