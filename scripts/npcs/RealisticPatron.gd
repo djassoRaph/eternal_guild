@@ -157,7 +157,7 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 # PATRON ANIMATIONS
 # =============================================================================
 
-func _patron_play_animation(anim_name: String) -> void:
+func _patron_play_animation(anim_name: String, loop: bool = true) -> void:
 	if not animation_player:
 		return
 	if not animation_player.has_animation(anim_name):
@@ -165,10 +165,9 @@ func _patron_play_animation(anim_name: String) -> void:
 	if animation_player.current_animation == anim_name:
 		return
 
-	# Force loop
 	var anim = animation_player.get_animation(anim_name)
 	if anim:
-		anim.loop_mode = Animation.LOOP_LINEAR
+		anim.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 
 	animation_player.play(anim_name, 0.2)
 
@@ -229,10 +228,15 @@ func _on_navigation_finished():
 func _arrive_at_table():
 	print("", patron_name, " arrived at table ", table_index)
 	current_state = PatronState.SEATED
-	_patron_play_animation("Idle")
 
-	if patron_body_mesh:
-		patron_body_mesh.scale.y = 0.8
+	# Real sit-down transition (KayKit models all carry Sit_Chair_Down/Idle) — falls back to a
+	# bare Idle for any model that somehow lacks it, same silent-skip behavior as elsewhere.
+	if animation_player and animation_player.has_animation("Sit_Chair_Down"):
+		_patron_play_animation("Sit_Chair_Down", false)
+		await animation_player.animation_finished
+		if current_state != PatronState.SEATED and current_state != PatronState.WAITING_SERVICE:
+			return  # served/interrupted while sitting down — don't stomp whatever's playing now
+	_patron_play_animation("Sit_Chair_Idle")
 
 	sitting_timer.wait_time = randf_range(2.0, 5.0)
 	sitting_timer.start()
@@ -272,8 +276,19 @@ func serve_patron():
 	drinking_timer.start()
 
 	print("", patron_name, " is now drinking")
+	_play_cheer_then_settle()  # fire-and-forget, same pattern as the chatter call below
 	_start_ambient_chatter()  # Story 8.4 — a floating one-liner while they drink
 	return true
+
+func _play_cheer_then_settle() -> void:
+	# Not awaited by serve_patron() — player.gd reads serve_patron()'s bool return synchronously,
+	# so this has to run as its own fire-and-forget coroutine rather than inline.
+	if animation_player and animation_player.has_animation("Cheer"):
+		_patron_play_animation("Cheer", false)
+		await animation_player.animation_finished
+		if current_state != PatronState.DRINKING:
+			return  # already moved on (e.g. left) — don't stomp whatever's playing now
+	_patron_play_animation("Sit_Chair_Idle")
 
 # =============================================================================
 # TIMER CALLBACKS
@@ -303,8 +318,11 @@ func on_drinking_timer_timeout():
 		var origin_note = " (from " + patron_origin + ")" if patron_origin != "" else ""
 		GameManager.log_message("• " + patron_name + origin_note + " finished drinking. Pays " + str(payment_amount) + " gold")
 
-		if patron_body_mesh:
-			patron_body_mesh.scale.y = 1.0
+		# Real stand-up transition before walking to the exit. Still DRINKING (stationary) while
+		# it plays — current_state only flips to LEAVING once they're actually back on their feet.
+		if animation_player and animation_player.has_animation("Sit_Chair_StandUp"):
+			_patron_play_animation("Sit_Chair_StandUp", false)
+			await animation_player.animation_finished
 
 		current_state = PatronState.LEAVING
 
@@ -440,15 +458,13 @@ func _enter_restored_state(st: int, save: Dictionary) -> void:
 	current_state = st
 	match st:
 		PatronState.DRINKING:
-			if patron_body_mesh:
-				patron_body_mesh.scale.y = 0.8
-			_patron_play_animation("Idle")
+			# Snap straight into the seated pose on restore — no transition animation needed,
+			# they were already sitting when the save was made.
+			_patron_play_animation("Sit_Chair_Idle")
 			drinking_timer.wait_time = randf_range(8.0, 15.0)
 			drinking_timer.start()
 		PatronState.SEATED:
-			if patron_body_mesh:
-				patron_body_mesh.scale.y = 0.8
-			_patron_play_animation("Idle")
+			_patron_play_animation("Sit_Chair_Idle")
 			if save.get("wants_service", false):
 				# Old saves (pre-Epic-8 granularity) parked a "wants service" patron under this
 				# same ordinal — honour the flag and promote straight to WAITING_SERVICE.
@@ -460,9 +476,7 @@ func _enter_restored_state(st: int, save: Dictionary) -> void:
 				sitting_timer.wait_time = randf_range(2.0, 5.0)
 				sitting_timer.start()
 		PatronState.WAITING_SERVICE:
-			if patron_body_mesh:
-				patron_body_mesh.scale.y = 0.8
-			_patron_play_animation("Idle")
+			_patron_play_animation("Sit_Chair_Idle")
 			wants_service = true
 			if service_indicator:
 				service_indicator.visible = true
