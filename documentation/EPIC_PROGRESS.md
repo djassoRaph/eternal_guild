@@ -1,13 +1,13 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
 ## Snapshot (2026-08-18)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~85%) · Epic 6 (~65%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~58%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
+**In progress:** Epic 4 (~85%) · Epic 6 (~65%) · Epic 8 (~75%, Stories 8.4 + 8.5 done) · Epic 11 (~65%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
 **Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece.
-**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map.
+**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads.
 **Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
 **Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
@@ -269,7 +269,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 11: Campaign Save & Load
-**Status: ~58% — save + player/patron position restore work; New Game reset + fire-fuel load fixed 2026-07-12. Remaining: disk-save overwrite window; full architecture-compliance.**
+**Status: ~65% — save + player/patron position restore work; New Game reset + fire-fuel load fixed 2026-07-12; disk-save overwrite window fixed 2026-08-18. Remaining: full architecture-compliance.**
 
 - [x] **Single-file JSON save** — `user://eternal_guild_save.json`
 - [x] **3-backup rotation** — `create_save_backup()` rotates backup1→2→3
@@ -286,7 +286,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Player position + scene saved/restored** (2026-07-12, **confirmed in-game**) — `player_position` / `player_scene` in the save; `PlayerManager` pending-spawn puts the player back where they saved, and Continue routes to the saved scene
 - [x] **Patron exact-restore** (2026-07-12, **confirmed in-game**) — each patron's position/state/model/identity serialized (`RealisticPatron.to_save`) and rebuilt by `PatronSpawner.restore_patrons()` on load (day-boundary autosaves have none, since night despawn runs first)
 - [x] **New Game state-reset fixed** (2026-07-12) — `reset_game_state()` now also clears `active_missions`, `pending_reports`, `has_pending_briefing`, `tavern_reputation`, `taxes_paid_count`, `tax_grace_days`, `mission_tier_unlocked`; `_start_new_game()` calls it so a New Game no longer inherits the prior session's state.
-- **NOTE (Raphael):** Load pass — (a) ~~fireplace fuel loads as 0%~~ **fixed 2026-07-12**; (b) old disk save isn't overwritten until the new game's Day-2 autosave (New Game→quit-before-Day-2 → Continue loads the old game) — **still open**; (c) ~~player + patron positions~~ **DONE 2026-07-12** (player scene+position; patrons rebuilt at exact position/state/model).
+- [x] **Disk-save overwrite window fixed** (2026-08-18) — New Game now force-saves (`save_type: "new_game_start"`) the moment the tavern loads, via `GameManager.pending_new_game_save` set in `main_menu.gd` and consumed in `main_tavern.gd`'s `_ready()`. Fixes New Game → quit before Day 2 → Continue loading the previous run. Verified with a headless regression script (planted a stale save, ran the real code path, confirmed disk flipped to fresh state).
+- **NOTE (Raphael):** Load pass — (a) ~~fireplace fuel loads as 0%~~ **fixed 2026-07-12**; (b) ~~old disk save isn't overwritten until the new game's Day-2 autosave~~ **fixed 2026-08-18**; (c) ~~player + patron positions~~ **DONE 2026-07-12** (player scene+position; patrons rebuilt at exact position/state/model).
 
 ---
 
