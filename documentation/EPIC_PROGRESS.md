@@ -292,15 +292,17 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 12: Loot & Adventurer Equipment
-**Status: ~10% — Data exists, no loot system**
+**Status: ~10% — spec written 2026-08-18, nothing built. Corrects an overstated prior status — see below.**
 
-- [x] `data/economy/items.json` — item definitions exist
-- [x] `data/missions/rewards.json` — reward data exists
-- [x] Mission resolution returns gold rewards (range-based random)
-- [ ] No 3-tier loot roll (gold/equipment/artifact distribution)
+- [x] `GameManager.roll_loot()` (`scripts/GameManager.gd:1642`) — a 3-tier category roller (gold 75% / equipment 20% / artifact 5%), unit-tested in `test/failsafe_test.gd`. **Never called anywhere in the live game** — dead code until this epic wires it up.
+- [~] `data/economy/items.json` — **corrected 2026-08-18:** exists, but contains exactly one item (`beer`, tavern stock). Not loot-related.
+- [ ] `data/missions/rewards.json` — **corrected 2026-08-18:** file is empty (`{}`). Previous checkmark was wrong.
+- [~] Mission resolution returns gold rewards, but the reveal-panel report only ever carries the config *range*, not the actual rolled amount — a real bug, not loot-specific, flagged in the spec below since loot work touches the same code.
+- [ ] No 3-tier loot roll wired into mission resolution
 - [ ] No equipment slot system
 - [ ] No Prior Artifact persistence
 - [ ] No loot display in reveal panel
+- **Full spec:** `documentation/design/LOOT_AND_EQUIPMENT_SYSTEM.md` — ground truth, design intent grounded in the `01_VISION.md` pillars ("not a battle-report reader" rules out a lot of default RPG-loot instincts), exact data schemas, integration points, build order, and open decisions flagged for Raphael. No design doc anywhere previously specified what "equipment" or "artifact" should actually *do* — this is the first place that decision gets made.
 
 ---
 
