@@ -2,8 +2,9 @@ extends CanvasLayer
 class_name CodexMenu
 ## Code-built Codex overlay (Epic 18/19) — the guild's eternal record.
 ## Reads SaveSystem's codex.dat (cross-run persistent, independent of the active save game).
-## Two parts: guild-wide stats, and the Fallen Heroes memorial list written by
-## SaveSystem.record_fallen_hero() at the moment of death (Story 7.1).
+## Three parts: guild-wide stats, the Fallen Heroes memorial list written by
+## SaveSystem.record_fallen_hero() (Story 7.1), and the Artifacts Recovered list written by
+## SaveSystem.record_artifact_found() (Epic 12) — narrative-only Prior relics, no stat effect.
 ## Instantiated by the main menu and pause menu, same pattern as SettingsMenu.
 
 
@@ -22,7 +23,7 @@ func _ready() -> void:
 	add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(560, 480)
+	panel.custom_minimum_size = Vector2(560, 620)
 	center.add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -48,7 +49,7 @@ func _ready() -> void:
 	vbox.add_child(_section_label("The Fallen"))
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 260)
+	scroll.custom_minimum_size = Vector2(0, 200)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(scroll)
 
@@ -68,6 +69,31 @@ func _ready() -> void:
 		sorted_fallen.sort_custom(func(a, b): return a.get("death_day", 0) > b.get("death_day", 0))
 		for entry in sorted_fallen:
 			list.add_child(_hero_row(entry))
+
+	# --- Artifacts recovered (Epic 12) ---
+	vbox.add_child(_section_label("Artifacts Recovered"))
+
+	var artifact_scroll := ScrollContainer.new()
+	artifact_scroll.custom_minimum_size = Vector2(0, 130)
+	artifact_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(artifact_scroll)
+
+	var artifact_list := VBoxContainer.new()
+	artifact_list.add_theme_constant_override("separation", 6)
+	artifact_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	artifact_scroll.add_child(artifact_list)
+
+	var found_artifacts: Array = SaveSystem.get_codex("artifacts_found", [])
+	if found_artifacts.is_empty():
+		var empty_artifacts := Label.new()
+		empty_artifacts.text = "No Prior relics recovered yet."
+		empty_artifacts.modulate = Color(1, 1, 1, 0.6)
+		artifact_list.add_child(empty_artifacts)
+	else:
+		var sorted_artifacts := found_artifacts.duplicate()
+		sorted_artifacts.sort_custom(func(a, b): return a.get("found_day", 0) > b.get("found_day", 0))
+		for entry in sorted_artifacts:
+			artifact_list.add_child(_artifact_row(entry))
 
 	# --- Back ---
 	var back := Button.new()
@@ -148,6 +174,25 @@ func _hero_row(entry: Dictionary) -> HBoxContainer:
 
 	row.add_child(info)
 	return row
+
+
+func _artifact_row(entry: Dictionary) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 1)
+
+	var name_line := Label.new()
+	# Same JSON int-floatification as the stats/hero rows — coerce before display.
+	name_line.text = str(entry.get("name", "Unknown Relic")) + "  —  Day " + str(int(entry.get("found_day", 0)))
+	col.add_child(name_line)
+
+	var desc_line := Label.new()
+	desc_line.text = str(entry.get("description", ""))
+	desc_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_line.modulate = Color(1, 1, 1, 0.65)
+	desc_line.add_theme_font_size_override("font_size", 12)
+	col.add_child(desc_line)
+
+	return col
 
 
 func _on_back_pressed() -> void:
