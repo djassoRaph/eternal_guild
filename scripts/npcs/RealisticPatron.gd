@@ -6,12 +6,16 @@ class_name RealisticPatron
 const SPEED = 2.5
 const GRAVITY = 9.8
 
-# State machine
+# State machine (Epic 8 — split the old SITTING_WAITING into SEATED, the pre-service beat, and
+# WAITING_SERVICE, once the sitting timer fires and the beer-mug indicator shows. WAITING_SERVICE
+# is appended rather than inserted so WALKING_TO_TABLE/SEATED/DRINKING/LEAVING keep their old
+# ordinals — old saves' int-encoded `state` field stays valid; see _enter_restored_state()).
 enum PatronState {
 	WALKING_TO_TABLE,
-	SITTING_WAITING,
+	SEATED,
 	DRINKING,
-	LEAVING
+	LEAVING,
+	WAITING_SERVICE
 }
 
 # Navigation
@@ -181,7 +185,7 @@ func _physics_process(delta: float):
 	match current_state:
 		PatronState.WALKING_TO_TABLE, PatronState.LEAVING:
 			_navigate_with_agent(delta)
-		PatronState.SITTING_WAITING, PatronState.DRINKING:
+		PatronState.SEATED, PatronState.WAITING_SERVICE, PatronState.DRINKING:
 			velocity.x = 0
 			velocity.z = 0
 
@@ -224,7 +228,7 @@ func _on_navigation_finished():
 
 func _arrive_at_table():
 	print("", patron_name, " arrived at table ", table_index)
-	current_state = PatronState.SITTING_WAITING
+	current_state = PatronState.SEATED
 	_patron_play_animation("Idle")
 
 	if patron_body_mesh:
@@ -242,7 +246,7 @@ func _leave_tavern():
 # =============================================================================
 
 func can_be_served_by(player_position: Vector3) -> bool:
-	if current_state != PatronState.SITTING_WAITING:
+	if current_state != PatronState.WAITING_SERVICE:
 		return false
 	if has_been_served:
 		return false
@@ -250,7 +254,7 @@ func can_be_served_by(player_position: Vector3) -> bool:
 	return distance <= 3.0
 
 func serve_patron():
-	if current_state != PatronState.SITTING_WAITING:
+	if current_state != PatronState.WAITING_SERVICE:
 		print("Patron is not waiting for service.")
 		return false
 
@@ -276,7 +280,8 @@ func serve_patron():
 # =============================================================================
 
 func on_sitting_timer_timeout():
-	if current_state == PatronState.SITTING_WAITING and not has_been_served:
+	if current_state == PatronState.SEATED and not has_been_served:
+		current_state = PatronState.WAITING_SERVICE
 		wants_service = true
 		service_indicator.visible = true
 		wants_to_be_served.emit(self)
@@ -429,7 +434,7 @@ func restore_from_save(save: Dictionary, table_pos: Vector3, entrance: Vector3, 
 	if pos is Array and pos.size() == 3:
 		global_position = Vector3(pos[0], pos[1], pos[2])
 
-	_enter_restored_state(int(save.get("state", PatronState.SITTING_WAITING)), save)
+	_enter_restored_state(int(save.get("state", PatronState.SEATED)), save)
 
 func _enter_restored_state(st: int, save: Dictionary) -> void:
 	current_state = st
@@ -440,17 +445,27 @@ func _enter_restored_state(st: int, save: Dictionary) -> void:
 			_patron_play_animation("Idle")
 			drinking_timer.wait_time = randf_range(8.0, 15.0)
 			drinking_timer.start()
-		PatronState.SITTING_WAITING:
+		PatronState.SEATED:
 			if patron_body_mesh:
 				patron_body_mesh.scale.y = 0.8
 			_patron_play_animation("Idle")
 			if save.get("wants_service", false):
+				# Old saves (pre-Epic-8 granularity) parked a "wants service" patron under this
+				# same ordinal — honour the flag and promote straight to WAITING_SERVICE.
+				current_state = PatronState.WAITING_SERVICE
 				wants_service = true
 				if service_indicator:
 					service_indicator.visible = true
 			else:
 				sitting_timer.wait_time = randf_range(2.0, 5.0)
 				sitting_timer.start()
+		PatronState.WAITING_SERVICE:
+			if patron_body_mesh:
+				patron_body_mesh.scale.y = 0.8
+			_patron_play_animation("Idle")
+			wants_service = true
+			if service_indicator:
+				service_indicator.visible = true
 		PatronState.WALKING_TO_TABLE:
 			if nav_agent:
 				nav_agent.target_position = table_position
