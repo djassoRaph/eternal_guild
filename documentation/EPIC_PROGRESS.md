@@ -1,13 +1,13 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
 ## Snapshot (2026-08-18)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~87%) · Epic 6 (~65%) · Epic 8 (~78%, Stories 8.4 + 8.5 done, FSM granularity improved) · Epic 11 (~65%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
+**In progress:** Epic 4 (~87%) · Epic 6 (~65%) · Epic 8 (~80%, Stories 8.4 + 8.5 done, FSM granularity + real sit/cheer/stand animations) · Epic 11 (~65%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
 **Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece.
-**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads. Class list reconciled (Epic 4) — dropped Ranger, renamed Cleric→Healer to match the GDD's 4-class set, which every other file already used. Patron FSM granularity (Epic 8) — split SITTING_WAITING into SEATED/WAITING_SERVICE; corrected an unsourced "6-state" claim in this doc along the way.
+**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads. Class list reconciled (Epic 4) — dropped Ranger, renamed Cleric→Healer to match the GDD's 4-class set, which every other file already used. Patron FSM granularity (Epic 8) — split SITTING_WAITING into SEATED/WAITING_SERVICE; corrected an unsourced "6-state" claim in this doc along the way. Real patron sit/cheer/stand-up animations (Epic 8) — the KayKit models had them all along; replaced the old scale-squash placeholder.
 **Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
 **Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
@@ -234,12 +234,12 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 8: PatronNPC Systems & Ambient Life
-**Status: ~78% — core loop solid (5 patrons, serve, coin reward); Stories 8.4 ambient chat + 8.5 eavesdropping done; FSM granularity improved 2026-08-18. Remaining: real character animations (placeholder only).**
+**Status: ~80% — core loop solid (5 patrons, serve, coin reward); Stories 8.4 ambient chat + 8.5 eavesdropping done; FSM granularity + real sit/cheer/stand animations both landed 2026-08-18.**
 
-- [x] **PatronNPC FSM** (5 states, 2026-08-18) — `WALKING_TO_TABLE → SEATED → WAITING_SERVICE → DRINKING → LEAVING`. Was 4 states (`SITTING_WAITING` collapsed "just sat" and "wants service, indicator showing" into one). **Correction:** the previously-noted "architecture specifies 6 states (WALKING→SEATED→WAITING→SERVED→DRINKING→LEAVING)" wasn't sourced from any design doc — checked all of them; it existed only as this bullet's own claim. Split `SITTING_WAITING` into `SEATED`/`WAITING_SERVICE` (a real, observable behavioral gap); deliberately did not add a `SERVED` state, since there's no distinct animation or behavior to attach to it with the current KayKit model set. `RealisticPatron.gd`. **MVP-quality only — animations are placeholder, not real character animations.**
+- [x] **PatronNPC FSM** (5 states, 2026-08-18) — `WALKING_TO_TABLE → SEATED → WAITING_SERVICE → DRINKING → LEAVING`. Was 4 states (`SITTING_WAITING` collapsed "just sat" and "wants service, indicator showing" into one). **Correction:** the previously-noted "architecture specifies 6 states (WALKING→SEATED→WAITING→SERVED→DRINKING→LEAVING)" wasn't sourced from any design doc — checked all of them; it existed only as this bullet's own claim. Split `SITTING_WAITING` into `SEATED`/`WAITING_SERVICE` (a real, observable behavioral gap). `RealisticPatron.gd`.
 - [x] **NavigationAgent3D movement** — patrons walk to table, walk to exit
 - [x] **Random model swap** — picks from 5 KayKit adventurer GLBs per patron
-- [x] **Animations** — Idle and Running_A via AnimationPlayer (from GLB models)
+- [x] **Real sit/cheer/stand-up animations** (2026-08-18) — all 5 patron GLBs turned out to already carry `Sit_Chair_Down/Idle/StandUp` and `Cheer` (missed on the first FSM-granularity pass, which wrongly claimed no fitting animation existed). Arriving plays Sit_Chair_Down → Sit_Chair_Idle; being served plays Cheer → back to Sit_Chair_Idle; the drinking timer firing plays Sit_Chair_StandUp before the patron actually gets up and walks out. Replaces the old `scale.y = 0.8/1.0` squash-hack. Locomotion (`Idle`/`Running_A`) unchanged.
 - [x] **Service system** — player within 3.0m; patron shows a **beer-mug emote** above the head (2026-07-15, replaced the old yellow sphere)
 - [x] **Timer-based behavior** — sit 2-5s, drink 8-15s
 - [x] **Table management** — 5 positions, occupied tracking, availability check
