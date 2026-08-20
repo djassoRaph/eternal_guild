@@ -1,0 +1,63 @@
+{
+	"_comment": "Epic 12 — equipment-tier loot. Flat, small, permanent stat bumps (+1/+2). Deliberately unglamorous per 01_VISION.md's tone ceiling — no magic-shop language, no rarity tiers. One item equips at a time (RealisticPatron.equipped_item on the adventurer dict), silently replacing whatever was there before.",
+	"dented_shield": {
+		"display_name": "Dented Shield",
+		"description": "Stopped one blade too many. Still holds.",
+		"stat": "endurance",
+		"bonus": 1
+	},
+	"worn_travel_boots": {
+		"display_name": "Worn Travel Boots",
+		"description": "Walked farther than their owner cared to.",
+		"stat": "dexterity",
+		"bonus": 1
+	},
+	"sharpening_stone": {
+		"display_name": "Sharpening Stone",
+		"description": "Keeps an edge true. Nothing more, nothing less.",
+		"stat": "strength",
+		"bonus": 1
+	},
+	"tattered_spellbook": {
+		"display_name": "Tattered Spellbook",
+		"description": "Half the pages are illegible. The half that isn't, matters.",
+		"stat": "intelligence",
+		"bonus": 1
+	},
+	"lucky_coin_pouch": {
+		"display_name": "Lucky Coin Pouch",
+		"description": "Worn smooth from being turned over and over in someone's pocket.",
+		"stat": "dexterity",
+		"bonus": 1
+	},
+	"campfire_cloak": {
+		"display_name": "Campfire Cloak",
+		"description": "Smells of woodsmoke no matter how many times it's washed.",
+		"stat": "endurance",
+		"bonus": 1
+	},
+	"soldiers_bracer": {
+		"display_name": "Soldier's Bracer",
+		"description": "Standard-issue, decades old. Someone else wore it first.",
+		"stat": "endurance",
+		"bonus": 2
+	},
+	"quiet_dagger": {
+		"display_name": "Quiet Dagger",
+		"description": "Doesn't gleam. Doesn't need to.",
+		"stat": "dexterity",
+		"bonus": 2
+	},
+	"herbalists_satchel": {
+		"display_name": "Herbalist's Satchel",
+		"description": "Smells of dried leaves and old bandages.",
+		"stat": "intelligence",
+		"bonus": 2
+	},
+	"reinforced_gauntlets": {
+		"display_name": "Reinforced Gauntlets",
+		"description": "Knuckles scarred from the inside.",
+		"stat": "strength",
+		"bonus": 2
+	}
+}

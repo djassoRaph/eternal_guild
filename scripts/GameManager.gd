@@ -329,10 +329,13 @@ func calculate_mission_success_chance(adventurer: Dictionary, mission: Dictionar
 	return clampi(final_chance, 10, 95)
 
 
-func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool):
-	"""Enhanced mission completion with mandatory recovery period"""
+func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool) -> int:
+	"""Enhanced mission completion with mandatory recovery period. Returns the actual gold
+	reward paid out (0 on failure) — Epic 12: the reveal report needs the real amount, not
+	the mission's config range."""
+	var reward := 0
 	if success:
-		var reward = randi_range(mission.reward_range[0], mission.reward_range[1])
+		reward = randi_range(mission.reward_range[0], mission.reward_range[1])
 
 		# Lucky trait: bonus reward on success
 		var trait_data = get_trait_data(adventurer.get("personality", ""))
@@ -376,15 +379,20 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 	# Emit signal so UI updates
 	adventurer_roster_changed.emit()
 
+	return reward
 
 
-func complete_party_mission(party: Array, mission: Dictionary, success: bool):
-	"""Enhanced party missions with recovery periods"""
+
+func complete_party_mission(party: Array, mission: Dictionary, success: bool) -> int:
+	"""Enhanced party missions with recovery periods. Returns the actual gold reward paid
+	out (0 on failure) — Epic 12: the reveal report needs the real amount, not the
+	mission's config range."""
+	var reward := 0
 	if success:
-		var reward = randi_range(mission.reward_range[0], mission.reward_range[1])
+		reward = randi_range(mission.reward_range[0], mission.reward_range[1])
 		add_gold(reward)
 		log_message("PARTY SUCCESS! Completed " + mission.name + " and earned " + str(reward) + " gold!")
-		
+
 		for adventurer in party:
 			# SUCCESS: All party members need rest
 			adventurer.status = AStatus.RESTING
@@ -392,7 +400,7 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 			adventurer.missions_completed += 1
 			adventurer.gold_earned += reward / party.size()
 			check_adventurer_level_up(adventurer)
-		
+
 		log_message("Party members rest for 1 day after their successful mission")
 	else:
 		log_message("PARTY FAILED! Mission " + mission.name + " was catastrophic")
@@ -401,6 +409,8 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool):
 			handle_party_failure_consequences(adventurer, mission)
 			# CRITICAL FIX: Emit signal so UI updates
 			adventurer_roster_changed.emit()
+
+	return reward
 
 
 
@@ -472,7 +482,22 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 		if randf() < trait_data.injury_chance:
 			adventurer["injured"] = true
 
-	complete_mission(adventurer, mission, success)
+	var reward := complete_mission(adventurer, mission, success)
+
+	# Epic 12 — one loot roll per resolved mission, success only (failure already has its own
+	# consequences via handle_party_failure_consequences()). Gold tier folds into `reward`
+	# silently; equipment/artifact surface in the report for the reveal panel.
+	var loot_report = null
+	if success:
+		var loot := _roll_and_apply_loot(adventurer, reward)
+		if loot.get("tier") == "gold":
+			var bonus: int = loot.get("bonus", 0)
+			if bonus > 0:
+				add_gold(bonus)
+				adventurer.gold_earned += bonus
+				reward += bonus
+		else:
+			loot_report = loot
 
 	return {
 		"type": "solo",
@@ -484,7 +509,8 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 		"success": success,
 		"roll": roll,
 		"success_chance": success_chance,
-		"reward": mission.get("reward_range", [0, 0]),
+		"reward": reward,
+		"loot": loot_report,
 		"duration": entry.total_duration,
 		"alive": adventurer.get("status") != AStatus.DEAD,
 		"injured": adventurer.get("status") == AStatus.WOUNDED,
@@ -508,7 +534,22 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 	var roll = randi() % 100 + 1
 	var success = roll <= final_chance
 
-	complete_party_mission(party, mission, success)
+	var reward := complete_party_mission(party, mission, success)
+
+	# Epic 12 — same one-roll-per-mission rule as the solo path. All party members are alive
+	# on a success (death/injury only happen in the failure branch), so any member can be the
+	# equipment recipient — pick one at random.
+	var loot_report = null
+	if success and not party.is_empty():
+		var recipient = party[randi() % party.size()]
+		var loot := _roll_and_apply_loot(recipient, reward)
+		if loot.get("tier") == "gold":
+			var bonus: int = loot.get("bonus", 0)
+			if bonus > 0:
+				add_gold(bonus)
+				reward += bonus
+		else:
+			loot_report = loot
 
 	var member_names = party.map(func(a): return a.get("name", "?"))
 	var casualties = party.filter(func(a): return a.get("status") == AStatus.DEAD)
@@ -540,7 +581,8 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 		"success": success,
 		"roll": roll,
 		"success_chance": final_chance,
-		"reward": mission.get("reward_range", [0, 0]),
+		"reward": reward,
+		"loot": loot_report,
 		"duration": entry.total_duration,
 		"casualties": casualties.map(func(a): return a.get("name", "?")),
 		"injured": injured.map(func(a): return a.get("name", "?")),
@@ -1647,6 +1689,41 @@ static func roll_loot() -> String:
 		return "equipment"
 	else:
 		return "gold"
+
+func _roll_and_apply_loot(recipient: Dictionary, base_reward: int) -> Dictionary:
+	"""Epic 12 — rolls a loot tier via roll_loot() and applies its effect. Called once per
+	successful mission resolution (not per party member). Returns a dict describing what
+	happened; callers fold the "gold" tier silently into the mission reward and only surface
+	"equipment"/"artifact" in the reveal report — per 01_VISION.md, loot isn't a battle-report
+	line, so most successes (75% of them) should look exactly like they always have."""
+	var tier := roll_loot()
+	match tier:
+		"equipment":
+			var item_id := DataManager.get_random_equipment_id()
+			if item_id == "":
+				return {"tier": "gold", "bonus": 0}  # no equipment data loaded — fall back quietly
+			var def: Dictionary = DataManager.equipment.get(item_id, {})
+			var stat: String = def.get("stat", "")
+			var bonus: int = int(def.get("bonus", 0))
+			if stat != "" and recipient.has(stat):
+				recipient[stat] = int(recipient.get(stat, 0)) + bonus
+			recipient["equipped_item"] = {
+				"id": item_id,
+				"name": def.get("display_name", item_id),
+				"stat": stat,
+				"bonus": bonus,
+			}
+			return {"tier": "equipment", "name": def.get("display_name", item_id)}
+		"artifact":
+			var artifact_id := DataManager.get_random_artifact_id()
+			if artifact_id == "":
+				return {"tier": "gold", "bonus": 0}
+			SaveSystem.record_artifact_found(artifact_id)
+			var def: Dictionary = DataManager.artifacts.get(artifact_id, {})
+			return {"tier": "artifact", "name": def.get("display_name", artifact_id)}
+		_:  # "gold"
+			var bonus := int(base_reward * randf_range(0.10, 0.25))
+			return {"tier": "gold", "bonus": bonus}
 
 func calculate_death_chance(adventurer_level: int, mission_danger: int) -> float:
 	"""Calculate death chance based on your design requirements"""

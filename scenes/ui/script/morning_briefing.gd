@@ -183,8 +183,17 @@ func _display_report(report: Dictionary):
 		result_label.text = "MISSION SUCCESSFUL"
 		result_label.add_theme_color_override("font_color", Color(0.3, 0.85, 0.4))
 
-		var reward_range = report.get("reward", [0, 0])
-		details_label.text = "Reward earned: " + str(reward_range[0]) + "-" + str(reward_range[1]) + " gold"
+		# Epic 12 fix: this used to show the mission's config reward *range*, not what was
+		# actually rolled and paid out.
+		var reward: int = int(report.get("reward", 0))
+		details_label.text = "Reward earned: " + str(reward) + " gold"
+
+		# Loot (Epic 12) — only equipment/artifact tiers get a line; gold-tier loot already
+		# folded silently into `reward` above, per 01_VISION.md's terse "who came back" framing.
+		var loot = report.get("loot", null)
+		if loot != null:
+			details_label.text += "\n· found: " + str(loot.get("name", "something"))
+
 		details_label.text += "\nRoll: " + str(report.roll) + " vs " + str(report.success_chance) + "% chance"
 	else:
 		result_label.text = "MISSION FAILED"

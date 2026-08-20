@@ -153,6 +153,7 @@ func _default_codex() -> Dictionary:
 		"schema_version": CURRENT_SCHEMA_VERSION,
 		"fallen_heroes": [],
 		"guild_achievements": [],
+		"artifacts_found": [],
 		"total_runs": 0,
 		"best_day_reached": 0,
 		"total_gold_earned": 0,
@@ -190,6 +191,25 @@ func record_fallen_hero(adventurer: Dictionary) -> void:
 		"timestamp": Time.get_unix_time_from_system(),
 	}
 	codex_data["fallen_heroes"].append(entry)
+	_save_codex()
+
+func record_artifact_found(artifact_id: String) -> void:
+	# Epic 12 — the artifact-tier loot record. Not attached to an adventurer (they die,
+	# retire, age out); the guild's collection of relics is eternal, same as fallen_heroes.
+	var def: Dictionary = DataManager.artifacts.get(artifact_id, {})
+	var entry = {
+		"id": artifact_id,
+		"name": def.get("display_name", artifact_id),
+		"description": def.get("description", ""),
+		"found_day": GameManager.current_day,
+		"timestamp": Time.get_unix_time_from_system(),
+	}
+	# codex.dat files written before this field existed won't have the key yet — _load_codex()
+	# doesn't merge in new _default_codex() keys, it uses the file as-is (same latent gap
+	# record_fallen_hero() has for fallen_heroes, just guarding against it explicitly here).
+	if not codex_data.has("artifacts_found"):
+		codex_data["artifacts_found"] = []
+	codex_data["artifacts_found"].append(entry)
 	_save_codex()
 
 func record_run_end() -> void:

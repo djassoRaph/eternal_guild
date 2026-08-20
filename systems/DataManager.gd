@@ -10,6 +10,8 @@ var character_names: Array = []
 var character_traits: Dictionary = {}
 var mission_types: Dictionary = {}
 var items: Dictionary = {}
+var equipment: Dictionary = {}   # data/economy/equipment.json — Epic 12 loot
+var artifacts: Dictionary = {}   # data/economy/artifacts.json — Epic 12 loot
 var dialogue_lines: Dictionary = {}
 var settlements: Dictionary = {}
 signal data_ready
@@ -84,7 +86,23 @@ func load_mission_data():
 
 func load_economy_data():
 	items = load_data_file("res://data/economy/items.json", {})
+	equipment = load_data_file("res://data/economy/equipment.json", {})
+	artifacts = load_data_file("res://data/economy/artifacts.json", {})
 	data_loaded.emit("economy")
+
+func get_random_equipment_id() -> String:
+	var ids := equipment.keys()
+	ids.erase("_comment")
+	if ids.is_empty():
+		return ""
+	return ids[randi() % ids.size()]
+
+func get_random_artifact_id() -> String:
+	var ids := artifacts.keys()
+	ids.erase("_comment")
+	if ids.is_empty():
+		return ""
+	return ids[randi() % ids.size()]
 
 func load_dialogue_data():
 	dialogue_lines = load_data_file("res://data/dialogue/patron_lines.json", {})

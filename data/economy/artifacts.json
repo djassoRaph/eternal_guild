@@ -1,0 +1,27 @@
+{
+	"_comment": "Epic 12 — artifact-tier loot. Prior relics, tied to Vision Pillar 4 (Curiosity & Discovery) and Pillar 5 (Legacy). Deliberately no mechanical effect — 'Mystery is an asset' per 01_VISION.md. Not attached to an adventurer: persists to codex.dat (eternal, cross-run) via SaveSystem.record_artifact_found(), same pattern as fallen_heroes.",
+	"teal_rune_shard": {
+		"display_name": "Teal Rune Shard",
+		"description": "A fragment of glass etched with a rune no living scholar can read. It hums, faintly, when the fire burns low."
+	},
+	"priors_seal": {
+		"display_name": "Prior's Seal",
+		"description": "A ring of grey stone, warm to the touch though it's never near a flame."
+	},
+	"den_fa_ledger_page": {
+		"display_name": "Den Fa Ledger Page",
+		"description": "Waterlogged and half-erased. What's left doesn't add up to any language your guild has met."
+	},
+	"hollow_bell": {
+		"display_name": "Hollow Bell",
+		"description": "Rings without a clapper. No one's found the note it's supposed to play."
+	},
+	"cracked_hourglass": {
+		"display_name": "Cracked Hourglass",
+		"description": "The sand doesn't fall. It just waits."
+	},
+	"buried_standard": {
+		"display_name": "Buried Standard",
+		"description": "A guild banner for a guild that doesn't exist anymore. Or doesn't exist yet."
+	}
+}
