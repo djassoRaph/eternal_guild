@@ -229,17 +229,28 @@ func _arrive_at_table():
 	print("", patron_name, " arrived at table ", table_index)
 	current_state = PatronState.SEATED
 
-	# Real sit-down transition (KayKit models all carry Sit_Chair_Down/Idle) — falls back to a
-	# bare Idle for any model that somehow lacks it, same silent-skip behavior as elsewhere.
-	if animation_player and animation_player.has_animation("Sit_Chair_Down"):
-		_patron_play_animation("Sit_Chair_Down", false)
-		await animation_player.animation_finished
-		if current_state != PatronState.SEATED and current_state != PatronState.WAITING_SERVICE:
-			return  # served/interrupted while sitting down — don't stomp whatever's playing now
-	_patron_play_animation("Sit_Chair_Idle")
+	# Real sit-down transition (KayKit models all carry Sit_Chair_Down/Idle). Fire-and-forget —
+	# NOT awaited here. An earlier version awaited animation_player.animation_finished directly
+	# in this function and it hung in real gameplay (never reproduced in isolated headless
+	# tests — only caught by actually playing), permanently stranding every patron in SEATED.
+	# The sitting timer must not depend on the animation completing.
+	_play_sit_down_then_idle()
 
 	sitting_timer.wait_time = randf_range(2.0, 5.0)
 	sitting_timer.start()
+
+const _SIT_DOWN_SECONDS := 0.85  # measured Sit_Chair_Down length (0.8s) + a small safety margin
+
+func _play_sit_down_then_idle() -> void:
+	# Timer-based, not animation_player.animation_finished — that signal proved unreliable in
+	# real gameplay (see _arrive_at_table()'s comment). A plain SceneTree timer is the same
+	# mechanism _start_ambient_chatter() already uses successfully elsewhere in this file.
+	if animation_player and animation_player.has_animation("Sit_Chair_Down"):
+		_patron_play_animation("Sit_Chair_Down", false)
+		await get_tree().create_timer(_SIT_DOWN_SECONDS).timeout
+		if current_state != PatronState.SEATED and current_state != PatronState.WAITING_SERVICE:
+			return  # served/interrupted while sitting down — don't stomp whatever's playing now
+	_patron_play_animation("Sit_Chair_Idle")
 
 func _leave_tavern():
 	print("", patron_name, " reached the exit and is leaving")
@@ -280,12 +291,15 @@ func serve_patron():
 	_start_ambient_chatter()  # Story 8.4 — a floating one-liner while they drink
 	return true
 
+const _CHEER_SECONDS := 1.72  # measured Cheer length (1.667s) + a small safety margin
+
 func _play_cheer_then_settle() -> void:
 	# Not awaited by serve_patron() — player.gd reads serve_patron()'s bool return synchronously,
-	# so this has to run as its own fire-and-forget coroutine rather than inline.
+	# so this has to run as its own fire-and-forget coroutine rather than inline. Timer-based,
+	# not animation_player.animation_finished — see _arrive_at_table()'s comment for why.
 	if animation_player and animation_player.has_animation("Cheer"):
 		_patron_play_animation("Cheer", false)
-		await animation_player.animation_finished
+		await get_tree().create_timer(_CHEER_SECONDS).timeout
 		if current_state != PatronState.DRINKING:
 			return  # already moved on (e.g. left) — don't stomp whatever's playing now
 	_patron_play_animation("Sit_Chair_Idle")
@@ -320,9 +334,13 @@ func on_drinking_timer_timeout():
 
 		# Real stand-up transition before walking to the exit. Still DRINKING (stationary) while
 		# it plays — current_state only flips to LEAVING once they're actually back on their feet.
+		# Timer-based, not animation_player.animation_finished — see _arrive_at_table()'s comment
+		# for why: that signal hung in real gameplay when awaited directly in a function like
+		# this one, which — unlike the fire-and-forget helpers — genuinely needs to block the
+		# state transition until the animation is done.
 		if animation_player and animation_player.has_animation("Sit_Chair_StandUp"):
 			_patron_play_animation("Sit_Chair_StandUp", false)
-			await animation_player.animation_finished
+			await get_tree().create_timer(_SIT_DOWN_SECONDS).timeout  # StandUp measures the same 0.8s as Sit_Chair_Down
 
 		current_state = PatronState.LEAVING
 
