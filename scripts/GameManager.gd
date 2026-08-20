@@ -698,6 +698,13 @@ func generate_fallback_recruits(count: int) -> Array:
 	var available_cards = _get_available_tarot_ids()
 	var reputation_stat_bonus: int = get_reputation_tier().get("recruit_stat_bonus", 0)  # Epic 14
 
+	# Avoid handing out a name already on the roster (or already picked earlier in this same
+	# batch) — the 10-name pool collides fast once you've hired a few adventurers. Falls back
+	# to allowing a repeat only if every name is genuinely taken, rather than looping forever.
+	var used_names := {}
+	for adv in adventurers:
+		used_names[adv.get("name", "")] = true
+
 	for i in count:
 		var card_id = ""
 		if deck_available:
@@ -707,9 +714,13 @@ func generate_fallback_recruits(count: int) -> Array:
 		var card = DataManager.get_tarot_card(card_id) if card_id != "" else {}
 		var drink = drinks[randi() % drinks.size()] if drinks.size() > 0 else "none"
 
+		var available_names: Array = names.filter(func(n): return not used_names.has(n))
+		var chosen_name: String = available_names[randi() % available_names.size()] if not available_names.is_empty() else names[randi() % names.size()]
+		used_names[chosen_name] = true
+
 		var recruit = {
 			"id": generate_recruit_id(),
-			"name": names[randi() % names.size()],
+			"name": chosen_name,
 			"class": classes[randi() % classes.size()],
 			"status": AStatus.READY,
 			"recovery": 0,
