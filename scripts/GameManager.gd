@@ -976,6 +976,11 @@ func _normalize_adventurer_ints(adv: Dictionary) -> void:
 # Set by load_save_data() so the Continue flow can return the player to the scene they saved in.
 var saved_player_scene: String = ""
 
+# Set by main_menu.gd's _start_new_game(), consumed by main_tavern.gd's _ready(). Forces an
+# immediate disk save the moment a brand-new game's tavern loads, so New Game -> quit before the
+# Day-2 autosave -> Continue restores the fresh game instead of stale state from the prior run.
+var pending_new_game_save: bool = false
+
 func _player_pos_array() -> Array:
 	if PlayerManager and is_instance_valid(PlayerManager.player):
 		var p = PlayerManager.player.global_position

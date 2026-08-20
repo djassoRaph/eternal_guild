@@ -46,8 +46,15 @@ func _ready():
 	_on_firewood_changed(GameManager.get_firewood_stock())
 	_on_fuel_changed(GameManager.get_fireplace_fuel())
 	_on_reputation_changed(GameManager.tavern_reputation)
-	
+
 	print("UI connected to GameManager signals")
+
+	# New-Game overwrite-window fix (Epic 11) — write the fresh Day 1 state to disk now,
+	# rather than waiting for the Day-2 autosave, so quitting early doesn't leave the
+	# previous run's save behind for Continue to pick up.
+	if GameManager.pending_new_game_save:
+		GameManager.pending_new_game_save = false
+		SaveSystem.save_game_state("new_game_start", true)
 
 
 # === UI UPDATE FUNCTIONS (Connected to GameManager signals) ===
