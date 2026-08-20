@@ -490,15 +490,23 @@ func generate_daily_missions_with_tiers(count: int = 6, max_tier: int = 1) -> Ar
 		print("No missions available for current tier level!")
 		return []
 	
-	# Shuffle and select missions
+	# Shuffle and select missions. Epic 6: the old `min(count, available_templates.size())` cap
+	# meant the board silently showed FEWER than `count` missions whenever a tier's template
+	# pool was smaller than requested — and Tier 1 (the whole first ~30 days, before the first
+	# tax unlocks Tier 2) only has 4 templates total, so the board was hard-capped at 4 missions
+	# regardless of `count`. This is "only 3-4 missions shown at once" (Raphael, EPIC_PROGRESS.md).
+	# Cycle through the pool with wrap-around instead, so `count` missions always generate once
+	# at least one template exists for the tier — add_mission_variety() below still gives each
+	# repeat its own randomized name/location/client, so repeats don't read as identical.
 	available_templates.shuffle()
-	
-	for i in range(min(count, available_templates.size())):
-		var mission = available_templates[i].duplicate()
+
+	for i in range(count):
+		var template = available_templates[i % available_templates.size()]
+		var mission = template.duplicate()
 		add_mission_variety(mission)
 		selected_missions.append(mission)
-	
-	print("Generated ", selected_missions.size(), " missions (Max Tier: ", max_tier, ")")
+
+	print("Generated ", selected_missions.size(), " missions (Max Tier: ", max_tier, ", ", available_templates.size(), " templates available)")
 	return selected_missions
 
 

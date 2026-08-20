@@ -333,7 +333,11 @@ func _build_tab_missions(parent: VBoxContainer) -> void:
 	_state_labels["avail_missions"] = avail_lbl
 
 func _debug_gen_missions() -> void:
-	GameManager.refresh_missions()
+	# Was calling the legacy GameManager.refresh_missions() (DataManager.generateAvailableMissions()),
+	# a different code path from the tiered one the World Map Board actually uses
+	# (GameManager.refresh_available_missions() -> DataManager.generate_daily_missions_with_tiers()).
+	# That made this button lie about what the board would show. Call the real path.
+	GameManager.refresh_available_missions()
 	var missions: Array = GameManager.available_missions
 	if missions.is_empty():
 		_state_labels["avail_missions"].text = "(none generated — check DataManager)"
