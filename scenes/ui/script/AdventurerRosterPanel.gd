@@ -12,9 +12,12 @@ var adventurer_cards: Dictionary = {}
 # CRITICAL FIX: Prevent overlapping refresh calls
 var is_refreshing: bool = false
 
-# Slide-in/out panel geometry
+# Slide-in/out panel geometry. Panel is 350px wide (see AdventurerRosterPanel's offset_right
+# in MainTavern.tscn). SHOWN_X used to be 1570 — exactly 1920-350, i.e. the panel's right edge
+# landed flush on the screen's right edge with zero margin, clipping the portrait's right side
+# (nothing wrong with the panel's own width; it just had nowhere to breathe). 24px margin fixes it.
 const HIDDEN_X := 1920.0
-const SHOWN_X := 1570.0
+const SHOWN_X := 1546.0
 
 # Explicit open/closed state. Do NOT derive this from the animating position.x —
 # rapid Tab presses or roster changes during the 0.3s slide would race against each
