@@ -1,15 +1,15 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
 ## Snapshot (2026-08-18)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~87%) · Epic 6 (~65%) · Epic 8 (~80%, Stories 8.4 + 8.5 done, FSM granularity + real sit/cheer/stand animations) · Epic 11 (~65%) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
-**Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece.
-**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads. Class list reconciled (Epic 4) — dropped Ranger, renamed Cleric→Healer to match the GDD's 4-class set, which every other file already used. Patron FSM granularity (Epic 8) — split SITTING_WAITING into SEATED/WAITING_SERVICE; corrected an unsourced "6-state" claim in this doc along the way. Real patron sit/cheer/stand-up animations (Epic 8) — the KayKit models had them all along; replaced the old scale-squash placeholder.
+**In progress:** Epic 4 (~87%) · Epic 6 (~65%) · Epic 8 (~80%, Stories 8.4 + 8.5 done, FSM granularity + real sit/cheer/stand animations) · Epic 11 (~65%) · Epic 12 (~75%, built same-day as its own spec) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
+**Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece. Artifact-tier loot (Epic 12) now feeds the same eternal file.
+**Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads. Class list reconciled (Epic 4) — dropped Ranger, renamed Cleric→Healer to match the GDD's 4-class set, which every other file already used. Patron FSM granularity (Epic 8) — split SITTING_WAITING into SEATED/WAITING_SERVICE; corrected an unsourced "6-state" claim in this doc along the way. Real patron sit/cheer/stand-up animations (Epic 8) — the KayKit models had them all along; replaced the old scale-squash placeholder. Loot & equipment (Epic 12) — spec'd and built same day; `roll_loot()` was dead code until now, plus fixed a pre-existing bug where mission reports showed the reward range instead of the actual amount paid out.
 **Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
-**Not started:** Epics 5, 9, 10, 12, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
+**Not started:** Epics 5, 9, 10, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
 
 ---
 
@@ -292,17 +292,17 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 12: Loot & Adventurer Equipment
-**Status: ~10% — spec written 2026-08-18, nothing built. Corrects an overstated prior status — see below.**
+**Status: ~75% — built 2026-08-18 per the spec written the same day. Remaining: no UI polish beyond the one reveal-panel line (deliberately — see spec's non-goals).**
 
-- [x] `GameManager.roll_loot()` (`scripts/GameManager.gd:1642`) — a 3-tier category roller (gold 75% / equipment 20% / artifact 5%), unit-tested in `test/failsafe_test.gd`. **Never called anywhere in the live game** — dead code until this epic wires it up.
-- [~] `data/economy/items.json` — **corrected 2026-08-18:** exists, but contains exactly one item (`beer`, tavern stock). Not loot-related.
-- [ ] `data/missions/rewards.json` — **corrected 2026-08-18:** file is empty (`{}`). Previous checkmark was wrong.
-- [~] Mission resolution returns gold rewards, but the reveal-panel report only ever carries the config *range*, not the actual rolled amount — a real bug, not loot-specific, flagged in the spec below since loot work touches the same code.
-- [ ] No 3-tier loot roll wired into mission resolution
-- [ ] No equipment slot system
-- [ ] No Prior Artifact persistence
-- [ ] No loot display in reveal panel
-- **Full spec:** `documentation/design/LOOT_AND_EQUIPMENT_SYSTEM.md` — ground truth, design intent grounded in the `01_VISION.md` pillars ("not a battle-report reader" rules out a lot of default RPG-loot instincts), exact data schemas, integration points, build order, and open decisions flagged for Raphael. No design doc anywhere previously specified what "equipment" or "artifact" should actually *do* — this is the first place that decision gets made.
+- [x] `GameManager.roll_loot()` (`scripts/GameManager.gd:1642`) — was dead code (unit-tested, never called). Now wired into `_resolve_solo_mission()` / `_resolve_party_mission()`, one roll per successful mission.
+- [x] **Reward-amount bug fixed** — mission reports used to carry the config reward *range*; `complete_mission()`/`complete_party_mission()` now return the real rolled+paid amount and the report/reveal panel show that instead.
+- [x] `data/economy/equipment.json` (11 items) + `data/economy/artifacts.json` (7 relics) — new files. Deliberately unglamorous tone per `01_VISION.md` (no magic-shop language; artifacts carry zero mechanical effect).
+- [x] **Equipment tier** (20%) — single `adventurer.equipped_item` slot, flat +1/+2 stat bonus applied once at equip time, silently replaces whatever was equipped before. No inventory system (by design).
+- [x] **Artifact tier** (5%) — `SaveSystem.record_artifact_found()`, persists to `codex.dat`'s new `artifacts_found` array, same append-only pattern as `record_fallen_hero()`.
+- [x] **Codex "Artifacts Recovered" section** — third section in `codex_menu.gd`, alongside Guild Record and The Fallen.
+- [x] **Reveal panel** — one terse `"· found: <name>"` line for equipment/artifact loot only; gold-tier loot stays invisible on purpose (folds into the reward number).
+- [ ] Failure-path loot loss (the `equipment_damage`/`equipment_loss` tags already sitting unused in `mission_types.json`) — explicitly deferred, flagged as an open decision for Raphael in the spec.
+- **Full spec:** `documentation/design/LOOT_AND_EQUIPMENT_SYSTEM.md` — still the reference for design intent, data schemas, and the open decisions not yet made.
 
 ---
 
