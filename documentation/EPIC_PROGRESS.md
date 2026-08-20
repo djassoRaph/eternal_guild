@@ -1,12 +1,13 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-18 (Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment shipped). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-08-20 (mission-count display cap fixed + animation-hang regression fixed + duplicate recruit names fixed + roster portrait clipping partially fixed, on top of 2026-08-18's Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
-## Snapshot (2026-08-18)
+## Snapshot (2026-08-20)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
-**In progress:** Epic 4 (~87%) · Epic 6 (~65%) · Epic 8 (~80%, Stories 8.4 + 8.5 done, FSM granularity + real sit/cheer/stand animations) · Epic 11 (~65%) · Epic 12 (~75%, built same-day as its own spec) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
+**In progress:** Epic 4 (~88%) · Epic 6 (~70%, mission-count cap fixed) · Epic 8 (~80%, Stories 8.4 + 8.5 done, FSM granularity + real sit/cheer/stand animations, animation-hang regression fixed) · Epic 11 (~65%) · Epic 12 (~75%, built same-day as its own spec) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
 **Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece. Artifact-tier loot (Epic 12) now feeds the same eternal file.
+**Recent (2026-08-20):** Mission-count display cap fixed (Epic 6) — `DataManager.generate_daily_missions_with_tiers()` used to `min(count, available_templates.size())`, so Tier 1 (the whole first ~30 days) only ever showed its 4 available templates regardless of the requested count; now cycles the shuffled pool with wrap-around so the requested count (6) always generates, with `add_mission_variety()` still giving each repeat its own name/location/client. This was the "only 3-4 missions shown at once" item tracked in this doc since 2026-07-11. Along the way, fixed the debug panel's "Force Generate New Missions" button, which was calling a different legacy code path (`GameManager.refresh_missions()`) than the one the World Map board actually uses (`GameManager.refresh_available_missions()`), making it misreport the fix during verification. Patron animation-hang regression fixed (Epic 8) — the real sit/cheer/stand-up animations shipped 2026-08-18 used `await animation_player.animation_finished`, which hung indefinitely in real gameplay (never caught by headless tests, which called the functions directly rather than through the real navigation-signal-triggered async flow) and permanently stranded patrons — no service indicator, E did nothing. Fixed by switching to `SceneTree.create_timer()` waits instead of the AnimationPlayer signal. Duplicate recruit names fixed (Epic 4) — `generate_fallback_recruits()` had no uniqueness check against the existing roster; now filters already-used names before picking, with a graceful repeat-name fallback if the pool is exhausted. Roster panel portrait clipping partially fixed (Epic 4) — the slide-in panel's shown position landed with zero margin from the screen's right edge, clipping the portrait; added a 24px margin. Explicitly deprioritized further precision here — the roster UI needs a fuller rework for the eventual 78-card scale.
 **Recent (2026-08-18):** Codex overlay (Epics 18/19) — guild stats + fallen-heroes list, reachable from Main Menu and Pause Menu, portraits via `PortraitSocket`. Latest News feed (Epic 6 / FR-19b) — drains Story 8.5's eavesdropped rumours into the World Map board. Reputation effects + 5-tier HUD display (Epic 14 / T3-2) — patron tip bonus, recruit stat bonus, moves on mission failure too now. Rumour-driven missions (Epic 6) — eavesdropped rumours now have a chance to spawn a real, dispatchable mission on the map. Save-overwrite window fixed (Epic 11) — New Game force-saves the moment the tavern loads. Class list reconciled (Epic 4) — dropped Ranger, renamed Cleric→Healer to match the GDD's 4-class set, which every other file already used. Patron FSM granularity (Epic 8) — split SITTING_WAITING into SEATED/WAITING_SERVICE; corrected an unsourced "6-state" claim in this doc along the way. Real patron sit/cheer/stand-up animations (Epic 8) — the KayKit models had them all along; replaced the old scale-squash placeholder. Loot & equipment (Epic 12) — spec'd and built same day; `roll_loot()` was dead code until now, plus fixed a pre-existing bug where mission reports showed the reward range instead of the actual amount paid out.
 **Recent (2026-07-15):** serve beer-emote · Story 8.5 eavesdropping · player+patron position restore · Story 8.4 ambient chat.
 **Not started:** Epics 5, 9, 10, 15, 16, 17, 20, 21, 22, 23; Epic 24 Audio ~15% (SfxManager + coin SFX).
@@ -142,7 +143,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 4: The Adventurer Roster
-**Status: ~87% — 4.1 / 4.4 / 4.5 DONE (2026-07-08). 4.3 portrait socket now BUILT (Story 7.5) — renders class silhouettes today, Guilo's Tarot art swaps in via data with zero code change. Class list reconciled 2026-08-18. Only 4.2 hire-UI polish + the duplicate-generator consolidation remain.**
+**Status: ~88% — 4.1 / 4.4 / 4.5 DONE (2026-07-08). 4.3 portrait socket now BUILT (Story 7.5) — renders class silhouettes today, Guilo's Tarot art swaps in via data with zero code change. Class list reconciled 2026-08-18. Duplicate recruit names + roster portrait clipping fixed 2026-08-20. Only 4.2 hire-UI polish + the duplicate-generator consolidation remain.**
 
 ### Story 4.1: Daily Hire Pool Generation — ✅ DONE
 - [x] 3–5 recruits/day from config (`hire_pool_min/max`)
@@ -159,6 +160,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] Panel renders name, class+level, color-coded status, wage; greys non-Ready; refreshes on roster/day change (audit done)
 - [x] **Tab-toggle display bug fixed** (2026-07-12) — panel derived open/closed from the animating `position.x` and force-showed on every roster change, so Tab raced the slide and often hid instead of showing ("adventurers not displaying"). Now uses an explicit `is_open` flag + single reused tween; Tab is the sole authority
 - [x] **Portrait socket wired** (Story 7.5) — roster panel + recruitment popup render `PortraitSocket.resolve_texture(adventurer)`: Tarot portrait when present, else class portrait, else class-colored silhouette (never blank). Guilo's Tarot art drops in via `adventurer.portrait` with **zero code change**
+- [~] **Portrait clipping partially fixed** (2026-08-20) — the panel's slide-in `SHOWN_X` landed exactly `1920 - panel_width`, i.e. flush with the screen's right edge with zero margin, clipping the portrait's right side. Added a 24px margin (`SHOWN_X` 1570→1546). Raphael explicitly deprioritized further precision here — this card layout needs a fuller rework once the roster scales to a full 78-card deck
 - [ ] Remaining delta: show Tarot card name + drink pref, un-hardcode wage display, "Returns in N days" countdown
 
 ### Story 4.4: Daily Wage Deduction — ✅ DONE (verified unit + integration)
@@ -175,6 +177,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ### Still pending
 - [x] **Portrait socket** — BUILT (Story 7.5): `scripts/ui/portrait_socket.gd` `PortraitSocket.resolve_texture()` (Tarot → class portrait → class-colored silhouette), wired into roster panel + recruitment popup. Guilo's art swaps in via data only
 - [x] **Class list reconciled** (2026-08-18) — was 5 (Fighter/Rogue/Mage/Ranger/Cleric) vs. the GDD MVP's 4 (Fighter/Rogue/Mage/Healer). `class_colors.json`, `data/characters/classes.json`, and `recruitment_popup.gd` already used the GDD's 4; the active path (`game_config.json` + `GameManager.generate_fallback_recruits()`) was the one that had drifted — reconciled to match. See TECH_DEBT.
+- [x] **Duplicate recruit names fixed** (2026-08-20) — `generate_fallback_recruits()` picked a random name with no uniqueness check against the existing roster, so two adventurers could end up sharing a name (e.g. two "Nina"s, caught live via a roster screenshot). Now filters out names already on the roster before picking, falling back to a repeat only if the whole pool is exhausted.
 - [ ] Duplicate recruit generator in `DataManager` (parallel to the active GameManager path) — consolidate in 4.3 (see TECH_DEBT)
 
 ---
@@ -191,7 +194,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 6: World Map, World Generation & Mission Dispatch
-**Status: ~65% — Generation + distance-aware placement work; Latest News feed + rumour-driven missions shipped (2026-08-18); mission count / group-mission display still need rework**
+**Status: ~70% — Generation + distance-aware placement work; Latest News feed + rumour-driven missions shipped (2026-08-18); mission-count display cap fixed (2026-08-20); post-30-day group-mission display still needs rework**
 
 - [x] **Hex map generation** — seeded RNG, simplex noise + radial falloff, biomes (sea/grass/forest/mountain)
 - [x] **Settlement placement** — configurable count, minimum spacing enforcement
@@ -209,9 +212,10 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [~] **Pre-dispatch panel** (FR-19) — mission board shows info, but unclear if full "estimated success %" is shown before confirm
 - [x] **Latest News feed** (FR-19b, 2026-08-18) — top-left panel on the World Map board drains `WorldManager.overheard_rumours` (Story 8.5), 5 most recent, newest first; placeholder message when empty. `scenes/world/world_map_board.gd`
 - [x] **Rumour-driven missions** (2026-08-18) — eavesdropped rumours are no longer pure flavor: each has a `rumour_mission_chance` (default 20%, `game_config.json`) to also spawn a real, dispatch-ready mission via `PatronSpawner._maybe_spawn_rumour_mission()` + `WorldManager.assign_one_mission()` (reuses the same tiered generator and distance-band placement as the daily refresh). Latest News shows a follow-up line when it happens.
+- [x] **Mission-count display cap fixed** (2026-08-20) — `DataManager.generate_daily_missions_with_tiers()` used `for i in range(min(count, available_templates.size()))`, so whenever a tier's template pool was smaller than the requested count, the board silently showed fewer missions. Tier 1 (the whole first ~30 days, before the first tax unlocks Tier 2) only has 4 templates total, so the board was hard-capped at 4 regardless of the requested 6. Fixed by cycling the shuffled template pool with wrap-around (`available_templates[i % available_templates.size()]`) so the requested count always generates; `add_mission_variety()` still randomizes each repeat's name/location/client so duplicates don't read as identical. Tier 2/3 (12/19 templates) were already unaffected. Verified headless (Tier 1: 4→6 missions generated and placed on hexes) and live in-game via the World Map board.
 - [ ] **Hex Strategy Map plugin evaluation** — not documented
 - [~] **World NOT yet saved to disk** per WorldManager comment: "Saving to disk is a later step (gated on the load-game fix)"
-- **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). Still to rework: only ~3-4 missions shown at once, and post-30-day group missions aren't displayed.
+- **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). ~~only ~3-4 missions shown at once~~ **fixed 2026-08-20**. Still to rework: post-30-day group missions aren't displayed.
 
 ---
 
@@ -234,12 +238,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 8: PatronNPC Systems & Ambient Life
-**Status: ~80% — core loop solid (5 patrons, serve, coin reward); Stories 8.4 ambient chat + 8.5 eavesdropping done; FSM granularity + real sit/cheer/stand animations both landed 2026-08-18.**
+**Status: ~80% — core loop solid (5 patrons, serve, coin reward); Stories 8.4 ambient chat + 8.5 eavesdropping done; FSM granularity + real sit/cheer/stand animations landed 2026-08-18; animation-hang regression fixed 2026-08-20.**
 
 - [x] **PatronNPC FSM** (5 states, 2026-08-18) — `WALKING_TO_TABLE → SEATED → WAITING_SERVICE → DRINKING → LEAVING`. Was 4 states (`SITTING_WAITING` collapsed "just sat" and "wants service, indicator showing" into one). **Correction:** the previously-noted "architecture specifies 6 states (WALKING→SEATED→WAITING→SERVED→DRINKING→LEAVING)" wasn't sourced from any design doc — checked all of them; it existed only as this bullet's own claim. Split `SITTING_WAITING` into `SEATED`/`WAITING_SERVICE` (a real, observable behavioral gap). `RealisticPatron.gd`.
 - [x] **NavigationAgent3D movement** — patrons walk to table, walk to exit
 - [x] **Random model swap** — picks from 5 KayKit adventurer GLBs per patron
 - [x] **Real sit/cheer/stand-up animations** (2026-08-18) — all 5 patron GLBs turned out to already carry `Sit_Chair_Down/Idle/StandUp` and `Cheer` (missed on the first FSM-granularity pass, which wrongly claimed no fitting animation existed). Arriving plays Sit_Chair_Down → Sit_Chair_Idle; being served plays Cheer → back to Sit_Chair_Idle; the drinking timer firing plays Sit_Chair_StandUp before the patron actually gets up and walks out. Replaces the old `scale.y = 0.8/1.0` squash-hack. Locomotion (`Idle`/`Running_A`) unchanged.
+- [x] **Animation-hang regression fixed** (2026-08-20) — the 2026-08-18 animation work used `await animation_player.animation_finished` in `_arrive_at_table()` and `on_drinking_timer_timeout()`, which hung indefinitely under real gameplay and permanently stranded patrons (no service indicator, pressing E did nothing — a real, caught-live regression). Never reproduced by headless tests because they called the functions directly, skipping the real navigation-signal-triggered async flow that actually exposed the hang. Fixed by switching to `SceneTree.create_timer()` waits (`_SIT_DOWN_SECONDS` / `_CHEER_SECONDS`) instead of the AnimationPlayer signal.
 - [x] **Service system** — player within 3.0m; patron shows a **beer-mug emote** above the head (2026-07-15, replaced the old yellow sphere)
 - [x] **Timer-based behavior** — sit 2-5s, drink 8-15s
 - [x] **Table management** — 5 positions, occupied tracking, availability check
