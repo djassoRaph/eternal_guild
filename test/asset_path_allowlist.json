@@ -1,0 +1,19 @@
+{
+	"schema_version": 1,
+	"_comment": "Known gaps for failsafe Test 5 (asset-path integrity). Every entry needs a reason and an owner. Exact paths and invalid-JSON entries are stale-guarded: the test FAILS once they are fixed, so the fixing story must remove its entry.",
+	"missing_paths": [
+		{
+			"path": "res://assets/characters/models/kaykit_adventurers/Cleric.glb",
+			"reason": "Healer model not built yet",
+			"owner": "Story 25.9"
+		}
+	],
+	"missing_prefixes": [
+		{
+			"prefix": "res://assets/characters/portraits/tarot/",
+			"reason": "Tarot art unfunded; demo uses class silhouettes (decision D-1, 2026-09-24)",
+			"owner": "Epic 17 / Story 26.13 / commission"
+		}
+	],
+	"known_invalid_json": []
+}
