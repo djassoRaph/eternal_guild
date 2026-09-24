@@ -9,14 +9,15 @@ Your sticker, Odoo, and Prodigi workflows are untouched and aren't used here.
 
 ## One-time setup
 
-1. Pull this branch on your PC, so that `tools/n8n/` exists inside your project folder.
-2. In n8n, go to **Workflows → Import from File** and pick `tools/n8n/eternal_guild_asset_images.json`.
-3. Open the **Load Jobs** node and check its CONFIG block (these are the only lines you should edit):
-   - `PROJECT_DIR`: your repo as a WSL path. The default is `/mnt/f/GAME I AM MAKING/shiningsun`.
-   - `ART_DIR`: the art folder, kept **outside** the Godot project. The default is
-     `/mnt/f/GAME I AM MAKING/eternal_guild_art`, and it's created on the first run.
-4. The workflow needs the same n8n environment as the sticker pipeline: `GEMINI_API_KEY`, `$env` access, and the
-   `fs`, `path`, and `https` modules allowed in Code nodes. If the sticker pipeline runs, there's nothing new to set up.
+1. In n8n, go to **Workflows → Import from File** and pick `eternal_guild_asset_images.json`. If you already imported
+   an older version, delete that one first.
+2. That's it. The workflow uses the n8n instance your sticker pipeline runs on, so `GEMINI_API_KEY` and the rest are
+   already set. You don't need the game repo on disk either: the prompts are built into the **Load Jobs** node.
+3. Everything goes into `F:\raphael reck societe roots time corporation\Roots Time Projects\ART STICKERS\eternal_guild_art\`
+   (created on the first run). The sticker pipeline only reads `ART STICKERS\input`, so the two don't mix.
+   To use another folder, change `ART_DIR` in the CONFIG block of **Load Jobs**. It must be a folder n8n can see.
+4. The first run writes `eternal_guild_art\asset_prompts.json`. After that, edit **that file** to change prompts or
+   switch Batch 2 on. `tools/n8n/asset_prompts.json` in the repo is the master copy the node was built from.
 
 ## The loop: run → pick → run again
 
@@ -46,7 +47,7 @@ Your sticker, Odoo, and Prodigi workflows are untouched and aren't used here.
   A missing API key, a broken `asset_prompts.json`, or a corrupt `status.json` stops the run with a clear error.
 - **Batch 2:** set `"enabled": true` on a job in `asset_prompts.json`.
 - **`generated/catalog.csv`** logs every image with its prompt and model. Keep it for Steam's AI-content disclosure.
-- **Prompts:** `asset_prompts.json` mirrors the prompt pack doc. If you change a prompt in one, change it in the other.
+- **Prompts:** the prompt list mirrors the prompt pack doc. If you change a prompt in one, change it in the other.
 
 ## Not included (on purpose, for v1)
 
