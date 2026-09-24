@@ -256,7 +256,12 @@ func _show_bubble(rec: Dictionary, mouse_pos: Vector2) -> void:
 	_bubble_biome.text = _biome_line(rec.get("biome", ""))
 
 	var mission = rec.get("active_mission", null)
-	if mission != null:
+	if rec.get("is_ruin", false) and not rec.get("ruin_discovered", false):
+		# Story 6.3: the undiscovered ruin next to the tavern shows no further detail.
+		_bubble_biome.text = "Unknown Ruins"
+		_bubble_mission.visible = false
+		_bubble_danger.visible = false
+	elif mission != null:
 		_bubble_mission.text = "Work available: " + mission.get("name", "Unknown")
 		_bubble_mission.visible = true
 		var danger: int = mission.get("danger", 1)

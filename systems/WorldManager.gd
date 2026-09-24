@@ -54,6 +54,14 @@ func load_save_data(data: Dictionary) -> void:
 	print("[WorldManager] Restored world: ", world_map.size(), " hexes")
 
 
+## Can this hex hold a generic mission? Not the tavern, a settlement, a locked hex, the sea,
+## or the reserved Prior Ruins hex (hidden until discovered, Story 6.2 / 25.2).
+## Static so the headless failsafe suite can test it without the DataManager autoload.
+static func is_mission_eligible(hex: Dictionary) -> bool:
+	return not (hex.get("is_center", false) or hex.get("is_zone", false) or hex.get("locked", false)
+		or hex.get("biome", "") == "sea" or hex.get("is_ruin", false))
+
+
 func assign_missions_to_hexes(missions: Array) -> void:
 	if world_map.is_empty():
 		return
@@ -66,7 +74,7 @@ func assign_missions_to_hexes(missions: Array) -> void:
 	var center_coord := _center_coord()
 	var eligible: Array = []
 	for hex in world_map:
-		if hex.get("is_center", false) or hex.get("is_zone", false) or hex.get("locked", false) or hex.get("biome", "") == "sea":
+		if not is_mission_eligible(hex):
 			continue
 		eligible.append({"hex": hex, "d": _hex_distance(center_coord, _coord_of(hex))})
 	if eligible.is_empty():
@@ -103,7 +111,7 @@ func assign_one_mission(mission: Dictionary) -> bool:
 	var center_coord := _center_coord()
 	var eligible: Array = []
 	for hex in world_map:
-		if hex.get("is_center", false) or hex.get("is_zone", false) or hex.get("locked", false) or hex.get("biome", "") == "sea":
+		if not is_mission_eligible(hex):
 			continue
 		if hex.get("active_mission", null) != null:
 			continue

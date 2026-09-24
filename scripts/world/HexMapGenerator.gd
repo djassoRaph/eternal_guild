@@ -98,6 +98,8 @@ const SEA_DECOR := [
 ]
 
 const TAVERN_TOPPER := "res://assets/environment/hexagons/blue/building_tavern_blue.gltf"
+# Prior Ruins (08 card D1), reserved on one land hex next to the tavern (Story 6.2 / 25.2).
+const RUIN_TOPPER := "res://assets/environment/custom/d1_prior_ruins.gltf"
 
 # Each settlement gets a distinct building — shuffled per seed.
 const ZONE_BUILDINGS := [
@@ -152,15 +154,8 @@ func generate_and_reveal() -> void:
 
 	if randomize_seed_on_generate:
 		map_seed = randi()
-	_rng.seed = map_seed
-	_noise.seed = map_seed
-	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	_noise.frequency = noise_frequency
-	print("[HexMapGenerator] Generating world with seed: ", map_seed)
-
 	_clear_map()
-	_records = _build_records()
-	_resolve_visuals()
+	_generate_records()
 
 	for rec in _records:
 		if rec.is_zone:
@@ -168,6 +163,47 @@ func generate_and_reveal() -> void:
 				[rec.id, str(rec.coord), rec.biome, rec.location_name])
 
 	_run_reveal()
+
+
+## Seed the RNG + noise from map_seed and build every record (no scene nodes, no reveal).
+## Split out of generate_and_reveal() so tests can generate a world headless.
+func _generate_records() -> void:
+	_rng.seed = map_seed
+	_noise.seed = map_seed
+	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	_noise.frequency = noise_frequency
+	print("[HexMapGenerator] Generating world with seed: ", map_seed)
+	_records = _build_records()
+	_resolve_visuals()
+	_reserve_ruin()
+
+
+## Story 6.2: reserve one land hex next to the tavern for the Prior Ruins (D1), hidden until
+## discovered. Picked from the seed WITHOUT drawing from _rng, so every other hex stays
+## identical for a given seed. Runs after _resolve_visuals(); only the chosen hex's topper changes.
+func _reserve_ruin() -> void:
+	var by_coord := {}
+	for rec in _records:
+		by_coord[rec.coord] = rec
+	var preferred := []   # grass / forest / mountain
+	var fallback := []    # coast, only if no better land touches the tavern
+	for c in _neighbors_of(CENTER_COORD):
+		var rec = by_coord.get(c)
+		if rec == null or rec.is_zone or rec.is_center:
+			continue
+		if rec.biome in ["grass", "forest", "mountain"]:
+			preferred.append(rec)
+		elif rec.biome == "coast":
+			fallback.append(rec)
+	var pool := preferred if not preferred.is_empty() else fallback
+	if pool.is_empty():
+		push_warning("[HexMapGenerator] ruin: no land hex next to the tavern — none reserved.")
+		return
+	var pick: Dictionary = pool[posmod(map_seed, pool.size())]
+	pick["is_ruin"] = true
+	pick["ruin_discovered"] = false
+	pick.topper_paths = [RUIN_TOPPER]
+	print("[HexMapGenerator] ruin: %s at %s biome=%s" % [pick.id, str(pick.coord), pick.biome])
 
 
 # ── World building ────────────────────────────────────────────────────────────
