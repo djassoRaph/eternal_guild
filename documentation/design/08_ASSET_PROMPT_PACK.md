@@ -60,6 +60,13 @@ below avoids it. Claude either **rebuilds** the asset in low-poly or **remaps** 
 | The Priors | weathered pale stone, **teal glowing runes**, hourglass motifs |
 | Tone ceiling | melancholy and weathered. Never glamorous, never gory |
 
+**Target look (locked 2026-09-24): inked.** The style reference is the commissioned tavern
+artwork, saved as `<art>/refs/commission_tavern_pillar.webp`: confident black outlines, flat
+colours with two or three tones per material, hard Mignola-style shadow shapes. In game, most of
+this look comes from the edge-detection outlines, the flat atlas colours and hard lighting, not
+from the models, so the modelling rules above don't change. Picked key art: K1 inked v1, K2 =
+style test S2 v1 (it came out inked despite its "pixel" prompt), K3 inked v1.
+
 ---
 
 ## 2. The pipeline
@@ -75,7 +82,10 @@ Stage D  Check in Godot   under the real shader + camera  → keep / redo / kill
 **Stage A is automated.** `tools/n8n/` holds an n8n workflow that sends these prompts to Nano Banana
 (Gemini) in three layers: key art → object concepts → front/side/top reference views. You pick
 the best image at each layer. See `tools/n8n/README.md`. You can still paste prompts by hand into
-any generator.
+any generator. **Views layer (tried 2026-09-24):** Nano Banana mostly redraws the concept's own
+three-quarter angle instead of turning to front, side or top, so the views jobs are switched off.
+Model from the picked concept plus the card's sizes, comparing screenshots taken at the same
+30°/45° camera angle.
 
 **Route 1: Claude builds it (the default).** Use it for buildings, furniture, ruins, and
 anything hard-edged. Claude writes Blender Python through the MCP, builds from primitives,
@@ -114,7 +124,10 @@ clean single-object reference for Route 1:
 
 **Optional pixel preview.** Add *"rendered as crisp high-resolution pixel art with dithered
 shading"* to any key-art prompt to preview roughly how it'll look under the in-game shader.
-Use the non-pixel version as the modelling reference.
+Use the non-pixel version as the modelling reference. **Caveat (seen 2026-09-24):** when a
+reference image is attached, Nano Banana copies the reference's style and ignores this. For a
+faithful preview, pixelate the image locally instead: the tavern renders at half resolution
+(`stretch_shrink = 2` in `MainTavern.tscn`), so downscale ×2 and upscale ×2 with nearest-neighbour.
 
 ---
 
@@ -124,63 +137,84 @@ Use the non-pixel version as the modelling reference.
 |---|---|---|---|
 | 0 | **K1–K3 key art** (tavern exterior, interior, world map) | Locks the look for everything. Also useful as Kickstarter art | Stage A only |
 | 1 | **D1 Prior Ruins** (the **gate** asset) | Small, and unique to your world (KayKit has nothing like it). Tests every pipeline step, including the teal glow | 1 |
-| 2 | **A1 + A2 The Guild Tavern** (walkable exterior + hex-centre miniature) | The first thing the player sees on both screens. Today it's KayKit's blue-team RTS tavern | 1 |
-| 3 | **B1 The Hearth** | Core interaction (the fire minigame). Today it's 3 grey boxes | 1 |
-| 4 | **B2 The Bar** | Second core interaction, and it sets the interior's tone | 1 |
-| 5 | **D2 Demon Cult Shrine** | Gives the map a visible threat. No KayKit equivalent | 1 |
-| 6 | **D3 Dragon's Lair** | Highest-tier mission site. No KayKit equivalent | 1 (+2 for the skull) |
+| 2 | **B6 The Hourglass Pillar** | The hall's centrepiece and a named Kickstarter visual. Built right after D1 proves the pipeline (moved up from Batch 2 on 2026-09-24) | 1 |
+| 3 | **A1 + A2 The Guild Tavern** (walkable exterior + hex-centre miniature) | The first thing the player sees on both screens. Today it's KayKit's blue-team RTS tavern | 1 |
+| 4 | **B1 The Hearth** | Core interaction (the fire minigame). Today it's 3 grey boxes | 1 |
+| 5 | **B2 The Bar** (now the round bar around the pillar) | Second core interaction, and it sets the interior's tone | 1 |
+| 6 | **D2 Demon Cult Crypt** (redesigned from the open-pit shrine) | Gives the map a visible threat, and it's the entrance to the cult's dungeon. No KayKit equivalent | 1 |
 
-**Batch 2** (only after Batch 1 is in the game): B6 Hourglass Pillar (your STATE doc parks it
-until the reveal ships, so keep that decision), B3 Recruitment Desk, B4 Mission Board, B5 Wall of
-the Fallen, D4–D7.
+**Batch 2** (only after Batch 1 is in the game): D3 Dragon's Lair (moved out of Batch 1 on
+2026-09-24 to keep the cap at 6), B3 Recruitment Desk, B4 Mission Board, B5 Wall of the Fallen,
+D4–D7.
 **Backlog:** everything else marked *backlog* below.
 
 ---
 
 ## 4. Stage A: Key art (style lock)
 
-These work in any generator. For Midjourney, append `--ar 16:9 --style raw --no text, watermark`.
+Style locked on 2026-09-24 (§1): **inked**. Every prompt below is sent together with the
+commission as a reference image (`<art>/refs/commission_tavern_pillar.webp`). These prompts
+mirror `tools/n8n/asset_prompts.json`. The first-round "cozy render" prompts are superseded, but
+their images stay in the gallery.
 
-### K1: Tavern exterior at dusk
+### K1: Tavern exterior at night
 
-> Stylized low-poly 3D fantasy game scene, isometric view from 30 degrees above,
-> orthographic camera. A cozy two-storey adventurers' guild tavern at dusk on a small grassy
-> rise beside a dirt road: heavy timber frame over a pale stone ground floor, steep dark red
-> shingle roof, a crooked stone chimney with a thin line of smoke, warm amber light glowing
-> from small square windows, a hanging wooden sign with an hourglass-inside-a-flame emblem,
-> barrels and stacked firewood by the door, a lantern on a post. Chunky toy-like
-> proportions, flat-shaded faces with soft vertical colour gradients, bevelled edges, no fine
-> texture detail, low-poly strategy-game diorama style. Strong graphic shadow shapes (Mike
-> Mignola inspired lighting), cool blue-violet dusk sky against the warm windows. Melancholy
-> and inviting. Muted palette: timber brown, pale stone grey, dark red roof, amber light, deep
-> blue shadow.
+> Use the attached reference illustration for the art style, the colour palette and this exact
+> building's design (the same half-timbered guild tavern), but show the whole building from
+> outside, not a cutaway. Isometric view from 30 degrees above, orthographic camera. The two-
+> storey guild tavern at night: a pale stone ground floor, white plaster and dark timber-
+> framed upper storey, steep dark red shingle roofs with a slightly curved ridge, two stone
+> chimneys with thin smoke, warm amber light glowing from small arched windows, a heavy arched
+> wooden door with a hanging lantern, a hanging wooden sign with an hourglass-inside-a-flame
+> emblem, barrels by the door, a cobblestone path leading to the door, one small cloaked
+> traveller approaching. Around it: gnarled leafless trees, big rounded boulders, rough grass,
+> a dirt road. Style: hand-inked comic illustration like the reference: confident variable-
+> weight black outlines, light hatching, flat colours with two or three tones per material,
+> hard graphic shadow shapes (Mike Mignola inspired). Cold blue-violet night against warm
+> amber windows. Melancholy and inviting. The building keeps chunky, simple, readable shapes,
+> like a stylised game building. No text.
 
-### K2: Tavern interior at night
+### K2: Tavern interior with the Hourglass Pillar
 
-> Stylized low-poly 3D fantasy game interior, isometric cutaway view from 30 degrees above,
-> orthographic camera, two walls removed so we see inside. A large timber-and-stone guild
-> tavern hall at night: a big stone hearth with a roaring fire, a long wooden bar with kegs
-> and bottles on back shelves, heavy round tables and benches, a recruitment desk with an
-> open ledger and a candle, a notice board covered in pinned mission papers, a wooden
-> staircase to an upper floor, a quiet corner with one empty chair and candles beneath small
-> framed name plaques. Warm amber firelight pooling on the floor, deep soft shadows in the
-> corners, Studio Ghibli warmth. Chunky toy-like proportions, flat-shaded faces with soft
-> colour gradients, bevelled edges, no fine texture detail, low-poly game asset style.
-> Palette: honey and dark timber, pale grey stone, amber and ember-orange light, a few deep
-> red cloth accents.
+The picked interior came from the style test (job `S2_interior_pillar_pixel`, v1): the prompt
+asked for pixel art, but the reference image won and it came out inked. The inked version of
+the same prompt (job `S1_interior_pillar_inked`):
+
+> Use the attached reference illustration for the room layout, the central pillar with its
+> round bar, and the mood. Isometric cutaway view from 30 degrees above, orthographic camera,
+> two walls and part of the roof removed so we see inside a timber-and-stone adventurers'
+> guild tavern hall at night. In the exact centre of the hall an ancient pale-stone pillar
+> rises up through a round opening in the wooden floor from the cellar below: its shaft is
+> carved with bands of glowing teal runes, and set into its middle is a large hourglass of
+> dark bronze and glass filled with glowing teal sand. A round wooden bar counter encircles
+> the base of the pillar, its front panels carved with more teal runes, with simple bar stools
+> around it. Around the room: a big stone hearth with a warm fire, tall back shelves of
+> bottles and a large barrel on its side, a notice board with pinned papers, a recruitment
+> desk with an open ledger and a candle, a few round tables, a wooden staircase. The warm
+> amber firelight fights the cold teal glow of the pillar. Melancholy, mysterious and
+> inviting. Plain dark background around the cutaway, no people, no text. Also match the
+> reference's drawing style: bold dark ink outlines on every silhouette and major edge, flat
+> colours with only two or three tones per material, hard graphic shadow shapes (Mike Mignola
+> inspired). But it must still read as a low-poly 3D game model: chunky toy-like proportions,
+> simple blocky shapes, flat-shaded faces, no fine texture detail, no painterly brush marks.
+> Palette: honey and dark timber, pale grey stone, amber firelight, deep blue-violet shadow,
+> teal glow.
 
 ### K3: World map
 
-> Stylized low-poly 3D hex-tile world map of a small island, isometric view from 50 degrees
-> above, orthographic. Hexagonal tiles: grassland, pine forests, rocky mountains with a dark
-> cave, a winding river with a stone bridge, a coastline with shallow turquoise water. A cozy
-> tavern with a red roof on the centre tile. Scattered landmark tiles: crumbling pale-stone
-> ancient ruins with glowing teal runes, a jagged black shrine with a magenta-red glow, a
-> bandit camp with a log palisade and campfire, a small mining village in the mountains, a
-> watchtower near the coast. Chunky toy-like diorama proportions, flat-shaded faces, soft
-> colour gradients, clean silhouettes, low-poly board-game look. Soft daylight, one side of
-> the island darker and more foreboding. Palette: fresh greens, sand, pale stone, blue-teal
-> sea, small accents of teal glow and magenta-red.
+> Use the attached reference illustration only for the art style and colour palette, not for
+> its content. Isometric view from 50 degrees above, orthographic: a hex-tile world map of a
+> small island, like a board-game diorama. Hexagonal tiles: grassland, pine forests, rocky
+> mountains with a dark cave, a winding river with a stone bridge, a coastline with shallow
+> turquoise water. A small guild tavern with a dark red roof on the centre tile. Scattered
+> landmark tiles: crumbling pale-stone ancient ruins with glowing teal runes, a jagged black
+> shrine with a magenta-red glow, a bandit camp with a log palisade and campfire, a small
+> mining village in the mountains, a watchtower near the coast. Style: hand-inked comic
+> illustration like the reference: confident variable-weight black outlines, light hatching,
+> flat colours with two or three tones per material, hard graphic shadow shapes (Mike Mignola
+> inspired). Late-afternoon light, one side of the island darker and more foreboding. Clean,
+> readable hex edges and silhouettes. Palette: muted greens, sand, pale stone, blue-teal sea,
+> small accents of teal glow and magenta-red. No text, no labels.
 
 ---
 
@@ -244,19 +278,31 @@ and nothing is ever seen from below.
   > faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric view from 30
   > degrees above, plain light-grey background.
 
-#### B2: The Bar · Batch 1 · Route 1
+#### B2: The Bar (round, around the pillar) · Batch 1 · Route 1
+- **Decided 2026-09-24:** the bar is a full ring around the Hourglass Pillar (B6) from day one,
+  as in the commissioned artwork. Early on only a stub of the pillar shows inside it.
 - **In game:** the `BarArea` interaction. It replaces `BarCounter` and the local-only
-  `TavernCounterCircular.glb`.
-- **Size:** counter 1.1 m high × 0.7 m deep, ~5 m long (match your current layout: straight or L).
-  The back shelf is 2.5 m tall.
-- **Budget:** ≤ 6,000 tris total, split into `bar_counter`, `back_shelf`, `keg_rack`.
-- **Concept prompt:**
-  > Stylized low-poly 3D game asset: a long wooden tavern bar. A thick honey-coloured plank top
-  > on a dark timber base with simple panels, a brass foot rail, three tankards and a cloth on
-  > the counter. Behind it, a tall back shelf with rows of bottles, a rack of three big wooden
-  > kegs with taps, and a small chalkboard. Warm and well-used. Chunky toy-like proportions,
-  > flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric
-  > view from 30 degrees above, plain light-grey background.
+  `TavernCounterCircular.glb`, and sits centred on the pillar.
+- **Size:** counter 1.1 m high × 0.7 m deep, ring ~4.5 m across (⚑ check against the hall: the floor
+  is 20 × 24 m). Leave a round floor opening in the centre for the pillar.
+- **Budget:** ≤ 6,000 tris total. Separate objects: `bar_ring`, `bar_flap` (the hinged way in),
+  and rune panels on `emissive_prior_teal` faces. The old back shelf and keg rack become wall
+  props (backlog).
+- **Stools are their own asset**, `bar_stool` (≤ 150 tris, exported as its own `.gltf`), so any
+  number can be placed around the ring. Each carries an empty `seat_point` at seat height, facing
+  the bar, for NPCs to sit on (see §7). Compare with the existing
+  `assets/environment/decorations/stool.obj` first and reuse it if it fits the inked look. The
+  concept draws stools in, but the B2 reference views leave them out on purpose.
+- **Concept prompt:** mirrors job `B2_bar` (concept) in `tools/n8n/asset_prompts.json`:
+  > Stylized low-poly 3D game asset: the round tavern bar from the reference image, shown on its
+  > own. A full ring of bar counter about 4.5 metres across with one hinged flap to get inside, a
+  > thick honey-coloured plank top on a dark timber base, the outer face divided into panels
+  > carved with glowing teal runes, a brass foot rail, a few tankards and a cloth on the counter,
+  > a ring of simple wooden bar stools around it. In the empty centre of the ring, a round
+  > opening in the wooden floor where a pillar will stand: show the opening only, no pillar.
+  > Warm and well-used. Chunky toy-like proportions, flat-shaded faces, soft colour gradients,
+  > bevelled edges, no fine texture detail. Isometric view from 30 degrees above, plain
+  > light-grey background.
 
 #### B3: Recruitment Desk · Batch 2 · Route 1
 - **In game:** the `RecruitmentDesk` area. The current `MissionDesk` box is 2 × 1.2 m, with its top at 0.9 m.
@@ -294,19 +340,27 @@ and nothing is ever seen from below.
 - *Backlog sibling:* the **Dragon Eye Book** (Epic 18 Codex set-piece): a huge tome on a lectern
   with a dragon-eye clasp that glows.
 
-#### B6: The Hourglass Pillar · Batch 2 (parked until the reveal ships) · Route 1
-- **Your design spec for this lives outside this repo. Reconcile with it before using this prompt.
-  If they disagree, the spec wins.**
-- Prior stonework in the cellar, excavated in stages as the tavern upgrades. Build it as **stacked
-  segments** (buried → base → shaft → capital with hourglass) so upgrade tiers can reveal them in
-  code.
-- **Concept prompt:**
-  > Stylized low-poly 3D game asset: an ancient pale-stone pillar half-excavated from a cellar
-  > floor, its surface carved with bands of glowing teal runes, and at its top a large hourglass
-  > of dark bronze and glass set into the stone, sand trickling. Rubble and a wooden excavation
-  > scaffold around its base. Mysterious, patient, very old. Chunky toy-like proportions,
-  > flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric
-  > view from 30 degrees above, plain light-grey background.
+#### B6: The Hourglass Pillar · Batch 1 (right after D1) · Route 1
+- **Decided 2026-09-24** (Story Bible §1): rooted in the cellar, it rises through the middle of
+  the main hall inside the round bar (B2). Early on only a worn stub shows above the floor; each
+  tavern upgrade reveals more of it. Fully revealed, it matches the commissioned artwork.
+- **Your older design spec for this lives outside this repo.** Where it disagrees with the decision
+  above, flag it rather than picking silently.
+- Build it as **stacked segments**, each its own object, so upgrade tiers can reveal them in code:
+  `pillar_foundation` (cellar part) → `pillar_base` → `pillar_shaft` (rune bands on
+  `emissive_prior_teal` faces) → `pillar_hourglass` (bronze frame + glass, sand on
+  `emissive_prior_teal`) → `pillar_capital` (broken crown).
+- **Size:** ⚑ roughly 1.2 m wide, reaching ~3.5 m above the hall floor at full reveal (walls are 4 m).
+- **Concept prompt:** mirrors job `B6_hourglass_pillar` (concept) in `tools/n8n/asset_prompts.json`:
+  > Stylized low-poly 3D game asset: the ancient pale-stone hourglass pillar from the centre of
+  > the reference image, shown on its own and fully excavated. Built as clearly stacked segments
+  > from bottom to top: a wide rough foundation block (the part buried in the cellar), a thick
+  > base drum, a shaft carved with bands of glowing teal runes, a large hourglass of dark bronze
+  > and glass set into the middle of the shaft with glowing teal sand, and a broken crown-like
+  > stone capital at the top. Mysterious, patient, very old, weathered. No floor and no bar
+  > around it. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled
+  > edges, no fine texture detail. Isometric view from 30 degrees above, plain light-grey
+  > background.
 
 #### B7–B8 · backlog
 Stairs to the quarters and a bed (`NextDayArea`). An infirmary cot for wounded adventurers (Adventurer
@@ -371,18 +425,31 @@ Presence Layer C).
   > fine texture detail, low-poly board-game diorama style. Plain light-grey background.
   > Palette: pale beige and grey stone, fresh green grass and moss, teal glow.
 
-#### D2: Demon Cult Shrine · Batch 1 · Route 1
-- **Budget:** ≤ 2,500 tris. Swatches: `charcoal`, `iron`, `cloth_red`, `bone_white`. Glow uses `emissive_demon`.
-- **Concept prompt:**
-  > Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single
-  > hexagonal tile of scorched dark earth: a jagged black-stone altar ringed by five tall crooked
-  > obelisks, tattered dark red banners on poles, a pit in the centre glowing magenta-red, a few
-  > bone-white candles, dead grey grass at the edges. Ominous but not gory: no bodies, no
-  > blood. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges,
-  > no fine texture detail, low-poly board-game diorama style. Plain light-grey background.
-  > Palette: charcoal and iron-grey stone, dark red cloth, magenta-red glow, bone white.
+#### D2: Demon Cult Crypt · Batch 1 · Route 1
+- **Redesigned 2026-09-24:** a ruined gothic crypt, not an open pit. It's the surface entrance to
+  the cult's underground temple: "town on top, dungeon below", in the spirit of Diablo 1's
+  cathedral. Picked concept: job `D2_demon_crypt`, v2 (copied to `picked/D2_demon_shrine.png`, so
+  the D2 views job and the card id stay `D2_demon_shrine`). The stairway-in-the-ground version
+  (job `D2_demon_shrine` concept) lost.
+- **Budget:** ≤ 2,500 tris. Swatches: `charcoal`, `iron`, `cloth_red`, `bone_white`, `stone_dark`.
+  The glow from the doorway and the stairs uses `emissive_demon`. The spire is the tallest point
+  (keep it ≤ 2.0 m).
+- Only model the crypt, fence, gravestones and candles. The tile underneath is KayKit's own hex.
+- **Concept prompt** (mirrors job `D2_demon_crypt`):
+  > Match the art style, colour palette, lighting and level of detail of the attached
+  > reference image, but show only the subject described next. Stylized low-poly 3D hex tile
+  > game asset, isometric view from 30 degrees above. On a single six-sided hexagonal tile (a
+  > hexagon, not a square) of scorched dark earth: a small ruined gothic crypt of black stone:
+  > a squat mausoleum with a steep broken roof, a pointed-arch doorway, cracked buttresses and
+  > one jagged spire. Its heavy iron door hangs open onto a stone stairway descending into
+  > darkness, a faint magenta-red glow rising from far below. Tattered dark red banners on the
+  > walls, bone-white candles by the door, a few leaning gravestones, a rusted iron fence,
+  > dead grey grass at the tile's edges. Ominous but not gory: no bodies, no blood. Chunky
+  > toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine
+  > texture detail, low-poly board-game diorama style. Plain light-grey background. Palette:
+  > charcoal and iron-grey stone, dark red cloth, a faint magenta-red glow, bone white.
 
-#### D3: Dragon's Lair · Batch 1 · Route 1 (+ Route 2 for the skull)
+#### D3: Dragon's Lair · Batch 2 (moved 2026-09-24) · Route 1 (+ Route 2 for the skull)
 - A topper that brings its own rocky crag, similar in size to KayKit `mountain_A_grass`
   (1.8 × 1.9 m, 1.5 m tall). Height ≤ 1.8 m.
 - **Budget:** ≤ 3,000 tris. Rock is faceted boulders (Route 1). The skull may be Route 2, decimated to ≤ 600 tris.
@@ -640,6 +707,10 @@ Export <asset_id> for Godot:
   that hex offers, instead of picking one from `ZONE_BUILDINGS` at random.
 - **Swapping scene nodes:** one scoped prompt per asset for `MainTavern.tscn` / `ExteriorWorld.tscn`,
   after the asset passes Stage D.
+- **Seats from the scene:** today patrons sit at 4 hard-coded `table_positions` in
+  `scripts/npcs/PatronSpawner.gd`. Once stools with a `seat_point` are in the tavern, have the
+  spawner collect seats from the scene (for example a `patron_seat` group) and keep the hard-coded
+  list as a fallback. That's game code, so recon first per `04_PROCESS.md`.
 - **Licences and disclosure:**
   - Check each generator's commercial terms before anything ships.
   - Assets from Poly Pizza or Sketchfab: note the licence (CC-BY needs a credit in the README).
@@ -654,12 +725,13 @@ This table tracks each finished asset.
 
 | Asset | Route | Generator / source | Date | Status |
 |---|---|---|---|---|
-| K1 Tavern exterior key art | A | | | todo |
-| K2 Interior key art | A | | | todo |
-| K3 World map key art | A | | | todo |
-| D1 Prior Ruins (gate) | 1 | | | todo |
-| A1 + A2 Guild Tavern | 1 | | | todo |
-| B1 Hearth | 1 | | | todo |
-| B2 Bar | 1 | | | todo |
-| D2 Demon Cult Shrine | 1 | | | todo |
-| D3 Dragon's Lair | 1 (+2) | | | todo |
+| K1 Tavern exterior key art | A | Nano Banana (gemini-2.5-flash-image) via n8n, commission as ref | 2026-09-24 | picked: inked v1 |
+| K2 Interior key art | A | Nano Banana via n8n, commission as ref | 2026-09-24 | picked: S2 v1 (inked) |
+| K3 World map key art | A | Nano Banana via n8n, commission as ref | 2026-09-24 | picked: inked v1 |
+| D1 Prior Ruins (gate) | 1 | | | concepts generating |
+| B6 Hourglass Pillar | 1 | | | concepts generating |
+| A1 + A2 Guild Tavern | 1 | | | concepts generating |
+| B1 Hearth | 1 | | | concepts generating |
+| B2 Bar (round) | 1 | | | concepts generating |
+| D2 Demon Cult Crypt | 1 | | | concept picked (crypt v2) |
+| D3 Dragon's Lair | 1 (+2) | | | Batch 2 |
