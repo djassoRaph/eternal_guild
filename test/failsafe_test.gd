@@ -5,14 +5,23 @@ extends SceneTree
 ##   "E:\Godot installer\Godot_v4.4.1-stable_win64.exe" --headless --script res://test/failsafe_test.gd --path "F:\GAME I AM MAKING\shiningsun"
 ## Test 5 (asset-path integrity, Epic 25 / Story 25.1) checks every res:// path referenced
 ## from data/**/*.json against disk; known gaps live in res://test/asset_path_allowlist.json.
+## Test 6 (ruin reservation, Story 25.2) loads HexMapGenerator.gd / WorldManager.gd, which name
+## autoloads; those names only resolve once the engine has registered the autoloads, so the suite
+## runs from _initialize() rather than _init(). Autoloads start either way (they always did); the
+## tests themselves still use none of them. A watchdog guarantees the run ends (SaveSystem's
+## 300 s autosave must never fire from a test run).
 
 const ASSET_ALLOWLIST_PATH := "res://test/asset_path_allowlist.json"
+const WORLDGEN_FIXTURE_PATH := "res://test/fixtures/worldgen_seed_12345.json"
+const RUIN_TOPPER_PATH := "res://assets/environment/custom/d1_prior_ruins.gltf"
+const WATCHDOG_SECONDS := 60.0
 
 var _pass_count := 0
 var _fail_count := 0
+var _elapsed := 0.0
 
 
-func _init() -> void:
+func _initialize() -> void:
 	print("\n========== FAILSAFE TESTS ==========\n")
 
 	test_save_load_round_trip()
@@ -20,6 +29,7 @@ func _init() -> void:
 	test_mission_success_formula()
 	test_adventurer_status_transitions()
 	test_asset_path_integrity()
+	test_ruin_reservation()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -29,6 +39,14 @@ func _init() -> void:
 		print("All tests passed.")
 	print("====================================\n")
 	quit()
+
+
+func _process(delta: float) -> bool:
+	_elapsed += delta
+	if _elapsed > WATCHDOG_SECONDS:
+		print("*** WATCHDOG: suite did not finish within %d s — aborting ***" % int(WATCHDOG_SECONDS))
+		return true
+	return false
 
 
 func check(condition: bool, label: String) -> void:
@@ -252,3 +270,81 @@ static func _collect_res_strings(value: Variant, out: Array[String]) -> void:
 
 static func _res_exists(path: String) -> bool:
 	return ResourceLoader.exists(path) or FileAccess.file_exists(path)
+
+
+# --- Test 6: Ruin Reservation, Mission Exclusion, World-Gen Drift Guard (Story 25.2) ---
+# One land hex next to the tavern becomes the Prior Ruins (Story 6.2), picked from the seed
+# without drawing from the RNG, so every other hex must match the pre-change baseline fixture.
+func test_ruin_reservation() -> void:
+	print("[Test 6] Ruin reservation + mission exclusion + world-gen drift guard")
+	var gen_script = load("res://scripts/world/HexMapGenerator.gd")
+	var wm_script = load("res://systems/WorldManager.gd")
+	check(gen_script != null and wm_script != null, "HexMapGenerator.gd and WorldManager.gd load")
+	if gen_script == null or wm_script == null:
+		print("")
+		return
+	check(ResourceLoader.exists(RUIN_TOPPER_PATH), "D1 topper exists: %s" % RUIN_TOPPER_PATH)
+	var has_eligible: bool = wm_script.get_script_method_list().any(func(m): return m.name == "is_mission_eligible")
+	check(has_eligible, "WorldManager.is_mission_eligible() exists")
+
+	for seed_value in [1, 12345, 987654]:
+		var gen = gen_script.new()
+		var recs := _generate_world(gen, seed_value)
+		var ruins := recs.filter(func(r): return r.get("is_ruin", false))
+		check(ruins.size() == 1, "seed %d: exactly one ruin hex (got %d)" % [seed_value, ruins.size()])
+		if ruins.size() == 1:
+			var ruin: Dictionary = ruins[0]
+			check(gen._hex_distance(ruin.coord, Vector2i.ZERO) == 1 and ruin.biome != "sea" and not ruin.is_zone,
+				"seed %d: ruin %s is a land hex next to the tavern (biome %s)" % [seed_value, ruin.id, ruin.biome])
+			check(ruin.topper_paths == [RUIN_TOPPER_PATH] and ruin.get("ruin_discovered", true) == false,
+				"seed %d: ruin uses the D1 topper and starts undiscovered" % seed_value)
+			var again := _generate_world(gen, seed_value)
+			var again_ruins := again.filter(func(r): return r.get("is_ruin", false))
+			check(again_ruins.size() == 1 and again_ruins[0].id == ruin.id, "seed %d: same seed -> same ruin hex" % seed_value)
+			if has_eligible:
+				var land_neighbour = null
+				var sea_hex = null
+				for r in recs:
+					if sea_hex == null and r.biome == "sea":
+						sea_hex = r
+					if land_neighbour == null and not r.get("is_ruin", false) and not r.is_center \
+							and r.biome != "sea" and gen._hex_distance(r.coord, Vector2i.ZERO) == 1:
+						land_neighbour = r
+				check(not wm_script.is_mission_eligible(ruin), "seed %d: ruin hex is not mission-eligible" % seed_value)
+				check(land_neighbour == null or wm_script.is_mission_eligible(land_neighbour),
+					"seed %d: an ordinary land hex next to the tavern stays eligible" % seed_value)
+				check(sea_hex == null or not wm_script.is_mission_eligible(sea_hex), "seed %d: sea stays ineligible" % seed_value)
+		if seed_value == 12345:
+			_check_worldgen_drift(recs)
+		gen.free()
+	print("")
+
+
+func _generate_world(gen: Node, seed_value: int) -> Array:
+	gen.randomize_seed_on_generate = false
+	gen.map_seed = seed_value
+	gen._generate_records()
+	return gen._records.duplicate(true)
+
+
+# Every record must match the baseline fixture captured before Story 25.2 changed the
+# generator; the ruin hex may differ only in its topper.
+func _check_worldgen_drift(recs: Array) -> void:
+	var fixture = _read_json(WORLDGEN_FIXTURE_PATH)
+	if not fixture is Dictionary:
+		check(false, "world-gen fixture readable: %s" % WORLDGEN_FIXTURE_PATH)
+		return
+	var expected: Dictionary = fixture.get("records", {})
+	var mismatches: Array = []
+	for rec in recs:
+		var row = expected.get(rec.id)
+		if row == null:
+			mismatches.append(rec.id + " (missing from fixture)")
+			continue
+		var actual := [rec.biome, rec.base_path, rec.topper_paths, rec.is_zone, rec.get("zone_building", "")]
+		if rec.get("is_ruin", false):
+			actual[2] = row[2]   # the ruin's topper is the one intended change
+		if actual != row:
+			mismatches.append(rec.id)
+	check(recs.size() == int(fixture.get("record_count", -1)) and mismatches.is_empty(),
+		"seed 12345: %d records match the pre-change baseline; mismatches: %s" % [recs.size(), mismatches.slice(0, 5)])

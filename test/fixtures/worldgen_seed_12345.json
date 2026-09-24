@@ -1,0 +1,10009 @@
+{
+	"record_count": 1261,
+	"records": {
+		"hex_0": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_10": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_100": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1000": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1001": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1002": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1003": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1004": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1005": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1006": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1007": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1008": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1009": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_101": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1010": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1011": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1012": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1013": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1014": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1015": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1016": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1017": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1018": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1019": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_102": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1020": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1021": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1022": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1023": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1024": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1025": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1026": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1027": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1028": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1029": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_103": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1030": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1031": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1032": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1033": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1034": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1035": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1036": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1037": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1038": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1039": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_104": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1040": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1041": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1042": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1043": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1044": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1045": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1046": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1047": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1048": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1049": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_105": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1050": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1051": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1052": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1053": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1054": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1055": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1056": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1057": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1058": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1059": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_106": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1060": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1061": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1062": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1063": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1064": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1065": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1066": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1067": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1068": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1069": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_107": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1070": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1071": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1072": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1073": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1074": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1075": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1076": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1077": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1078": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1079": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_108": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1080": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1081": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1082": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1083": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1084": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1085": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1086": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1087": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1088": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1089": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_109": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1090": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1091": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1092": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1093": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1094": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1095": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1096": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1097": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1098": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1099": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_11": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_110": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1100": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1101": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1102": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1103": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1104": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1105": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1106": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1107": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1108": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1109": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_111": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1110": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1111": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1112": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1113": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1114": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1115": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1116": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1117": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1118": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1119": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_112": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1120": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1121": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1122": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1123": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1124": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1125": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1126": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1127": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1128": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1129": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_113": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1130": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1131": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1132": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1133": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1134": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1135": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1136": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1137": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1138": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1139": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_114": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1140": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1141": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1142": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1143": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1144": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1145": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1146": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1147": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1148": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1149": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_115": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1150": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1151": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1152": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1153": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1154": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1155": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1156": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1157": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1158": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1159": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_116": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1160": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1161": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1162": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1163": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1164": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1165": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1166": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1167": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1168": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1169": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_117": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1170": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1171": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1172": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1173": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1174": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1175": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1176": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1177": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1178": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1179": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_118": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1180": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1181": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1182": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1183": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1184": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1185": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1186": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1187": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1188": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1189": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_119": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1190": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1191": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1192": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1193": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1194": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1195": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1196": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1197": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1198": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1199": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_12": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_120": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1200": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1201": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1202": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1203": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1204": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1205": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1206": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1207": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1208": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1209": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_121": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1210": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1211": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1212": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1213": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1214": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1215": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1216": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1217": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1218": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1219": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_122": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1220": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1221": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1222": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1223": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1224": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1225": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1226": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1227": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1228": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1229": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_123": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1230": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1231": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1232": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1233": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1234": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1235": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1236": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1237": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1238": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1239": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_124": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1240": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1241": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1242": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1243": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1244": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1245": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1246": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1247": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1248": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1249": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_125": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1250": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1251": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1252": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1253": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1254": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1255": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1256": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1257": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_1258": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1259": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_126": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_1260": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_127": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_128": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_129": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_13": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_130": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_131": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_132": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_133": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_134": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_135": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_136": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_137": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_138": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_139": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_14": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_140": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_141": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_142": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_143": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_144": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_145": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_146": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_147": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_148": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_149": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_15": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_150": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_151": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_152": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_153": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_154": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_155": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_156": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_157": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_158": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_159": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_16": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_160": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_161": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_162": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_163": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_164": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_165": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_166": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_167": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_168": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_169": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_17": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_170": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_171": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_172": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_173": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_174": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_175": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_176": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_177": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_178": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_179": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_18": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_180": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_181": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_182": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_183": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_184": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_185": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_186": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_187": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_188": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_189": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_19": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_190": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_191": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_192": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_193": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_194": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_195": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_196": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_197": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_198": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_199": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_2": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_20": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_200": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_201": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_202": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_203": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_204": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_205": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_206": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_207": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_208": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_209": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_21": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_210": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_211": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_212": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_213": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_214": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_215": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_216": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_217": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_218": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_219": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_22": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_220": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_221": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_222": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_223": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_224": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_225": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_226": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_227": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_228": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_229": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_23": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_230": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_231": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_232": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_233": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_234": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_235": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_236": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_237": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_238": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_239": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_24": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_240": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_241": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_242": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_243": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_244": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_245": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_246": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_247": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_248": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_249": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_25": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_250": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_251": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_252": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_253": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_254": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_255": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_256": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_257": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_258": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_259": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_26": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_260": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_261": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_262": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_263": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_264": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_265": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_266": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_267": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_268": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_269": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_27": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_270": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_271": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_272": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_273": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_274": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_275": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_276": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_277": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_278": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_279": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_28": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_280": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_281": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_282": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_283": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_284": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_285": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_286": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_287": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_288": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_289": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_29": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_290": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_291": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_292": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_293": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_294": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_295": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_296": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_297": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_298": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_299": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_3": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_30": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_300": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_301": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_302": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_303": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_304": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_305": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_church_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_church_blue.gltf"
+		],
+		"hex_306": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_307": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_308": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_309": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_31": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_310": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_311": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_312": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_313": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_314": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_315": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_316": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_317": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_318": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_319": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_32": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_320": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_321": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_322": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_323": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_324": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_325": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_326": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_327": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_328": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_329": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_33": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_330": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_331": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_332": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_333": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_334": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_335": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_336": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_337": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_338": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_339": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_34": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_340": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_341": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_342": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_343": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_344": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_345": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_346": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_347": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_348": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_349": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_35": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_350": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_351": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_352": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_353": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_354": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_355": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_356": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_357": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_358": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_359": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_36": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_360": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_361": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_362": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_363": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_364": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_365": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_366": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_367": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_368": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_369": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_37": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_370": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_371": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_372": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_373": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_374": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_375": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_376": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_377": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_378": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_379": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_38": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_380": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_381": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_382": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_383": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_384": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_385": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_386": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_387": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_388": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_389": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_39": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_390": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_391": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_392": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_393": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_394": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_395": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_396": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_397": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_398": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_399": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_4": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_40": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_400": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_401": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_402": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_403": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_404": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_405": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_406": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_407": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_408": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_409": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_41": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_410": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_411": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_412": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_413": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_414": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_415": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_416": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_417": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_418": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_419": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_42": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_420": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_421": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_422": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_423": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_424": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_425": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_426": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_427": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_428": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_429": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_43": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_430": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_431": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_432": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_barracks_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_barracks_blue.gltf"
+		],
+		"hex_433": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_434": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_435": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_436": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_437": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_438": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_439": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_44": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_440": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_441": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_442": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_443": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_lumbermill_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_lumbermill_blue.gltf"
+		],
+		"hex_444": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_445": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_446": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_447": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_448": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_449": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_45": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_450": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_451": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_452": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_453": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_454": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_455": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_456": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_457": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_458": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_459": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_46": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_460": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_461": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_462": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_463": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_464": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_465": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_466": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_467": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_468": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_469": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_47": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_470": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_471": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_472": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_473": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_474": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_home_A_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_home_A_blue.gltf"
+		],
+		"hex_475": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_476": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_477": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_478": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_479": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_48": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_480": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_481": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_482": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_483": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_484": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_485": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_486": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_487": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_488": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_489": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_49": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_490": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_491": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_492": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_493": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_494": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_495": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_496": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_497": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_498": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_499": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_5": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_50": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_500": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_501": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_502": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_503": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_504": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_505": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_506": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_507": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_508": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_509": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_51": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_510": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_511": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_512": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_513": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_514": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_515": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_516": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_517": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_518": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_519": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_52": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_520": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_521": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_522": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_523": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_524": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_525": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_526": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_527": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_528": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_529": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_53": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_530": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_531": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_532": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_533": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_534": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_535": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_536": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_537": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_538": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_539": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_54": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_540": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_541": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_542": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_543": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_544": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_545": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_546": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_547": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_548": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_mine_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_mine_blue.gltf"
+		],
+		"hex_549": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_55": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_550": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_551": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_552": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_553": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_554": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_555": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_556": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_557": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_558": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_559": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_56": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_560": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_561": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_562": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_563": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_564": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_565": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_566": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_567": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_568": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_569": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_57": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_570": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_571": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_572": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_573": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_574": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_575": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_576": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_577": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_578": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_579": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_58": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_580": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_581": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_582": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_583": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_584": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_585": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_586": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_587": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_588": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_589": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_59": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_590": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_591": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_592": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_593": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_594": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_595": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_596": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_597": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_598": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_599": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_6": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_60": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_600": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_601": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_602": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_603": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_604": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_605": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_606": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_607": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_608": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_609": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_61": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_610": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_611": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_612": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_613": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_614": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_615": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_616": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_617": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_618": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_619": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_62": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_620": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_621": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_622": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_623": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_624": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_625": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_626": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_627": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_628": [
+			"mountain",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/mountain_A_grass_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_629": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_63": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_630": [
+			"tavern_site",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_tavern_blue.gltf"
+			],
+			false,
+			""
+		],
+		"hex_631": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_632": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_blacksmith_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_blacksmith_blue.gltf"
+		],
+		"hex_633": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_634": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_635": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_636": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_637": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_638": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_639": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_64": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_640": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_641": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_642": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_643": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_644": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_645": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_646": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_647": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_648": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_649": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_65": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_650": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_651": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_652": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_653": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_654": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_655": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_656": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_657": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_658": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_659": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_66": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_660": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_661": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_662": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_663": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_664": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_665": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_666": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_667": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_668": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_669": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_castle_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_castle_blue.gltf"
+		],
+		"hex_67": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_670": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_671": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_672": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_673": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_674": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_675": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_676": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_677": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_678": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_679": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_68": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_680": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_681": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_682": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_683": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_684": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_685": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_686": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_687": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_688": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_689": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_69": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_690": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_691": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_692": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_693": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_694": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_695": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_696": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_697": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_698": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_699": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_7": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_70": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_700": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_701": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_702": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_703": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_704": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_705": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_706": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_707": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_708": [
+			"mountain",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/mountain_B_grass.gltf"
+			],
+			false,
+			""
+		],
+		"hex_709": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_71": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_710": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_711": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_712": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_713": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_714": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_715": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_716": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_717": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_718": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_719": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_72": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_720": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_721": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_722": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_723": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_724": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_725": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_726": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_727": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_728": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_729": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_73": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_730": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_731": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_732": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_733": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_734": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_735": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_736": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_737": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_738": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_739": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_74": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_740": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_741": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_742": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_743": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_744": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_745": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_746": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_747": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_748": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_749": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_75": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_750": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_751": [
+			"mountain",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/mountain_A_grass_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_752": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_753": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_754": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_755": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_756": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_757": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_758": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_759": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_76": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_760": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_761": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_762": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_763": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_764": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_765": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_766": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_767": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_768": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_769": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_77": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_770": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_771": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_772": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_773": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_774": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_775": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_776": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_777": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_778": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_779": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_78": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_780": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_781": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_782": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_783": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_784": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_785": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_786": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_787": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_788": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_windmill_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_windmill_blue.gltf"
+		],
+		"hex_789": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_79": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_790": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_791": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_792": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_793": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_794": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_795": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_796": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_797": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_798": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_799": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_8": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_80": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_800": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_801": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_802": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_803": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_804": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_805": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_806": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_807": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_808": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_809": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_81": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_810": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_811": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_812": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_813": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_814": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_815": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_816": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_817": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_818": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_819": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_A_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_82": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_820": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_821": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_822": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_823": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_824": [
+			"mountain",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/mountain_A_grass.gltf"
+			],
+			false,
+			""
+		],
+		"hex_825": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_826": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_B_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_827": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_828": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_829": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_83": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_830": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_831": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_832": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_833": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_834": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_835": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_836": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_837": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_838": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_839": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_84": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_840": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_841": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_842": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_843": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_844": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_845": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_846": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_847": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_848": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_849": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_85": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_850": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_851": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_852": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_853": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_854": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_855": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_856": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_watermill_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_watermill_blue.gltf"
+		],
+		"hex_857": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_858": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_859": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_86": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_860": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_861": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_862": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_863": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_864": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_865": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_866": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_867": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_868": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_869": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_87": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_870": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_871": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_872": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_873": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_874": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_875": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_876": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_877": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_878": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_879": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_88": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_880": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_881": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_882": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_883": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_884": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_885": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_886": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_887": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_888": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/blue/building_market_blue.gltf"
+			],
+			true,
+			"res://assets/environment/hexagons/blue/building_market_blue.gltf"
+		],
+		"hex_889": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_89": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_890": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_891": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_892": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_medium.gltf"
+			],
+			false,
+			""
+		],
+		"hex_893": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_894": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hill_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_895": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_896": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_897": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_898": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_899": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_9": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_90": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_900": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_901": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_902": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_903": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_904": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_905": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_906": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_907": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_908": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_909": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_91": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_910": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_911": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_912": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_913": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_914": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_915": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_916": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_917": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_918": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_919": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_92": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_920": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_921": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_922": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_923": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_924": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_925": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_B_small.gltf"
+			],
+			false,
+			""
+		],
+		"hex_926": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_927": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/rock_single_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_928": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/tree_single_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_929": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_93": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_930": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/hills_C_trees.gltf"
+			],
+			false,
+			""
+		],
+		"hex_931": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_932": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_933": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_934": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_935": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_936": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_937": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_938": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_C.gltf"
+			],
+			false,
+			""
+		],
+		"hex_939": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_94": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_940": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_941": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_942": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_943": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_944": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_945": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_946": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_947": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_948": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_949": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_95": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_950": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_951": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_952": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_953": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_954": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_955": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_956": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_957": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_958": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_959": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_96": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_960": [
+			"grass",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_961": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_962": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_963": [
+			"forest",
+			"res://assets/environment/hexagons/base/hex_grass.gltf",
+			[
+				"res://assets/environment/hexagons/nature/trees_A_large.gltf"
+			],
+			false,
+			""
+		],
+		"hex_964": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_965": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_966": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_967": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_968": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_969": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_97": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_970": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_971": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_972": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_973": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_974": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_975": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_976": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_977": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_978": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_A.gltf"
+			],
+			false,
+			""
+		],
+		"hex_979": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_98": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_980": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_981": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_982": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_983": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_984": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_985": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_986": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_987": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_988": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_989": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_99": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_990": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_A.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_991": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_992": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_993": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_B.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_994": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_D.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_995": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterplant_B.gltf"
+			],
+			false,
+			""
+		],
+		"hex_996": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_997": [
+			"coast",
+			"res://assets/environment/hexagons/coast/hex_coast_C.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_998": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[],
+			false,
+			""
+		],
+		"hex_999": [
+			"sea",
+			"res://assets/environment/hexagons/base/hex_water.gltf",
+			[
+				"res://assets/environment/hexagons/nature/waterlily_A.gltf"
+			],
+			false,
+			""
+		]
+	},
+	"seed": 12345
+}
