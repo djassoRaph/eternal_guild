@@ -40,7 +40,7 @@ any other document.** Update it when a feature ships, not before.
 | Feature | Why parked |
 |---|---|
 | **End-of-day reveal rework** | Diagnosed ("payout screen" problem); plan in 05_REVEAL_REWORK_PLAN.md. Was next, but save/load jumped the queue. Resume after save round-trip is solid. |
-| Hourglass time-display pillar (Blender asset) | Design spec complete; model after reveal ships |
+| Hourglass time-display pillar (Blender asset) | Design spec complete. Moved up 2026-09-24: Batch 1 of the asset pipeline, modelled right after the D1 gate asset (08_ASSET_PROMPT_PACK §3, card B6). Stands mid-hall inside the round bar; style locked to inked |
 | Exterior world NPC flow | Bigger stage for a play that doesn't land yet — after reveal |
 | Fireplace drain-authority unification | TECH_DEBT; not mid-feature. (LimboAI evaluated as overkill — a single-owner FSM is enough.) |
 | Drag-and-drop dispatch | Design explored; after board UX |
@@ -73,5 +73,7 @@ any other document.** Update it when a feature ships, not before.
 | INTEGRATION_CONTRACT_DISPATCH.md | keeper |
 | ADVENTURER_PRESENCE_SYSTEM.md | keeper |
 | 06_Character_Design.md | keeper (Arcana system + Gareth case study) |
+| 08_ASSET_PROMPT_PACK.md | working doc: 3D art pipeline + prompts (tavern, map, hex landmarks); automation in `tools/n8n/` |
+| 09_ASSET_INVENTORY.md | master checklist of every visual asset (used today + planned) for the full inked remake, with status per asset and wave order |
 | 00_GDD_Master.md + any SESSION_* files | → move to `documentation/old/` |
 | DATA_SOURCE_OF_TRUTH.md | does not exist yet — produced by Recon B (see reveal plan) |

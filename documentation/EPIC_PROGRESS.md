@@ -1,5 +1,5 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-08-20 (mission-count display cap fixed + animation-hang regression fixed + duplicate recruit names fixed + roster portrait clipping partially fixed, on top of 2026-08-18's Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-09-24 (Epics 25–26 added — Demo Art Pipeline & Full Cast; Epic 16 demo-Partial; Story 4.2 unparked; 6-class list decided) · 2026-08-20 (mission-count display cap fixed + animation-hang regression fixed + duplicate recruit names fixed + roster portrait clipping partially fixed, on top of 2026-08-18's Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
@@ -152,9 +152,9 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] Unique-card rule: no dupe in pool, none on roster, none re-offered after hire (`hired_tarot_cards`)
 - [x] `AdventurerBus.recruitment_pool_changed` emitted; verified (78 = 22 major/56 minor, pool 3–5, 0 dupes)
 
-### Story 4.2: Hire an Adventurer — ⏸️ PARKED (Tarot portraits)
+### Story 4.2: Hire an Adventurer — 🔨 IN PROGRESS (unparked 2026-09-24: demo Tarot art = class silhouettes in the card frame)
 - [x] `hire_adventurer()` — gold gate, roster-cap + refund, unique ID, adds READY, removes from pool; Tarot card carried onto the roster record
-- [ ] Hire/recruit UI + portrait display — deferred until Tarot portraits land
+- [ ] Hire/recruit UI + portrait display — silhouette inside the Tarot card frame (Story 25.22); Tarot art swaps in later via the `portrait` path
 
 ### Story 4.3: Roster Panel Display — 🔨 MOSTLY DONE (portrait socket built; awaiting Guilo art for the final swap)
 - [x] Panel renders name, class+level, color-coded status, wage; greys non-Ready; refreshes on roster/day change (audit done)
@@ -343,12 +343,12 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 
 ---
 
-## Epics 15–24: Not Started
+## Epics 15–26: Not Started
 
 | Epic | Status | Notes |
 |------|--------|-------|
 | 15: Farmland & Drinks | 0% | No farmland, no drink types beyond beer |
-| 16: Staff & Automation | 0% | LimboAI installed but not enabled; no staff NPCs |
+| 16: Staff & Automation | 0% | **Demo-Partial since 2026-09-24:** Stories 16.1–16.5 (Bartender + Desk Manager) now ship in the demo, reached via Story 14.6's demo reputation pacing profile. LimboAI installed but not enabled — enable it for 16.3/16.4 (plain GDScript FSM is the fallback); no staff NPCs |
 | 17: Tarot Evolution | ~5% | 78-card deck data + `DataManager` Tarot API exist and recruits carry a unique card (Epic 4.1); no evolution/leveling mechanic yet |
 | 18: Codex | ~30% | **Basic viewer shipped (2026-08-18)** — `scripts/menus/codex_menu.gd`, a code-built overlay (same pattern as `settings_menu.gd`) reachable from Main Menu + Pause Menu, shows guild-wide stats (runs/best day/gold/missions). Not yet the full "Dragon Eye Book" presentation — plain list UI, no dedicated art/theming pass |
 | 19: Memorial & Cemetery | ~30% | **Basic viewer shipped (2026-08-18)** — same `codex_menu.gd` renders `codex.dat.fallen_heroes` (name/class/Tarot card/hire+death day/missions completed) with `PortraitSocket` portraits, verified live against real save data. Not yet a dedicated memorial wall / cemetery scene — this is a list, not the eventual set-piece |
@@ -357,6 +357,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
+| 25: Demo Art Pipeline & Demo Cast | ~2% | **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) |
+| 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
 
 ---
 
@@ -431,8 +433,8 @@ A player can:
 **Current blockers / rework (2026-07-11):**
 1. **Load / Continue rework** (Epic 11) — Raphael reports load isn't behaving; needs a debugging pass. Blocks world-to-disk save (Epic 6) and Continue polish (Epic 2.1).
 2. **World Map dispatch rework** (Epic 6) — only 3 random missions shown; not the desired system; post-30-day group missions not surfaced.
-3. **Guilo Tarot portraits** — unblocks the final art swap in Epic 4.3 / recruitment / the Reveal (the socket already renders silhouettes, zero code change to swap the art in).
-4. **Class list 5-vs-4 reconciliation** (code Fighter/Rogue/Mage/Ranger/Cleric vs GDD MVP Fighter/Rogue/Mage/Healer) — before class-tied content.
+3. ~~**Guilo Tarot portraits**~~ — **no longer a demo blocker (2026-09-24):** the demo ships class silhouettes inside the Tarot card frame (Story 25.22); commissioned art swaps in later via data, zero code change. Story 4.2 is unparked.
+4. **Class list — DECIDED 2026-09-24 (supersedes the 2026-08-18 reconcile to the GDD's 4):** demo ships 6 classes — Fighter, Rogue, Mage, Healer, Barbarian, Ranger. Story 25.9 writes that list into `classes.json`, `game_config.json`, `class_colors.json`, `flavor_lines.json` and builds the missing Healer (`Cleric.glb`) + Ranger models.
 5. **Duplicate recruit generator** in `DataManager` — consolidate with the active GameManager path.
 
 **Highest-value next work for the Kickstarter demo:**

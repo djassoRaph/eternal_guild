@@ -19,9 +19,13 @@ something* and left. What they completed, and whether the hourglass loop is
 their machine still running, is the campaign-length mystery. The player never
 gets a lore-dump; understanding accretes across runs.
 
-The tavern's own cellar holds Prior stonework — the hourglass pillar (Phase-1
-asset) is excavated gradually as the tavern upgrades, the building literally
-revealing its foundations as the player invests in it.
+The tavern stands on Prior stonework — the hourglass pillar (Phase-1 asset).
+It is rooted in the cellar and rises through the middle of the main hall, inside
+the round bar. Early on only a worn stub shows above the floor; each tavern
+upgrade reveals more of it, the building literally revealing its foundations as
+the player invests in it. Fully revealed, it is the hall's centrepiece: a
+rune-banded shaft, a glowing teal hourglass, a broken crown. *(Decided
+2026-09-24, from the commissioned tavern artwork.)*
 
 ## 2. Den Fa
 
