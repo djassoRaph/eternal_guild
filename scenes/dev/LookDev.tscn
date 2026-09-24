@@ -94,6 +94,7 @@ light_color = Color(1, 0.95, 0.85, 1)
 shadow_enabled = true
 
 [node name="Floor" type="MeshInstance3D" parent="SubViewportContainer/SubViewport"]
+unique_name_in_owner = true
 mesh = SubResource("PlaneMesh_floor")
 surface_material_override/0 = SubResource("Material_floor")
 

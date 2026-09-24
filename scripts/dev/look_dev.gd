@@ -26,9 +26,12 @@ const CAMERA_DISTANCE := 14.0  # along the view axis; orthographic, so only clip
 # "autosave_interval_seconds" = 300) and would overwrite the real save file with this
 # scene's blank GameManager state. LookDev quits itself before that can happen.
 const AUTO_QUIT_SECONDS := 240.0
+# Map toppers sit on a real KayKit hex (top face at y = 0) in the map preset.
+const HEX_BASE := "res://assets/environment/hexagons/base/hex_grass.gltf"
 
 @onready var _camera: Camera3D = %Camera3D
 @onready var _subject_root: Node3D = %Subject
+@onready var _floor: MeshInstance3D = %Floor
 @onready var _tavern_lights: Array[Node3D] = [%OutdoorsLight, %WarmFill, %CoolFill]
 @onready var _map_sun: DirectionalLight3D = %MapSun
 @onready var _info: Label = %Info
@@ -37,6 +40,8 @@ const AUTO_QUIT_SECONDS := 240.0
 func _ready() -> void:
 	_apply_preset()
 	var subject_name := "(none)"
+	if camera_preset == "map":
+		_subject_root.add_child(load(HEX_BASE).instantiate())
 	if subject_scene:
 		_subject_root.add_child(subject_scene.instantiate())
 		subject_name = subject_scene.resource_path.get_file()
@@ -67,3 +72,4 @@ func _apply_preset() -> void:
 	for light in _tavern_lights:
 		light.visible = not is_map
 	_map_sun.visible = is_map
+	_floor.visible = not is_map  # the hex top sits at y = 0, same as the floor plane
