@@ -793,7 +793,7 @@ This table tracks each finished asset.
 | K1 Tavern exterior key art | A | Nano Banana (gemini-2.5-flash-image) via n8n, commission as ref | 2026-09-24 | picked: inked v1 |
 | K2 Interior key art | A | Nano Banana via n8n, commission as ref | 2026-09-24 | picked: S2 v1 (inked) |
 | K3 World map key art | A | Nano Banana via n8n, commission as ref | 2026-09-24 | picked: inked v1 |
-| D1 Prior Ruins (gate) | 1 | | | concepts generating |
+| D1 Prior Ruins (gate) | 1 | Claude via Blender MCP (scripted build, §6.3 atlas remap, §6.4 export) | 2026-09-24 | **in game**: Stage D passed (LookDev + HexMapTest); 1,956 tris; runes emissive at roughness 0 |
 | B6 Hourglass Pillar | 1 | | | concepts generating |
 | A1 + A2 Guild Tavern | 1 | | | concepts generating |
 | B1 Hearth | 1 | | | concepts generating |

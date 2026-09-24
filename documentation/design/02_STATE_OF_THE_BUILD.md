@@ -26,6 +26,7 @@ any other document.** Update it when a feature ships, not before.
 | Daily missions pinned to hexes | WorldManager.assign_missions_to_hexes() ← GameManager.refresh_available_missions() | done |
 | Dispatch from the map (click adventurer → hex mission) | WorldMapBoard + GameManager | done — verified in-game 2026-06-14 |
 | MainMenu "Continue" → real SaveSystem.load_game() | main_menu.gd | done 2026-06-14 — orphan `savegame.dat` stub removed |
+| Prior Ruins (D1) on a reserved hex next to the tavern; hover shows "Unknown Ruins"; missions skip it | HexMapGenerator (`_reserve_ruin`) + WorldManager (`is_mission_eligible`) + world_map_board.gd | done 2026-09-24 (Story 25.2). First asset through the inked pipeline |
 | Asset-pipeline dev tooling: LookDev scene, export folders, failsafe Test 5 (asset-path integrity) | `scenes/dev/LookDev.tscn` + `scripts/dev/look_dev.gd`; `test/failsafe_test.gd` | done 2026-09-24 (Story 25.1, not player-facing). Renderer verified: **Forward+** |
 
 ## In flight (current work, in order)

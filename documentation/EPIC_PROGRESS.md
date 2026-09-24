@@ -199,6 +199,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Hex map generation** — seeded RNG, simplex noise + radial falloff, biomes (sea/grass/forest/mountain)
 - [x] **Settlement placement** — configurable count, minimum spacing enforcement
 - [x] **World persisted** — `WorldManager.set_generated_world()` stores records; `display_mode` re-renders without regenerating
+- [x] **Ruin hex reserved next to the tavern** (Story 6.2 AC) and the **"Unknown Ruins" hover** (Story 6.3 AC). Done 2026-09-24 via Story 25.2: `HexMapGenerator._reserve_ruin()` (seeded, no RNG drift), records gain `is_ruin` / `ruin_discovered`, the D1 Prior Ruins topper is used, and `WorldManager.is_mission_eligible()` keeps missions off it
 - [x] **Tavern hex selection** — player picks center (signal `tavern_hex_selected`)
 - [x] **Missions assigned to hexes** — `WorldManager.assign_missions_to_hexes()` is now **distance-aware** (2026-07-12): a quest's distance from the tavern scales with `duration_days` (+ a touch of danger), so 1-day errands land near and long/dangerous ones sit far. Tunable via `mission_hexes_per_day` / `mission_distance_spread`
 - [x] **Mission dispatch** — `send_on_mission()` / `send_party_on_mission()` with duration tracking
@@ -357,17 +358,28 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
-| 25: Demo Art Pipeline & Demo Cast | ~4% | **Story 25.1 (pipeline readiness) — in review, 2026-09-24, branch `epic-25-pipeline`:**
+| 25: Demo Art Pipeline & Demo Cast | ~8% | Stories 25.1 (pipeline readiness) and 25.2 (D1 Prior Ruins gate asset) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
+| 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
+
+### Epic 25 progress
+
+**Story 25.1: pipeline readiness (in review, 2026-09-24).**
 - **Renderer verified: Forward+ (Vulkan).** Runtime `forward_plus`; the LookDev proof shot shows normal edges and the roughness mask working.
-- `scenes/dev/LookDev.tscn` added for Stage D quick checks (it auto-quits at 240 s so it can't autosave over your save).
+- `scenes/dev/LookDev.tscn` added for Stage D quick checks. It auto-quits at 240 s so it can't autosave over your save.
 - Export folders `assets/{environment,characters}/custom/` created.
 - Build contract and measured triangle budgets merged into 08 §1.
-- `LICENSE-SOURCE.md` added in every asset pack folder; the unknown sources are listed in 09 §9.
-- Failsafe Test 5 (asset-path integrity) added: 32/32 green.
+- `LICENSE-SOURCE.md` added in every asset folder; the unknown sources are listed in 09 §9.
+- Failsafe Test 5 (asset-path integrity) added.
 - Still open: restart Blender so the updated MCP add-on reports protocol 9.
 
-**Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) |
-| 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
+**Story 25.2: D1 Prior Ruins in game (in review, 2026-09-24). The first asset through the whole pipeline.**
+- Atlas-remapped in Blender and exported to `assets/environment/custom/d1_prior_ruins.gltf` (1,956 tris). The runes are emissive teal at roughness 0, so they have no outline.
+- Imported headless; the PNG import settings match KayKit's atlas.
+- Stage D passed in LookDev (map and tavern presets) and in-scene on `HexMapTest`.
+- `HexMapGenerator._reserve_ruin()` reserves one land hex next to the tavern (Story 6.2). The pick is seeded, with no extra RNG draw, and a fixture-based drift guard proves every other hex is unchanged.
+- `WorldManager.is_mission_eligible()` keeps missions off the ruin.
+- The board hover shows "Unknown Ruins" (Story 6.3).
+- Failsafe Test 6 added; the suite is at 57/57.
 
 ---
 

@@ -208,7 +208,7 @@ exterior or the tavern, which leaves the 89 unique files.)
 
 | Asset | Mission templates | Status |
 |---|---|---|
-| D1 Prior Ruins (gate asset) | `ancient_artifact`, Hidden missions | `modelled` (pass 3, 1,956 tris) |
+| D1 Prior Ruins (gate asset) | `ancient_artifact`, Hidden missions | `in game` (2026-09-24, Story 25.2: `custom/d1_prior_ruins.gltf`, 1,956 tris; the reserved ruin hex next to the tavern) |
 | D2 Demon Cult Crypt | `demon_cult_investigation` | `concept` (crypt v2) |
 | D3 Dragon's Lair (+ skull) | `dragon_reconnaissance` | `planned` (Batch 2) |
 | D4 Bandit Hideout | `bandit_camp` | `planned` (Batch 2) |
