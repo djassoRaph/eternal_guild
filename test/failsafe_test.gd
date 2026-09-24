@@ -15,6 +15,19 @@ const ASSET_ALLOWLIST_PATH := "res://test/asset_path_allowlist.json"
 const WORLDGEN_FIXTURE_PATH := "res://test/fixtures/worldgen_seed_12345.json"
 const RUIN_TOPPER_PATH := "res://assets/environment/custom/d1_prior_ruins.gltf"
 const WATCHDOG_SECONDS := 60.0
+const TAVERN_SCENE_PATH := "res://scenes/MainTavern.tscn"
+const TAVERN_COLLIDERS_FIXTURE := "res://test/fixtures/tavern_colliders.json"
+const ARCH_PATH := "SubViewportContainer/SubViewport/TavernNavigation/Architecture/"
+const SHELL_KIT := ["b9_floor", "b9_wall_full", "b9_wall_window", "b9_wall_doorway", "b9_wall_low",
+	"b9_post_full", "b9_post_low", "b9_beam", "b10_door_frame", "b10_door_leaf"]
+# New colliders added by Story 25.3 (world AABB [x, y, z] ranges): the south-wall gap either side
+# of the front door, and the two back corner holes Raphael asked to close (2026-09-24).
+const SHELL_NEW_COLLIDERS := {
+	"Shell/NearWalls/GapColliderWest/CollisionShape3D": [[6.73, 8.4], [0.0, 4.0], [4.33, 4.63]],
+	"Shell/NearWalls/GapColliderEast/CollisionShape3D": [[10.8, 14.84], [0.0, 4.0], [4.33, 4.63]],
+	"Shell/FarWalls/CornerCollider/CollisionShape3D": [[-5.15, -4.85], [0.0, 4.0], [-19.17, -16.66]],
+	"Shell/NearWalls/CornerColliderEast/CollisionShape3D": [[14.84, 15.14], [0.0, 4.0], [-19.17, -16.59]],
+}
 
 var _pass_count := 0
 var _fail_count := 0
@@ -30,6 +43,7 @@ func _initialize() -> void:
 	test_adventurer_status_transitions()
 	test_asset_path_integrity()
 	test_ruin_reservation()
+	test_tavern_shell()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -348,3 +362,77 @@ func _check_worldgen_drift(recs: Array) -> void:
 			mismatches.append(rec.id)
 	check(recs.size() == int(fixture.get("record_count", -1)) and mismatches.is_empty(),
 		"seed 12345: %d records match the pre-change baseline; mismatches: %s" % [recs.size(), mismatches.slice(0, 5)])
+
+
+# --- Test 7: Tavern Shell (Story 25.3) ---
+# Reads MainTavern.tscn through SceneState (no instancing, so no gameplay scripts run):
+# the seven original architecture colliders must be unchanged (the navmesh is baked from
+# static colliders), the new shell colliders must exist where the story puts them, and the
+# B9/B10 kit files must exist.
+func test_tavern_shell() -> void:
+	print("[Test 7] Tavern shell: kit files, original colliders unchanged, new colliders placed")
+	for id in SHELL_KIT:
+		check(ResourceLoader.exists("res://assets/environment/custom/%s.gltf" % id), "kit piece exists: %s" % id)
+
+	var aabbs := _scene_box_collider_aabbs(TAVERN_SCENE_PATH)
+	var fixture = _read_json(TAVERN_COLLIDERS_FIXTURE)
+	if not fixture is Dictionary:
+		check(false, "tavern collider fixture readable")
+		print("")
+		return
+	var expected: Dictionary = fixture.get("colliders", {})
+	for name in expected:
+		var key: String = ARCH_PATH + name + "/StaticBody3D/CollisionShape3D"
+		check(aabbs.has(key) and _aabb_close(aabbs[key], expected[name]),
+			"original collider unchanged: %s %s" % [name, aabbs.get(key, "MISSING")])
+	for rel in SHELL_NEW_COLLIDERS:
+		var key: String = ARCH_PATH + rel
+		check(aabbs.has(key) and _aabb_close(aabbs[key], SHELL_NEW_COLLIDERS[rel]),
+			"new shell collider in place: %s %s" % [rel.get_slice("/", 2), aabbs.get(key, "MISSING")])
+	print("")
+
+
+## World-space AABB ([x, y, z] ranges) of every BoxShape3D CollisionShape3D in a scene file,
+## computed from SceneState transforms without instancing the scene.
+static func _scene_box_collider_aabbs(scene_path: String) -> Dictionary:
+	var state: SceneState = (load(scene_path) as PackedScene).get_state()
+	var local := {}    # node path -> Transform3D
+	var parents := {}  # node path -> parent path
+	var shapes := {}   # node path -> BoxShape3D
+	for i in state.get_node_count():
+		var path := str(state.get_node_path(i)).trim_prefix("./")
+		parents[path] = str(state.get_node_path(i, true)).trim_prefix("./")
+		var tf := Transform3D.IDENTITY
+		for p in state.get_node_property_count(i):
+			var prop := state.get_node_property_name(i, p)
+			if prop == "transform":
+				tf = state.get_node_property_value(i, p)
+			elif prop == "shape" and state.get_node_property_value(i, p) is BoxShape3D:
+				shapes[path] = state.get_node_property_value(i, p)
+		local[path] = tf
+	var out := {}
+	for path in shapes:
+		var world := Transform3D.IDENTITY
+		var cur: String = path
+		while cur != "" and cur != "." and local.has(cur):
+			world = local[cur] * world
+			cur = parents[cur]
+		var half: Vector3 = shapes[path].size * 0.5
+		var lo := Vector3(INF, INF, INF)
+		var hi := Vector3(-INF, -INF, -INF)
+		for sx in [-1, 1]:
+			for sy in [-1, 1]:
+				for sz in [-1, 1]:
+					var pt: Vector3 = world * Vector3(sx * half.x, sy * half.y, sz * half.z)
+					lo = lo.min(pt)
+					hi = hi.max(pt)
+		out[path] = [[lo.x, hi.x], [lo.y, hi.y], [lo.z, hi.z]]
+	return out
+
+
+static func _aabb_close(a: Array, b: Array, tol := 0.011) -> bool:
+	for axis in 3:
+		for end in 2:
+			if absf(float(a[axis][end]) - float(b[axis][end])) > tol:
+				return false
+	return true

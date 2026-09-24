@@ -1,0 +1,103 @@
+{
+	"_comment": "Story 25.3 T0.3: world AABBs of the seven original tavern architecture colliders at baseline e3d4bde. The navmesh is baked from static colliders; these must never change.",
+	"colliders": {
+		"Floor": [
+			[
+				-5.02,
+				15.02
+			],
+			[
+				-0.1,
+				0.1
+			],
+			[
+				-19.56,
+				4.43
+			]
+		],
+		"FloorEntrance": [
+			[
+				-5.14,
+				15.19
+			],
+			[
+				-0.33,
+				-0.33
+			],
+			[
+				4.72,
+				8.65
+			]
+		],
+		"WallNorth": [
+			[
+				-5.0,
+				15.0
+			],
+			[
+				0.0,
+				4.0
+			],
+			[
+				-19.47,
+				-19.17
+			]
+		],
+		"IndoorNorthwall": [
+			[
+				1.47,
+				15.15
+			],
+			[
+				0.0,
+				4.0
+			],
+			[
+				-15.0,
+				-14.22
+			]
+		],
+		"WallSouth": [
+			[
+				-4.87,
+				6.73
+			],
+			[
+				-0.0,
+				4.0
+			],
+			[
+				4.33,
+				4.63
+			]
+		],
+		"WallEast": [
+			[
+				-5.15,
+				-4.85
+			],
+			[
+				0.0,
+				4.0
+			],
+			[
+				-16.66,
+				4.94
+			]
+		],
+		"WallWest": [
+			[
+				14.84,
+				15.14
+			],
+			[
+				0.0,
+				4.0
+			],
+			[
+				-16.59,
+				4.71
+			]
+		]
+	}
+}
