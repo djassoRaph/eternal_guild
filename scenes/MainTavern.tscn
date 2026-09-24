@@ -1,4 +1,4 @@
-[gd_scene load_steps=112 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=127 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="PackedScene" uid="uid://dbomj4nofjjcc" path="res://assets/environment/furniture/bench.glb" id="1_m4lj6"]
@@ -45,6 +45,16 @@
 [ext_resource type="PackedScene" uid="uid://b2m46soecam60" path="res://scenes/ui/debug_panel.tscn" id="32_ocxae"]
 [ext_resource type="Script" uid="uid://bkmu2w0hiyj1n" path="res://scenes/game_over_screen.gd" id="33_xtcff"]
 [ext_resource type="Script" uid="uid://b7ph34uiot0rh" path="res://scripts/menus/pause_menu.gd" id="36_u7xbe"]
+[ext_resource type="PackedScene" uid="uid://dwe8y7kaqv8e6" path="res://assets/environment/custom/b9_floor.gltf" id="s253_b9_floor"]
+[ext_resource type="PackedScene" uid="uid://cat84g5uagvnj" path="res://assets/environment/custom/b9_wall_full.gltf" id="s253_b9_wall_full"]
+[ext_resource type="PackedScene" uid="uid://cq5433qwjfct4" path="res://assets/environment/custom/b9_wall_window.gltf" id="s253_b9_wall_window"]
+[ext_resource type="PackedScene" uid="uid://dc75sijra2ute" path="res://assets/environment/custom/b9_wall_low.gltf" id="s253_b9_wall_low"]
+[ext_resource type="PackedScene" uid="uid://cdk0krfwpjifh" path="res://assets/environment/custom/b9_post_full.gltf" id="s253_b9_post_full"]
+[ext_resource type="PackedScene" uid="uid://cdneowir4dk0q" path="res://assets/environment/custom/b9_post_low.gltf" id="s253_b9_post_low"]
+[ext_resource type="PackedScene" uid="uid://btchp2m8ft71r" path="res://assets/environment/custom/b9_beam.gltf" id="s253_b9_beam"]
+[ext_resource type="PackedScene" uid="uid://c52r7b63rln0" path="res://assets/environment/custom/b10_door_frame.gltf" id="s253_b10_door_frame"]
+[ext_resource type="PackedScene" uid="uid://cmrr8bdrxhfsh" path="res://assets/environment/custom/b10_door_leaf.gltf" id="s253_b10_door_leaf"]
+[ext_resource type="Script" path="res://scripts/game/front_door.gd" id="s253_front_door"]
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
 vertices = PackedVector3Array(-4.65, 0.417485, -18.5553, -4.65, 0.417485, -17.3053, -4.15, 0.417485, -17.0553, 1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, 14.1, 0.417485, -15.5553, 14.6, 0.417485, -18.5553, 5.85, 0.417485, -13.0553, 7.35, 0.417485, -13.0553, 7.35, 0.417485, -13.5553, 1.1, 0.417485, -13.5553, -4.15, 0.417485, -11.0553, -3.65, 0.417485, -10.8053, -4.15, 0.417485, -5.55527, -2.9, 0.417485, -5.55527, 1.85, 0.417485, -6.80527, 2.85, 0.417485, -11.0553, -2.65, 0.417485, -5.05527, 9.1, 0.417485, -13.0553, 14.1, 0.417485, -13.5553, 12.35, 0.417485, -8.30527, 12.6, 0.417485, -6.55527, 14.1, 0.417485, -6.55527, 12.35, 0.417485, -8.80527, 4.85, 0.417485, -9.55527, 4.6, 0.417485, -8.05527, 5.1, 0.417485, -6.80527, 7.1, 0.417485, -11.3053, 5.85, 0.417485, -10.8053, 6.35, 0.417485, -5.55527, 8.1, 0.417485, -5.05527, 10.35, 0.417485, -6.30527, 11.1, 0.417485, -8.30527, 10.85, 0.417485, -8.55527, 9.6, 0.417485, -10.5553, 12.1, 0.417485, -10.8053, 10.6, 0.417485, -12.3053, 3.6, 0.417485, -5.30527, 3.35, 0.417485, -6.30527, -2.4, 0.417485, -1.05527, -2.9, 0.417485, -0.555265, -4.15, 0.417485, -0.555265, -4.15, 0.417485, 3.69473, 5.35, 0.417485, 3.69473, 5.35, 0.417485, -3.80527, 12.1, 0.417485, -5.30527, 10.1, 0.417485, -3.55527, 14.1, 0.417485, 3.94473, 6.6, 0.417485, -3.30527, -4.15, 1.41749, -1.55527, -3.4, 1.41749, -1.55527, -3.4, 1.41749, -4.05527, -4.15, 1.41749, -4.30527, 7.1, 0.167485, 5.44473, 7.1, 0.167485, 7.69473, 14.1, 0.167485, 7.69473, 14.1, 0.167485, 5.44473)
@@ -372,6 +382,21 @@ cache/0/27/0/scale = 1.0
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6dl45"]
 bg_color = Color(0.533037, 0.533037, 0.533037, 1)
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_CornerCollider"]
+size = Vector3(0.3, 4, 2.51)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_GapColliderWest"]
+size = Vector3(1.67, 4, 0.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_GapColliderEast"]
+size = Vector3(4.04, 4, 0.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_CornerColliderEast"]
+size = Vector3(0.3, 4, 2.58)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_door_trigger"]
+size = Vector3(3, 2.5, 4)
+
 [node name="Node3D" type="Node3D" groups=["player_scene"]]
 script = ExtResource("1_0nrlt")
 
@@ -402,6 +427,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2
 
 [node name="Floor" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(20.0351, 0, 0, 0, 0.200351, 0, 0, 0, 23.9829, 5, 0, -7.56381)
+visible = false
 material_override = SubResource("StandardMaterial3D_kr071")
 mesh = SubResource("BoxMesh_6oapo")
 
@@ -413,6 +439,7 @@ debug_color = Color(0, 0.371, 0.436, 1)
 
 [node name="FloorEntrance" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(10.1103, 0, 0, 0, 0.2, 0, 0, 0, 3.86222, 9.93949, 0, 6.32592)
+visible = false
 mesh = SubResource("BoxMesh_dbh4p")
 surface_material_override/0 = SubResource("StandardMaterial3D_6oapo")
 
@@ -424,6 +451,7 @@ shape = SubResource("BoxShape3D_bianl")
 
 [node name="WallNorth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(20, 0, 0, 0, 4, 0, 0, 0, 0.3, 5, 2, -19.3223)
+visible = false
 mesh = SubResource("BoxMesh_b7xp1")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallNorth"]
@@ -433,6 +461,7 @@ shape = SubResource("BoxShape3D_2ks6e")
 
 [node name="IndoorNorthwall" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(17.9227, 0, 0, 0, 4, 0, 0, 0, 0.3, 8.12218, 2, -14.6575)
+visible = false
 mesh = SubResource("BoxMesh_bianl")
 skeleton = NodePath("../WallNorth")
 
@@ -444,6 +473,7 @@ shape = SubResource("BoxShape3D_rbvb6")
 
 [node name="WallSouth" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(11.9854, 0, 0, 0, 4, 0, 0, 0, 0.3, 0.854959, 2, 4.76846)
+visible = false
 mesh = SubResource("BoxMesh_0i7ti")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallSouth"]
@@ -455,6 +485,7 @@ shape = SubResource("BoxShape3D_behcn")
 
 [node name="WallEast" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(0.3, 0, 0, 0, 4, 0, 0, 0, 21.5961, -5, 2, -5.85944)
+visible = false
 mesh = SubResource("BoxMesh_2qto8")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallEast"]
@@ -513,6 +544,749 @@ skeleton = NodePath("../../../../..")
 [node name="Keg" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.95467, 0.0999992, -11.1322)
 mesh = ExtResource("11_ocxae")
+
+[node name="Shell" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
+
+[node name="Floor" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
+
+[node name="FarWalls" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
+
+[node name="NearWalls" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
+
+[node name="Partition" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
+
+[node name="Hall_0_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -18.56)
+
+[node name="Hall_0_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -16.56)
+
+[node name="Hall_0_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -14.56)
+
+[node name="Hall_0_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -12.56)
+
+[node name="Hall_0_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -10.56)
+
+[node name="Hall_0_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -8.56)
+
+[node name="Hall_0_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -6.56)
+
+[node name="Hall_0_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -4.56)
+
+[node name="Hall_0_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -2.56)
+
+[node name="Hall_0_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -0.56)
+
+[node name="Hall_0_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, 1.44)
+
+[node name="Hall_0_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, 3.44)
+
+[node name="Hall_1_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -18.56)
+
+[node name="Hall_1_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -16.56)
+
+[node name="Hall_1_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -14.56)
+
+[node name="Hall_1_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -12.56)
+
+[node name="Hall_1_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -10.56)
+
+[node name="Hall_1_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -8.56)
+
+[node name="Hall_1_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -6.56)
+
+[node name="Hall_1_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -4.56)
+
+[node name="Hall_1_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -2.56)
+
+[node name="Hall_1_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, -0.56)
+
+[node name="Hall_1_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, 1.44)
+
+[node name="Hall_1_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.1, 3.44)
+
+[node name="Hall_2_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -18.56)
+
+[node name="Hall_2_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -16.56)
+
+[node name="Hall_2_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -14.56)
+
+[node name="Hall_2_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -12.56)
+
+[node name="Hall_2_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -10.56)
+
+[node name="Hall_2_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -8.56)
+
+[node name="Hall_2_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -6.56)
+
+[node name="Hall_2_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -4.56)
+
+[node name="Hall_2_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -2.56)
+
+[node name="Hall_2_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -0.56)
+
+[node name="Hall_2_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 1.44)
+
+[node name="Hall_2_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 3.44)
+
+[node name="Hall_3_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -18.56)
+
+[node name="Hall_3_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -16.56)
+
+[node name="Hall_3_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -14.56)
+
+[node name="Hall_3_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -12.56)
+
+[node name="Hall_3_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -10.56)
+
+[node name="Hall_3_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -8.56)
+
+[node name="Hall_3_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -6.56)
+
+[node name="Hall_3_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -4.56)
+
+[node name="Hall_3_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -2.56)
+
+[node name="Hall_3_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, -0.56)
+
+[node name="Hall_3_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, 1.44)
+
+[node name="Hall_3_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.1, 3.44)
+
+[node name="Hall_4_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -18.56)
+
+[node name="Hall_4_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -16.56)
+
+[node name="Hall_4_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -14.56)
+
+[node name="Hall_4_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -12.56)
+
+[node name="Hall_4_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -10.56)
+
+[node name="Hall_4_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -8.56)
+
+[node name="Hall_4_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -6.56)
+
+[node name="Hall_4_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -4.56)
+
+[node name="Hall_4_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -2.56)
+
+[node name="Hall_4_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, -0.56)
+
+[node name="Hall_4_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, 1.44)
+
+[node name="Hall_4_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, 3.44)
+
+[node name="Hall_5_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -18.56)
+
+[node name="Hall_5_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -16.56)
+
+[node name="Hall_5_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -14.56)
+
+[node name="Hall_5_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -12.56)
+
+[node name="Hall_5_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -10.56)
+
+[node name="Hall_5_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -8.56)
+
+[node name="Hall_5_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -6.56)
+
+[node name="Hall_5_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -4.56)
+
+[node name="Hall_5_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -2.56)
+
+[node name="Hall_5_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, -0.56)
+
+[node name="Hall_5_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, 1.44)
+
+[node name="Hall_5_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.1, 3.44)
+
+[node name="Hall_6_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -18.56)
+
+[node name="Hall_6_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -16.56)
+
+[node name="Hall_6_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -14.56)
+
+[node name="Hall_6_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -12.56)
+
+[node name="Hall_6_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -10.56)
+
+[node name="Hall_6_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -8.56)
+
+[node name="Hall_6_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -6.56)
+
+[node name="Hall_6_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -4.56)
+
+[node name="Hall_6_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -2.56)
+
+[node name="Hall_6_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, -0.56)
+
+[node name="Hall_6_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, 1.44)
+
+[node name="Hall_6_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.1, 3.44)
+
+[node name="Hall_7_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -18.56)
+
+[node name="Hall_7_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -16.56)
+
+[node name="Hall_7_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -14.56)
+
+[node name="Hall_7_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -12.56)
+
+[node name="Hall_7_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -10.56)
+
+[node name="Hall_7_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -8.56)
+
+[node name="Hall_7_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -6.56)
+
+[node name="Hall_7_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -4.56)
+
+[node name="Hall_7_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -2.56)
+
+[node name="Hall_7_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, -0.56)
+
+[node name="Hall_7_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, 1.44)
+
+[node name="Hall_7_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.1, 3.44)
+
+[node name="Hall_8_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -18.56)
+
+[node name="Hall_8_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -16.56)
+
+[node name="Hall_8_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -14.56)
+
+[node name="Hall_8_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -12.56)
+
+[node name="Hall_8_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -10.56)
+
+[node name="Hall_8_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -8.56)
+
+[node name="Hall_8_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -6.56)
+
+[node name="Hall_8_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -4.56)
+
+[node name="Hall_8_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -2.56)
+
+[node name="Hall_8_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, -0.56)
+
+[node name="Hall_8_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, 1.44)
+
+[node name="Hall_8_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.1, 3.44)
+
+[node name="Hall_9_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -18.56)
+
+[node name="Hall_9_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -16.56)
+
+[node name="Hall_9_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -14.56)
+
+[node name="Hall_9_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -12.56)
+
+[node name="Hall_9_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -10.56)
+
+[node name="Hall_9_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -8.56)
+
+[node name="Hall_9_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -6.56)
+
+[node name="Hall_9_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -4.56)
+
+[node name="Hall_9_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -2.56)
+
+[node name="Hall_9_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, -0.56)
+
+[node name="Hall_9_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, 1.44)
+
+[node name="Hall_9_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.1, 3.44)
+
+[node name="Porch_0_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.53, 5.72)
+
+[node name="Porch_0_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.53, 7.72)
+
+[node name="Porch_1_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.53, 5.72)
+
+[node name="Porch_1_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -0.53, 7.72)
+
+[node name="Porch_2_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.53, 5.72)
+
+[node name="Porch_2_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.53, 7.72)
+
+[node name="Porch_3_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.53, 5.72)
+
+[node name="Porch_3_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.53, 7.72)
+
+[node name="Porch_4_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.53, 5.72)
+
+[node name="Porch_4_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.53, 7.72)
+
+[node name="Porch_5_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.53, 5.72)
+
+[node name="Porch_5_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.53, 7.72)
+
+[node name="Porch_6_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.53, 5.72)
+
+[node name="Porch_6_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.53, 7.72)
+
+[node name="Porch_7_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.53, 5.72)
+
+[node name="Porch_7_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.53, 7.72)
+
+[node name="Porch_8_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.53, 5.72)
+
+[node name="Porch_8_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.53, 7.72)
+
+[node name="Porch_9_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.53, 5.72)
+
+[node name="Porch_9_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.53, 7.72)
+
+[node name="North_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -19.3223)
+
+[node name="NorthBeam_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 3.68, -19.01)
+
+[node name="North_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_window")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -19.3223)
+
+[node name="NorthBeam_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 3.68, -19.01)
+
+[node name="North_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -19.3223)
+
+[node name="NorthBeam_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.68, -19.01)
+
+[node name="North_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -19.3223)
+
+[node name="NorthBeam_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 3.68, -19.01)
+
+[node name="North_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -19.3223)
+
+[node name="NorthBeam_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 3.68, -19.01)
+
+[node name="North_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, -19.3223)
+
+[node name="NorthBeam_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 3.68, -19.01)
+
+[node name="North_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_window")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, -19.3223)
+
+[node name="NorthBeam_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 3.68, -19.01)
+
+[node name="North_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, -19.3223)
+
+[node name="NorthBeam_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 3.68, -19.01)
+
+[node name="North_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, -19.3223)
+
+[node name="NorthBeam_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 3.68, -19.01)
+
+[node name="North_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, -19.3223)
+
+[node name="NorthBeam_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 3.68, -19.01)
+
+[node name="West_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -18.1846)
+
+[node name="WestBeam_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -18.1846)
+
+[node name="West_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_window")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -16.2138)
+
+[node name="WestBeam_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -16.2138)
+
+[node name="West_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -14.2429)
+
+[node name="WestBeam_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -14.2429)
+
+[node name="West_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -12.2721)
+
+[node name="WestBeam_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -12.2721)
+
+[node name="West_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -10.3012)
+
+[node name="WestBeam_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -10.3012)
+
+[node name="West_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_window")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -8.33042)
+
+[node name="WestBeam_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -8.33042)
+
+[node name="West_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -6.35958)
+
+[node name="WestBeam_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -6.35958)
+
+[node name="West_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -4.38875)
+
+[node name="WestBeam_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -4.38875)
+
+[node name="West_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_window")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -2.41792)
+
+[node name="WestBeam_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -2.41792)
+
+[node name="West_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, -0.44708)
+
+[node name="WestBeam_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, -0.44708)
+
+[node name="West_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, 1.52375)
+
+[node name="WestBeam_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, 1.52375)
+
+[node name="West_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -5, 0, 3.49458)
+
+[node name="WestBeam_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_beam")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, -4.69, 3.68, 3.49458)
+
+[node name="PostNW" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_post_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -19.3223)
+
+[node name="PostNE" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_post_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, -19.3223)
+
+[node name="PostSW" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_post_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 4.48)
+
+[node name="CornerCollider" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 2, -17.915)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls/CornerCollider"]
+shape = SubResource("BoxShape3D_s253_CornerCollider")
+
+[node name="Partition_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 2.44714, 0, -14.6575)
+
+[node name="Partition_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 4.40143, 0, -14.6575)
+
+[node name="Partition_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 6.35571, 0, -14.6575)
+
+[node name="Partition_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 8.31, 0, -14.6575)
+
+[node name="Partition_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 10.2643, 0, -14.6575)
+
+[node name="Partition_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 12.2186, 0, -14.6575)
+
+[node name="Partition_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 14.1729, 0, -14.6575)
+
+[node name="PostEnd" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_post_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, -14.6575)
+
+[node name="South_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, -4.04286, 0, 4.48)
+
+[node name="South_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, -2.12857, 0, 4.48)
+
+[node name="South_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, -0.21429, 0, 4.48)
+
+[node name="South_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 0, 4.48)
+
+[node name="South_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, 3.61429, 0, 4.48)
+
+[node name="South_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, 5.52857, 0, 4.48)
+
+[node name="South_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, 7.44286, 0, 4.48)
+
+[node name="SouthEast_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1.05, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 0, 4.48)
+
+[node name="SouthEast_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1.05, 0, 0, 0, 1, 0, 0, 0, 1, 13.95, 0, 4.48)
+
+[node name="Plinth_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -1, 4.48)
+
+[node name="Plinth_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -1, 4.48)
+
+[node name="Plinth_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 4.48)
+
+[node name="Plinth_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -1, 4.48)
+
+[node name="Plinth_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -1, 4.48)
+
+[node name="Plinth_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -1, 4.48)
+
+[node name="Plinth_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -1, 4.48)
+
+[node name="Plinth_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -1, 4.48)
+
+[node name="Plinth_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -1, 4.48)
+
+[node name="Plinth_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -1, 4.48)
+
+[node name="East_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -18.1846)
+
+[node name="East_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -16.2138)
+
+[node name="East_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -14.2429)
+
+[node name="East_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -12.2721)
+
+[node name="East_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -10.3012)
+
+[node name="East_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -8.33042)
+
+[node name="East_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -6.35958)
+
+[node name="East_7" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -4.38875)
+
+[node name="East_8" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -2.41792)
+
+[node name="East_9" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, -0.44708)
+
+[node name="East_10" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, 1.52375)
+
+[node name="East_11" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -0.98542, 0, 0, 15, 0, 3.49458)
+
+[node name="PostSE" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_post_low")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, 4.48)
+
+[node name="GapColliderWest" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.565, 2, 4.48)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls/GapColliderWest"]
+shape = SubResource("BoxShape3D_s253_GapColliderWest")
+
+[node name="GapColliderEast" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.82, 2, 4.48)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls/GapColliderEast"]
+shape = SubResource("BoxShape3D_s253_GapColliderEast")
+
+[node name="CornerColliderEast" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.99, 2, -17.88)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls/CornerColliderEast"]
+shape = SubResource("BoxShape3D_s253_CornerColliderEast")
+
+[node name="FrontDoor" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0, 4.48)
+script = ExtResource("s253_front_door")
+
+[node name="Frame" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor" instance=ExtResource("s253_b10_door_frame")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="HingeLeft" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.05, 0)
+
+[node name="Leaf" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor/HingeLeft" instance=ExtResource("s253_b10_door_leaf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="HingeRight" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.9, 0.05, 0)
+
+[node name="Leaf" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor/HingeRight" instance=ExtResource("s253_b10_door_leaf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Trigger" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+collision_layer = 0
+collision_mask = 3
+monitorable = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor/Trigger"]
+shape = SubResource("BoxShape3D_s253_door_trigger")
 
 [node name="Environment" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
