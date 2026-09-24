@@ -1,0 +1,261 @@
+{
+  "_about": [
+    "Job list for tools/n8n/eternal_guild_asset_images.json. Prompts mirror documentation/design/08_ASSET_PROMPT_PACK.md.",
+    "stage: keyart -> concept -> views. A job runs only when every file in 'refs' exists (paths are relative to ART_DIR).",
+    "To unlock the next layer, copy your favourite image from the gallery into ART_DIR/picked/<id>.png and run again.",
+    "enabled:false skips a job. Bump 'rev' (default 1) to force a job to regenerate. 'variants' = images per prompt.",
+    "views jobs use views_template with {view} replaced by each entry in 'views'. An optional 'prompt' is appended."
+  ],
+  "views_template": "Use the attached image as the exact design. Show the same object as a clean orthographic {view} view, like a modelling reference sheet: same shapes, proportions, colours and details, nothing added or removed. Single object only, centred, whole object in frame, plain flat light-grey background, even soft lighting, no cast shadows, no perspective distortion, no text, no labels.",
+  "jobs": [
+    {
+      "id": "K1_tavern_exterior",
+      "stage": "keyart",
+      "aspect": "16:9",
+      "variants": 4,
+      "prompt": "Stylized low-poly 3D fantasy game scene, isometric view from 30 degrees above, orthographic camera. A cozy two-storey adventurers' guild tavern at dusk on a small grassy rise beside a dirt road: heavy timber frame over a pale stone ground floor, steep dark red shingle roof, a crooked stone chimney with a thin line of smoke, warm amber light glowing from small square windows, a hanging wooden sign with an hourglass-inside-a-flame emblem, barrels and stacked firewood by the door, a lantern on a post. Chunky toy-like proportions, flat-shaded faces with soft vertical colour gradients, bevelled edges, no fine texture detail, low-poly strategy-game diorama style. Strong graphic shadow shapes (Mike Mignola inspired lighting), cool blue-violet dusk sky against the warm windows. Melancholy and inviting. Muted palette: timber brown, pale stone grey, dark red roof, amber light, deep blue shadow."
+    },
+    {
+      "id": "K2_tavern_interior",
+      "stage": "keyart",
+      "aspect": "16:9",
+      "variants": 4,
+      "prompt": "Stylized low-poly 3D fantasy game interior, isometric cutaway view from 30 degrees above, orthographic camera, two walls removed so we see inside. A large timber-and-stone guild tavern hall at night: a big stone hearth with a roaring fire, a long wooden bar with kegs and bottles on back shelves, heavy round tables and benches, a recruitment desk with an open ledger and a candle, a notice board covered in pinned mission papers, a wooden staircase to an upper floor, a quiet corner with one empty chair and candles beneath small framed name plaques. Warm amber firelight pooling on the floor, deep soft shadows in the corners, Studio Ghibli warmth. Chunky toy-like proportions, flat-shaded faces with soft colour gradients, bevelled edges, no fine texture detail, low-poly game asset style. Palette: honey and dark timber, pale grey stone, amber and ember-orange light, a few deep red cloth accents."
+    },
+    {
+      "id": "K3_world_map",
+      "stage": "keyart",
+      "aspect": "16:9",
+      "variants": 4,
+      "prompt": "Stylized low-poly 3D hex-tile world map of a small island, isometric view from 50 degrees above, orthographic. Hexagonal tiles: grassland, pine forests, rocky mountains with a dark cave, a winding river with a stone bridge, a coastline with shallow turquoise water. A cozy tavern with a red roof on the centre tile. Scattered landmark tiles: crumbling pale-stone ancient ruins with glowing teal runes, a jagged black shrine with a magenta-red glow, a bandit camp with a log palisade and campfire, a small mining village in the mountains, a watchtower near the coast. Chunky toy-like diorama proportions, flat-shaded faces, soft colour gradients, clean silhouettes, low-poly board-game look. Soft daylight, one side of the island darker and more foreboding. Palette: fresh greens, sand, pale stone, blue-teal sea, small accents of teal glow and magenta-red."
+    },
+    {
+      "id": "D1_prior_ruins",
+      "stage": "concept",
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single grassy hexagonal tile: the ruins of an ancient pale-stone temple. Three broken columns of different heights, a collapsed archway, a round stone dais in the centre carved with an hourglass symbol, and thin glowing teal runes cut into the stones. Moss creeping over fallen blocks, one small tree growing through the rubble. Weathered, quiet, mysterious, not evil. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail, low-poly board-game diorama style. Plain light-grey background. Palette: pale beige and grey stone, fresh green grass and moss, teal glow."
+    },
+    {
+      "id": "A1_guild_tavern",
+      "stage": "concept",
+      "variants": 3,
+      "refs": [
+        "picked/K1_tavern_exterior.png"
+      ],
+      "prompt": "Use the attached image as the design: show that same tavern building alone, with nothing around it. Single object only, centred, whole object in frame, three-quarter view from 30 degrees above, plain flat light-grey background, even soft lighting, no cast shadows, no ground plane, no text, no other objects. Low-poly stylized game asset, flat-shaded faces, simple solid colours."
+    },
+    {
+      "id": "B1_hearth",
+      "stage": "concept",
+      "variants": 3,
+      "refs": [
+        "picked/K2_tavern_interior.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D game asset: a large stone tavern hearth. Big rough-cut pale grey stone blocks, a wide arched firebox with iron andirons and a neat stack of split logs, a thick dark timber mantel beam holding two candles, a tankard and a small hourglass, the chimney breast rising to the ceiling. A few foundation stones near the floor carry faint glowing teal carved runes. Warm and heavy, the heart of the room. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric view from 30 degrees above, plain light-grey background."
+    },
+    {
+      "id": "B2_bar",
+      "stage": "concept",
+      "variants": 3,
+      "refs": [
+        "picked/K2_tavern_interior.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D game asset: a long wooden tavern bar. A thick honey-coloured plank top on a dark timber base with simple panels, a brass foot rail, three tankards and a cloth on the counter. Behind it, a tall back shelf with rows of bottles, a rack of three big wooden kegs with taps, and a small chalkboard. Warm and well-used. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric view from 30 degrees above, plain light-grey background."
+    },
+    {
+      "id": "D2_demon_shrine",
+      "stage": "concept",
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single hexagonal tile of scorched dark earth: a jagged black-stone altar ringed by five tall crooked obelisks, tattered dark red banners on poles, a pit in the centre glowing magenta-red, a few bone-white candles, dead grey grass at the edges. Ominous but not gory: no bodies, no blood. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail, low-poly board-game diorama style. Plain light-grey background. Palette: charcoal and iron-grey stone, dark red cloth, magenta-red glow, bone white."
+    },
+    {
+      "id": "D3_dragon_lair",
+      "stage": "concept",
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single hexagonal tile: a steep faceted rocky crag with a huge dark cave mouth, deep claw scars in the rock, black scorch streaks around the entrance, a scatter of bones and a giant horned skull half-buried at the cave's lip, a faint glint of gold coins in the darkness inside, a thin wisp of smoke from a crack at the top. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail, low-poly board-game diorama style. Plain light-grey background. Palette: warm grey and brown stone, charcoal scorch, bone white, a spark of gold."
+    },
+    {
+      "id": "D3_dragon_skull",
+      "stage": "concept",
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. A giant horned dragon skull, low-poly stylized game asset. Single object only, centred, whole object in frame, three-quarter view from 30 degrees above, plain flat light-grey background, even soft lighting, no cast shadows, no ground plane, no text, no other objects. Flat-shaded faces, simple solid colours."
+    },
+    {
+      "id": "B3_recruitment_desk",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K2_tavern_interior.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D game asset: a heavy wooden guild recruitment desk. An open ledger with a quill in an ink pot, a lit candle, a small brass hand bell, a stack of rolled hiring contracts tied with red string, a worn stool behind it. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric view from 30 degrees above, plain light-grey background."
+    },
+    {
+      "id": "B4_mission_board",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K2_tavern_interior.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D game asset: a wall-mounted wooden guild notice board, 3 metres wide. A thick timber frame, a painted hex map of an island in the centre, parchment notices pinned around it, some marked with small skull symbols, red string linking a few of them, one candle sconce on each side. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Front view tilted 30 degrees from above, plain light-grey background."
+    },
+    {
+      "id": "B5_wall_of_fallen",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K2_tavern_interior.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D game asset: a quiet memorial corner in a tavern. A stretch of timber wall with rows of small wooden plaques and little framed tarot-card-sized portraits, a narrow shelf of half-burnt candles beneath, and one empty chair pushed in at a small table with a single full tankard left untouched. Melancholy, tender, not grim. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric view from 30 degrees above, plain light-grey background."
+    },
+    {
+      "id": "B6_hourglass_pillar",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K2_tavern_interior.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D game asset: an ancient pale-stone pillar half-excavated from a cellar floor, its surface carved with bands of glowing teal runes, and at its top a large hourglass of dark bronze and glass set into the stone, sand trickling. Rubble and a wooden excavation scaffold around its base. Mysterious, patient, very old. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail. Isometric view from 30 degrees above, plain light-grey background."
+    },
+    {
+      "id": "D4_bandit_hideout",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single grassy hexagonal tile: a small bandit camp. A ring of sharpened-log palisade with a gap for a gate, two patched canvas tents, a campfire with a cooking pot, a crude lookout platform on stilts, stolen crates and barrels, a torn red flag. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail, low-poly board-game diorama style. Plain light-grey background."
+    },
+    {
+      "id": "D5_goblin_warren",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single hexagonal tile: a grassy mound burrowed full of round dark holes, crude huts of sticks and stitched hide on top, a totem pole with a painted grinning face, a rickety rope bridge between two huts, little piles of junk. Mischievous, not horror. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail, low-poly board-game diorama style. Plain light-grey background."
+    },
+    {
+      "id": "D6_slime_bog",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single hexagonal tile: a murky swamp. Dark green-brown water pools, clumps of reeds, two dead leafless trees, three glossy translucent green slime blobs of different sizes sitting in the shallows, a few bubbles on the water. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail, low-poly board-game diorama style. Plain light-grey background."
+    },
+    {
+      "id": "D7_herb_glade",
+      "stage": "concept",
+      "enabled": false,
+      "variants": 3,
+      "refs": [
+        "picked/K3_world_map.png"
+      ],
+      "prompt": "Match the art style, colour palette, lighting and level of detail of the attached reference image, but show only the subject described next. Stylized low-poly 3D hex tile game asset, isometric view from 30 degrees above. On a single grassy hexagonal tile: a peaceful meadow with clusters of pale blue and white flowers, a single mossy standing stone, a small stream crossing one corner. Gentle and safe. Chunky toy-like proportions, flat-shaded faces, soft colour gradients, bevelled edges, no fine texture detail, low-poly board-game diorama style. Plain light-grey background."
+    },
+    {
+      "id": "D1_prior_ruins",
+      "stage": "views",
+      "refs": [
+        "picked/D1_prior_ruins.png"
+      ],
+      "views": [
+        "front",
+        "right side",
+        "top-down"
+      ]
+    },
+    {
+      "id": "A1_guild_tavern",
+      "stage": "views",
+      "refs": [
+        "picked/A1_guild_tavern.png"
+      ],
+      "views": [
+        "front",
+        "right side",
+        "top-down"
+      ]
+    },
+    {
+      "id": "B1_hearth",
+      "stage": "views",
+      "refs": [
+        "picked/B1_hearth.png"
+      ],
+      "views": [
+        "front",
+        "right side",
+        "top-down"
+      ]
+    },
+    {
+      "id": "B2_bar",
+      "stage": "views",
+      "refs": [
+        "picked/B2_bar.png"
+      ],
+      "views": [
+        "front",
+        "right side",
+        "top-down"
+      ]
+    },
+    {
+      "id": "D2_demon_shrine",
+      "stage": "views",
+      "refs": [
+        "picked/D2_demon_shrine.png"
+      ],
+      "views": [
+        "front",
+        "right side",
+        "top-down"
+      ]
+    },
+    {
+      "id": "D3_dragon_lair",
+      "stage": "views",
+      "refs": [
+        "picked/D3_dragon_lair.png"
+      ],
+      "views": [
+        "front",
+        "right side",
+        "top-down"
+      ]
+    },
+    {
+      "id": "D3_dragon_skull",
+      "stage": "views",
+      "refs": [
+        "picked/D3_dragon_skull.png"
+      ],
+      "views": [
+        "front",
+        "left side",
+        "back",
+        "three-quarter"
+      ]
+    }
+  ]
+}

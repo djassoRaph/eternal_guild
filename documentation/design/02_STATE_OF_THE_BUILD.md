@@ -73,5 +73,6 @@ any other document.** Update it when a feature ships, not before.
 | INTEGRATION_CONTRACT_DISPATCH.md | keeper |
 | ADVENTURER_PRESENCE_SYSTEM.md | keeper |
 | 06_Character_Design.md | keeper (Arcana system + Gareth case study) |
+| 08_ASSET_PROMPT_PACK.md | working doc: 3D art pipeline + prompts (tavern, map, hex landmarks); automation in `tools/n8n/` |
 | 00_GDD_Master.md + any SESSION_* files | → move to `documentation/old/` |
 | DATA_SOURCE_OF_TRUTH.md | does not exist yet — produced by Recon B (see reveal plan) |
