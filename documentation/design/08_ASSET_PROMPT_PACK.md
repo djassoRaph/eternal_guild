@@ -67,6 +67,53 @@ this look comes from the edge-detection outlines, the flat atlas colours and har
 from the models, so the modelling rules above don't change. Picked key art: K1 inked v1, K2 =
 style test S2 v1 (it came out inked despite its "pixel" prompt), K3 inked v1.
 
+### Build contract (Godot-side rules) — added by Story 25.1
+
+These sit on top of the style rules above. Every new asset card (Epic 25 / Epic 26 stories)
+assumes them.
+
+- **Units and origin:** metres; +Y up in Godot (Z-up in Blender, exported with +Y Up ON); origin
+  at bottom-centre on 0,0,0; all transforms applied.
+- **Roughness is the outline switch.** `edge_detection.gdshader` only draws ink outlines where
+  screen roughness is above 0 (`ceil(roughness)`).
+  - Every normal surface: roughness above 0 (KayKit-like, about 0.5–1.0).
+  - Surfaces that should read as *light, not ink* (pillar runes, Onibi, magic glow, VFX meshes):
+    set roughness to **exactly 0**.
+  - Seen in LookDev: roughness 0 removes the lines drawn *on* that surface. Surfaces behind it can
+    still draw a thin contact line at its silhouette. Roughness 0 also makes the surface glossy,
+    so pair it with emission.
+  - This needs the **Forward+** renderer (verified 2026-09-24; see `game-architecture.md` › Renderer).
+- **Marker empties** (Blender empties, exported as `Node3D`). Scenes collect them by name or
+  group instead of hard-coded coordinates. Add `_01`, `_02`… when there are several:
+  - `seat_point` (group `patron_seat`)
+  - `serve_point`, `work_point`, `perform_point`, `sit_point`, `interact_point`, `spawn_point`
+  - `grave_text`
+- **Collision via Godot import hints** (node-name suffixes) on low-poly proxy meshes:
+  - `<name>-colonly`: static trimesh, invisible.
+  - `<name>-convcolonly`: convex, invisible.
+  - Don't put `-col` on the visible mesh; it doubles the geometry cost.
+  - Walkable interiors keep their baked NavigationRegion3D, so don't use `-navmesh`.
+- **Triangle budgets** (calibrated 2026-09-24 against KayKit, counted from the files):
+
+  | Tier | Budget | KayKit reference (measured) |
+  |---|---|---|
+  | Small hand prop | ≤ 300 | `barrel_small.obj` 207 · `props/barrel.gltf` 240 |
+  | Furniture | ≤ 1,000 | `table_small.obj` 192 · `stool.obj` 172 |
+  | Hex topper / landmark | ≤ 3,000 | `building_tavern_blue` 2,992 (only a capital earns more: castle 5,659) |
+  | Hero interior piece (pillar, hearth, bar) | ≤ 5,000 | — |
+  | Walkable exterior building | ≤ 8,000 | — |
+  | Character | ≈ KayKit density | `Knight.glb` 6,952 in total (≈ 4.6k body + ≈ 2.3k gear across 15 meshes) |
+
+- **Export folders:**
+  - Props, buildings, landmarks: `res://assets/environment/custom/<asset_id>.gltf` (glTF Separate, §6.4).
+  - Characters: `res://assets/characters/custom/<asset_id>.glb` (glTF Binary, armature + animations).
+  - Never write into KayKit folders. Never overwrite a file.
+- **Data hookup:** content is referenced by path from JSON (MOD-3) with a fallback (MOD-6). The
+  failsafe suite (Test 5) checks that every referenced path exists. Known gaps live in
+  `test/asset_path_allowlist.json`.
+- **Quick check:** `scenes/dev/LookDev.tscn` (tavern or map preset) before the in-scene Stage D
+  pass (§6.5).
+
 ---
 
 ## 2. The pipeline
@@ -113,6 +160,16 @@ about 1 in 2.
   one. Route 2's built-in generators are in the community one.
 - **Safety:** the MCP runs any Python it's given inside Blender. The prompts in §6 tell Claude to
   save the `.blend` before each major step.
+- **MCP status (2026-09-24, Story 25.1):**
+  - Blender 4.5.2 LTS.
+  - Add-on updated on disk with `uvx mcp-for-blender install-addon`. On Windows, run it with
+    `PYTHONIOENCODING=utf-8`, because its final message crashes the cp1252 console after the
+    install has already succeeded.
+  - It writes `…\Blender\4.5\scripts\addons\blender_mcp.py` (and refreshes the older `addon.py`).
+  - **Blender still reports protocol 5 until it is restarted** (or the add-on is re-enabled and
+    the MCP server started again). The expected protocol is 9.
+  - Integrations (Hyper3D Rodin, Hunyuan3D, Poly Haven, Poly Pizza, Sketchfab): all **off**.
+  - Add-on telemetry consent: **ON**. That's Raphael's choice; toggle it in the MCP panel.
 
 **Sheet suffix.** Append this to any concept prompt when you want an image for Route 2, or a
 clean single-object reference for Route 1:
@@ -676,7 +733,9 @@ Export <asset_id> for Godot:
    only, +Y Up ON, Apply Modifiers ON, materials exported, images Automatic, no cameras,
    no lights, no animation.
 4. Save to <project>/assets/environment/custom/<asset_id>.gltf.
-   Never write into the KayKit folders (hexagons/, furniture/, characters/).
+   Characters instead: format "glTF Binary (.glb)" with the armature and animations included
+   (Animation ON), saved to <project>/assets/characters/custom/<asset_id>.glb.
+   Never write into the KayKit folders (hexagons/, furniture/, characters/models/).
    Never overwrite an existing file. If the name exists, stop and ask. (The one exception
    is the atlas copy hexagons_medieval.png written next to it, which is identical every time.)
 5. Report the files written and their sizes.
@@ -685,6 +744,12 @@ Export <asset_id> for Godot:
 ### 6.5 Stage D: check it in Godot
 
 - **Where to test:**
+  - **Quick check first: `scenes/dev/LookDev.tscn`.**
+    - Set `subject_scene` to the exported file and pick a preset (`tavern`, or `map` with `map_ortho_size` about 8 for a single hex).
+    - Run it with `"E:/Godot installer/Godot_v4.4.1-stable_win64.exe" -d --path "F:/GAME I AM MAKING/shiningsun" res://scenes/dev/LookDev.tscn`.
+    - It uses the same half-res SubViewport, camera basis, edge shader and lights as the tavern, with KayKit scale references and two proof objects beside the subject.
+    - It quits itself after 240 s so SaveSystem's autosave can't overwrite your save.
+    - The in-scene checks below are still mandatory for the final pass.
   - Landmarks: temporarily add the path to `ZONE_BUILDINGS` in `HexMapGenerator.gd` and run
     `HexMapTest.tscn`.
   - The tavern: place it next to `building_tavern_blue2` in `ExteriorWorld.tscn`.

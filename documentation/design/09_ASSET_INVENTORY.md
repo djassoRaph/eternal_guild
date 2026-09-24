@@ -32,12 +32,15 @@ commit. Status values:
 | | Count |
 |---|---|
 | Model files in `assets/` | 187 |
-| …actually used by the game | **87** |
-| …on disk but unused (don't remake these unless the game starts using them) | 100 |
+| …actually used by the game | **89** |
+| …on disk but unused (don't remake these unless the game starts using them) | 98 |
 | 2D portraits in use | 11 images |
 | Planned assets from the design docs | see §7 |
 
-At roughly one evening per 3D asset, 87 models is many months. Four things make it survivable:
+*(Corrected 2026-09-24, Story 25.1: `Chair 3.obj` ×3 and `Chair 5.obj` ×2 are placed in MainTavern
+but were first counted as unused, so used is 89, not 87, and unused is 98, not 100.)*
+
+At roughly one evening per 3D asset, 89 models is many months. Four things make it survivable:
 
 1. **Kits, not singles.** Remake the hex tiles as one kit and the tavern furniture as one kit:
    shared proportions, bevels and atlas swatches. The second piece of a kit is much faster than the
@@ -65,7 +68,7 @@ in at least one place:
 
 ---
 
-## 1. Tavern interior — `scenes/MainTavern.tscn` (25 used + new pieces)
+## 1. Tavern interior — `scenes/MainTavern.tscn` (27 used + new pieces)
 
 New pieces from `08` (Batch 1 and 2):
 
@@ -90,6 +93,8 @@ Stock models in use today:
 | `TavernCounterCircular` | furniture | local-only file; replaced by B2 | `stock` |
 | `table` | furniture | | `stock` |
 | `bench` | furniture | | `stock` |
+| `Chair 3` | furniture | ×3 under `Furniture/Chairs`; source unknown (§9) | `stock` |
+| `Chair 5` | furniture | ×2 under `Furniture/Chairs`; source unknown (§9) | `stock` |
 | `barrel` | furniture | also used in exterior | `stock` |
 | `table_long_tablecloth_decorated_A` | decorations | | `stock` |
 | `table_medium_tablecloth` | decorations | | `stock` |
@@ -146,8 +151,8 @@ map pieces.
 
 ## 3. World-map kit — `HexMapGenerator.gd` + `HexagoneWorld.tscn` (53 used)
 
-(25 tavern + 14 exterior + 53 map + 5 characters = 97; 10 files are shared between the map and the
-exterior or the tavern, which leaves the 87 unique files.)
+(27 tavern + 14 exterior + 53 map + 5 characters = 99; 10 files are shared between the map and the
+exterior or the tavern, which leaves the 89 unique files.)
 
 **Base, coast and river tiles** (the ground itself):
 
@@ -363,7 +368,7 @@ Kickstarter visuals = **reveal + tarot art + pillar** (02_STATE:50). K1–K3 ink
 
 ---
 
-## 8. On disk but unused (100 files)
+## 8. On disk but unused (98 files)
 
 Don't remake these unless the game starts using them. If a wave needs one (for example roads for
 `missing_caravan`), move its row into the right section first.
@@ -377,7 +382,28 @@ Don't remake these unless the game starts using them. If a wave needs one (for e
 | `hexagons/props` | 22 |
 | `hexagons/nature` | 12 |
 | `hexagons/blue` | 6 |
-| `furniture` | 5 |
+| `furniture` | 3 (`candle.obj`, `crate.glb`, `stairs_wide.obj`) |
 | `characters/kaykit_skeletons` | 4 (all) |
 | `hexagons/base` | 3 |
 | `characters/kaykit_adventurers` | 1 |
+
+---
+
+## 9. Sources unknown (ART-6)
+
+*Added 2026-09-24 (Story 25.1).* Every third-party pack folder now has a `LICENSE-SOURCE.md`. KayKit
+(Adventurers, Skeletons, Dungeon Remastered 1.1, Medieval Hexagon 1.0) and Kenney are **CC0**, and
+`TavernCounterCircular.glb` is project-owned. The files below have **no known source or licence**.
+**Replace them, or find their source, before anything ships** (Steam/Kickstarter credits, and Steam's
+AI-content disclosure).
+
+| File(s) | Folder | In use? | Note |
+|---|---|---|---|
+| `barrel.glb`, `bench.glb`, `crate.glb`, `table.glb` + `*_albedo.png` | `environment/furniture` | yes (not crate) | PBR albedo textures; not KayKit |
+| `Chair 3.obj`, `Chair 5.obj` | `environment/furniture` | yes | from a `chair.blend`; `.mtl` missing |
+| `stonefireplace.jpg` | `environment/furniture` | no | |
+| `barbarian.jpg`, `drow-girl.jpg`, `fighter-girl.jpg`, `healer.jpg`, `mage portrait.jpg`, `rogue.jpg`, `unnamed.jpg`, `fighter.png`, `healer.png`, `mage.png`, `rogue.png` | `portraits` | the PNGs, via `portrait_socket.gd` | JPGs carry Picasa metadata |
+| `fighter.png`, `knight.png`, `mage.png`, `rogue.png` | `characters/portraits` | no | |
+| `coins.mp3`, `cointinkle.wav` | `audio/sfx` | yes (`sfx_manager.gd`) | |
+| `tavernbackgroundimage.png` | `ui` | yes (MainMenu) | replaced by Story 25.25 |
+| `fire/log.png` | `ui` | yes (fire minigame) | |

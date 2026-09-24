@@ -357,7 +357,16 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
-| 25: Demo Art Pipeline & Demo Cast | ~2% | **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) |
+| 25: Demo Art Pipeline & Demo Cast | ~4% | **Story 25.1 (pipeline readiness) — in review, 2026-09-24, branch `epic-25-pipeline`:**
+- **Renderer verified: Forward+ (Vulkan).** Runtime `forward_plus`; the LookDev proof shot shows normal edges and the roughness mask working.
+- `scenes/dev/LookDev.tscn` added for Stage D quick checks (it auto-quits at 240 s so it can't autosave over your save).
+- Export folders `assets/{environment,characters}/custom/` created.
+- Build contract and measured triangle budgets merged into 08 §1.
+- `LICENSE-SOURCE.md` added in every asset pack folder; the unknown sources are listed in 09 §9.
+- Failsafe Test 5 (asset-path integrity) added: 32/32 green.
+- Still open: restart Blender so the updated MCP add-on reports protocol 9.
+
+**Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) |
 | 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
 
 ---
