@@ -71,6 +71,18 @@ const HEARTH_BLOCKED := Vector2(-3.6, -9.3)       # on the navmesh before 25.5; 
 const HEARTH_OBJECTS := ["hearth_stone", "mantel", "mantel_props", "andirons", "ember_bed", "hearth_runes"]
 const HEARTH_MARKERS := ["sit_point", "interact_point", "fire_point", "smoke_point", "onibi_point"]
 
+const ROUND_BAR_PATH := "res://assets/environment/custom/b2_round_bar.gltf"
+const BAR_STOOL_PATH := "res://assets/environment/custom/b2_bar_stool.gltf"
+const BACK_BAR_PATH := "res://assets/environment/custom/b12_back_bar.gltf"
+const TANKARD_FULL_PATH := "res://assets/environment/custom/h1_tankard_full.gltf"
+const TANKARD_EMPTY_PATH := "res://assets/environment/custom/h1_tankard_empty.gltf"
+const ROUND_BAR_SCENE_PATH := "res://scenes/game/RoundBar.tscn"
+const BAR_STOOL_SCENE_PATH := "res://scenes/game/BarStool.tscn"
+const SPAWNER_SCRIPT_PATH := "res://scripts/npcs/PatronSpawner.gd"
+const PATRON_SCRIPT_PATH := "res://scripts/npcs/RealisticPatron.gd"
+const OLD_BAR_NODES := ["Architecture/TavernCounterCircular", "Architecture/Keg", "Furniture/Bar/BarCounter",
+	"Furniture/Stool2", "Furniture/Stool3", "Furniture/Stool4", "Furniture/Plate"]
+
 var _pass_count := 0
 var _fail_count := 0
 var _elapsed := 0.0
@@ -90,6 +102,7 @@ func _initialize() -> void:
 	test_exterior_world()
 	test_hourglass_pillar()
 	test_hearth()
+	test_round_bar()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -588,7 +601,8 @@ static func _scene_nodes(scene_path: String) -> Dictionary:
 			props[state.get_node_property_name(i, p)] = state.get_node_property_value(i, p)
 		var inst := state.get_node_instance(i)
 		nodes[path] = {"local": props.get("transform", Transform3D.IDENTITY), "props": props,
-			"instance": inst.resource_path if inst else "", "type": str(state.get_node_type(i))}
+			"instance": inst.resource_path if inst else "", "type": str(state.get_node_type(i)),
+			"groups": Array(state.get_node_groups(i)).map(func(g): return str(g))}
 	for path in nodes:
 		var world := Transform3D.IDENTITY
 		var cur: String = path
@@ -717,9 +731,10 @@ func test_hourglass_pillar() -> void:
 	for k in tav:
 		if str(k).ends_with("TavernNavigation"):
 			nav = tav[k].props.get("navigation_mesh")
+	# The on-mesh point is 4.3 m out: since Story 25.6 the round bar's counter covers r 2.4..3.1.
 	check(nav is NavigationMesh and not _nav_contains(nav, PILLAR_RING_CENTRE.x, PILLAR_RING_CENTRE.z)
-		and _nav_contains(nav, PILLAR_RING_CENTRE.x + 3.0, PILLAR_RING_CENTRE.z),
-		"navmesh routes around the pillar (floor level: centre off, 3 m away on)")
+		and _nav_contains(nav, PILLAR_RING_CENTRE.x + 4.3, PILLAR_RING_CENTRE.z),
+		"navmesh routes around the pillar (floor level: centre off, 4.3 m away on)")
 	print("")
 
 
@@ -845,6 +860,129 @@ static func _mesh_stats(scene_path: String) -> Dictionary:
 			if (m.emission_enabled and m.roughness != 0.0) or (not m.emission_enabled and m.roughness <= 0.0):
 				wrong.append("%s/%s r=%.2f" % [str(k).get_file(), m.resource_name, m.roughness])
 	return {"tris": tris, "glow": glow, "wrong": wrong}
+
+
+# --- Test 12: The Round Bar and drinks service (Story 25.6) ---
+# B2 ring, bar stool, B12 back-bar island and H1 tankards (budgets, glow rule, objects, markers,
+# trimesh colliders, the walkway between island and counter); the BarStool / RoundBar scenes (seat
+# group, 12 stools facing the centre, serve points); seats from the scene (PatronSpawner.build_seats,
+# RealisticPatron.seat_root, the tankard props); and the hall: old bar pieces gone, the bar at the
+# pillar, navmesh round the counter with every stool reachable.
+func test_round_bar() -> void:
+	print("[Test 12] The Round Bar and drinks service")
+	for spec in [[ROUND_BAR_PATH, 6000, 1], [BAR_STOOL_PATH, 150, 0], [BACK_BAR_PATH, 3000, 0],
+			[TANKARD_FULL_PATH, 300, 0], [TANKARD_EMPTY_PATH, 300, 0]]:
+		var ok := ResourceLoader.exists(spec[0])
+		check(ok, "asset exists: %s" % str(spec[0]).get_file())
+		var st := _mesh_stats(spec[0]) if ok else {"tris": 0, "glow": 0, "wrong": ["missing"]}
+		check(st.tris > 0 and st.tris <= spec[1] and st.glow >= spec[2] and st.wrong.is_empty(),
+			"%s: %d tris (budget %d), glow rule (%d glow; wrong: %s)" % [str(spec[0]).get_file(), st.tris, spec[1], st.glow, st.wrong])
+	var bar := _scene_nodes(ROUND_BAR_PATH) if ResourceLoader.exists(ROUND_BAR_PATH) else {}
+	var bar_names := bar.keys().map(func(k): return str(k).get_file())
+	var want := ["bar_ring", "bar_flap", "bar_runes", "foot_rail", "flap_point"]
+	for i in 5:
+		want.append("serve_point_%02d" % (i + 1))
+	check(not bar.is_empty() and want.all(func(n): return n in bar_names), "B2 objects and markers present")
+	var island := _scene_nodes(BACK_BAR_PATH) if ResourceLoader.exists(BACK_BAR_PATH) else {}
+	var island_names := island.keys().map(func(k): return str(k).get_file())
+	check(not island.is_empty() and ["back_shelf", "keg_rack", "keg_beer", "keg_mead", "work_point", "tap_beer", "tap_mead"].all(
+		func(n): return n in island_names), "B12 island objects (shelf, rack, beer and mead kegs) and markers present")
+	var counter_in := _shape_radius(bar, true)
+	var island_out := _shape_radius(island, false)
+	check(counter_in > 0.0 and island_out > 0.0 and counter_in - island_out >= 1.0,
+		"trimesh colliders; the Bartender's walkway is %.2f m (counter r %.2f - island r %.2f, need >= 1.0)" % [counter_in - island_out, counter_in, island_out])
+	var stool := _scene_nodes(BAR_STOOL_PATH) if ResourceLoader.exists(BAR_STOOL_PATH) else {}
+	var seat_y := -1.0
+	for k in stool:
+		if str(k).get_file() == "seat_point":
+			seat_y = (stool[k].world as Transform3D).origin.y
+	check(absf(seat_y - 0.44) <= 0.05, "the stool's seat_point is at %.2f m (0.44, the KayKit chair height)" % seat_y)
+
+	var bs := _scene_nodes(BAR_STOOL_SCENE_PATH) if ResourceLoader.exists(BAR_STOOL_SCENE_PATH) else {}
+	var seat_local := Transform3D.IDENTITY
+	var seat_ok := false
+	for k in bs:
+		if "patron_seat" in bs[k].groups and bs[k].type == "Marker3D":
+			seat_ok = true
+			seat_local = bs[k].world
+	check(seat_ok, "BarStool.tscn has a Marker3D in group patron_seat")
+	var rb := _scene_nodes(ROUND_BAR_SCENE_PATH) if ResourceLoader.exists(ROUND_BAR_SCENE_PATH) else {}
+	var stools := rb.keys().filter(func(k): return rb[k].instance == BAR_STOOL_SCENE_PATH)
+	var facing_ok := true
+	for k in stools:
+		var t: Transform3D = rb[k].world
+		var r := Vector2(t.origin.x, t.origin.z).length()
+		var inward := Vector3(-t.origin.x, 0, -t.origin.z).normalized()
+		if absf(r - 3.95) >= 0.05 or t.basis.z.normalized().dot(inward) <= 0.99:
+			facing_ok = false
+	check(stools.size() == 12 and facing_ok, "RoundBar has %d stools (12) at r 3.95 facing the bar" % stools.size())
+	var serves := rb.keys().filter(func(k): return rb[k].type == "Marker3D" and "serve_point" in rb[k].groups)
+	check(serves.size() == 5, "RoundBar has %d serve points for the Bartender (5)" % serves.size())
+	check(rb.values().any(func(n): return n.instance == BACK_BAR_PATH), "RoundBar instances the B12 island")
+
+	var sp = load(SPAWNER_SCRIPT_PATH) as Script
+	var rp = load(PATRON_SCRIPT_PATH) as Script
+	var has_api: bool = sp != null and rp != null and sp.get_script_method_list().any(func(m): return m.name == "build_seats") \
+		and rp.get_script_method_list().any(func(m): return m.name == "seat_root")
+	check(has_api, "PatronSpawner.build_seats() and RealisticPatron.seat_root() exist")
+	if has_api:
+		var seat_t := Transform3D(Basis.looking_at(Vector3(0, 0, 1), Vector3.UP, true), Vector3(0, 0.54, -3.95))   # +Z toward the centre
+		var root: Vector3 = rp.seat_root(seat_t)
+		check(root.distance_to(Vector3(0, 0.1, -3.55)) < 0.02, "seat_root: 0.40 m in front of the seat, on the floor (%s)" % root)
+		var far := Vector3(-3.0, 0, -1.0)
+		var near := Vector3(0.1, 0, -3.5)
+		var only_tables: Array = sp.build_seats([], [far, near])
+		check(only_tables.size() == 2 and only_tables.all(func(s): return s.sit == null) and only_tables[0].approach == far,
+			"build_seats with no scene seats is the old table list")
+		var mixed: Array = sp.build_seats([seat_t], [far, near])
+		check(mixed.size() == 2 and mixed[0].sit is Transform3D and mixed[0].approach.distance_to(root) < 0.01 and mixed[1].approach == far,
+			"build_seats: scene seats first, table spots kept unless within 0.8 m of a seat")
+	var tank_ok: bool = rp != null and ResourceLoader.exists(str(rp.get_script_constant_map().get("TANKARD_FULL", ""))) \
+		and ResourceLoader.exists(str(rp.get_script_constant_map().get("TANKARD_EMPTY", "")))
+	check(tank_ok, "RealisticPatron's tankard props point at the H1 files")
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var gone := tav.keys().filter(func(k): return OLD_BAR_NODES.any(func(p): return str(k).ends_with("TavernNavigation/" + p)))
+	check(gone.is_empty(), "the old bar pieces are gone %s" % [gone])
+	var tscn_text := FileAccess.get_file_as_string(TAVERN_SCENE_PATH)
+	check(not tscn_text.contains("TavernCounterCircular.glb"), "MainTavern no longer needs the gitignored TavernCounterCircular.glb")
+	var hits := tav.keys().filter(func(k): return tav[k].instance == ROUND_BAR_SCENE_PATH)
+	check(hits.size() == 1 and (tav[hits[0]].world as Transform3D).origin.distance_to(PILLAR_RING_CENTRE) < 0.05,
+		"MainTavern has the round bar at the pillar %s" % [hits])
+	var nav = null
+	for k in tav:
+		if str(k).ends_with("TavernNavigation"):
+			nav = tav[k].props.get("navigation_mesh")
+	if hits.size() == 1 and nav is NavigationMesh:
+		var t_bar: Transform3D = tav[hits[0]].world
+		var c := t_bar.origin
+		check(not _nav_contains(nav, c.x, c.z + 2.7), "navmesh: the counter is solid (r 2.7 in front is off)")
+		check(_nav_contains(nav, c.x, c.z - 3.7), "navmesh: the flap entrance (r 3.7 behind) is on")
+		var off := []
+		for k in stools:
+			var seat_w: Transform3D = t_bar * (rb[k].world as Transform3D) * seat_local
+			var a: Vector3 = rp.seat_root(seat_w) if has_api else seat_w.origin
+			var out := Vector3(a.x - c.x, 0, a.z - c.z).normalized()
+			var p := a + out * 0.3
+			if not _nav_contains(nav, p.x, p.z):
+				off.append("(%.2f, %.2f)" % [p.x, p.z])
+		check(stools.size() == 12 and off.is_empty(), "navmesh: every stool's approach is reachable (off: %s)" % [off])
+	else:
+		check(false, "navmesh checks need the bar in MainTavern")
+	print("")
+
+
+## Radius (xz) of a scene's trimesh collider: the smallest vertex radius (inner = true) or the largest.
+static func _shape_radius(nodes: Dictionary, inner: bool) -> float:
+	for k in nodes:
+		var sh = nodes[k].props.get("shape")
+		if sh is ConcavePolygonShape3D:
+			var best := INF if inner else 0.0
+			for v in (sh as ConcavePolygonShape3D).get_faces():
+				var r := Vector2(v.x, v.z).length()
+				best = minf(best, r) if inner else maxf(best, r)
+			return best
+	return -1.0
 
 ## Floor-level only: a solid prop's flat top can bake into a small unreachable island above it.
 static func _nav_contains(nav: NavigationMesh, x: float, z: float, max_y := 1.0) -> bool:
