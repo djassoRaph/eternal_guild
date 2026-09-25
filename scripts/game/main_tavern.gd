@@ -232,34 +232,6 @@ func log_message(message: String):
 				return
 			vbar.value = vbar.max_value
 
-func fix_floor_collision():
-	# Get all StaticBody3D nodes in Architecture
-	var architecture = get_node("SubViewportContainer/SubViewport/Architecture")
-	
-	# Fix main floor
-	var floor_body = architecture.get_node("Floor/StaticBody3D")
-	if floor_body:
-		floor_body.collision_layer = 2
-		print("Fixed main floor collision_layer = 2")
-	
-	# Fix entrance floor
-	var entrance_body = architecture.get_node("FloorEntrance/StaticBody3D")  
-	if entrance_body:
-		entrance_body.collision_layer = 2
-		print("Fixed entrance floor collision_layer = 2")
-	
-	# Fix all furniture that NPCs might walk into
-	var furniture = get_node("SubViewportContainer/SubViewport/Furniture")
-	
-	# Fix bar counter
-	var bar_body = furniture.get_node("Bar/BarCounter/StaticBody3D")
-	if bar_body:
-		bar_body.collision_layer = 2
-		print("Fixed bar collision_layer = 2")
-	
-	print("All floor collision layers fixed!")
-
-
 func _on_game_over_triggered(reason: String):
 	"""Handle game over event"""
 	var game_over_screen = get_node("GameOverScreen")  # Changed path
