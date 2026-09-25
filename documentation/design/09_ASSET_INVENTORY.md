@@ -233,7 +233,7 @@ river crossing).
 
 ---
 
-## 5. Characters — patrons, villagers, player and the cat (14 used)
+## 5. Characters — patrons, villagers, player, the cat and Den Fa (15 used)
 
 | Asset (stock file) | Used in | Status |
 |---|---|---|
@@ -246,6 +246,7 @@ river crossing).
 | Ranger (G7) | Ranger class, patrons | `in game` (2026-09-25, Story 25.9: `assets/characters/custom/ranger.glb`, Rogue_Hooded recoloured forest green and brown with a longbow and a quiver; 4,369 tris, 76 clips) |
 | Townsfolk (G19, G24): farmer, local, traveller, guard, merchant, old woman | patrons (~80%), villagers in ExteriorWorld | `in game` (2026-09-25, Story 25.14: `assets/characters/custom/townsfolk_*.glb` from one kit rig, 4,169–6,221 tris, 76 clips; listed with origin types and weights in `data/characters/townsfolk.json`) |
 | The Cat (G11) + her basket (B20) | MainTavern (asleep in the basket by the hearth), ExteriorWorld (a short stroll) | `in game` (2026-09-25, Story 25.15: `assets/characters/custom/g11_the_cat.glb`, her own 22-bone rig, 1,310 tris, clips Sleep/Idle/Walk + Pet; `assets/environment/custom/b20_cat_basket.gltf`, 298 tris; `scenes/game/TheCat.tscn` + `scripts/game/the_cat.gd`: pettable, decision F0) |
+| Den Fa, the Architect (G9) | MainTavern (seated on the hearth's bench, the demo's first contact) | `in game` (2026-09-25, Story 25.10: `assets/characters/custom/g9_den_fa.glb`, his own 42-bone rig, 2,546 tris, 2.91 m (taller than the whole chibi cast), clips Idle/Sit/Walk + Point/StandUp/SitDown; `scenes/game/DenFa.tscn` + `scripts/game/den_fa.gd`; the mirror mask reflects the hall through `HearthProbe`) |
 | KayKit skeletons (4 files) | on disk, unused | `stock` (unused) |
 
 Since Story 25.14 patrons are mostly townsfolk whose body matches their origin; the class bodies above still visit as travelling adventurers (~20%, decision E1).
@@ -296,7 +297,7 @@ pillar "stone-and-roots": the B6 concept has no roots yet.
 | Asset | Count | Status | Source |
 |---|---|---|---|
 | **Healer model**: `data/classes.json` mapped Healer to `Cleric.glb`, which wasn't on disk | 1 | `in game` (2026-09-25, Story 25.9: `custom/healer.glb`) | classes.json:52 |
-| Den Fa, "the Architect": 6'4", sylphlike, **bat ears**, **four wings of bare bone (no membrane)**, a **featureless mirror mask**, "assembled rather than born" (Hermit IX, lantern, magic hourglass) | 1 hero character | `planned`. Design marked **decided** in the art brief | 03_STORY_BIBLE:30-38; art brief:29 |
+| Den Fa, "the Architect": 6'4", sylphlike, **bat ears**, **four wings of bare bone (no membrane)**, a **featureless mirror mask**, "assembled rather than born" (Hermit IX, lantern, magic hourglass) | 1 hero character | `in game` (2026-09-25, Story 25.10: `custom/g9_den_fa.glb`, `scenes/game/DenFa.tscn`; seated by the hearth, talkable with placeholder lines until Story 10.3). Lantern + hourglass (H10) stay v1 | 03_STORY_BIBLE:30-38; art brief:29 |
 | **Onibi**, the hearth fire-spirit (a shooting-star being living in the fire; LimboAI FSM planned) | 1 | `planned` | art brief:26,30; BMAD game-architecture.md:294,387 |
 | Bard (visiting NPC, Epic 9) | 1 | `planned` | EPIC_PROGRESS:258-260 |
 | Disturbance NPCs: pickpocket, drunk, rare visitor | 3 | `planned` | EPIC_PROGRESS:332 |
