@@ -8,7 +8,8 @@
 # things where zones crowd together (the hearth's fire, the cat and Den Fa sit within 2.5 m). owns_e()
 # is also closed by a gate decided once per frame: a patron waiting to be served in range (they take E
 # first, zone_interactions.gd), a paused tree, Game Over, or an open mission screen. Because the gate is
-# cached, input handled this frame sees the state from before any serve that same press made.
+# cached, input handled this frame sees the state from before any serve that same press made. While the
+# gate is closed the prompt is hidden too, so it never names an action E won't do.
 extends CanvasLayer
 
 const HYSTERESIS := 0.2   # metres: the current E target keeps it unless another is nearer by more than this
@@ -18,7 +19,8 @@ var active: bool = false
 var current_zone: Area3D = null          # the current E target (kept for older callers)
 var connected_zones: Dictionary = {}     # zone -> prompt text
 var _anchors: Dictionary = {}            # zone -> Node3D or Vector3 (null: the zone's first shape)
-var _hooked: Dictionary = {}             # zones whose signals are connected
+var _hooked: Dictionary = {}             # zone -> [entered, exited, exiting] callables connected to it
+var _player_ref: Node3D = null           # the player, cached (group "player", else a node named "Player")
 var _gate := true
 var _label_mine := false                 # the label shows a zone's prompt (not a manual show_prompt)
 
@@ -28,7 +30,6 @@ static func find(tree: SceneTree) -> Node:
 
 func _ready():
 	layer = 100
-	process_mode = Node.PROCESS_MODE_ALWAYS   # the gate must see pauses too
 	add_to_group("zone_prompt_ui")
 	create_prompt_ui()
 	print("ZonePromptUI ready")
@@ -113,7 +114,7 @@ func unregister_zone(zone: Area3D) -> void:
 func owns_e(zone: Area3D) -> bool:
 	"""True while this zone is the E target and nothing else (patron, pause, Game Over, mission screen)
 	takes the key. Decided once per frame in _process."""
-	return _gate and zone != null and zone == current_zone
+	return _gate and zone != null and zone == current_zone and not get_tree().paused
 
 func show_prompt(text: String) -> void:
 	"""Manually show a prompt (for non-Area3D use cases)"""
@@ -142,7 +143,7 @@ func get_current_zone() -> Area3D:
 # =============================================================================
 
 func _process(_delta: float) -> void:
-	var player := get_tree().get_first_node_in_group("player") as Node3D
+	var player := _find_player()
 	var best: Area3D = null
 	var best_d := INF
 	var keep_d := INF
@@ -166,6 +167,14 @@ func _process(_delta: float) -> void:
 	current_zone = best
 	_gate = player != null and _gate_open(player)
 	_refresh_label()
+
+func _find_player() -> Node3D:
+	if _player_ref and is_instance_valid(_player_ref) and _player_ref.is_inside_tree():
+		return _player_ref
+	_player_ref = get_tree().get_first_node_in_group("player") as Node3D
+	if _player_ref == null and get_tree().current_scene:
+		_player_ref = get_tree().current_scene.find_child("Player", true, false) as Node3D
+	return _player_ref
 
 func _gate_open(player: Node3D) -> bool:
 	if get_tree().paused:
@@ -196,7 +205,7 @@ static func _flat_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 func _refresh_label() -> void:
-	if current_zone != null and connected_zones.has(current_zone):
+	if current_zone != null and _gate and connected_zones.has(current_zone):
 		prompt_label.text = connected_zones[current_zone]
 		prompt_label.visible = true
 		active = true
@@ -209,10 +218,20 @@ func _refresh_label() -> void:
 func _hook(zone: Area3D) -> void:
 	if _hooked.has(zone):
 		return
-	_hooked[zone] = true
-	zone.body_entered.connect(_on_zone_entered.bind(zone))
-	zone.body_exited.connect(_on_zone_exited.bind(zone))
-	zone.tree_exiting.connect(_on_zone_freed.bind(zone))
+	var calls := [_on_zone_entered.bind(zone), _on_zone_exited.bind(zone), _on_zone_freed.bind(zone)]
+	_hooked[zone] = calls
+	zone.body_entered.connect(calls[0])
+	zone.body_exited.connect(calls[1])
+	zone.tree_exiting.connect(calls[2])
+
+func _unhook(zone: Area3D) -> void:
+	var calls = _hooked.get(zone)
+	_hooked.erase(zone)
+	if calls == null or not is_instance_valid(zone):
+		return
+	for pair in [[zone.body_entered, calls[0]], [zone.body_exited, calls[1]], [zone.tree_exiting, calls[2]]]:
+		if (pair[0] as Signal).is_connected(pair[1]):
+			(pair[0] as Signal).disconnect(pair[1])
 
 # =============================================================================
 # LEGACY SUPPORT - For existing tavern zones
@@ -259,8 +278,8 @@ func _on_zone_exited(body: Node3D, zone: Area3D) -> void:
 		print("Player exited zone: ", zone.name)
 
 func _on_zone_freed(zone: Area3D) -> void:
-	"""Clean up when a zone is freed from tree"""
-	_hooked.erase(zone)
+	"""Clean up when a zone leaves the tree (freed or moved): it must register or claim again"""
+	_unhook(zone)
 	if connected_zones.has(zone):
 		connected_zones.erase(zone)
 		_anchors.erase(zone)

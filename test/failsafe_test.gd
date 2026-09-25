@@ -17,7 +17,7 @@ extends SceneTree
 const ASSET_ALLOWLIST_PATH := "res://test/asset_path_allowlist.json"
 const WORLDGEN_FIXTURE_PATH := "res://test/fixtures/worldgen_seed_12345.json"
 const RUIN_TOPPER_PATH := "res://assets/environment/custom/d1_prior_ruins.gltf"
-const WATCHDOG_SECONDS := 60.0
+const WATCHDOG_SECONDS := 120.0
 const TAVERN_SCENE_PATH := "res://scenes/MainTavern.tscn"
 const TAVERN_COLLIDERS_FIXTURE := "res://test/fixtures/tavern_colliders.json"
 const ARCH_PATH := "SubViewportContainer/SubViewport/TavernNavigation/Architecture/"
@@ -1740,12 +1740,19 @@ func test_the_cat_yields() -> void:
 			ok = cat_owns and not fire_owns and cat.can_be_petted() and ui.prompt_label.text == cat.PROMPT
 		check(both == [true, true] and ok and ui.prompt_label.visible,
 			"in both zones at z %.2f, E and the prompt go to the nearer, the %s (in both: %s)" % [c[0], c[1], both])
+	player.position = Vector3(0, 0, 6.0)
+	await settle.call(4)
+	player.position = Vector3(0, 0, 2.9)     # beside her only (the town case)
+	await settle.call(6)
+	check(ui.owns_e(cat._zone) and cat.can_be_petted() and ui.prompt_label.visible and ui.prompt_label.text == cat.PROMPT,
+		"beside her only: her prompt shows and E is hers")
 	var patron := Node3D.new()               # a waiting patron in serving range takes E first
 	patron.set_script(_waiting_patron_script())
 	patron.add_to_group("patrons")
 	world.add_child(patron)
 	await settle.call(2)
-	check(not cat.can_be_petted() and not ui.owns_e(cat._zone), "a waiting patron in range takes E before her")
+	check(not cat.can_be_petted() and not ui.owns_e(cat._zone) and not ui.prompt_label.visible,
+		"a waiting patron in range takes E before her, and the prompt goes (it would name the wrong action)")
 	patron.free()
 	player.position = Vector3(0, 0, 6.0)     # walked away
 	await settle.call(6)
@@ -1868,6 +1875,8 @@ func test_den_fa() -> void:
 	var ahead := (seat - sit_world.origin).dot(fwd) if seat != Vector3.INF else 0.0
 	check(seat != Vector3.INF and absf(seat.y - 0.10) < 0.02 and ahead > 0.25 and ahead < 0.7,
 		"seat_root: on the floor (y %.2f), %.2f m in front of the SitPoint" % [seat.y if seat != Vector3.INF else -1.0, ahead])
+	var side := (seat - sit_world.origin).dot(Vector3(-fwd.z, 0, fwd.x)) if seat != Vector3.INF else 0.0
+	check(absf(side - 0.48) < 0.02, "seat_root: also 0.48 m to his right, the room side, so he stands up clear of the chimney (%.2f)" % side)
 	var hs := _scene_nodes(HEARTH_SCENE_PATH)
 	check(hs.has("SitPoint") and not (hs.SitPoint.groups as Array).has("patron_seat"), "the SitPoint is not a patron seat")
 
@@ -1932,6 +1941,9 @@ func test_den_fa() -> void:
 			if int(pp.get("ambient_mode", 1)) != ReflectionProbe.AMBIENT_DISABLED or int(pp.get("update_mode", 0)) != ReflectionProbe.UPDATE_ONCE \
 					or not pp.get("box_projection", false) or not pp.get("interior", false):
 				probe_ok = false
+			var probe_script = pp.get("script")
+			if str(k).get_file() == "HearthProbe" and not (probe_script is Script and (probe_script as Script).resource_path.ends_with("hearth_probe.gd")):
+				probe_ok = false
 			if str(k).get_file() == "HearthProbe" and masks.size() == 2:
 				var half: Vector3 = (pp.get("size", Vector3(20, 20, 20)) as Vector3) / 2.0
 				var pw: Transform3D = tav[k].world
@@ -1940,7 +1952,7 @@ func test_den_fa() -> void:
 					var q: Vector3 = (pw.affine_inverse() * (m as Vector3)).abs() - half
 					if q.x > 0.0 or q.y > 0.0 or q.z > 0.0:
 						in_hearth = false
-		check(probe_ok and in_hearth, "two reflection probes (ambient off, once, box, interior); HearthProbe holds his mask seated and standing (%d probes)" % probes.size())
+		check(probe_ok and in_hearth, "two reflection probes (ambient off, once, box, interior); HearthProbe runs hearth_probe.gd and holds his mask seated and standing (%d probes)" % probes.size())
 	var mt := FileAccess.get_file_as_string("res://scripts/game/main_tavern.gd")
 	var zp := mt.substr(mt.find("func _init_zone_prompts"), 500)
 	check(zp.contains(".find(get_tree())"), "the tavern reuses its ZonePromptUI: one prompt manager")
@@ -1966,7 +1978,11 @@ func test_den_fa_e() -> void:
 	fire.add_child(fire_shape)
 	fire.position = Vector3(-3.55, 0, -9.3)
 	world.add_child(fire)
-	ui.register_zone(fire, "Press E - Tend Fire", FIRE_ANCHOR)
+	ui.register_zone(fire, "Press E - Tend Fire")
+	var fire_anchor := Marker3D.new()        # the production path: set_anchor with a node (the hearth's interact_point)
+	world.add_child(fire_anchor)
+	fire_anchor.global_position = FIRE_ANCHOR
+	ui.set_anchor(fire, fire_anchor)
 	var cat = (load(CAT_SCENE_PATH) as PackedScene).instantiate()
 	world.add_child(cat)
 	cat.position = CAT_WORLD
@@ -2018,28 +2034,54 @@ func test_den_fa_e() -> void:
 	await settle.call(6)
 	player.position = Vector3(-3.43, 0, -7.21)  # Den Fa's root 0.49, the cat 0.59: within the 0.2 m hysteresis
 	await settle.call(6)
-	check(owners.call() == ["cat"], "hysteresis: the cat keeps E while Den Fa is nearer by less than 0.2 m (owners %s)" % [owners.call()])
+	var hp := Vector2(-3.43, -7.21)
+	var d_den := hp.distance_to(Vector2(den.global_position.x, den.global_position.z))
+	var d_cat := hp.distance_to(Vector2(cat.global_position.x, cat.global_position.z))
+	var in_both: bool = talk.overlaps_body(player) and cat._zone.overlaps_body(player)
+	check(in_both and d_den < d_cat and d_cat - d_den < 0.2 and owners.call() == ["cat"],
+		"hysteresis: in both zones and nearer Den Fa (%.2f vs %.2f), the cat keeps E (owners %s)" % [d_den, d_cat, owners.call()])
 	var patron := Node3D.new()               # a waiting patron in serving range takes E first
 	patron.set_script(_waiting_patron_script())
 	patron.add_to_group("patrons")
 	world.add_child(patron)
 	await settle.call(2)
-	check(owners.call().is_empty() and not den.can_talk() and not cat.can_be_petted(), "a waiting patron takes E from the fire, the cat and Den Fa")
+	check(owners.call().is_empty() and not den.can_talk() and not cat.can_be_petted() and not ui.prompt_label.visible,
+		"a waiting patron takes E from the cat and Den Fa, and the prompt goes")
 	patron.free()
 	player.position = outside
 	await settle.call(4)
 	player.position = Vector3(-3.4, 0, -7.9)
+	await settle.call(6)
+	var his_before: bool = ui.owns_e(talk)
 	var flip := Node3D.new()                 # serving flips a patron at once (RealisticPatron.serve_patron)
 	flip.set_script(_flip_patron_script())
 	flip.add_to_group("patrons")
 	world.add_child(flip)
-	await settle.call(6)
-	var before: bool = ui.owns_e(talk)
+	await settle.call(2)
+	var closed: bool = not ui.owns_e(talk)
 	flip.serve_patron()
-	check(not before and not ui.owns_e(talk) and not den.can_talk(), "serving a patron can't also talk to him: the gate is decided once per frame")
-	flip.free()
+	check(his_before and closed and not ui.owns_e(talk) and not den.can_talk(),
+		"serving a patron can't also talk to him: the gate is decided once per frame")
+	await settle.call(3)                     # the served patron is still there, no longer waiting
+	check(ui.owns_e(talk) and den.can_talk() and ui.prompt_label.visible and ui.prompt_label.text == den.PROMPT,
+		"once the patron is served (still in the room), E and the prompt are his again")
+	var talks := [0]
+	den.talked.connect(func(_state): talks[0] += 1)
+	var press := InputEventAction.new()      # a real E press through the input pipeline
+	press.action = "interact"
+	press.pressed = true
+	Input.parse_input_event(press)
 	await settle.call(3)
-	check(ui.owns_e(talk) and den.can_talk(), "once the patron is served, E is his again")
+	var release := InputEventAction.new()
+	release.action = "interact"
+	release.pressed = false
+	Input.parse_input_event(release)
+	await settle.call(2)
+	var den_bubbles: int = den.get_children().filter(func(c): return c is PatronSpeechBubble).size()
+	var cat_bubbles: int = cat.get_children().filter(func(c): return c is PatronSpeechBubble).size()
+	check(talks[0] == 1 and den_bubbles == 1 and cat_bubbles == 0,
+		"a real E press beside him: he talks once and the cat stays quiet (talked %d, bubbles %d / %d)" % [talks[0], den_bubbles, cat_bubbles])
+	flip.free()
 	player.position = outside
 	await settle.call(6)
 	check(not ui.prompt_label.visible and owners.call().is_empty(), "walking away takes the prompt down")
@@ -2047,19 +2089,53 @@ func test_den_fa_e() -> void:
 	var sm = (trees[0] as AnimationTree).tree_root if not trees.is_empty() else null
 	var states_ok: bool = sm is AnimationNodeStateMachine and DEN_FA_STATES.all(func(s): return (sm as AnimationNodeStateMachine).has_node(s))
 	check(states_ok, "one AnimationTree whose state machine holds %s" % [DEN_FA_STATES])
-	if states_ok and den.has_method("stand") and den.has_method("point_at"):
+	if states_ok and den.has_method("stand") and den.has_method("point_at_pillar") and den.has_method("return_to_seat"):
 		var pb: AnimationNodeStateMachinePlayback = (trees[0] as AnimationTree).get("parameters/playback")
 		den.stand()
 		var t0 := Time.get_ticks_msec()
 		while pb.get_current_node() != "Idle" and Time.get_ticks_msec() - t0 < 4000:
 			await process_frame
-		den.point_at(Vector3(7.74, 2.2, -8.215))
+		check(pb.get_current_node() == "Idle" and not ui.connected_zones.has(talk), "he stands up (Idle) and gives up his E zone")
+		var pillar := Marker3D.new()
+		world.add_child(pillar)
+		pillar.global_position = Vector3(7.74, 2.2, -8.215)
+		den.pillar_target = den.get_path_to(pillar)
+		var aimed: bool = den.point_at_pillar()
 		t0 = Time.get_ticks_msec()
 		while pb.get_current_node() != "Point" and Time.get_ticks_msec() - t0 < 3000:
 			await process_frame
-		check(pb.get_current_node() == "Point", "he stands, then turns and points at the pillar (state %s)" % pb.get_current_node())
+		var to: Vector3 = pillar.global_position - den.global_position
+		var aim_err := rad_to_deg(absf(wrapf(den.global_rotation.y - atan2(to.x, to.z), -PI, PI)))
+		check(aimed and pb.get_current_node() == "Point" and aim_err < 10.0,
+			"he turns to his pillar_target and points (state %s, %.0f deg off)" % [pb.get_current_node(), aim_err])
+		var start: Vector3 = den.global_position
+		den.bar_route = PackedVector3Array([start, start + Vector3(1.5, 0, 0.3)])
+		den.seat_path = den.get_path_to(marker)
+		den.walk_route(den.bar_route)            # queued until the point is over
+		t0 = Time.get_ticks_msec()
+		while (den.global_position.distance_to(den.bar_route[1]) > 0.05 or pb.get_current_node() != "Idle") and Time.get_ticks_msec() - t0 < 9000:
+			await process_frame
+		check(den.global_position.distance_to(den.bar_route[1]) < 0.05, "after the point he walks his route (%.2f m from its end)" % den.global_position.distance_to(den.bar_route[1]))
+		den.return_to_seat()
+		t0 = Time.get_ticks_msec()
+		while not (den._seated and pb.get_current_node() == "Sit") and Time.get_ticks_msec() - t0 < 9000:
+			await process_frame
+		var seat_pos: Vector3 = den.seat_root(marker.global_transform)
+		var sf := Vector3(marker.global_transform.basis.z.x, 0, marker.global_transform.basis.z.z).normalized()
+		var yaw_err := rad_to_deg(absf(wrapf(den.global_rotation.y - atan2(sf.x, sf.z), -PI, PI)))
+		check(den._seated and pb.get_current_node() == "Sit" and den.global_position.distance_to(seat_pos) < 0.05 and yaw_err < 5.0 and ui.connected_zones.has(talk),
+			"return_to_seat: he walks back, turns to the room and sits, claiming E again (%.2f m, %.1f deg off)" % [den.global_position.distance_to(seat_pos), yaw_err])
 	else:
-		check(false, "he stands, then turns and points at the pillar")
+		check(false, "he stands, points at his pillar_target, walks and returns to his seat")
+	var probe := ReflectionProbe.new()       # the hearth probe re-captures when the fire's band changes
+	probe.set_script(load("res://scripts/game/hearth_probe.gd"))
+	world.add_child(probe)
+	await settle.call(2)
+	probe.update_mode = ReflectionProbe.UPDATE_ONCE
+	probe._on_fuel(85.0)
+	var flipped: bool = probe.update_mode == ReflectionProbe.UPDATE_ALWAYS
+	await settle.call(4)
+	check(flipped and probe.update_mode == ReflectionProbe.UPDATE_ONCE, "the hearth probe re-captures on a fire band change (Always for two frames, then Once)")
 	world.queue_free()
 	await process_frame
 

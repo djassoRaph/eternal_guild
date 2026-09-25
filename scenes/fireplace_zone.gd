@@ -31,6 +31,7 @@ var _last_pushed_fuel: int = -1  # throttles HUD pushes to whole-% changes
 
 # ===== PLAYER INTERACTION =====
 var player_nearby: bool = false
+var _anchor_tries := 0   # frames spent waiting to anchor the E prompt on the hearth (Story 25.10)
 
 # ===== MINIGAME REFERENCE =====
 var minigame_scene = preload("res://scenes/ui/FireplaceMinigamePanel.tscn")
@@ -79,7 +80,8 @@ func _ready():
 	print("Fireplace interaction zone ready - Minigame system active")
 
 func _process(delta):
-	if not has_meta("prompt_anchored"):   # once the tavern's prompt UI has registered this zone
+	if not has_meta("prompt_anchored") and _anchor_tries < 600:   # once the prompt UI has registered this zone
+		_anchor_tries += 1                                           # (give up after ~10 s: no hearth marker)
 		var ui = preload("res://scripts/game/ZonePromptUI.gd").find(get_tree())
 		if ui and ui.connected_zones.has(self):
 			_anchor_on_hearth(ui)

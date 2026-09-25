@@ -51,13 +51,18 @@ var _last_line := -1
 var _route := PackedVector3Array()
 var _route_i := 0
 var _walking := false
+var _turning := false
 var _after_walk := Callable()
-var _pending := Callable()        # something to do once he stands (a walk, a point)
+var _queue: Array[Callable] = []  # walks and points wait here until he stands idle, then run in order
 
 
 ## Where his root stands when he sits on this seat marker (flat; y = the floor under the bench).
 static func seat_root(seat: Transform3D) -> Vector3:
-	var f := Vector3(seat.basis.z.x, 0.0, seat.basis.z.z).normalized()
+	var f := Vector3(seat.basis.z.x, 0.0, seat.basis.z.z)
+	if f.length() < 0.001:
+		push_warning("[DenFa] seat marker faces straight up or down: using +Z")
+		f = Vector3(0, 0, 1)
+	f = f.normalized()
 	var right := Vector3(-f.z, 0.0, f.x)
 	var p := seat.origin + f * DEN_FA_HIP_BACK + right * SEAT_SIDE
 	p.y = seat.origin.y - SEAT_HEIGHT
@@ -95,7 +100,7 @@ func _ready() -> void:
 		_prompt_ui = preload("res://scripts/game/ZonePromptUI.gd").find(get_tree())
 		if _prompt_ui:
 			if _seated:
-				_prompt_ui.claim(_talk, PROMPT, self)
+				_claim()
 			return
 	_prompt_label = Label3D.new()   # no ZonePromptUI in this scene: a small prompt over him instead
 	_prompt_label.text = PROMPT
@@ -105,7 +110,7 @@ func _ready() -> void:
 	_prompt_label.font_size = 40
 	_prompt_label.outline_size = 10
 	_prompt_label.modulate = Color(1, 1, 0)
-	_prompt_label.position = Vector3(0, BUBBLE_STANDING + 0.2, 0)
+	_prompt_label.position = Vector3(0, BUBBLE_SEATED + 0.2, 0)   # he is only talkable seated
 	_prompt_label.visible = false
 	add_child(_prompt_label)
 
@@ -156,18 +161,25 @@ func _load_lines() -> void:
 
 # ------------------------------------------------------------------ seat, walk, point
 
+## Sit on this marker. snap: place him seated at once (the demo start); otherwise he turns to face the
+## room from where he stands (his root), then sits down.
 func sit_at(marker: Node3D, snap := true) -> void:
 	var t := marker.global_transform
-	var f := Vector3(t.basis.z.x, 0.0, t.basis.z.z).normalized()
+	var f := Vector3(t.basis.z.x, 0.0, t.basis.z.z)
+	var yaw := atan2(f.x, f.z) if f.length() > 0.001 else 0.0
+	_queue.clear()
+	_walking = false
 	global_position = seat_root(t)
-	global_rotation = Vector3(0.0, atan2(f.x, f.z), 0.0)
-	_seated = true
 	if snap:
+		global_rotation = Vector3(0.0, yaw, 0.0)
+		_seated = true
 		_playback.start("Sit")
-	else:
+		_claim()
+		return
+	_turn_to(yaw, func():
+		_seated = true
 		_playback.travel("Sit")
-	if _prompt_ui and is_instance_valid(_prompt_ui):
-		_prompt_ui.claim(_talk, PROMPT, self)
+		_claim())
 
 
 func stand() -> void:
@@ -179,12 +191,15 @@ func stand() -> void:
 	_playback.travel("Idle")
 
 
+## Walk a polyline (world points). Waits until he stands idle (standing up first if seated).
 func walk_route(points: PackedVector3Array, on_done := Callable()) -> void:
 	if points.is_empty():
+		if on_done.is_valid():
+			on_done.call()
 		return
-	if _seated:
+	if not _ready_to_act():
 		stand()
-		_pending = walk_route.bind(points, on_done)
+		_queue.append(walk_route.bind(points, on_done))
 		return
 	_route = points
 	_route_i = 0
@@ -193,34 +208,70 @@ func walk_route(points: PackedVector3Array, on_done := Callable()) -> void:
 	_playback.travel("Walk")
 
 
+## Turn to face a world point, then point at it (Point, then back to Idle).
 func point_at(target: Vector3) -> void:
-	if _seated:
+	if not _ready_to_act():
 		stand()
-		_pending = point_at.bind(target)
+		_queue.append(point_at.bind(target))
 		return
 	var to := target - global_position
-	var yaw := atan2(to.x, to.z)
+	_turn_to(atan2(to.x, to.z), func(): _playback.travel("Point"))
+
+
+## Point at the Hourglass Pillar (pillar_target, its HumAnchor in MainTavern): Epic 10's beat.
+func point_at_pillar() -> bool:
+	var target := get_node_or_null(pillar_target) as Node3D if not pillar_target.is_empty() else null
+	if target == null:
+		push_warning("[DenFa] pillar_target does not resolve: nothing to point at")
+		return false
+	point_at(target.global_position)
+	return true
+
+
+## Walk back along bar_route from wherever he is (the nearest route point), then sit down.
+func return_to_seat() -> void:
+	if _seated:
+		return
+	var seat: Node3D = get_node_or_null(seat_path) as Node3D if not seat_path.is_empty() else null
+	if seat == null:
+		push_warning("[DenFa] seat_path does not resolve: he can't sit down")
+		return
+	var back := PackedVector3Array()
+	if not bar_route.is_empty():
+		var k := 0
+		for i in bar_route.size():
+			if bar_route[i].distance_to(global_position) < bar_route[k].distance_to(global_position):
+				k = i
+		for i in range(k, -1, -1):
+			back.append(bar_route[i])
+	back.append(seat_root(seat.global_transform))
+	walk_route(back, func(): sit_at(seat, false))
+
+
+func _ready_to_act() -> bool:
+	return not _seated and not _walking and not _turning and _playback.get_current_node() == "Idle"
+
+
+func _turn_to(yaw: float, then: Callable) -> void:
+	_turning = true
 	var from := global_rotation.y
 	var goal := from + wrapf(yaw - from, -PI, PI)
 	var tw := create_tween()
 	tw.tween_method(func(a: float): global_rotation = Vector3(0.0, a, 0.0), from, goal, TURN_SECONDS)
-	tw.tween_callback(func(): _playback.travel("Point"))
+	tw.tween_callback(func():
+		_turning = false
+		then.call())
 
 
-func return_to_seat() -> void:
-	var seat: Node3D = get_node_or_null(seat_path) as Node3D if not seat_path.is_empty() else null
-	if seat == null:
-		return
-	var back := bar_route.duplicate()
-	back.reverse()
-	walk_route(back, func(): sit_at(seat, false))
+func _claim() -> void:
+	if _prompt_ui and is_instance_valid(_prompt_ui):
+		_prompt_ui.claim(_talk, PROMPT, self)
 
 
 func _process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
-	if _pending.is_valid() and _playback.get_current_node() == "Idle":
-		var job := _pending
-		_pending = Callable()
+	if not _queue.is_empty() and _ready_to_act():
+		var job: Callable = _queue.pop_front()
 		job.call()
 	if _walking:
 		_step(delta)
@@ -245,7 +296,7 @@ func _step(delta: float) -> void:
 			if _after_walk.is_valid():
 				var done := _after_walk
 				_after_walk = Callable()
-				_pending = done
+				_queue.push_front(done)
 		return
 	var dir := to.normalized()
 	global_position += dir * step
@@ -291,6 +342,9 @@ func talk() -> void:
 
 
 func _say(text: String) -> void:
+	for c in get_children():          # one line at a time: a new one replaces the last
+		if c is PatronSpeechBubble:
+			c.queue_free()
 	var bubble := PatronSpeechBubble.new()
 	add_child(bubble)
 	bubble.position.y = (BUBBLE_SEATED if _seated else BUBBLE_STANDING) - PatronSpeechBubble.HEAD_HEIGHT
