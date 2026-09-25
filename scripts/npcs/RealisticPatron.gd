@@ -53,16 +53,40 @@ var patron_body_mesh: Node3D       # Set dynamically after model swap
 var animation_player: AnimationPlayer = null  # NEW
 var current_model_path: String = ""  # remembered so save/restore keeps the same model
 
-# All available patron models — add more paths here anytime
-var character_models = [
+# Patron bodies come from data (Story 25.14): townsfolk variants plus adventurers passing through,
+# each with the origin type it belongs to. This list is only the fallback when the file is missing
+# or empty (MOD-6).
+const TOWNSFOLK_PATH := "res://data/characters/townsfolk.json"
+const FALLBACK_MODELS := [
 	"res://assets/characters/models/kaykit_adventurers/Mage.glb",
 	"res://assets/characters/models/kaykit_adventurers/Rogue.glb",
 	"res://assets/characters/models/kaykit_adventurers/Knight.glb",
 	"res://assets/characters/models/kaykit_adventurers/Barbarian.glb",
 	"res://assets/characters/models/kaykit_adventurers/Rogue_Hooded.glb",
-	"res://assets/characters/custom/healer.glb",   # Story 25.9: the demo classes' own bodies
+	"res://assets/characters/custom/healer.glb",
 	"res://assets/characters/custom/ranger.glb",
 ]
+const FALLBACK_NAMES := ["Gareth", "Elara", "Thorin", "Lydia", "Marcus", "Sera", "Kael", "Mira"]
+const FALLBACK_SURNAMES := ["Bold", "Ironforge", "Swiftblade", "Goldbeard", "Stormbringer", "Shadowmend"]
+
+# Where patrons come from; the type keys patron_lines.json (ambient chatter, origin flavours) and
+# must match the body they're given.
+const ORIGINS := [
+	{"label": "the bridge crossroads", "type": "traveler"},
+	{"label": "the north road", "type": "traveler"},
+	{"label": "the eastern pass", "type": "traveler"},
+	{"label": "the forest road", "type": "traveler"},
+	{"label": "the merchant caravan", "type": "trader"},
+	{"label": "the river docks", "type": "trader"},
+	{"label": "the commons", "type": "local"},
+	{"label": "the lower district", "type": "local"},
+	{"label": "the eastern farms", "type": "local"},
+	{"label": "the mill", "type": "local"},
+	{"label": "the old keep", "type": "soldier"},
+	{"label": "the guard post", "type": "soldier"},
+]
+
+static var _townsfolk_doc_cache = null
 
 # Timers
 var sitting_timer: Timer
@@ -140,7 +164,56 @@ func _ready():
 # =============================================================================
 
 func _swap_to_random_model():
-	_swap_to_model(character_models[randi() % character_models.size()])
+	_swap_to_model(str(pick_variant(townsfolk_pool(), "", randf()).get("model_path", FALLBACK_MODELS[0])))
+
+## data/characters/townsfolk.json, parsed once ({} when missing or broken).
+static func _townsfolk_doc() -> Dictionary:
+	if _townsfolk_doc_cache == null:
+		_townsfolk_doc_cache = {}
+		var f := FileAccess.open(TOWNSFOLK_PATH, FileAccess.READ)
+		if f:
+			var parsed = JSON.parse_string(f.get_as_text())
+			if parsed is Dictionary:
+				_townsfolk_doc_cache = parsed
+	return _townsfolk_doc_cache
+
+## The patron and villager bodies: townsfolk.json's variants, or the fallback models as plain
+## entries (no origin type, weight 1) when the file has none.
+static func townsfolk_pool() -> Array:
+	var variants = _townsfolk_doc().get("variants", [])
+	if variants is Array and not variants.is_empty():
+		return variants
+	return FALLBACK_MODELS.map(func(p): return {"id": str(p).get_file().get_basename(), "model_path": p, "origin_type": "", "weight": 1.0})
+
+## Weighted pick among the variants of one origin type ("" = the whole pool). An origin type no
+## variant covers falls back to the whole pool, so a patron always gets a body. roll is in [0, 1).
+static func pick_variant(pool: Array, origin_type: String, roll: float) -> Dictionary:
+	var cands := pool.filter(func(v): return origin_type == "" or str(v.get("origin_type", "")) == origin_type)
+	if cands.is_empty():
+		cands = pool
+	if cands.is_empty():
+		return {}
+	var total := 0.0
+	for v in cands:
+		total += maxf(float(v.get("weight", 1.0)), 0.0)
+	var x := clampf(roll, 0.0, 0.999999) * total
+	for v in cands:
+		x -= maxf(float(v.get("weight", 1.0)), 0.0)
+		if x < 0.0:
+			return v
+	return cands[-1]
+
+## A name that fits the body: the variant's pool ("feminine" / "masculine"), or both for "any".
+static func pick_name(variant: Dictionary, roll_first: float, roll_last: float) -> String:
+	var pools: Dictionary = _townsfolk_doc().get("names", {})
+	var key := str(variant.get("names", "any"))
+	var firsts: Array = pools.get(key, []) if key != "any" else Array(pools.get("feminine", [])) + Array(pools.get("masculine", []))
+	if firsts.is_empty():
+		firsts = FALLBACK_NAMES
+	var lasts: Array = pools.get("surnames", FALLBACK_SURNAMES)
+	var i := mini(int(clampf(roll_first, 0.0, 0.999999) * firsts.size()), firsts.size() - 1)
+	var j := mini(int(clampf(roll_last, 0.0, 0.999999) * lasts.size()), lasts.size() - 1)
+	return "%s %s" % [firsts[i], lasts[j]]
 
 func _swap_to_model(model_path: String) -> void:
 	"""Load a specific model, replacing any current one. Used for random spawn AND save-restore."""
@@ -630,31 +703,23 @@ func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int, seat = 
 	table_index = idx
 	seat_transform = seat
 
-	var first_names = ["Gareth", "Elara", "Thorin", "Lydia", "Marcus", "Sera", "Kael", "Mira"]
-	var surnames = ["Bold", "Ironforge", "Swiftblade", "Goldbeard", "Stormbringer", "Shadowmend"]
-	patron_name = first_names[randi() % first_names.size()] + " " + surnames[randi() % surnames.size()]
 	payment_amount = randi_range(6, 12)
 
-	var origins = [
-		# travelers passing through
-		{"label": "the bridge crossroads", "type": "traveler"},
-		{"label": "the north road", "type": "traveler"},
-		{"label": "the eastern pass", "type": "traveler"},
-		{"label": "the merchant caravan", "type": "trader"},
-		{"label": "the river docks", "type": "trader"},
-		# locals
-		{"label": "the commons", "type": "local"},
-		{"label": "the lower district", "type": "local"},
-		# garrison / keep
-		{"label": "the old keep", "type": "soldier"},
-		{"label": "the guard post", "type": "soldier"},
-		# wilderness
-		{"label": "the forest road", "type": "traveler"},
-		{"label": "the eastern farms", "type": "traveler"},
-	]
-	var picked = origins[randi() % origins.size()]
+	# Story 25.14: the body first (weighted: ~80% townsfolk, the rest adventurers passing through),
+	# then an origin of the same type, so the guard is from the keep and the merchant from the docks,
+	# and a name that fits the body.
+	var variant := pick_variant(townsfolk_pool(), "", randf())
+	var mp := str(variant.get("model_path", ""))
+	if mp != "" and mp != current_model_path:
+		_swap_to_model(mp)
+	var otype := str(variant.get("origin_type", ""))
+	var labels := ORIGINS.filter(func(o): return o.type == otype)
+	if labels.is_empty():
+		labels = ORIGINS
+	var picked: Dictionary = labels[randi() % labels.size()]
 	patron_origin = picked["label"]
 	patron_origin_type = picked["type"]
+	patron_name = pick_name(variant, randf(), randf())
 	print("", patron_name, " is from ", patron_origin, " (", patron_origin_type, ")")
 
 	await get_tree().create_timer(0.1).timeout
