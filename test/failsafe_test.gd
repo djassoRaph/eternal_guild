@@ -146,6 +146,7 @@ func _initialize() -> void:
 	test_class_roster()
 	test_townsfolk_kit()
 	test_the_cat()
+	await test_the_cat_yields()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -1585,6 +1586,9 @@ func test_the_cat() -> void:
 			if tav[k].instance == CAT_BASKET_PATH and Vector2(bo.x, bo.z).distance_to(Vector2(o.x, o.z)) < 0.35:
 				baskets.append(k)
 		check(baskets.size() == 1, "in her basket (B20)")
+		var overrides := tav.keys().filter(func(k): return str(k) == str(cats[0]) + "/AnimationPlayer")
+		check(overrides.is_empty() or str(tav[overrides[0]].props.get("autoplay", "Sleep")) == "Sleep",
+			"the tavern doesn't override her Sleep")
 		var centre := o + (tav[cats[0]].world as Transform3D).basis * zone_off
 		var clashes := []
 		for k in tav:
@@ -1593,16 +1597,17 @@ func test_the_cat() -> void:
 				continue
 			var w: Transform3D = tav[k].world
 			var shape = tav[k].props.get("shape")
-			var gap := 99.0
-			if shape is BoxShape3D:
-				var half := Vector3(shape.size.x * w.basis.x.length(), shape.size.y * w.basis.y.length(), shape.size.z * w.basis.z.length()) / 2.0
-				var q := (centre - w.origin).abs() - half
-				gap = Vector3(maxf(q.x, 0.0), maxf(q.y, 0.0), maxf(q.z, 0.0)).length()
+			var gap := -1.0    # a shape this check can't measure counts as a clash
+			if shape is BoxShape3D:     # nearest point on the (rotated, scaled) box, found in its own frame
+				var h: Vector3 = (shape as BoxShape3D).size / 2.0
+				gap = centre.distance_to(w * (w.affine_inverse() * centre).clamp(-h, h))
 			elif shape is SphereShape3D:
 				gap = centre.distance_to(w.origin) - shape.radius * w.basis.x.length()
 			if gap < zone_r:
 				clashes.append(key.get_slice("/", key.get_slice_count("/") - 2))
-		check(clashes.is_empty(), "petting her never also presses another E zone (overlaps: %s)" % [clashes])
+		# Zones can't overlap; a player's body can still stand in both (the fire's is a step away), so
+		# test_the_cat_yields() checks that she then leaves E to the other zone.
+		check(clashes.is_empty(), "her PetZone overlaps no other E zone (overlaps: %s)" % [clashes])
 
 	var ext := _scene_nodes(EXTERIOR_SCENE_PATH)
 	var town_cats := ext.keys().filter(func(k): return ext[k].instance == CAT_SCENE_PATH)
@@ -1633,8 +1638,17 @@ func test_the_cat() -> void:
 			street.append([(ext[k].world as Transform3D).origin, 2.0 if key.get_file().begins_with("StallTent") else 1.0])
 	var villager_pts := _villager_path_points(ext)
 	var bad := []
+	var walked := []      # every key, plus points every 0.25 m along the legs she walks between them
+	for i in keys_pts.size():
+		walked.append(keys_pts[i])
+		if i + 1 < keys_pts.size():
+			var a: Vector3 = keys_pts[i]
+			var b: Vector3 = keys_pts[i + 1]
+			var n := int(ceil(a.distance_to(b) / 0.25))
+			for t in range(1, n):
+				walked.append(a.lerp(b, float(t) / n))
 	if hf is Dictionary:
-		for p in keys_pts:
+		for p in walked:
 			var g := _hf_height(hf, p.x, p.z)
 			if absf(p.y - g) > 0.2:
 				bad.append("(%.1f, %.1f) y %.2f vs ground %.2f" % [p.x, p.z, p.y, g])
@@ -1645,9 +1659,80 @@ func test_the_cat() -> void:
 				if (q as Vector2).distance_to(Vector2(p.x, p.z)) < 1.0:
 					bad.append("(%.1f, %.1f) on a villager's path" % [p.x, p.z])
 					break
-	check(hf is Dictionary and bad.is_empty(), "her stroll stays on clear ground, off the villagers' paths %s" % [bad.slice(0, 4)])
+	check(hf is Dictionary and bad.is_empty(), "her stroll (%d points along it) stays on clear ground, off the villagers' paths %s" % [walked.size(), bad.slice(0, 4)])
 	print("")
 
+
+
+## Test 17 (review): one E never does two things. In a small world with a ZonePromptUI, a registered
+## "fire" zone and the cat a step apart, a player body standing in both gets neither her prompt nor
+## her E; standing only by her, it gets both; a waiting patron in range takes E first; and her
+## carry-on never starts an AnimationPlayer she didn't pause.
+func test_the_cat_yields() -> void:
+	if not ResourceLoader.exists(CAT_SCENE_PATH):
+		check(false, "the cat yields E: TheCat.tscn missing")
+		return
+	var world := Node3D.new()
+	root.add_child(world)
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	world.add_child(ui)
+	var other := AnimationPlayer.new()      # a sibling she must not start
+	world.add_child(other)
+	var fire := Area3D.new()
+	var fire_shape := CollisionShape3D.new()
+	fire_shape.shape = BoxShape3D.new()
+	(fire_shape.shape as BoxShape3D).size = Vector3(2, 2, 2)
+	fire_shape.position = Vector3(0, 1, 0)
+	fire.add_child(fire_shape)
+	world.add_child(fire)                    # box z -1..1
+	ui.register_zone(fire, "Press E - Tend Fire")
+	var cat = (load(CAT_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(cat)
+	cat.position = Vector3(0, 0, 2.2)        # PetZone r 0.75 around (0, 0.3, 2.2): 0.45 m from the box
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.add_to_group("player")
+	var cap := CollisionShape3D.new()
+	cap.shape = CapsuleShape3D.new()
+	(cap.shape as CapsuleShape3D).radius = PLAYER_RADIUS
+	(cap.shape as CapsuleShape3D).height = 1.5
+	cap.position = Vector3(0, 0.75, 0)
+	player.add_child(cap)
+	world.add_child(player)
+
+	var settle := func(frames: int) -> void:
+		for i in frames:
+			await physics_frame
+		await process_frame
+	player.position = Vector3(0, 0, 1.3)     # body z 0.8..1.8: inside the fire box and her zone
+	await settle.call(6)
+	var both := [fire.overlaps_body(player), cat._zone.overlaps_body(player)]
+	check(both == [true, true] and not cat.can_be_petted() and not (ui.prompt_label.visible and ui.prompt_label.text == cat.PROMPT),
+		"a player in both her zone and another E zone gets neither her prompt nor her E (in both: %s)" % [both])
+	player.position = Vector3(0, 0, 2.9)     # beside her only
+	await settle.call(6)
+	check(cat.can_be_petted() and ui.prompt_label.visible and ui.prompt_label.text == cat.PROMPT,
+		"beside her only: her prompt shows and E is hers")
+	var patron := Node3D.new()               # a waiting patron in serving range takes E first
+	patron.set_script(_waiting_patron_script())
+	patron.add_to_group("patrons")
+	world.add_child(patron)
+	check(not cat.can_be_petted(), "a waiting patron in range takes E before her")
+	patron.free()
+	player.position = Vector3(0, 0, 6.0)     # walked away
+	await settle.call(6)
+	check(not cat.can_be_petted() and not ui.prompt_label.visible, "walking away takes her prompt down")
+	cat._carry_on()
+	check(not other.is_playing(), "her carry-on doesn't start an AnimationPlayer she didn't pause")
+	world.queue_free()
+	await process_frame
+
+
+static func _waiting_patron_script() -> GDScript:
+	var gs := GDScript.new()
+	gs.source_code = "extends Node3D\nfunc can_be_served_by(_p: Vector3) -> bool:\n\treturn true\n"
+	gs.reload()
+	return gs
 
 ## Every villager's post and the path of every walker's loop, sampled every 0.5 m (for Test 17).
 static func _villager_path_points(ext: Dictionary) -> Array:

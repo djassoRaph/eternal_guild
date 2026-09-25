@@ -446,7 +446,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - MainTavern: asleep in a wicker basket with a red cushion (B20) beside the hearth, 2.4 m from where the fire is tended.
 - ExteriorWorld: a short baked stroll by the stall tent and the barrel, sitting a while at each stop.
 - Pettable (decision F0, amending FR-112): beside her the prompt reads "Press E - Pet the cat"; usually she pushes her head into your hand and purrs ("prrr…"), sometimes she only says "mrrp."; then she sits a moment and goes back to sleep, or back to her stroll. Still no name, no autoload, no story entry.
-- Failsafe Test 17 added; the suite is at 337/337.
+- One E never does two things: beside the hearth the player can stand in both her zone and the fire's, so she yields E and her prompt to any other prompt zone, a waiting patron in range, an open mission screen, a pause or Game Over (found in code review).
+- Failsafe Test 17 added (with a physics check that she yields); the suite is at 343/343.
 
 ---
 
