@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://djk7rbi6sdc1l"
+path="res://.godot/imported/townsfolk_old_woman_old_woman_mage.png-f82ce068a06536d9e1ee6768cd36a3d8.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "676910c79a9c0a1f0f676618d0314c72"
+}
+
+[deps]
+
+source_file="res://assets/characters/custom/townsfolk_old_woman_old_woman_mage.png"
+dest_files=["res://.godot/imported/townsfolk_old_woman_old_woman_mage.png-f82ce068a06536d9e1ee6768cd36a3d8.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1
