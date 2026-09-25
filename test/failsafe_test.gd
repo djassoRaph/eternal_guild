@@ -112,6 +112,12 @@ const BARK_REGISTERS := ["grievance", "mirror", "paranoia"]   # narrative-design
 const BANNED_BARK_WORDS := ["the state", "government", "politician", "democracy", "capitalism", "okay"]
 const VILLAGER_SCRIPT_PATH := "res://scripts/npcs/villager.gd"
 const VILLAGER_SCENE_PATH := "res://scenes/npcs/Villager.tscn"
+const CAT_PATH := "res://assets/characters/custom/g11_the_cat.glb"   # Story 25.15
+const CAT_BASKET_PATH := "res://assets/environment/custom/b20_cat_basket.gltf"
+const CAT_SCENE_PATH := "res://scenes/game/TheCat.tscn"
+const CAT_SCRIPT_PATH := "res://scripts/game/the_cat.gd"
+const CAT_LOOPS := ["Idle", "Sleep", "Walk"]
+const HEARTH_INTERACT := Vector3(-2.98, 0.13, -9.30)   # the Hearth's interact_point in MainTavern: where the fire is tended
 
 var _pass_count := 0
 var _fail_count := 0
@@ -139,6 +145,7 @@ func _initialize() -> void:
 	test_mission_payout_report()
 	test_class_roster()
 	test_townsfolk_kit()
+	test_the_cat()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -1513,6 +1520,151 @@ static func _villager_spot_problem(hf: Dictionary, p: Vector2, buildings: Array,
 		if Vector2(q[0].x, q[0].z).distance_to(p) < float(q[1]):
 			return "on a street prop"
 	return ""
+
+
+# --- Test 17: The Cat (Story 25.15) ---
+# One cat on her own small rig with three looping clips and a one-shot Pet; pettable (decision F0:
+# a small script and a PetZone, still no autoload, no name, no story entry); asleep in a basket by
+# the hearth, where tending the fire puts you beside her, without her zone overlapping another E
+# zone; in town, a baked stroll that stays on clear ground and away from the villagers' paths.
+func test_the_cat() -> void:
+	print("[Test 17] The Cat")
+	for p in [CAT_PATH, CAT_BASKET_PATH, CAT_SCENE_PATH, CAT_SCRIPT_PATH]:
+		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
+	if ResourceLoader.exists(CAT_PATH):
+		var inst := (load(CAT_PATH) as PackedScene).instantiate()
+		var sks := inst.find_children("*", "Skeleton3D", true, false)
+		var bones: int = (sks[0] as Skeleton3D).get_bone_count() if not sks.is_empty() else 0
+		var aps := inst.find_children("*", "AnimationPlayer", true, false)
+		var ap: AnimationPlayer = aps[0] if not aps.is_empty() else null
+		var loops := []
+		for clip in CAT_LOOPS:
+			if ap == null or not ap.has_animation(clip) or ap.get_animation(clip).loop_mode != Animation.LOOP_LINEAR:
+				loops.append(clip)
+		check(bones >= 10 and loops.is_empty(), "her rig (%d bones) and looping clips (not looping or missing: %s)" % [bones, loops])
+		check(ap != null and ap.has_animation("Pet") and ap.get_animation("Pet").loop_mode == Animation.LOOP_NONE,
+			"a one-shot Pet clip")
+		inst.free()
+		var st := _mesh_stats(CAT_PATH)
+		check(st.tris > 0 and st.tris <= 1500 and st.wrong.is_empty() and st.glow == 0,
+			"g11_the_cat.glb: %d tris (≤ 1,500), nothing glows, roughness > 0 (wrong: %s)" % [st.tris, st.wrong])
+
+	var cat := _scene_nodes(CAT_SCENE_PATH) if ResourceLoader.exists(CAT_SCENE_PATH) else {}
+	var root_script = cat.get(".", {}).get("props", {}).get("script", null) if cat.has(".") else null
+	var zone_r := 0.0
+	var zone_off := Vector3.ZERO
+	for k in cat:
+		if str(k).begins_with("PetZone/") and cat[k].props.get("shape") is SphereShape3D:
+			zone_r = (cat[k].props.shape as SphereShape3D).radius
+			zone_off = (cat[k].world as Transform3D).origin
+	check(root_script is Script and (root_script as Script).resource_path == CAT_SCRIPT_PATH, "TheCat.tscn runs the_cat.gd")
+	check(cat.has("PetZone") and cat.PetZone.type == "Area3D" and zone_r > 0.3 and zone_r <= 1.2, "a PetZone (sphere, r %.2f m)" % zone_r)
+	var anim_node := cat.keys().filter(func(k): return cat[k].type == "AnimationPlayer" or str(k).get_file() == "AnimationPlayer")
+	check(not anim_node.is_empty() and str(cat[anim_node[0]].props.get("autoplay", "")) == "Sleep", "she sleeps unless something says otherwise (autoplay Sleep)")
+	var project := FileAccess.get_file_as_string("res://project.godot")
+	var autoloads := project.substr(project.find("[autoload]"), 2000) if project.find("[autoload]") >= 0 else ""
+	autoloads = autoloads.substr(0, autoloads.find("\n[", 2)) if autoloads.find("\n[", 2) > 0 else autoloads
+	check(not autoloads.contains("the_cat") and not autoloads.contains("TheCat"), "no autoload for the cat (AR D11)")   # not "cat": NotificationManager
+	var cs = load(CAT_SCRIPT_PATH) as Script if ResourceLoader.exists(CAT_SCRIPT_PATH) else null
+	var has_reaction: bool = cs != null and cs.get_script_method_list().any(func(m): return m.name == "reaction")
+	var chance = cs.get_script_constant_map().get("PURR_CHANCE", -1.0) if cs != null else -1.0
+	check(has_reaction and chance > 0.5 and chance < 0.95 and cs.reaction(0.0) == "purr" and cs.reaction(chance - 0.01) == "purr"
+		and cs.reaction(chance + 0.01) == "mrrp" and cs.reaction(0.999) == "mrrp",
+		"usually a purr, sometimes 'mrrp' (PURR_CHANCE %s)" % [chance])
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var cats := tav.keys().filter(func(k): return tav[k].instance == CAT_SCENE_PATH)
+	check(cats.size() == 1, "one cat in the tavern (%d)" % cats.size())
+	if cats.size() == 1:
+		var o: Vector3 = (tav[cats[0]].world as Transform3D).origin
+		var d := Vector2(o.x, o.z).distance_to(Vector2(HEARTH_INTERACT.x, HEARTH_INTERACT.z))
+		check(d <= 2.5, "she sleeps by the hearth, %.2f m from where the fire is tended" % d)
+		var baskets := []
+		for k in tav:
+			var bo: Vector3 = (tav[k].world as Transform3D).origin
+			if tav[k].instance == CAT_BASKET_PATH and Vector2(bo.x, bo.z).distance_to(Vector2(o.x, o.z)) < 0.35:
+				baskets.append(k)
+		check(baskets.size() == 1, "in her basket (B20)")
+		var centre := o + (tav[cats[0]].world as Transform3D).basis * zone_off
+		var clashes := []
+		for k in tav:
+			var key := str(k)
+			if not key.contains("TavernNavigation/Interactive/") or tav[k].type != "CollisionShape3D":
+				continue
+			var w: Transform3D = tav[k].world
+			var shape = tav[k].props.get("shape")
+			var gap := 99.0
+			if shape is BoxShape3D:
+				var half := Vector3(shape.size.x * w.basis.x.length(), shape.size.y * w.basis.y.length(), shape.size.z * w.basis.z.length()) / 2.0
+				var q := (centre - w.origin).abs() - half
+				gap = Vector3(maxf(q.x, 0.0), maxf(q.y, 0.0), maxf(q.z, 0.0)).length()
+			elif shape is SphereShape3D:
+				gap = centre.distance_to(w.origin) - shape.radius * w.basis.x.length()
+			if gap < zone_r:
+				clashes.append(key.get_slice("/", key.get_slice_count("/") - 2))
+		check(clashes.is_empty(), "petting her never also presses another E zone (overlaps: %s)" % [clashes])
+
+	var ext := _scene_nodes(EXTERIOR_SCENE_PATH)
+	var town_cats := ext.keys().filter(func(k): return ext[k].instance == CAT_SCENE_PATH)
+	check(town_cats.size() == 1, "one cat in town (%d)" % town_cats.size())
+	var hf = _read_json(HEIGHTFIELD_FIXTURE)
+	var keys_pts := []
+	for k in ext:
+		if ext[k].type == "AnimationPlayer" and str(k).get_base_dir() == "CatStroll":
+			var libs = ext[k].props.get("libraries", {})
+			var lib = libs.get("", null) if libs is Dictionary else null
+			var anim: Animation = lib.get_animation("Stroll") if lib is AnimationLibrary and lib.has_animation("Stroll") else null
+			check(anim != null and anim.loop_mode == Animation.LOOP_LINEAR and str(ext[k].props.get("autoplay", "")) == "Stroll",
+				"CatStroll plays a looping Stroll on its own")
+			if anim != null:
+				var base: Transform3D = ext["CatStroll"].world if ext.has("CatStroll") else Transform3D.IDENTITY
+				for t in anim.get_track_count():
+					if str(anim.track_get_path(t)).ends_with(":position"):
+						for i in anim.track_get_key_count(t):
+							keys_pts.append(base * (anim.track_get_key_value(t, i) as Vector3))
+	check(keys_pts.size() >= 3, "her stroll has %d position keys" % keys_pts.size())
+	var buildings := []
+	var street := []
+	for k in ext:
+		var key := str(k)
+		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
+			buildings.append((ext[k].world as Transform3D).origin)
+		elif key.begins_with("Village/Street/") and key.count("/") == 2:
+			street.append([(ext[k].world as Transform3D).origin, 2.0 if key.get_file().begins_with("StallTent") else 1.0])
+	var villager_pts := _villager_path_points(ext)
+	var bad := []
+	if hf is Dictionary:
+		for p in keys_pts:
+			var g := _hf_height(hf, p.x, p.z)
+			if absf(p.y - g) > 0.2:
+				bad.append("(%.1f, %.1f) y %.2f vs ground %.2f" % [p.x, p.z, p.y, g])
+			var why := _villager_spot_problem(hf, Vector2(p.x, p.z), buildings, street)
+			if why != "":
+				bad.append("(%.1f, %.1f) %s" % [p.x, p.z, why])
+			for q in villager_pts:
+				if (q as Vector2).distance_to(Vector2(p.x, p.z)) < 1.0:
+					bad.append("(%.1f, %.1f) on a villager's path" % [p.x, p.z])
+					break
+	check(hf is Dictionary and bad.is_empty(), "her stroll stays on clear ground, off the villagers' paths %s" % [bad.slice(0, 4)])
+	print("")
+
+
+## Every villager's post and the path of every walker's loop, sampled every 0.5 m (for Test 17).
+static func _villager_path_points(ext: Dictionary) -> Array:
+	var out := []
+	for k in ext:
+		if not (str(k).begins_with("Villagers/") and str(k).count("/") == 1):
+			continue
+		var o: Vector3 = (ext[k].world as Transform3D).origin
+		out.append(Vector2(o.x, o.z))
+		var wps: PackedVector3Array = ext[k].props.get("waypoints", PackedVector3Array())
+		for i in wps.size():
+			var a := Vector2(wps[i].x, wps[i].z)
+			var b := Vector2(wps[(i + 1) % wps.size()].x, wps[(i + 1) % wps.size()].z)
+			var steps := maxi(int(ceil(a.distance_to(b) / 0.5)), 1)
+			for t in steps:
+				out.append(a.lerp(b, float(t) / steps))
+	return out
 
 ## Radius (xz) of a scene's trimesh collider: the smallest vertex radius (inner = true) or the largest.
 static func _shape_radius(nodes: Dictionary, inner: bool) -> float:
