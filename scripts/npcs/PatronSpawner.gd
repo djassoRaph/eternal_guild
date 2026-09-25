@@ -118,15 +118,32 @@ func _collect_seats() -> void:
 	seats = build_seats(marks, table_positions)
 	print("PatronSpawner: %d seats (%d from the scene, %d table spots)" % [seats.size(), marks.size(), seats.size() - marks.size()])
 
-func get_available_table() -> int:
-	"""Pick a random unoccupied seat (spreads patrons round the bar and the tables)"""
+const SEAT_ELBOW_ROOM := 1.6  # KayKit patrons are wide: neighbours on adjacent stools (1.2 m) look crowded
+
+## A free seat picked at random (roll in 0..1), preferring seats with elbow room from every
+## occupied one; only when the hall is that full does anyone take a seat next to someone.
+static func pick_seat(seat_list: Array, occupied: Array, roll: float) -> int:
 	var free := []
-	for i in range(seats.size()):
-		if not occupied_tables.has(i):
-			free.append(i)
-	if free.is_empty():
+	var roomy := []
+	for i in seat_list.size():
+		if i in occupied:
+			continue
+		free.append(i)
+		var crowded := false
+		for j in occupied:
+			if j >= 0 and j < seat_list.size() and seat_list[i].approach.distance_to(seat_list[j].approach) < SEAT_ELBOW_ROOM:
+				crowded = true
+				break
+		if not crowded:
+			roomy.append(i)
+	var pool := roomy if not roomy.is_empty() else free
+	if pool.is_empty():
 		return -1
-	return free[randi() % free.size()]
+	return pool[mini(int(roll * pool.size()), pool.size() - 1)]
+
+func get_available_table() -> int:
+	"""Pick a random free seat, keeping elbow room when the hall allows it"""
+	return pick_seat(seats, occupied_tables.keys(), randf())
 
 func spawn_patron():
 	"""Spawn a patron with walking behavior"""

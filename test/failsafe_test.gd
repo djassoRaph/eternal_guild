@@ -947,6 +947,14 @@ func test_round_bar() -> void:
 		var mixed: Array = sp.build_seats([seat_t], [far, near])
 		check(mixed.size() == 2 and mixed[0].sit is Transform3D and mixed[0].approach.distance_to(root) < 0.01 and mixed[1].approach == far,
 			"build_seats: scene seats first, table spots kept unless within 0.8 m of a seat")
+		# Elbow room (found in the 2026-09-25 playtest: neighbours on adjacent stools look crowded).
+		var row := []
+		for i in 4:
+			row.append({"approach": Vector3(1.2 * i, 0, 0), "sit": null})
+		var has_pick: bool = sp.get_script_method_list().any(func(m): return m.name == "pick_seat")
+		check(has_pick and sp.pick_seat(row, [0], 0.0) != 1 and sp.pick_seat(row, [0], 0.99) != 1
+			and [1, 3].has(sp.pick_seat(row, [0, 2], 0.0)) and sp.pick_seat(row, [0, 1, 2, 3], 0.5) == -1,
+			"pick_seat keeps elbow room from seated patrons, and packs in only when the bar is full")
 	var tank_ok: bool = rp != null and ResourceLoader.exists(str(rp.get_script_constant_map().get("TANKARD_FULL", ""))) \
 		and ResourceLoader.exists(str(rp.get_script_constant_map().get("TANKARD_EMPTY", "")))
 	check(tank_ok, "RealisticPatron's tankard props point at the H1 files")
