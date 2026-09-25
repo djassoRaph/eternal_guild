@@ -42,27 +42,56 @@
 		"default": [
 			"Now that's a proper pint.",
 			"A good fire and a full cup — can't ask for more.",
-			"This is the part of the day I look forward to."
+			"This is the part of the day I look forward to.",
+			"Warm hearth, cold ale. Everything's where it should be.",
+			"Can't remember the last time I sat down all day.",
+			"My feet thank you. My purse, less so.",
+			"Heard there's work on the board. Not for me, mind.",
+			"Every tavern's got a story. This one's got an hourglass the size of a tree."
 		],
 		"traveler": [
 			"The road's long, but this ale makes it worth the miles.",
 			"Haven't sat by a fire this warm in weeks.",
-			"One more of these and I might just stay the night."
+			"One more of these and I might just stay the night.",
+			"Three towns back they told me to stop here. They were right.",
+			"The bridge creaks, but it holds. So does this stool.",
+			"Mud on my boots from two counties. Don't mind it.",
+			"Nobody asks questions on the road. Nice to be asked for my order.",
+			"Rain followed me all the way from the pass.",
+			"I'll sleep in a hayloft tonight and dream of this ale."
 		],
 		"local": [
 			"Same seat, same ale. Some things you don't change.",
 			"Heard the miller's boy went off adventuring. Madness.",
-			"Nothing rounds off a long day like this."
+			"Nothing rounds off a long day like this.",
+			"My wife says I spend too much time here. She's not wrong.",
+			"The mill's been loud all week. This is the only quiet I get.",
+			"Old Maud swears the well water tastes of iron this year.",
+			"Harvest's coming in slow. Ale's coming in fine.",
+			"The guild lads were singing again last night. Out of tune, as always.",
+			"Grew up three doors down. Still the best seat in town."
 		],
 		"soldier": [
 			"Quiet night. I'll take quiet nights.",
 			"Off duty, and this cup's the only order I'll follow.",
-			"The keep can wait. This tankard can't."
+			"The keep can wait. This tankard can't.",
+			"Twelve hours at the gate. My feet have filed a complaint.",
+			"Captain says no drinking on duty. I'm not on duty.",
+			"Nothing crossed the bridge today but carts and gossip.",
+			"Polished the same helmet three times. Needed this.",
+			"If the horn sounds, I was never here.",
+			"Lord's orders, lord's wages. The ale's my own."
 		],
 		"trader": [
 			"Good day at market, better evening here.",
 			"I've drunk in richer towns. None friendlier.",
-			"A fair price and a full cup — that's a good day."
+			"A fair price and a full cup — that's a good day.",
+			"Sold wool to a man who swore he'd never buy wool. Drinks are on him.",
+			"The caravan's resting, and so am I.",
+			"Salt's up, iron's down, ale's just right.",
+			"I count coins all day. Let me count sips for once.",
+			"Word is the eastern pass is open again. Good for trade.",
+			"Every market has a best stall. Every town has a best tavern."
 		]
 	},
 	"origin_flavor": {

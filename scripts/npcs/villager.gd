@@ -15,6 +15,8 @@ const HEAR_RADIUS := 6.0        # the player overhears within this distance
 const ARRIVE_DIST := 0.3
 const BUBBLE_SCALE := 1.5       # the town camera is about twice as wide as the tavern's; keep the words readable
 const FALL_LIMIT := 5.0         # this far below where it started = fell through the ground: put it back
+const QUIET_GAP := Vector2(4.0, 8.0)   # seconds of quiet after a bubble ends before anyone speaks again
+const RECENT_BARKS := 6         # lines the whole village avoids repeating
 
 @export var variant_id: String = "local"
 @export var waypoints: PackedVector3Array = PackedVector3Array()   # world positions (XZ used); empty = stands
@@ -24,6 +26,9 @@ const FALL_LIMIT := 5.0         # this far below where it started = fell through
 
 static var _barks_cache = null
 static var _speaking := 0       # villager bubbles on screen; a new bark waits for silence (pause-proof)
+static var _quiet_left := 0.0   # game-time quiet after the last bubble (ticked once per physics frame)
+static var _quiet_frame := -1
+static var _recent_barks: Array = []
 
 var _model: Node3D = null
 var _anim: AnimationPlayer = null
@@ -71,6 +76,9 @@ func _spawn_model() -> void:
 func _physics_process(delta: float) -> void:
 	if delta <= 0.0:
 		return   # time_scale 0: nothing moves, and no 0/0 velocity
+	if Engine.get_physics_frames() != _quiet_frame:
+		_quiet_frame = Engine.get_physics_frames()
+		_quiet_left = maxf(_quiet_left - delta, 0.0)
 	if global_position.y < _home.y - FALL_LIMIT:
 		global_position = _home   # fell through the ground somehow: back where it started
 		velocity = Vector3.ZERO
@@ -135,8 +143,8 @@ func _play(anim_name: String) -> void:
 
 
 ## Once per half second: when the player is close, and this villager hasn't spoken to them yet on this
-## visit, speak when its own cooldown is over and no other villager's bubble is showing. Leaving the
-## radius resets the visit.
+## visit, speak when its own cooldown is over, no other villager's bubble is showing and the quiet gap
+## after the last one has passed. Leaving the radius resets the visit. Recent lines aren't repeated.
 func _listen_for_player(delta: float) -> void:
 	_cooldown -= delta
 	_listen -= delta
@@ -148,11 +156,14 @@ func _listen_for_player(delta: float) -> void:
 	if not near:
 		_player_was_near = false
 		return
-	if _player_was_near or _cooldown > 0.0 or _speaking > 0:
+	if _player_was_near or _cooldown > 0.0 or _speaking > 0 or _quiet_left > 0.0:
 		return
-	var line := pick_bark(_barks(), randf(), randf())
+	var line := pick_bark(_barks(), randf(), randf(), _recent_barks)
 	if line == "":
 		return
+	_recent_barks.append(line)
+	while _recent_barks.size() > RECENT_BARKS:
+		_recent_barks.pop_front()
 	var bubble = BUBBLE_SCRIPT.new()
 	bubble.scale = Vector3.ONE * BUBBLE_SCALE
 	add_child(bubble)
@@ -165,6 +176,7 @@ func _listen_for_player(delta: float) -> void:
 
 func _on_bubble_gone() -> void:
 	_speaking = maxi(_speaking - 1, 0)
+	_quiet_left = randf_range(QUIET_GAP.x, QUIET_GAP.y)
 
 
 static func _barks() -> Dictionary:
@@ -178,9 +190,9 @@ static func _barks() -> Dictionary:
 	return _barks_cache
 
 
-## A register by weight (grievance, mirror, paranoia, in that order), then a line from it.
-## Rolls are in [0, 1); "" when the data has nothing (usable) to say.
-static func pick_bark(data: Dictionary, roll_register: float, roll_line: float) -> String:
+## A register by weight (grievance, mirror, paranoia, in that order), then a line from it that isn't
+## in `avoid` (RealisticPatron.fresh_line). Rolls are in [0, 1); "" when there's nothing usable.
+static func pick_bark(data: Dictionary, roll_register: float, roll_line: float, avoid: Array = []) -> String:
 	var regs = data.get("registers", {})
 	if not regs is Dictionary:
 		return ""
@@ -199,8 +211,7 @@ static func pick_bark(data: Dictionary, roll_register: float, roll_line: float) 
 	for u in usable:
 		x -= u[0]
 		if x < 0.0:
-			var lines: Array = u[1]
-			return str(lines[mini(int(clampf(roll_line, 0.0, 0.999999) * lines.size()), lines.size() - 1)])
+			return RealisticPatron.fresh_line(u[1], avoid, roll_line)
 	return ""
 
 

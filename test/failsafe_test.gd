@@ -1444,17 +1444,67 @@ func test_townsfolk_kit() -> void:
 	check(hf is Dictionary and problems.is_empty(), "villagers stand and walk on clear ground %s" % [problems.slice(0, 4)])
 	check(TOWNSFOLK_ROLES.all(func(r): return r in used), "one of each townsfolk variant lives in town (E2) %s" % [used])
 	check(walkers >= 2, "%d villagers walk loops (≥ 2)" % walkers)
+
+	# Village-life playtest polish (2026-09-25): less repetition, room to breathe, no walking through
+	# each other, someone on the road by the tavern, names that fit the faces.
+	var amb: Dictionary = plines.get("ambient", {}) if plines is Dictionary else {}
+	var thin := (PATRON_ORIGIN_TYPES + ["default"]).filter(func(k): return (amb.get(k, []) as Array).size() < 8)
+	check(thin.is_empty(), "patron chatter has 8+ lines per origin (thin: %s)" % [thin])
+	var has_fresh: bool = rp != null and rp.get_script_method_list().any(func(m): return m.name == "fresh_line")
+	check(has_fresh and rp.fresh_line(["a", "b", "c"], ["a"], 0.0) == "b" and rp.fresh_line(["a", "b", "c"], ["b", "c"], 0.5) == "a"
+		and rp.fresh_line(["a", "b"], ["a", "b"], 0.0) == "a" and rp.fresh_line([], [], 0.3) == "",
+		"fresh_line skips recently said lines (and falls back when all are recent)")
+	if vapi and regs_ok:
+		var first: String = str(regs["grievance"]["lines"][0])
+		var again := str(vs.pick_bark(barks, 0.0, 0.0, [first]))
+		check(again != first and again in regs["grievance"]["lines"], "pick_bark avoids a line just said (%s)" % again)
+	var vconst: Dictionary = vs.get_script_constant_map() if vs != null else {}
+	var gap = vconst.get("QUIET_GAP", null)
+	check(gap is Vector2 and gap.x >= 3.0 and gap.y >= gap.x, "villagers leave a quiet gap after each bark (%s s)" % [gap])
+	check(variants.filter(func(v): return v.get("id", "") in ["local", "guard"]).all(func(v): return str(v.get("names", "")) == "masculine"),
+		"the local and the guard (the Knight's face) draw masculine names")
+	var door := Vector2(-20.65, 10.0)   # TavernEntranceZone
+	var near_door := false
+	var paths := {}   # villager -> sampled path points (a post is a single point)
+	for k in vill:
+		var n: Dictionary = ext[k]
+		var o: Vector3 = (n.world as Transform3D).origin
+		var wps: PackedVector3Array = n.props.get("waypoints", PackedVector3Array())
+		var samples := [Vector2(o.x, o.z)]
+		for i in wps.size():
+			var a := Vector2(wps[i].x, wps[i].z)
+			var b := Vector2(wps[(i + 1) % wps.size()].x, wps[(i + 1) % wps.size()].z)
+			if a.distance_to(door) < 8.0:
+				near_door = true
+			var steps := maxi(int(ceil(a.distance_to(b) / 0.5)), 1)
+			for t in steps:
+				samples.append(a.lerp(b, float(t) / steps))
+		paths[k] = samples if wps.size() >= 2 else [Vector2(o.x, o.z)]
+	check(near_door, "someone walks the road up to the tavern door")
+	var crossings := []
+	var keys := paths.keys()
+	for i in keys.size():
+		for j in range(i + 1, keys.size()):
+			var best := 99.0
+			for pa in paths[keys[i]]:
+				for pb in paths[keys[j]]:
+					best = minf(best, (pa as Vector2).distance_to(pb))
+			if best < 1.0:
+				crossings.append("%s/%s %.2f m" % [str(keys[i]).get_file(), str(keys[j]).get_file(), best])
+	check(crossings.is_empty(), "villagers' paths keep 1 m apart, so nobody walks through anybody %s" % [crossings])
 	print("")
 
 
 ## Where a villager may not stand or step: outside the play area, in the stream, inside a building
 ## (within 2.5 m of its origin, as Test 9's trees), or on a street prop (props = [origin, radius]:
-## 1 m, 2 m for a stall tent).
+## 1 m, 2 m for a stall tent). The bridge deck is fine: it's how you cross the stream.
 static func _villager_spot_problem(hf: Dictionary, p: Vector2, buildings: Array, props: Array) -> String:
 	var play: Array = hf.play
 	if p.x < float(play[0]) or p.x > float(play[1]) or p.y < float(play[2]) or p.y > float(play[3]):
 		return "outside the play area"
-	if absf(p.x - _hf_stream_x(hf, p.y)) < float(hf.stream_half) + 0.5:
+	var br: Dictionary = hf.get("bridge", {})
+	var on_bridge: bool = not br.is_empty() and p.x >= float(br.x0) and p.x <= float(br.x1) and absf(p.y - float(br.z)) <= float(br.width) / 2.0
+	if not on_bridge and absf(p.x - _hf_stream_x(hf, p.y)) < float(hf.stream_half) + 0.5:
 		return "in the stream"
 	for b in buildings:
 		if Vector2(b.x, b.z).distance_to(p) < 2.5:

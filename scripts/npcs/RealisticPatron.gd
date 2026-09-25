@@ -88,6 +88,10 @@ const ORIGINS := [
 
 static var _townsfolk_doc_cache = null
 
+# Ambient chatter memory: the last few lines said by any patron, so the hall doesn't echo itself.
+const RECENT_AMBIENT := 4
+static var _recent_ambient: Array = []
+
 # Timers
 var sitting_timer: Timer
 var drinking_timer: Timer
@@ -572,14 +576,33 @@ func _start_ambient_chatter() -> void:
 
 func _pick_ambient_line() -> String:
 	# Data-driven (MOD-2): lines live in data/dialogue/patron_lines.json under "ambient",
-	# keyed by origin type, with a "default" fallback.
+	# keyed by origin type, with a "default" fallback. The last few lines said in the hall aren't
+	# repeated (village-life playtest, 2026-09-25: one line came up four times in 150 s).
 	if DataManager == null:
 		return ""
 	var ctx := patron_origin_type if patron_origin_type != "" else "default"
-	var line := DataManager.get_dialogue_line("ambient", ctx)
-	if line == "..." and ctx != "default":
-		line = DataManager.get_dialogue_line("ambient", "default")
+	var amb = DataManager.dialogue_lines.get("ambient", {})
+	var lines: Array = amb.get(ctx, []) if amb is Dictionary else []
+	if lines.is_empty() and amb is Dictionary:
+		lines = amb.get("default", [])
+	var line := fresh_line(lines, _recent_ambient, randf())
+	if line != "":
+		_recent_ambient.append(line)
+		while _recent_ambient.size() > RECENT_AMBIENT:
+			_recent_ambient.pop_front()
 	return line
+
+## A line that wasn't said recently: start at the rolled line and step on past recent ones; if every
+## line is recent, the rolled one ("" when there are none). Shared with villagers' barks.
+static func fresh_line(lines: Array, recent: Array, roll: float) -> String:
+	if lines.is_empty():
+		return ""
+	var start := mini(int(clampf(roll, 0.0, 0.999999) * lines.size()), lines.size() - 1)
+	for k in lines.size():
+		var candidate := str(lines[(start + k) % lines.size()])
+		if not candidate in recent:
+			return candidate
+	return str(lines[start])
 
 # =============================================================================
 # INITIALIZATION

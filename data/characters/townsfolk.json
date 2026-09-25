@@ -17,7 +17,7 @@
 			"model_path": "res://assets/characters/custom/townsfolk_local.glb",
 			"origin_type": "local",
 			"weight": 5,
-			"names": "any"
+			"names": "masculine"
 		},
 		{
 			"id": "old_woman",
@@ -44,7 +44,7 @@
 			"model_path": "res://assets/characters/custom/townsfolk_guard.glb",
 			"origin_type": "soldier",
 			"weight": 4,
-			"names": "any"
+			"names": "masculine"
 		},
 		{
 			"id": "merchant",
