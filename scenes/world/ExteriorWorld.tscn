@@ -1,9 +1,10 @@
-[gd_scene load_steps=30 format=4 uid="uid://c8yad3n2k4p7q"]
+[gd_scene load_steps=33 format=4 uid="uid://c8yad3n2k4p7q"]
 
 [ext_resource type="Script" uid="uid://m1w8a7v1jx7e" path="res://scripts/world/exteriorworld.gd" id="1_gqbs3"]
 [ext_resource type="Script" uid="uid://noiotjjcccpn" path="res://scripts/world/entrance_zone_exterior.gd" id="2_hxdmn"]
 [ext_resource type="Script" uid="uid://m3qqf3byxsem" path="res://scripts/camera/exterior_camera.gd" id="2_o6ei4"]
-[ext_resource type="PackedScene" uid="uid://cu524iims6ebk" path="res://assets/environment/hexagons/blue/building_tavern_blue.gltf" id="4_xrbfx"]
+[ext_resource type="PackedScene" uid="uid://bbwn5kvsw20fr" path="res://assets/environment/custom/a1_guild_tavern.gltf" id="s258_a1"]
+[ext_resource type="Shader" uid="uid://dluc7tau70k3i" path="res://assets/shaders/edge_detection.gdshader" id="s258_edge"]
 [ext_resource type="PackedScene" uid="uid://bvyg0c7ymkju8" path="res://assets/environment/hexagons/blue/building_watermill_blue.gltf" id="5_62xbi"]
 [ext_resource type="PackedScene" uid="uid://0tvtt0gcago6" path="res://assets/environment/hexagons/blue/building_blacksmith_blue.gltf" id="6_blcksm"]
 [ext_resource type="PackedScene" uid="uid://dnislwk4nd5qd" path="res://assets/environment/hexagons/blue/building_market_blue.gltf" id="7_market"]
@@ -47,7 +48,7 @@ size = Vector3(158.952, 1, 158.7)
 albedo_color = Color(0.36, 0.24, 0.15, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_1"]
-size = Vector3(5.49762, 6.78067, 6.42073)
+size = Vector3(0.7, 2.5, 2.4)
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_cxfs3"]
 _surfaces = [{
@@ -98,6 +99,19 @@ _surfaces = [{
 blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_cxfs3")
 
+[sub_resource type="QuadMesh" id="QuadMesh_s258_edge"]
+flip_faces = true
+size = Vector2(2, 2)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_s258_edge"]
+render_priority = 0
+shader = ExtResource("s258_edge")
+shader_parameter/lightIntensity = 1.25
+shader_parameter/lineAlpha = 0.7
+shader_parameter/useLighting = true
+shader_parameter/lineHighlight = 0.2
+shader_parameter/lineShadow = 0.55
+
 [node name="ExteriorWorld" type="Node3D" groups=["player_scene"]]
 script = ExtResource("1_gqbs3")
 
@@ -116,6 +130,11 @@ projection = 1
 size = 25.0
 far = 200.0
 script = ExtResource("2_o6ei4")
+
+[node name="EdgeQuad" type="MeshInstance3D" parent="Camera3D"]
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_s258_edge")
+surface_material_override/0 = SubResource("ShaderMaterial_s258_edge")
 
 [node name="Ground" type="MeshInstance3D" parent="."]
 transform = Transform3D(30, 0, 0, 0, 1, 0, 0, 0, 30, 0, -0.357841, 0)
@@ -156,28 +175,30 @@ skeleton = NodePath("")
 surface_material_override/0 = SubResource("StandardMaterial3D_soil")
 
 [node name="PlayerSpawnPoint" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.2456, 1.62198, 7.05838)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.584, 1.62198, 10)
 visible = false
 gizmo_extents = 1.0
 
 [node name="TavernEntranceZone" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.5805, 2.493, 7.33998)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.65, 1.25, 10)
 script = ExtResource("2_hxdmn")
 interior_spawn_position = Vector3(6, 0.5, 6)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TavernEntranceZone"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.65794, -1.15425, -1.23617)
 shape = SubResource("BoxShape3D_1")
 
 [node name="InteractionPrompt" type="Label3D" parent="TavernEntranceZone"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.6078, 2, -2.93306)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.35, 2.3, 0)
 pixel_size = 0.01
 billboard = 1
+no_depth_test = true
+render_priority = 2
+outline_render_priority = 1
 text = "Press E to Enter Tavern"
 outline_size = 8
 
-[node name="building_tavern_blue2" parent="." instance=ExtResource("4_xrbfx")]
-transform = Transform3D(0.143411, 0, 2.99657, 0, 3, 0, -2.99657, 0, 0.143411, -26.9082, 0.608358, 6.02951)
+[node name="GuildTavern" parent="." instance=ExtResource("s258_a1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.884, -0.108, 12.2)
 
 [node name="building_watermill_blue2" parent="." instance=ExtResource("5_62xbi")]
 transform = Transform3D(-2.83579, 0, -0.978933, 0, 3, 0, 0.978933, 0, -2.83579, -19.7542, 0.958355, -19.1698)
