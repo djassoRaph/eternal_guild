@@ -60,6 +60,8 @@ var character_models = [
 	"res://assets/characters/models/kaykit_adventurers/Knight.glb",
 	"res://assets/characters/models/kaykit_adventurers/Barbarian.glb",
 	"res://assets/characters/models/kaykit_adventurers/Rogue_Hooded.glb",
+	"res://assets/characters/custom/healer.glb",   # Story 25.9: the demo classes' own bodies
+	"res://assets/characters/custom/ranger.glb",
 ]
 
 # Timers
