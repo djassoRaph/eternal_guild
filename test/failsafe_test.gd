@@ -57,6 +57,20 @@ const PILLAR_STAGES := {
 	4: ["pillar_foundation", "pillar_base", "pillar_band_low", "pillar_hourglass", "pillar_band_high", "pillar_capital"],
 }
 
+const HEARTH_PATH := "res://assets/environment/custom/b1_hearth.gltf"
+const FIREWOOD_LOG_PATH := "res://assets/environment/custom/h3_firewood_log.gltf"
+const FIREWOOD_BUNDLE_PATH := "res://assets/environment/custom/h3_firewood_bundle.gltf"
+const HEARTH_SCENE_PATH := "res://scenes/game/Hearth.tscn"
+const HEARTH_SCRIPT_PATH := "res://scripts/game/hearth.gd"
+const FIRE_ZONE_SCRIPT_PATH := "res://scenes/fireplace_zone.gd"
+const MINIGAME_SCRIPT_PATH := "res://scenes/ui/script/FireplaceMinigamePanel.gd"
+const HEARTH_SPOT := Vector3(-4.87, 0.1, -9.3)     # on the far wall's inner face, floor top
+const HEARTH_APPROACH := Vector3(-2.5, 1.0, -9.3)  # where the player stands to tend the fire
+const HEARTH_BLOCKED := Vector2(-3.6, -9.3)       # on the navmesh before 25.5; beside the chimney body after
+                                                   # (the 0.2 m apron is under the agents' 0.25 m climb, so it stays walkable)
+const HEARTH_OBJECTS := ["hearth_stone", "mantel", "mantel_props", "andirons", "ember_bed", "hearth_runes"]
+const HEARTH_MARKERS := ["sit_point", "interact_point", "fire_point", "smoke_point", "onibi_point"]
+
 var _pass_count := 0
 var _fail_count := 0
 var _elapsed := 0.0
@@ -75,6 +89,7 @@ func _initialize() -> void:
 	test_tavern_exterior()
 	test_exterior_world()
 	test_hourglass_pillar()
+	test_hearth()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -573,7 +588,7 @@ static func _scene_nodes(scene_path: String) -> Dictionary:
 			props[state.get_node_property_name(i, p)] = state.get_node_property_value(i, p)
 		var inst := state.get_node_instance(i)
 		nodes[path] = {"local": props.get("transform", Transform3D.IDENTITY), "props": props,
-			"instance": inst.resource_path if inst else ""}
+			"instance": inst.resource_path if inst else "", "type": str(state.get_node_type(i))}
 	for path in nodes:
 		var world := Transform3D.IDENTITY
 		var cur: String = path
@@ -707,6 +722,129 @@ func test_hourglass_pillar() -> void:
 		"navmesh routes around the pillar (floor level: centre off, 3 m away on)")
 	print("")
 
+
+
+# --- Test 11: The Hearth and firewood (Story 25.5) ---
+# B1 objects, markers and collision proxies; the tri budgets and the glow rule for B1 and H3; the fire
+# look (pure static functions in hearth.gd, bands identical to fireplace_zone.gd); the Hearth scene
+# (group, light, particles WITH draw passes, log pile, wood store, sit point); the zone and minigame
+# wiring; and the hall: grey boxes gone, the hearth at its spot facing the room, the prompt zone
+# reachable, the navmesh routed round the apron.
+func test_hearth() -> void:
+	print("[Test 11] The Hearth and firewood")
+	for p in [HEARTH_PATH, FIREWOOD_LOG_PATH, FIREWOOD_BUNDLE_PATH]:
+		check(ResourceLoader.exists(p), "asset exists: %s" % p.get_file())
+	var nodes := _scene_nodes(HEARTH_PATH) if ResourceLoader.exists(HEARTH_PATH) else {}
+	var names := nodes.keys().map(func(k): return str(k).get_file())
+	var wanted: Array = HEARTH_OBJECTS + HEARTH_MARKERS
+	for i in 5:
+		wanted.append("log_slot_%d" % (i + 1))
+	for i in 10:
+		wanted.append("store_slot_%02d" % (i + 1))
+	var missing := wanted.filter(func(n): return not n in names)
+	check(not nodes.is_empty() and missing.is_empty(), "B1 objects and markers present (missing: %s)" % [missing])
+	var convex := nodes.values().filter(func(n): return n.props.get("shape") is ConvexPolygonShape3D).size()
+	check(convex >= 3, "B1 has %d convex collision proxies (body, apron, seat)" % convex)
+	for spec in [[HEARTH_PATH, 5000, 3], [FIREWOOD_LOG_PATH, 300, 0], [FIREWOOD_BUNDLE_PATH, 300, 0]]:
+		var st := _mesh_stats(spec[0]) if ResourceLoader.exists(spec[0]) else {"tris": 0, "glow": 0, "wrong": ["missing"]}
+		check(st.tris > 0 and st.tris <= spec[1], "%s: %d tris (budget %d)" % [str(spec[0]).get_file(), st.tris, spec[1]])
+		check(st.glow >= spec[2] and st.wrong.is_empty(),
+			"%s: glow surfaces at roughness 0, the rest > 0 (%d glow; wrong: %s)" % [str(spec[0]).get_file(), st.glow, st.wrong])
+
+	var hs = load(HEARTH_SCRIPT_PATH) if ResourceLoader.exists(HEARTH_SCRIPT_PATH) else null
+	var has_look: bool = hs != null and hs.get_script_method_list().any(func(m): return m.name == "fire_look")
+	check(has_look, "hearth.gd has fire_look()")
+	if has_look:
+		var zc: Dictionary = (load(FIRE_ZONE_SCRIPT_PATH) as Script).get_script_constant_map()
+		var hi := float(zc.get("FUEL_HIGH_FLOOR", 50.0))
+		var lo := float(zc.get("FUEL_LOW_FLOOR", 20.0))
+		var bands := [[0.0, "out"], [0.5, "dying"], [lo, "dying"], [lo + 0.5, "low"], [hi, "low"], [hi + 0.5, "high"], [100.0, "high"]]
+		for b in bands:
+			check(hs.fire_look(b[0]).band == b[1], "fuel %.1f reads %s (zone floors %d / %d)" % [b[0], b[1], hi, lo])
+		var o: Dictionary = hs.fire_look(0.0)
+		check(o.light == 0.0 and o.flames == 0.0 and o.sparks == 0.0 and o.ember_glow == 0.0 and o.smoke == 0.0 and o.logs == 0,
+			"out is dark: no light, flames, sparks, glow, smoke or logs %s" % [o])
+		var d: Dictionary = hs.fire_look(10.0)
+		var l: Dictionary = hs.fire_look(35.0)
+		var h: Dictionary = hs.fire_look(80.0)
+		for key in ["light", "flame_size", "flames", "ember_glow"]:
+			check(h[key] > l[key] and l[key] > d[key] and d[key] > 0.0,
+				"%s ranks high > low > dying > out (%.2f / %.2f / %.2f)" % [key, h[key], l[key], d[key]])
+		check(d.smoke > h.smoke and h.smoke > 0.0, "a dying fire smoulders more than a high one (%.2f > %.2f)" % [d.smoke, h.smoke])
+		check(d.logs == 1 and l.logs >= 2 and l.logs <= 3 and h.logs >= 3 and h.logs <= 5,
+			"logs on the andirons: dying 1, low 2-3, high 3-5 (%d / %d / %d)" % [d.logs, l.logs, h.logs])
+		check(hs.logs_shown(0.0, 0) == 0 and hs.logs_shown(0.0, 2) == 2 and hs.logs_shown(10.0, 0) == 1 and hs.logs_shown(80.0, 4) == 5,
+			"logs_shown adds the placed logs to the burning ones, capped at 5")
+		check(hs.store_shown(-3) == 0 and hs.store_shown(0) == 0 and hs.store_shown(4) == 4 and hs.store_shown(25) == 10,
+			"store_shown shows one log per unit of stock, 0..10")
+
+	var hsn := _scene_nodes(HEARTH_SCENE_PATH) if ResourceLoader.exists(HEARTH_SCENE_PATH) else {}
+	var hstate: SceneState = (load(HEARTH_SCENE_PATH) as PackedScene).get_state() if not hsn.is_empty() else null
+	check(hstate != null and "hearth" in Array(hstate.get_node_groups(0)), "Hearth.tscn root is in group 'hearth'")
+	check(hsn.values().any(func(n): return n.instance == HEARTH_PATH), "Hearth.tscn instances the B1 model")
+	check(hsn.has("FireLight") and hsn.FireLight.type == "OmniLight3D", "Hearth.tscn has the FireLight")
+	for pn in ["FireParticles", "Embers", "Smoke"]:
+		check(hsn.has(pn) and hsn[pn].type == "GPUParticles3D" and hsn[pn].props.get("draw_pass_1") is Mesh
+			and hsn[pn].props.get("process_material") is ParticleProcessMaterial,
+			"%s is a GPUParticles3D with a draw pass and a process material" % pn)
+	var pile := hsn.keys().filter(func(k): return str(k).begins_with("LogPile/") and hsn[k].instance == FIREWOOD_LOG_PATH)
+	var store := hsn.keys().filter(func(k): return str(k).begins_with("WoodStore/") and hsn[k].instance == FIREWOOD_LOG_PATH)
+	check(pile.size() == 5 and store.size() == 10, "LogPile has %d H3 logs (5), WoodStore %d (10)" % [pile.size(), store.size()])
+	check(hsn.has("SitPoint") and hsn.SitPoint.type == "Marker3D", "Hearth.tscn reserves a SitPoint for Den Fa (25.10)")
+
+	var mg = load(MINIGAME_SCRIPT_PATH) as Script
+	check(mg != null and mg.get_script_signal_list().any(func(sg): return sg.name == "log_placed"),
+		"FireplaceMinigamePanel has signal log_placed")
+	var zsrc := (load(FIRE_ZONE_SCRIPT_PATH) as GDScript).source_code
+	check(zsrc.contains('get_first_node_in_group("hearth")') and not zsrc.contains("../../../Furniture"),
+		"fireplace_zone.gd finds the hearth by group (the old ../../../Furniture path resolved to null)")
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var boxes := tav.keys().filter(func(k): return str(k).get_file() in ["FireplaceBack", "FireplaceBase", "Mantel"])
+	check(boxes.is_empty(), "the fireplace grey boxes are gone %s" % [boxes])
+	var hits := tav.keys().filter(func(k): return tav[k].instance == HEARTH_SCENE_PATH)
+	var placed: bool = hits.size() == 1 and (tav[hits[0]].world as Transform3D).origin.distance_to(HEARTH_SPOT) < 0.05
+	var facing: bool = hits.size() == 1 and (tav[hits[0]].world as Transform3D).basis.z.normalized().dot(Vector3.RIGHT) > 0.99
+	check(placed and facing, "MainTavern has one hearth at %s facing +x into the room %s" % [HEARTH_SPOT, hits])
+	var w5 := tav.keys().filter(func(k): return str(k).ends_with("FarWalls/West_5"))
+	check(w5.size() == 1 and str(tav[w5[0]].instance).ends_with("b9_wall_full.gltf"), "West_5 behind the chimney is a full wall panel")
+	var zone_box := AABB()
+	for k in tav:
+		if str(k).ends_with("Interactive/FireplaceArea/CollisionShape3D") and tav[k].props.get("shape") is BoxShape3D:
+			var size: Vector3 = (tav[k].props.shape as BoxShape3D).size
+			zone_box = (tav[k].world as Transform3D) * AABB(-size / 2, size)
+	var nav = null
+	for k in tav:
+		if str(k).ends_with("TavernNavigation"):
+			nav = tav[k].props.get("navigation_mesh")
+	check(zone_box.has_point(HEARTH_APPROACH) and nav is NavigationMesh and _nav_contains(nav, HEARTH_APPROACH.x, HEARTH_APPROACH.z),
+		"the Tend Fire zone %s covers a reachable spot in front of the apron" % [zone_box])
+	check(nav is NavigationMesh and not _nav_contains(nav, HEARTH_BLOCKED.x, HEARTH_BLOCKED.y),
+		"navmesh routes round the hearth's chimney body (%s is off the mesh)" % [HEARTH_BLOCKED])
+	print("")
+
+
+## Tri count and the ink/glow rule over every mesh in a scene file: emissive surfaces at roughness 0,
+## everything else above 0.
+static func _mesh_stats(scene_path: String) -> Dictionary:
+	var tris := 0
+	var glow := 0
+	var wrong := []
+	var nodes := _scene_nodes(scene_path)
+	for k in nodes:
+		var mesh = nodes[k].props.get("mesh")
+		if not mesh is Mesh:
+			continue
+		for s in (mesh as Mesh).get_surface_count():
+			tris += ((mesh as Mesh).surface_get_arrays(s)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+			var m := (mesh as Mesh).surface_get_material(s) as StandardMaterial3D
+			if m == null:
+				continue
+			if m.emission_enabled:
+				glow += 1
+			if (m.emission_enabled and m.roughness != 0.0) or (not m.emission_enabled and m.roughness <= 0.0):
+				wrong.append("%s/%s r=%.2f" % [str(k).get_file(), m.resource_name, m.roughness])
+	return {"tris": tris, "glow": glow, "wrong": wrong}
 
 ## Floor-level only: a solid prop's flat top can bake into a small unreachable island above it.
 static func _nav_contains(nav: NavigationMesh, x: float, z: float, max_y := 1.0) -> bool:
