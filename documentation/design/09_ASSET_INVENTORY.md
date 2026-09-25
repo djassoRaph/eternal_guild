@@ -83,8 +83,8 @@ New pieces from `08` (Batch 1 and 2):
 | B2 Round bar (`bar_ring`, `bar_flap`) | `TavernCounterCircular`, `BarCounter` box (both removed) | `in game` (2026-09-25, Story 25.6: `custom/b2_round_bar.gltf` 3,540 tris in `scenes/game/RoundBar.tscn`, 6.2 m across round the pillar; solid counter, flap at the back, 5 `serve_point`s for the Bartender) |
 | `bar_stool` (with `seat_point`) | `stool` | `in game` (Story 25.6: `custom/b2_bar_stool.gltf` 124 tris, a low stool at the KayKit chair height; 12 round the bar, seat markers in group `patron_seat`; `stool.obj` kept elsewhere) |
 | B1 Hearth (`hearth_stone`, `log_pile`, `andirons`) | `FireplaceBase` / `FireplaceBack` / `Mantel` boxes (removed) | `in game` (2026-09-25, Story 25.5: `custom/b1_hearth.gltf` 2,660 tris in `scenes/game/Hearth.tscn`; the fire's look follows the fireplace state (V2) and is dark at zero Comfort; Den Fa's `sit_point` on the stone seat; wood store under the seat shows the stock; `West_5` window panel swapped for a full wall behind the chimney) |
-| B3 Recruitment Desk | `MissionDesk` box | `planned` (Batch 2) |
-| B4 Mission Board | current 3 × 2 m board | `planned` (Batch 2) |
+| B3 Recruitment Desk | `MissionDesk` box (removed) | `in game` (2026-09-25, Story 25.7: `custom/b3_guild_desk.gltf` 458 tris in `scenes/game/GuildDesk.tscn`, facing the room; the Quest Dealer's `work_point` stool behind it, a `chronicle_point` for H5) |
+| B4 Mission Board | current 3 × 2 m board (removed) | `in game` (2026-09-25, Story 25.7: `custom/b4_mission_board.gltf` 1,180 tris in `scenes/game/GuildNoticeBoard.tscn`; one pinned notice per open contract, up to 8. The notices stand in for H8's contract scrolls until v1) |
 | B5 Wall of the Fallen + plaque | Codex list (Epic 18/19) | `planned` (Batch 2) |
 | Back shelf + keg rack (B12) + tinted kegs (H2) | old B2 parts, `Keg` | `in game` (Story 25.6: `custom/b12_back_bar.gltf` 2,558 tris, a round island round the pillar's base inside the bar, bottles on two tiers, beer and mead kegs with taps) |
 | B7 Stairs to the quarters + bed | `stairs_wood_decorated` | `planned` (backlog) |
