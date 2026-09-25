@@ -80,13 +80,13 @@ New pieces from `08` (Batch 1 and 2):
 | B9 Tavern room shell (plank floor, full/window/doorway walls, 1.0 m knee wall, posts, beam) | the `Floor`, `FloorEntrance`, `WallNorth`/`East`/`South`/`West`, `IndoorNorthwall` grey boxes (hidden; their colliders stay) | `in game` (2026-09-24, Story 25.3: `custom/b9_*.gltf`, 28–376 tris a piece; far walls full height, near walls cut to knee height) |
 | B10 Front door (timber frame + two swinging leaves) | the open gap in the south wall | `in game` (2026-09-24, Story 25.3: `custom/b10_*.gltf` + `scripts/game/front_door.gd`) |
 | B6 Hourglass Pillar (stacked segments) | nothing (new centrepiece) | `in game` (2026-09-25, Story 25.4: `custom/b6_hourglass_pillar.gltf` 2,480 tris, placed ×1.4 at the round bar's centre; reveal stages 0–4, demo = 4 from `game_config.json`; solid, navmesh re-baked) |
-| B2 Round bar (`bar_ring`, `bar_flap`) | `TavernCounterCircular`, `BarCounter` box | `concept` |
-| `bar_stool` (with `seat_point`) | `stool` | `planned` (compare with `stool.obj` first) |
+| B2 Round bar (`bar_ring`, `bar_flap`) | `TavernCounterCircular`, `BarCounter` box (both removed) | `in game` (2026-09-25, Story 25.6: `custom/b2_round_bar.gltf` 3,540 tris in `scenes/game/RoundBar.tscn`, 6.2 m across round the pillar; solid counter, flap at the back, 5 `serve_point`s for the Bartender) |
+| `bar_stool` (with `seat_point`) | `stool` | `in game` (Story 25.6: `custom/b2_bar_stool.gltf` 124 tris, a low stool at the KayKit chair height; 12 round the bar, seat markers in group `patron_seat`; `stool.obj` kept elsewhere) |
 | B1 Hearth (`hearth_stone`, `log_pile`, `andirons`) | `FireplaceBase` / `FireplaceBack` / `Mantel` boxes (removed) | `in game` (2026-09-25, Story 25.5: `custom/b1_hearth.gltf` 2,660 tris in `scenes/game/Hearth.tscn`; the fire's look follows the fireplace state (V2) and is dark at zero Comfort; Den Fa's `sit_point` on the stone seat; wood store under the seat shows the stock; `West_5` window panel swapped for a full wall behind the chimney) |
 | B3 Recruitment Desk | `MissionDesk` box | `planned` (Batch 2) |
 | B4 Mission Board | current 3 × 2 m board | `planned` (Batch 2) |
 | B5 Wall of the Fallen + plaque | Codex list (Epic 18/19) | `planned` (Batch 2) |
-| Back shelf + keg rack (wall props) | old B2 parts | `planned` |
+| Back shelf + keg rack (B12) + tinted kegs (H2) | old B2 parts, `Keg` | `in game` (Story 25.6: `custom/b12_back_bar.gltf` 2,558 tris, a round island round the pillar's base inside the bar, bottles on two tiers, beer and mead kegs with taps) |
 | B7 Stairs to the quarters + bed | `stairs_wood_decorated` | `planned` (backlog) |
 | B8 Infirmary cot | nothing | `planned` (backlog) |
 | Dragon Eye Book (Codex set-piece) | nothing | `planned` (backlog) |
@@ -95,7 +95,7 @@ Stock models in use today:
 
 | Asset (stock file) | Folder | Notes | Status |
 |---|---|---|---|
-| `TavernCounterCircular` | furniture | local-only file; replaced by B2 | `stock` |
+| `TavernCounterCircular` | furniture | local-only file; replaced by B2 (Story 25.6), no longer used by MainTavern | `replaced` |
 | `table` | furniture | | `stock` |
 | `bench` | furniture | | `stock` |
 | `Chair 3` | furniture | ×3 under `Furniture/Chairs`; source unknown (§9) | `stock` |
@@ -330,7 +330,7 @@ illustrations are ruled out (05_REVEAL_REWORK_PLAN:110).
 
 | Asset | Status | Source |
 |---|---|---|
-| Drinks: beer, mead; later cider and wine (mugs, bottles, barrels) | beer/mead in data; cider/wine ⚑ | game_config.json:34, 03_STORY_BIBLE:105-108 |
+| Drinks: beer, mead; later cider and wine (mugs, bottles, barrels) | beer/mead in data; cider/wine ⚑. H1: the beer tankard (full/empty) is in game (Story 25.6, held while drinking); mead/cider/wine vessels wait for those drinks to be served | game_config.json:34, 03_STORY_BIBLE:105-108 |
 | Firewood bundles, gold coins | firewood: H3 `custom/h3_firewood_log.gltf` in game (logs on the andirons and in the hearth's wood store, Story 25.5); `h3_firewood_bundle.gltf` built, not yet placed (carrying comes later). Gold coins: stock or VFX | EPIC_PROGRESS:131,139 |
 | Equipment (10) and Prior artifacts (6) | built on `shiningsun` as text; the spec says **no icon assets** | LOOT_AND_EQUIPMENT_SYSTEM:112-165,253 |
 
