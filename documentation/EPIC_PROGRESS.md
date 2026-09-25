@@ -379,14 +379,14 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - `HexMapGenerator._reserve_ruin()` reserves one land hex next to the tavern (Story 6.2). The pick is seeded, with no extra RNG draw, and a fixture-based drift guard proves every other hex is unchanged.
 - `WorldManager.is_mission_eligible()` keeps missions off the ruin.
 
-**Story 25.3: tavern room shell and front door (in review, 2026-09-24; navmesh re-bake pending).**
+**Story 25.3: tavern room shell and front door (in review, 2026-09-25).**
 - A 10-piece B9/B10 kit (2 m module, KayKit atlas) built in Blender and exported to `assets/environment/custom/`. Every piece is within budget (28–376 tris).
 - `MainTavern.tscn` › `Architecture/Shell`: plank floor and porch, full-height far walls with windows and beams, the partition, knee-height near walls (the cutaway), and corner posts.
 - The seven grey boxes are hidden. Their colliders are unchanged, which failsafe Test 7 checks against a fixture.
 - New colliders close the south-wall gap either side of the door and the two back corner holes.
 - The front door (`front_door.gd`) swings both leaves out when a patron or the player walks through, and emits `door_opened` / `door_closed` for the creak SFX (Story 25.24).
 - Stage D passed in LookDev and in-scene. Patrons still walk entrance → table.
-- Still open: re-bake the tavern navmesh in the editor (TavernNavigation → Bake NavigationMesh) so it includes the new colliders.
+- Navmesh re-baked with the new colliders; the old bake had also gone stale on the porch. Verified in-game: patrons walk in → table → out, and the player walks out through the door to the exterior.
 - The board hover shows "Unknown Ruins" (Story 6.3).
 - Failsafe Test 6 added; the suite is at 57/57.
 
