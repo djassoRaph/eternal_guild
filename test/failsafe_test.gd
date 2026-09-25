@@ -83,6 +83,15 @@ const PATRON_SCRIPT_PATH := "res://scripts/npcs/RealisticPatron.gd"
 const OLD_BAR_NODES := ["Architecture/TavernCounterCircular", "Architecture/Keg", "Furniture/Bar/BarCounter",
 	"Furniture/Stool2", "Furniture/Stool3", "Furniture/Stool4", "Furniture/Plate"]
 
+const DESK_PATH := "res://assets/environment/custom/b3_guild_desk.gltf"
+const BOARD_PATH := "res://assets/environment/custom/b4_mission_board.gltf"
+const DESK_SCENE_PATH := "res://scenes/game/GuildDesk.tscn"
+const NOTICE_SCENE_PATH := "res://scenes/game/GuildNoticeBoard.tscn"
+const NOTICE_SCRIPT_PATH := "res://scripts/game/notice_board.gd"
+const DESK_SPOT := Vector3(11.6, 0.1, -4.3)      # the guild desk's floor centre, facing +z (the room)
+const BOARD_SPOT := Vector3(4.3, 0.1, -14.5)     # under the board on the partition's face, facing +z
+const OLD_DESK_NODES := ["Furniture/Desk/MissionDesk", "Furniture/Chairs/Chair6", "Furniture/MissionBoard", "Environment/DeskLight"]
+
 var _pass_count := 0
 var _fail_count := 0
 var _elapsed := 0.0
@@ -103,6 +112,7 @@ func _initialize() -> void:
 	test_hourglass_pillar()
 	test_hearth()
 	test_round_bar()
+	test_desk_and_board()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -971,6 +981,82 @@ func test_round_bar() -> void:
 		check(false, "navmesh checks need the bar in MainTavern")
 	print("")
 
+
+
+# --- Test 13: The guild desk and mission board (Story 25.7) ---
+# B3 desk and B4 board (budgets, glow rule, objects, markers: the Quest Dealer's work_point at seat
+# height facing the customer side; the 8 notices); notices_shown (the board shows today's contracts);
+# the scenes (DeskLight, work_point group, the board in group notice_board and never in the UI's
+# mission_board group); and the hall: old pieces gone, desk and board placed facing the room, each
+# prompt zone covering its interact point on the navmesh, the desk solid.
+func test_desk_and_board() -> void:
+	print("[Test 13] The guild desk and mission board")
+	for spec in [[DESK_PATH, 2500, 1], [BOARD_PATH, 2500, 1]]:
+		var ok := ResourceLoader.exists(spec[0])
+		check(ok, "asset exists: %s" % str(spec[0]).get_file())
+		var st := _mesh_stats(spec[0]) if ok else {"tris": 0, "glow": 0, "wrong": ["missing"]}
+		check(st.tris > 0 and st.tris <= spec[1] and st.glow >= spec[2] and st.wrong.is_empty(),
+			"%s: %d tris (budget %d), glow rule (%d glow; wrong: %s)" % [str(spec[0]).get_file(), st.tris, spec[1], st.glow, st.wrong])
+	var desk := _scene_nodes(DESK_PATH) if ResourceLoader.exists(DESK_PATH) else {}
+	var dn := {}
+	for k in desk:
+		dn[str(k).get_file()] = desk[k]
+	check(["desk", "desk_dressing", "desk_stool", "work_point", "chronicle_point", "candle_point", "interact_point"].all(func(n): return dn.has(n)),
+		"B3 objects and markers present")
+	var wp: Transform3D = dn.work_point.world if dn.has("work_point") else Transform3D()
+	check(absf(wp.origin.y - 0.44) <= 0.05 and wp.basis.z.normalized().dot(Vector3.BACK) > 0.99,
+		"the Quest Dealer's work_point sits at %.2f m facing the customer side" % wp.origin.y)
+	check(desk.values().any(func(n): return n.props.get("shape") is ConcavePolygonShape3D), "B3 has its trimesh collider")
+	var board := _scene_nodes(BOARD_PATH) if ResourceLoader.exists(BOARD_PATH) else {}
+	var bnames := board.keys().map(func(k): return str(k).get_file())
+	var notices := bnames.filter(func(n): return str(n).begins_with("notice_"))
+	check(notices.size() == 8 and "interact_point" in bnames, "B4 has 8 separate notices and an interact_point (%d)" % notices.size())
+
+	var nb = load(NOTICE_SCRIPT_PATH) if ResourceLoader.exists(NOTICE_SCRIPT_PATH) else null
+	var has_fn: bool = nb != null and nb.get_script_method_list().any(func(m): return m.name == "notices_shown")
+	check(has_fn and nb.notices_shown(-1) == 0 and nb.notices_shown(0) == 0 and nb.notices_shown(3) == 3
+		and nb.notices_shown(8) == 8 and nb.notices_shown(12) == 8, "notices_shown: one per available contract, 0..8")
+	if has_fn:
+		var a := {"name": "Wolves"}
+		var b := {"name": "Bandits"}
+		check(nb.open_contracts([a, b], []) == 2 and nb.open_contracts([a, b], [{"mission": a, "days_remaining": 2}]) == 1
+			and nb.open_contracts([], [{"mission": a}]) == 0, "open_contracts: today's pool minus the contracts already taken")
+	var gd := _scene_nodes(DESK_SCENE_PATH) if ResourceLoader.exists(DESK_SCENE_PATH) else {}
+	check(gd.has("DeskLight") and gd.DeskLight.type == "OmniLight3D"
+		and gd.values().any(func(n): return n.type == "Marker3D" and "work_point" in n.groups),
+		"GuildDesk.tscn has its DeskLight and a work_point marker (group work_point)")
+	var nbs := _scene_nodes(NOTICE_SCENE_PATH) if ResourceLoader.exists(NOTICE_SCENE_PATH) else {}
+	var root_groups: Array = nbs.get(".", {}).get("groups", [])
+	check(nbs.values().any(func(n): return n.instance == BOARD_PATH) and "notice_board" in root_groups and not "mission_board" in root_groups,
+		"GuildNoticeBoard.tscn: the B4 model, group notice_board, never the UI's mission_board group")
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var gone := tav.keys().filter(func(k): return OLD_DESK_NODES.any(func(p): return str(k).ends_with("TavernNavigation/" + p)))
+	check(gone.is_empty(), "the old desk box, its chair and light, and the board box are gone %s" % [gone])
+	var nav = null
+	for k in tav:
+		if str(k).ends_with("TavernNavigation"):
+			nav = tav[k].props.get("navigation_mesh")
+	for spec in [[DESK_SCENE_PATH, DESK_SPOT, "RecruitmentDesk", desk], [NOTICE_SCENE_PATH, BOARD_SPOT, "MissionBoard", board]]:
+		var hits := tav.keys().filter(func(k): return tav[k].instance == spec[0])
+		var placed: bool = hits.size() == 1 and (tav[hits[0]].world as Transform3D).origin.distance_to(spec[1]) < 0.05 \
+			and (tav[hits[0]].world as Transform3D).basis.z.normalized().dot(Vector3.BACK) > 0.99
+		check(placed, "MainTavern has %s at %s facing the room %s" % [str(spec[0]).get_file(), spec[1], hits])
+		if not placed:
+			continue
+		var ip := Vector3.ZERO
+		for k in spec[3]:
+			if str(k).get_file() == "interact_point":
+				ip = (tav[hits[0]].world as Transform3D) * (spec[3][k].world as Transform3D).origin
+		var zone := AABB()
+		for k in tav:
+			if str(k).ends_with("Interactive/%s/CollisionShape3D" % spec[2]) and tav[k].props.get("shape") is BoxShape3D:
+				var size: Vector3 = (tav[k].props.shape as BoxShape3D).size
+				zone = (tav[k].world as Transform3D) * AABB(-size / 2, size)
+		check(zone.has_point(ip + Vector3(0, 1.0, 0)) and nav is NavigationMesh and _nav_contains(nav, ip.x, ip.z),
+			"the %s zone %s covers its interact point %s, which is on the navmesh" % [spec[2], zone, ip])
+	check(nav is NavigationMesh and not _nav_contains(nav, DESK_SPOT.x, DESK_SPOT.z + 0.35), "navmesh: the desk front is solid")
+	print("")
 
 ## Radius (xz) of a scene's trimesh collider: the smallest vertex radius (inner = true) or the largest.
 static func _shape_radius(nodes: Dictionary, inner: bool) -> float:
