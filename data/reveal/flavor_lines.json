@@ -21,10 +21,10 @@
 			"wounded": ["Something out there was faster than the arrow.", "Limped in on a trail of their own blood.", "The wilds bit back this time."],
 			"dead": ["The wild kept them. It usually does, in the end.", "No trail led back for this one.", "They became part of the country they loved."]
 		},
-		"cleric": {
-			"returned": ["Returned with a blessing and a weary smile.", "Faith held where the road did not.", "Home whole, crediting something larger than themselves."],
-			"wounded": ["Even the faithful bleed. They tended others first.", "Hurt, but still asking after everyone else.", "Their prayers guarded the party, not quite themselves."],
-			"dead": ["They gave their last blessing freely.", "Faith walked them all the way to the end.", "Gone to whatever they believed was waiting."]
+		"barbarian": {
+			"returned": ["Kicked the door open and called for a drink before sitting down.", "Came back louder than they left, axe over one shoulder.", "Covered in someone else's mud and very pleased about it."],
+			"wounded": ["Laughing through the stitches, mostly.", "Took the hit so nobody else had to, and wants a mug for it.", "Bleeding, grinning, and insisting it's only a scratch."],
+			"dead": ["They charged first. They always charged first.", "The loudest voice in the hall is gone quiet.", "No one held the line harder, or for longer."]
 		},
 		"healer": {
 			"returned": ["Returned with steady hands and everyone's thanks.", "Mended the party and made it home besides.", "Home, quietly proud of who they kept alive."],

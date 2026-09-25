@@ -304,7 +304,13 @@ func create_adventurer() -> Dictionary:
 			stats.intelligence += 2
 		"Healer":
 			stats.intelligence += 1
-	
+		"Barbarian":
+			stats.strength += 3
+			stats.endurance += 2
+		"Ranger":
+			stats.dexterity += 2
+			stats.endurance += 1
+
 	var adventurer = {
 		"id": randi() % 10000 + 1000,  # Temporary ID
 		"name": adv_name,
@@ -335,6 +341,8 @@ func calculate_hiring_cost(recruit: Dictionary) -> int:
 		"Rogue": class_bonus = 2
 		"Mage": class_bonus = 5
 		"Healer": class_bonus = 8  # Most expensive
+		"Barbarian": class_bonus = 3
+		"Ranger": class_bonus = 4
 	
 	return max(5, base_cost + stat_bonus + class_bonus)
 
@@ -365,6 +373,14 @@ func get_random_background(character_class: String) -> String:
 		"Healer": [
 			"Temple acolyte", "Traveling physician", "Herbalist from the forest",
 			"Military medic", "Village wise woman", "Monastery refugee"
+		],
+		"Barbarian": [
+			"Clan champion", "Pit fighter", "Exile from the northern holds",
+			"Caravan guard", "Axe-for-hire", "Last of a burned village"
+		],
+		"Ranger": [
+			"Forest warden", "Royal huntsman", "Border scout",
+			"Trapper from the high valleys", "Poacher turned guide", "Beast tracker"
 		]
 	}
 	var class_backgrounds = backgrounds.get(character_class, ["Unknown origin"])

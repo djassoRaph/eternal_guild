@@ -420,10 +420,14 @@ func _debug_despawn_all() -> void:
 	else:
 		print("GameManager.despawn_all_patrons() not found")
 
+func _debug_classes() -> Array:
+	var classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Healer"])
+	return classes if classes is Array and not classes.is_empty() else ["Fighter"]
+
 func _debug_add_adventurer() -> void:
 	var dummy := {
 		"name": "Debug Hero " + str(GameManager.adventurers.size() + 1),
-		"class": ["Fighter","Rogue","Mage","Healer"][randi() % 4],
+		"class": _debug_classes()[randi() % _debug_classes().size()],
 		"level": 1,
 		"status": AdventurerStatus.Status.READY,
 		"id": "dbg_" + str(Time.get_ticks_msec())

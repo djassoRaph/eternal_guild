@@ -759,20 +759,10 @@ func generate_fallback_recruits(count: int) -> Array:
 		recruit.endurance = randi_range(2, 8) + reputation_stat_bonus
 		
 		# Class-based stat adjustments
-		match recruit.class:
-			"Fighter":
-				recruit.strength += 2
-				recruit.endurance += 1
-			"Rogue":
-				recruit.dexterity += 2
-				recruit.intelligence += 1
-			"Mage":
-				recruit.intelligence += 2
-				recruit.dexterity += 1
-			"Healer":
-				recruit.intelligence += 1
-				recruit.endurance += 2
-		
+		var bonus := recruit_class_bonus(recruit.class)
+		for stat in bonus:
+			recruit[stat] += bonus[stat]
+
 		# Calculate hiring cost based on stats
 		var stat_total = recruit.strength + recruit.dexterity + recruit.intelligence + recruit.endurance
 		recruit.hiring_cost = max(8, stat_total * 2 + randi_range(-5, 10))
@@ -790,6 +780,24 @@ func generate_fallback_recruits(count: int) -> Array:
 		recruits.append(recruit)
 	
 	return recruits
+
+## Recruit stat bonus per class for the daily hire pool. The first four keep their original values;
+## Barbarian and Ranger (the D-3 demo list, Story 25.9) mirror data/characters/classes.json.
+static func recruit_class_bonus(cls: String) -> Dictionary:
+	match cls:
+		"Fighter":
+			return {"strength": 2, "endurance": 1}
+		"Rogue":
+			return {"dexterity": 2, "intelligence": 1}
+		"Mage":
+			return {"intelligence": 2, "dexterity": 1}
+		"Healer":
+			return {"intelligence": 1, "endurance": 2}
+		"Barbarian":
+			return {"strength": 3, "endurance": 2, "intelligence": -1}
+		"Ranger":
+			return {"dexterity": 2, "endurance": 1}
+	return {}
 
 func _get_available_tarot_ids() -> Array:
 	"""All deck card ids minus those on the roster and hired this run, shuffled. Epic 4.1."""

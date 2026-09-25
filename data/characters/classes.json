@@ -49,7 +49,7 @@
 		},
 		"preferred_missions": ["support", "rescue", "escort"],
 		"base_cost": 18,
-		"model_path": "res://assets/characters/models/kaykit_adventurers/Cleric.glb"
+		"model_path": "res://assets/characters/custom/healer.glb"
 	},
 	"Barbarian": {
 		"display_name": "Barbarian", 
@@ -63,5 +63,18 @@
 		"preferred_missions": ["combat", "intimidation", "wilderness"],
 		"base_cost": 16,
 		"model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb"
+	},
+	"Ranger": {
+		"display_name": "Ranger",
+		"description": "Wilderness scout and archer, at home off the road",
+		"stat_bonuses": {
+			"strength": 0,
+			"endurance": 1,
+			"dexterity": 2,
+			"intelligence": 0
+		},
+		"preferred_missions": ["gathering", "escort", "investigation"],
+		"base_cost": 16,
+		"model_path": "res://assets/characters/custom/ranger.glb"
 	}
 }
