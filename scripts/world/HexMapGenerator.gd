@@ -97,7 +97,9 @@ const SEA_DECOR := [
 	"res://assets/environment/hexagons/nature/waterplant_C.gltf",
 ]
 
-const TAVERN_TOPPER := "res://assets/environment/hexagons/blue/building_tavern_blue.gltf"
+# The Guild Tavern as a hex miniature (08 card A2) plus the guild's home banner (C9) — Story 25.8.
+const TAVERN_TOPPER := "res://assets/environment/custom/a2_guild_tavern_mini.gltf"
+const HOME_MARKER := "res://assets/environment/custom/c9_home_marker.gltf"
 # Prior Ruins (08 card D1), reserved on one land hex next to the tavern (Story 6.2 / 25.2).
 const RUIN_TOPPER := "res://assets/environment/custom/d1_prior_ruins.gltf"
 
@@ -344,6 +346,7 @@ func _resolve_visuals() -> void:
 			"tavern_site":
 				rec.base_path = GRASS_SCENE
 				rec.topper_paths.append(TAVERN_TOPPER)
+				rec.topper_paths.append(HOME_MARKER)
 			_:  # plain grass
 				rec.base_path = GRASS_SCENE
 				if _rng.randf() < grass_decor_chance:
@@ -535,7 +538,19 @@ func display_stored_world() -> void:
 		push_warning("[HexMapGenerator] display_mode: WorldManager.world_map is empty — nothing to render.")
 		return
 	_records = stored.duplicate(true)
+	# Saves store topper paths; an older save still names the stock KayKit tavern. The home hex is
+	# an art swap (Story 25.8), not a generation choice, so its toppers follow the current art on
+	# the render copy only — WorldManager.world_map is never rewritten here.
+	for rec in _records:
+		rec.topper_paths = home_toppers_for(rec)
 	_spawn_tiles_static()
+
+
+## The toppers to render for a stored record: the tavern hex always shows the current home art.
+static func home_toppers_for(rec: Dictionary) -> Array:
+	if rec.get("is_center", false):
+		return [TAVERN_TOPPER, HOME_MARKER]
+	return rec.get("topper_paths", [])
 
 
 func _spawn_tiles_static() -> void:
