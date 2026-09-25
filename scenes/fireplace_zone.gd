@@ -37,8 +37,9 @@ var minigame_scene = preload("res://scenes/ui/FireplaceMinigamePanel.tscn")
 var active_minigame = null
 
 # ===== VISUAL ELEMENTS =====
-@onready var fire_light: OmniLight3D
-@onready var fire_particles: GPUParticles3D
+# The 3D hearth (scenes/game/Hearth.tscn, group "hearth") owns the fire's look: light, flames,
+# sparks, smoke, ember glow and logs. This zone pushes the fuel to it (Story 25.5).
+var _hearth: Node3D = null
 
 # ===== SIGNALS =====
 signal state_changed(new_state: FireplaceState)
@@ -66,10 +67,12 @@ func _ready():
 		_dying = float(DataManager.get_config("fire_dying_seconds", _dying))
 		_fail_cooldown = float(DataManager.get_config("fire_cooldown_seconds", _fail_cooldown))
 
-	# Get references to visual elements
-	fire_light = get_node_or_null("../../../Furniture/Fireplace/FireLight")
-	fire_particles = get_node_or_null("../../../Furniture/Fireplace/FireParticles")
-	
+	# The hearth that shows the fire. (The old relative paths to Furniture/Fireplace climbed one
+	# level too far, landed under SubViewport and returned null, so the fire never changed; 25.5.)
+	_hearth = get_tree().get_first_node_in_group("hearth") as Node3D
+	if _hearth == null:
+		push_warning("[Fireplace] no node in group 'hearth': the fire has no visuals")
+
 	# Initialize visuals
 	_update_fire_visuals(GameManager.get_fireplace_fuel())
 	
@@ -147,6 +150,8 @@ func _exit_tree():
 	if active_minigame and is_instance_valid(active_minigame):
 		active_minigame.queue_free()
 		active_minigame = null
+	if _hearth and is_instance_valid(_hearth):
+		_hearth.set_placed_logs(0)
 	if get_tree():
 		get_tree().paused = false
 
@@ -172,6 +177,9 @@ func _open_minigame():
 	# Connect minigame signals
 	if active_minigame.has_signal("minigame_completed"):
 		active_minigame.minigame_completed.connect(_on_minigame_completed)
+	# Each placed log shows up on the hearth's andirons while the minigame is open
+	if _hearth and active_minigame.has_signal("log_placed"):
+		active_minigame.log_placed.connect(_hearth.set_placed_logs)
 	
 	# Update state
 	current_state = FireplaceState.IGNITING
@@ -180,7 +188,9 @@ func _open_minigame():
 func _on_minigame_completed(success: bool, quality: float):
 	"""Handle minigame completion"""
 	print("Minigame completed - Success: %s, Quality: %.1f" % [success, quality])
-	
+	if _hearth:
+		_hearth.set_placed_logs(0)  # the placed logs are burning now (or taken back); the fuel decides
+
 	# Unpause game
 	get_tree().paused = false
 	
@@ -321,50 +331,12 @@ func _on_day_changed(new_day: int):
 
 # ===== VISUAL EFFECTS =====
 func _play_ignition_effects():
-	"""Visual/audio feedback for successful fire ignition"""
-	# Particle burst effect
-	if fire_particles:
-		fire_particles.restart()
-	
-	# Light flicker effect
-	if fire_light:
-		var tween = create_tween()
-		tween.tween_property(fire_light, "light_energy", fire_light.light_energy * 1.8, 0.3)
-		tween.tween_property(fire_light, "light_energy", fire_light.light_energy, 0.4)
+	"""Visual feedback for a successful ignition: the hearth flashes and the flames burst."""
+	if _hearth:
+		_hearth.play_ignition()
 
 func _update_fire_visuals(fuel_percent: float):
-	"""Update fire visuals based on fuel level"""
-	
-	# === LIGHT INTENSITY ===
-	if fire_light:
-		# Range: 0.2 (nearly out) to 2.0 (roaring)
-		fire_light.light_energy = 0.2 + (fuel_percent / 100.0) * 1.8
-		
-		# Color shift: Red (low) to Orange (high)
-		var red = 1.0
-		var green = 0.3 + (fuel_percent / 100.0) * 0.5  # 0.3 to 0.8
-		var blue = 0.1
-		fire_light.light_color = Color(red, green, blue)
-	
-	# === PARTICLE AMOUNT ===
-	if fire_particles:
-		# Range: 10 (dying embers) to 50 (full blaze)
-		fire_particles.amount = int(10 + (fuel_percent / 100.0) * 40)
-		
-		# Emission strength
-		var process_material = fire_particles.process_material as ParticleProcessMaterial
-		if process_material:
-			process_material.initial_velocity_min = 1.0 + (fuel_percent / 100.0) * 2.0
-			process_material.initial_velocity_max = 2.0 + (fuel_percent / 100.0) * 3.0
-	
-	# === VISUAL STATE FEEDBACK ===
-	if fuel_percent <= 0:
-		pass  # Fire is completely out (handled by low light/particles)
-	elif fuel_percent < 25:
-		pass  # Dying fire (low visuals)
-	elif fuel_percent < 50:
-		pass  # Moderate fire
-	elif fuel_percent < 75:
-		pass  # Good fire
-	else:
-		pass  # Roaring fire (max visuals)
+	"""Push the fuel level to the hearth; hearth.gd fire_look() decides light, flames, sparks,
+	smoke, ember glow and logs from the same bands as this state machine (0 = dark)."""
+	if _hearth:
+		_hearth.set_fire_level(fuel_percent)

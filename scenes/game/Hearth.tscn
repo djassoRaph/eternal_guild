@@ -1,0 +1,200 @@
+[gd_scene load_steps=24 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/hearth.gd" id="1_hearth"]
+[ext_resource type="PackedScene" uid="uid://cgpk0odb1l532" path="res://assets/environment/custom/b1_hearth.gltf" id="2_model"]
+[ext_resource type="PackedScene" uid="uid://3opu74grkdmi" path="res://assets/environment/custom/h3_firewood_log.gltf" id="3_log"]
+[ext_resource type="Shader" path="res://assets/shaders/fire_glow.gdshader" id="4_glow"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_flame"]
+render_priority = 0
+shader = ExtResource("4_glow")
+shader_parameter/glow = 2.2
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_spark"]
+render_priority = 0
+shader = ExtResource("4_glow")
+shader_parameter/glow = 3.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_flame"]
+material = SubResource("ShaderMaterial_flame")
+top_radius = 0.0
+bottom_radius = 0.09
+height = 0.4
+radial_segments = 5
+rings = 0
+
+[sub_resource type="BoxMesh" id="BoxMesh_spark"]
+material = SubResource("ShaderMaterial_spark")
+size = Vector3(0.028, 0.028, 0.028)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_smoke"]
+render_priority = 1
+transparency = 1
+vertex_color_use_as_albedo = true
+roughness = 1.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_smoke"]
+material = SubResource("StandardMaterial3D_smoke")
+radius = 0.2
+height = 0.36
+radial_segments = 6
+rings = 3
+
+[sub_resource type="Gradient" id="Gradient_flame"]
+offsets = PackedFloat32Array(0, 0.45, 1)
+colors = PackedColorArray(1, 0.86, 0.35, 1, 1, 0.45, 0.08, 1, 0.75, 0.12, 0.02, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_flame"]
+gradient = SubResource("Gradient_flame")
+
+[sub_resource type="Gradient" id="Gradient_spark"]
+offsets = PackedFloat32Array(0, 0.5, 1)
+colors = PackedColorArray(1, 0.95, 0.5, 1, 1, 0.55, 0.1, 1, 0.6, 0.1, 0.02, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_spark"]
+gradient = SubResource("Gradient_spark")
+
+[sub_resource type="Gradient" id="Gradient_smoke"]
+offsets = PackedFloat32Array(0, 0.2, 1)
+colors = PackedColorArray(0.55, 0.55, 0.55, 0, 0.62, 0.6, 0.58, 0.55, 0.72, 0.72, 0.72, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_smoke"]
+gradient = SubResource("Gradient_smoke")
+
+[sub_resource type="Curve" id="Curve_flame"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.15), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_flame"]
+curve = SubResource("Curve_flame")
+
+[sub_resource type="Curve" id="Curve_smoke"]
+_data = [Vector2(0, 0.35), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_smoke"]
+curve = SubResource("Curve_smoke")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_flames"]
+emission_shape = 3
+emission_box_extents = Vector3(0.26, 0.02, 0.14)
+direction = Vector3(0, 1, 0)
+spread = 8.0
+initial_velocity_min = 0.45
+initial_velocity_max = 0.85
+gravity = Vector3(0, 0.6, 0)
+scale_min = 0.6
+scale_max = 1.0
+scale_curve = SubResource("CurveTexture_flame")
+color_ramp = SubResource("GradientTexture1D_flame")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_sparks"]
+emission_shape = 3
+emission_box_extents = Vector3(0.3, 0.02, 0.14)
+direction = Vector3(0, 1, 0)
+spread = 25.0
+initial_velocity_min = 0.7
+initial_velocity_max = 1.4
+gravity = Vector3(0, 0.25, 0)
+scale_min = 0.6
+scale_max = 1.1
+scale_curve = SubResource("CurveTexture_flame")
+color_ramp = SubResource("GradientTexture1D_spark")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_smoke"]
+emission_shape = 1
+emission_sphere_radius = 0.12
+direction = Vector3(0, 1, 0)
+spread = 12.0
+initial_velocity_min = 0.25
+initial_velocity_max = 0.45
+gravity = Vector3(0, 0.12, 0)
+scale_min = 1.0
+scale_max = 1.4
+scale_curve = SubResource("CurveTexture_smoke")
+color_ramp = SubResource("GradientTexture1D_smoke")
+
+[node name="Hearth" type="Node3D" groups=["hearth"]]
+script = ExtResource("1_hearth")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="FireLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 1.1)
+light_color = Color(1, 0.6, 0, 1)
+light_indirect_energy = 0.6
+light_volumetric_fog_energy = 2.0
+omni_range = 6.0
+
+[node name="FireParticles" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0.62)
+amount = 34
+lifetime = 0.75
+process_material = SubResource("ParticleProcessMaterial_flames")
+draw_pass_1 = SubResource("CylinderMesh_flame")
+
+[node name="Embers" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0.62)
+amount = 16
+lifetime = 1.6
+process_material = SubResource("ParticleProcessMaterial_sparks")
+draw_pass_1 = SubResource("BoxMesh_spark")
+
+[node name="Smoke" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.4, 0.3)
+amount = 10
+lifetime = 3.2
+process_material = SubResource("ParticleProcessMaterial_smoke")
+draw_pass_1 = SubResource("SphereMesh_smoke")
+
+[node name="LogPile" type="Node3D" parent="."]
+
+[node name="Log1" parent="LogPile" instance=ExtResource("3_log")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.31, 0.63)
+
+[node name="Log2" parent="LogPile" instance=ExtResource("3_log")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.31, 0.5)
+
+[node name="Log3" parent="LogPile" instance=ExtResource("3_log")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.31, 0.76)
+
+[node name="Log4" parent="LogPile" instance=ExtResource("3_log")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, 0.565)
+
+[node name="Log5" parent="LogPile" instance=ExtResource("3_log")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.42, 0.695)
+
+[node name="WoodStore" type="Node3D" parent="."]
+
+[node name="Log01" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.855, 0.05975, 0.38)
+
+[node name="Log02" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.74, 0.05975, 0.38)
+
+[node name="Log03" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.625, 0.05975, 0.38)
+
+[node name="Log04" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.51, 0.05975, 0.38)
+
+[node name="Log05" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.395, 0.05975, 0.38)
+
+[node name="Log06" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.855, 0.16475, 0.38)
+
+[node name="Log07" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.74, 0.16475, 0.38)
+
+[node name="Log08" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.625, 0.16475, 0.38)
+
+[node name="Log09" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.51, 0.16475, 0.38)
+
+[node name="Log10" parent="WoodStore" instance=ExtResource("3_log")]
+transform = Transform3D(0, 0, 0.85, 0, 0.85, 0, -0.85, 0, 0, -1.395, 0.16475, 0.38)
+
+[node name="SitPoint" type="Marker3D" parent="."]
+transform = Transform3D(0.906308, 0, 0.422618, 0, 1, 0, -0.422618, 0, 0.906308, -1.62, 0.45, 0.33)

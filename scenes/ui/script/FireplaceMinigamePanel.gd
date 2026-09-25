@@ -3,6 +3,7 @@ extends Control
 
 # ===== SIGNALS =====
 signal minigame_completed(success: bool, quality: float)
+signal log_placed(count: int)  # each log that lands; the 3D hearth shows it on the andirons (Story 25.5)
 
 # ===== NODE REFERENCES =====
 @onready var fireplace_drop_zone = $CenterContainer/MinigameContainer/MarginContainer/MainVBox/ContentHBox/FireplaceArea/MarginContainer/DropZone
@@ -321,6 +322,7 @@ func _place_log_in_fireplace(log: TextureRect, drop_position: Vector2):
 	
 	logs_placed += 1
 	placed_log_positions.append({"position": local_pos, "quality": quality})
+	log_placed.emit(logs_placed)
 	
 	# Feedback
 	var quality_text = _get_quality_feedback(quality)
