@@ -1,0 +1,79 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" uid="uid://2ku2xc5b16g2" path="res://assets/environment/custom/b2_round_bar.gltf" id="1_bar"]
+[ext_resource type="PackedScene" uid="uid://bs1sp4g5xhoyi" path="res://assets/environment/custom/b12_back_bar.gltf" id="2_island"]
+[ext_resource type="PackedScene" path="res://scenes/game/BarStool.tscn" id="3_stool"]
+[ext_resource type="PackedScene" uid="uid://cwt2lnq0ab2sk" path="res://assets/environment/custom/h1_tankard_full.gltf" id="4_full"]
+[ext_resource type="PackedScene" uid="uid://b2nd7tmokcyq2" path="res://assets/environment/custom/h1_tankard_empty.gltf" id="5_empty"]
+
+[node name="RoundBar" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_bar")]
+
+[node name="BackBar" parent="." instance=ExtResource("2_island")]
+
+[node name="Stools" type="Node3D" parent="."]
+
+[node name="Stool01" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(0.642788, 0, 0.766044, 0, 1, 0, -0.766044, 0, 0.642788, -3.025876, 0, -2.539011)
+
+[node name="Stool02" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(0.34202, 0, 0.939693, 0, 1, 0, -0.939693, 0, 0.34202, -3.711786, 0, -1.35098)
+
+[node name="Stool03" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -3.95, 0, 0)
+
+[node name="Stool04" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(-0.34202, 0, 0.939693, 0, 1, 0, -0.939693, 0, -0.34202, -3.711786, 0, 1.35098)
+
+[node name="Stool05" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(-0.642788, 0, 0.766044, 0, 1, 0, -0.766044, 0, -0.642788, -3.025876, 0, 2.539011)
+
+[node name="Stool06" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(-0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, -1.975, 0, 3.4208)
+
+[node name="Stool07" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(-0.984808, 0, 0.173648, 0, 1, 0, -0.173648, 0, -0.984808, -0.68591, 0, 3.889991)
+
+[node name="Stool08" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(-0.984808, 0, -0.173648, 0, 1, 0, 0.173648, 0, -0.984808, 0.68591, 0, 3.889991)
+
+[node name="Stool09" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(-0.34202, 0, -0.939693, 0, 1, 0, 0.939693, 0, -0.34202, 3.711786, 0, 1.35098)
+
+[node name="Stool10" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 3.95, 0, 0)
+
+[node name="Stool11" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(0.34202, 0, -0.939693, 0, 1, 0, 0.939693, 0, 0.34202, 3.711786, 0, -1.35098)
+
+[node name="Stool12" parent="Stools" instance=ExtResource("3_stool")]
+transform = Transform3D(0.642788, 0, -0.766044, 0, 1, 0, 0.766044, 0, 0.642788, 3.025876, 0, -2.539011)
+
+[node name="ServePoints" type="Node3D" parent="."]
+
+[node name="serve_point_01" type="Marker3D" parent="ServePoints" groups=["serve_point"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.8)
+
+[node name="serve_point_02" type="Marker3D" parent="ServePoints" groups=["serve_point"]]
+transform = Transform3D(0.5, 0, 0.866025, 0, 1, 0, -0.866025, 0, 0.5, 1.558846, 0, 0.9)
+
+[node name="serve_point_03" type="Marker3D" parent="ServePoints" groups=["serve_point"]]
+transform = Transform3D(-0.5, 0, 0.866025, 0, 1, 0, -0.866025, 0, -0.5, 1.558846, 0, -0.9)
+
+[node name="serve_point_04" type="Marker3D" parent="ServePoints" groups=["serve_point"]]
+transform = Transform3D(-0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, -1.558846, 0, -0.9)
+
+[node name="serve_point_05" type="Marker3D" parent="ServePoints" groups=["serve_point"]]
+transform = Transform3D(0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, 0.5, -1.558846, 0, 0.9)
+
+[node name="Dressing" type="Node3D" parent="."]
+
+[node name="Tankard1" parent="Dressing" instance=ExtResource("4_full")]
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, -2.355589, 1.185, 1.36)
+
+[node name="Tankard2" parent="Dressing" instance=ExtResource("5_empty")]
+transform = Transform3D(-0.087156, 0, 0.996195, 0, 1, 0, -0.996195, 0, -0.087156, 0.930295, 1.185, 2.555964)
+
+[node name="Tankard3" parent="Dressing" instance=ExtResource("4_full")]
+transform = Transform3D(-0.996195, 0, 0.087156, 0, 1, 0, -0.087156, 0, -0.996195, 2.678677, 1.185, -0.472323)

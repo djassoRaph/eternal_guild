@@ -6,6 +6,16 @@ class_name RealisticPatron
 const SPEED = 2.5
 const GRAVITY = 9.8
 
+# Seats and drinks (Story 25.6). Measured on the KayKit rig: Sit_Chair_Idle puts the hips 0.40 m
+# behind the character root and just above a 0.44 m seat, so a patron on a seat marker stands its
+# root 0.40 m in front of the seat centre, facing the way the marker's +Z points.
+const SIT_HIP_BACK := 0.40
+const SIT_SEAT_HEIGHT := 0.44
+const SIT_LIFT := 0.0            # model lift while seated (0 for the 0.44 m bar stools)
+const TANKARD_FULL := "res://assets/environment/custom/h1_tankard_full.gltf"
+const TANKARD_EMPTY := "res://assets/environment/custom/h1_tankard_empty.gltf"
+const TANKARD_EMPTY_AT := 0.7    # the tankard is empty at 70% of the drinking time
+
 # State machine (Epic 8 — split the old SITTING_WAITING into SEATED, the pre-service beat, and
 # WAITING_SERVICE, once the sitting timer fires and the beer-mug indicator shows. WAITING_SERVICE
 # is appended rather than inserted so WALKING_TO_TABLE/SEATED/DRINKING/LEAVING keep their old
@@ -26,6 +36,7 @@ var current_state = PatronState.WALKING_TO_TABLE
 var table_position: Vector3
 var entrance_position: Vector3
 var table_index: int = -1
+var seat_transform = null        # Transform3D of the patron_seat marker, or null at a table spot
 
 # Service
 var wants_service = false
@@ -53,6 +64,11 @@ var character_models = [
 # Timers
 var sitting_timer: Timer
 var drinking_timer: Timer
+var empty_timer: Timer           # swaps the full tankard for the empty one
+
+# The H1 tankard in the right hand while drinking (Story 25.6; the drink clip is Story 25.16)
+var _tankard: Node3D = null
+var _hidden_items: Array = []
 
 # Scene references
 var main_scene: Node
@@ -95,6 +111,12 @@ func _ready():
 	drinking_timer.one_shot = true
 	add_child(drinking_timer)
 	drinking_timer.timeout.connect(on_drinking_timer_timeout)
+
+	empty_timer = Timer.new()
+	empty_timer.name = "EmptyTimer"
+	empty_timer.one_shot = true
+	add_child(empty_timer)
+	empty_timer.timeout.connect(_on_tankard_empty)
 
 	# Configure NavigationAgent3D
 	if nav_agent:
@@ -228,6 +250,8 @@ func _on_navigation_finished():
 func _arrive_at_table():
 	print("", patron_name, " arrived at table ", table_index)
 	current_state = PatronState.SEATED
+	if seat_transform != null:
+		_settle_on_seat(true)
 
 	# Real sit-down transition (KayKit models all carry Sit_Chair_Down/Idle). Fire-and-forget —
 	# NOT awaited here. An earlier version awaited animation_player.animation_finished directly
@@ -255,6 +279,76 @@ func _play_sit_down_then_idle() -> void:
 func _leave_tavern():
 	print("", patron_name, " reached the exit and is leaving")
 	patron_finished.emit(self)
+
+# =============================================================================
+# SEATS (Story 25.6)
+# =============================================================================
+
+## Where the patron's root stands to sit on a seat marker: 0.40 m in front of the seat centre
+## (along the marker's +Z, the sitter's facing), on the floor under the seat.
+static func seat_root(seat: Transform3D) -> Vector3:
+	var f := seat.basis.z
+	f.y = 0.0
+	f = f.normalized()
+	var p := seat.origin + f * SIT_HIP_BACK
+	p.y = seat.origin.y - SIT_SEAT_HEIGHT
+	return p
+
+func _settle_on_seat(animate: bool) -> void:
+	"""Slide onto the seat's root spot and face the way the seat faces (e.g. a bar stool → the bar)."""
+	var target := seat_root(seat_transform)
+	var dest := Vector3(target.x, global_position.y, target.z)
+	var f: Vector3 = seat_transform.basis.z
+	if patron_body_mesh:
+		patron_body_mesh.rotation.y = atan2(f.x, f.z)
+		patron_body_mesh.position.y = SIT_LIFT
+	if animate:
+		create_tween().tween_property(self, "global_position", dest, 0.25)
+	else:
+		global_position = dest
+
+# =============================================================================
+# THE TANKARD (Story 25.6)
+# =============================================================================
+
+func _hold_tankard(full: bool) -> void:
+	"""Put an H1 tankard (full or empty) in the right hand, hiding the model's right-hand items."""
+	_drop_tankard()
+	if not patron_body_mesh:
+		return
+	var skels := patron_body_mesh.find_children("*", "Skeleton3D", true, false)
+	if skels.is_empty():
+		return
+	var skel := skels[0] as Skeleton3D
+	var slot := skel.find_bone("handslot.r")
+	if slot < 0:
+		return
+	for a in patron_body_mesh.find_children("*", "BoneAttachment3D", true, false):
+		var b := skel.find_bone((a as BoneAttachment3D).bone_name)
+		if b >= 0 and skel.get_bone_parent(b) == slot and (a as Node3D).visible:
+			(a as Node3D).visible = false
+			_hidden_items.append(a)
+	var att := BoneAttachment3D.new()
+	att.name = "TankardSlot"
+	att.bone_name = "handslot.r"
+	skel.add_child(att)
+	var scene := load(TANKARD_FULL if full else TANKARD_EMPTY) as PackedScene
+	if scene:
+		att.add_child(scene.instantiate())
+	_tankard = att
+
+func _on_tankard_empty() -> void:
+	if current_state == PatronState.DRINKING:
+		_hold_tankard(false)
+
+func _drop_tankard() -> void:
+	if _tankard and is_instance_valid(_tankard):
+		_tankard.queue_free()
+	_tankard = null
+	for a in _hidden_items:
+		if is_instance_valid(a):
+			(a as Node3D).visible = true
+	_hidden_items.clear()
 
 # =============================================================================
 # SERVICE SYSTEM
@@ -285,6 +379,9 @@ func serve_patron():
 	current_state = PatronState.DRINKING
 	drinking_timer.wait_time = randf_range(8.0, 15.0)
 	drinking_timer.start()
+	_hold_tankard(true)
+	empty_timer.wait_time = drinking_timer.wait_time * TANKARD_EMPTY_AT
+	empty_timer.start()
 
 	print("", patron_name, " is now drinking")
 	_play_cheer_then_settle()  # fire-and-forget, same pattern as the chatter call below
@@ -342,6 +439,9 @@ func on_drinking_timer_timeout():
 			_patron_play_animation("Sit_Chair_StandUp", false)
 			await get_tree().create_timer(_SIT_DOWN_SECONDS).timeout  # StandUp measures the same 0.8s as Sit_Chair_Down
 
+		_drop_tankard()
+		if patron_body_mesh:
+			patron_body_mesh.position.y = 0.0
 		current_state = PatronState.LEAVING
 
 		await get_tree().process_frame
@@ -452,10 +552,11 @@ func to_save() -> Dictionary:
 		"model_path": current_model_path,
 	}
 
-func restore_from_save(save: Dictionary, table_pos: Vector3, entrance: Vector3, idx: int) -> void:
+func restore_from_save(save: Dictionary, table_pos: Vector3, entrance: Vector3, idx: int, seat = null) -> void:
 	table_position = table_pos
 	entrance_position = entrance
 	table_index = idx
+	seat_transform = seat
 	patron_name = save.get("name", patron_name)
 	patron_origin = save.get("origin", "")
 	patron_origin_type = save.get("origin_type", "")
@@ -474,6 +575,8 @@ func restore_from_save(save: Dictionary, table_pos: Vector3, entrance: Vector3, 
 
 func _enter_restored_state(st: int, save: Dictionary) -> void:
 	current_state = st
+	if seat_transform != null and st in [PatronState.SEATED, PatronState.WAITING_SERVICE, PatronState.DRINKING]:
+		_settle_on_seat(false)
 	match st:
 		PatronState.DRINKING:
 			# Snap straight into the seated pose on restore — no transition animation needed,
@@ -481,6 +584,9 @@ func _enter_restored_state(st: int, save: Dictionary) -> void:
 			_patron_play_animation("Sit_Chair_Idle")
 			drinking_timer.wait_time = randf_range(8.0, 15.0)
 			drinking_timer.start()
+			_hold_tankard(true)
+			empty_timer.wait_time = drinking_timer.wait_time * TANKARD_EMPTY_AT
+			empty_timer.start()
 		PatronState.SEATED:
 			_patron_play_animation("Sit_Chair_Idle")
 			if save.get("wants_service", false):
@@ -505,10 +611,11 @@ func _enter_restored_state(st: int, save: Dictionary) -> void:
 			if nav_agent:
 				nav_agent.target_position = entrance_position
 
-func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int):
+func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int, seat = null):
 	table_position = target_table
 	entrance_position = entrance
 	table_index = idx
+	seat_transform = seat
 
 	var first_names = ["Gareth", "Elara", "Thorin", "Lydia", "Marcus", "Sera", "Kael", "Mira"]
 	var surnames = ["Bold", "Ironforge", "Swiftblade", "Goldbeard", "Stormbringer", "Shadowmend"]

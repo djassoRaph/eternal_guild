@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" uid="uid://cpobll0koxt6r" path="res://assets/environment/custom/b2_bar_stool.gltf" id="1_model"]
+
+[node name="BarStool" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="SeatPoint" type="Marker3D" parent="." groups=["patron_seat"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.44, 0)

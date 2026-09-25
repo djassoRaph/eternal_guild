@@ -17,8 +17,14 @@ var table_positions = [
 	Vector3(-2.1, 0.0, -2.5),   # Table 2
 	Vector3(-2.715, 0.0, -3.5),   # Table 3
 	Vector3(-4.2, 0.0, -2.8),       # Table 4 - ADD MORE!
-	Vector3(-1.5, 0.0, -1.2),    
+	Vector3(-1.5, 0.0, -1.2),
 ]
+
+# Seats (Story 25.6): scene seats first (Marker3D nodes in group "patron_seat", e.g. the bar stools),
+# then the table spots above as the fallback (the tables get seat markers in Story 25.26).
+# Each seat: {"approach": Vector3 (nav target), "sit": Transform3D of the marker, or null at a table spot}.
+# occupied_tables / table_index keep their names (saves store table_index) but index this list.
+var seats: Array = []
 
 # State tracking
 var active_patrons: Array = []
@@ -32,7 +38,8 @@ var _rumours: Array = []
 
 func _ready():
 	print("PatronSpawner initializing...")
-	
+	seats = build_seats([], table_positions)  # until the scene's seats are collected below
+
 	# Set up spawn timer
 	spawn_timer = Timer.new()
 	spawn_timer.wait_time = spawn_interval
@@ -54,7 +61,8 @@ func _ready():
 	
 	# Wait for scene to be ready
 	await get_tree().create_timer(2.0).timeout
-	
+	_collect_seats()
+
 	print("Spawning system ready")
 	spawn_timer.start()
 
@@ -86,12 +94,39 @@ func can_spawn_patron() -> bool:
 	
 	return true
 
+## Seats from scene markers first, then each fallback spot unless it is within 0.8 m of a scene seat.
+## With no scene seats this is exactly the old table list.
+static func build_seats(seat_transforms: Array, fallback_positions: Array) -> Array:
+	var out := []
+	for t in seat_transforms:
+		out.append({"approach": RealisticPatron.seat_root(t), "sit": t})
+	for p in fallback_positions:
+		var near := false
+		for s in out:
+			if s.sit != null and Vector2(s.approach.x - p.x, s.approach.z - p.z).length() < 0.8:
+				near = true
+				break
+		if not near:
+			out.append({"approach": p, "sit": null})
+	return out
+
+func _collect_seats() -> void:
+	var marks := []
+	for n in get_tree().get_nodes_in_group("patron_seat"):
+		if n is Node3D and (n as Node3D).is_inside_tree():
+			marks.append((n as Node3D).global_transform)
+	seats = build_seats(marks, table_positions)
+	print("PatronSpawner: %d seats (%d from the scene, %d table spots)" % [seats.size(), marks.size(), seats.size() - marks.size()])
+
 func get_available_table() -> int:
-	"""Find an unoccupied table"""
-	for i in range(table_positions.size()):
+	"""Pick a random unoccupied seat (spreads patrons round the bar and the tables)"""
+	var free := []
+	for i in range(seats.size()):
 		if not occupied_tables.has(i):
-			return i
-	return -1
+			free.append(i)
+	if free.is_empty():
+		return -1
+	return free[randi() % free.size()]
 
 func spawn_patron():
 	"""Spawn a patron with walking behavior"""
@@ -107,11 +142,13 @@ func spawn_patron():
 	# Position at entrance
 	patron.global_position = entrance_position
 	
-	# Give patron their target table
+	# Give patron their target seat (a stool's marker, or a table spot with no marker)
+	var seat: Dictionary = seats[table_index]
 	patron.setup_for_table(
-		table_positions[table_index],
+		seat.approach,
 		entrance_position,
-		table_index
+		table_index,
+		seat.sit
 	)
 	
 	# Connect signals
@@ -123,18 +160,18 @@ func spawn_patron():
 	occupied_tables[table_index] = patron
 	
 	print("🆕 Spawned patron '", patron.patron_name, "' → Table ", table_index)
-	print("Active: ", active_patrons.size(), "/", max_patrons, " | Tables: ", occupied_tables.size(), "/", table_positions.size())
+	print("Active: ", active_patrons.size(), "/", max_patrons, " | Seats: ", occupied_tables.size(), "/", seats.size())
 
 func restore_patrons(saved: Array) -> void:
 	"""Rebuild patrons from save data at their exact positions/state (exact restore on load)."""
 	for s in saved:
 		var idx: int = int(s.get("table_index", -1))
-		if idx < 0 or idx >= table_positions.size() or occupied_tables.has(idx):
+		if idx < 0 or idx >= seats.size() or occupied_tables.has(idx):
 			idx = get_available_table()
 		var patron = PATRON_SCENE.instantiate()
 		add_child(patron)  # _ready runs (random model); restore_from_save overrides it below
-		var table_pos = table_positions[idx] if idx >= 0 else entrance_position
-		patron.restore_from_save(s, table_pos, entrance_position, idx)
+		var table_pos = seats[idx].approach if idx >= 0 else entrance_position
+		patron.restore_from_save(s, table_pos, entrance_position, idx, seats[idx].sit if idx >= 0 else null)
 		patron.patron_finished.connect(_on_patron_finished)
 		patron.wants_to_be_served.connect(_on_patron_wants_service)
 		active_patrons.append(patron)
@@ -177,7 +214,7 @@ func get_patron_count() -> int:
 	return active_patrons.size()
 
 func get_available_table_count() -> int:
-	return table_positions.size() - occupied_tables.size()
+	return seats.size() - occupied_tables.size()
 
 func despawn_all_patrons():
 	"""Remove all patrons immediately (called when player sleeps)"""
@@ -203,7 +240,7 @@ func despawn_all_patrons():
 	occupied_tables.clear()
 	
 	print("Despawned " + str(patron_count) + " patron(s) for the night")
-	print("Active: 0/" + str(max_patrons) + " | Tables: 0/" + str(table_positions.size()))
+	print("Active: 0/" + str(max_patrons) + " | Seats: 0/" + str(seats.size()))
 
 # =============================================================================
 # EAVESDROPPING (Story 8.5)

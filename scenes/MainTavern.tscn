@@ -1,4 +1,4 @@
-[gd_scene load_steps=120 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=115 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="PackedScene" uid="uid://dbomj4nofjjcc" path="res://assets/environment/furniture/bench.glb" id="1_m4lj6"]
@@ -21,13 +21,11 @@
 [ext_resource type="ArrayMesh" uid="uid://bic0nkr3n5ahb" path="res://assets/environment/decorations/keg_decorated.obj" id="15_8f0f3"]
 [ext_resource type="Script" uid="uid://bid6sqlhv351d" path="res://scripts/ui/fade_to_black.gd" id="15_in5p4"]
 [ext_resource type="ArrayMesh" uid="uid://b0fxsxu0q42uc" path="res://assets/environment/decorations/key.obj" id="16_u7xbe"]
-[ext_resource type="ArrayMesh" uid="uid://duwe7sbo5dfqx" path="res://assets/environment/decorations/plate.obj" id="17_8f2ew"]
 [ext_resource type="Script" uid="uid://bic7krwe7qf12" path="res://scenes/ui/script/AdventurerRosterPanel.gd" id="18_c1wdj"]
 [ext_resource type="ArrayMesh" uid="uid://c6rl1rlo8cthe" path="res://assets/environment/decorations/stairs_wood_decorated.obj" id="18_jhhm8"]
 [ext_resource type="ArrayMesh" uid="uid://d4l47mtaeuiqs" path="res://assets/environment/decorations/torch_mounted.obj" id="18_xtcff"]
 [ext_resource type="ArrayMesh" uid="uid://d2j1j0vtm8pdt" path="res://assets/environment/decorations/stool.obj" id="19_5g4jd"]
 [ext_resource type="ArrayMesh" uid="uid://cvvfdn73jvyxa" path="res://assets/environment/decorations/trunk_large_A.obj" id="19_drhcq"]
-[ext_resource type="PackedScene" uid="uid://2h0mi3lo1n2x" path="res://assets/environment/furniture/TavernCounterCircular.glb" id="20_ekigb"]
 [ext_resource type="ArrayMesh" uid="uid://cdofwt63igcs7" path="res://assets/environment/decorations/table_long_tablecloth_decorated_A.obj" id="20_nf063"]
 [ext_resource type="ArrayMesh" uid="uid://cwdsjrvcxwwx1" path="res://assets/environment/decorations/table_medium_tablecloth.obj" id="21_buktv"]
 [ext_resource type="Script" uid="uid://c224083vogih2" path="res://scripts/game/ZonePromptUI.gd" id="21_g0upg"]
@@ -57,10 +55,11 @@
 [ext_resource type="Script" path="res://scripts/game/front_door.gd" id="s253_front_door"]
 [ext_resource type="PackedScene" path="res://scenes/game/HourglassPillar.tscn" id="s254_pillar"]
 [ext_resource type="PackedScene" path="res://scenes/game/Hearth.tscn" id="s255_hearth"]
+[ext_resource type="PackedScene" path="res://scenes/game/RoundBar.tscn" id="s256_roundbar"]
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
-vertices = PackedVector3Array(1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, -4.15, 0.417485, -18.5553, 14.1, 0.417485, -15.5553, 14.1, 0.417485, -18.5553, -3.4, 0.417485, -6.80526, -4.15, 0.417485, -6.55526, -4.15, 0.417485, -5.55526, -2.9, 0.417485, -5.55526, -2.65, 0.417485, -5.05526, 2.1, 0.417485, -6.55526, 1.85, 0.417485, -7.80526, 5.85, 0.417485, -13.0553, 7.35, 0.417485, -13.0553, 7.35, 0.417485, -13.5553, 1.1, 0.417485, -13.5553, -4.15, 0.417485, -11.0553, -3.4, 0.417485, -10.8053, 2.85, 0.417485, -11.0553, 9.1, 0.417485, -13.0553, 14.1, 0.417485, -13.5553, 5.85, 0.417485, -10.8053, 4.85, 0.417485, -9.55526, 6.35, 0.417485, -9.05526, 6.85, 0.417485, -9.55526, 10.6, 0.417485, -12.3053, 12.1, 0.417485, -10.8053, 7.1, 0.417485, -11.3053, 8.6, 0.417485, -9.55526, 9.6, 0.417485, -10.5553, 6.35, 0.417485, -7.30526, 4.6, 0.417485, -8.05526, 5.1, 0.417485, -6.80526, 12.35, 0.417485, -8.80526, 12.35, 0.417485, -8.30526, 12.6, 0.417485, -6.55526, 14.1, 0.417485, -6.55526, 11.1, 0.417485, -8.30526, 10.85, 0.417485, -8.55526, 6.85, 0.417485, -6.80526, 6.35, 0.417485, -5.55526, 8.6, 0.417485, -6.80526, 8.1, 0.417485, -5.05526, 10.35, 0.417485, -6.30526, 9.1, 0.417485, -9.05526, 9.1, 0.417485, -7.30526, 7.35, 5.16749, -8.55526, 7.35, 5.16749, -7.80526, 8.1, 5.16749, -7.80526, 8.1, 5.16749, -8.55526, 3.6, 0.417485, -5.30526, 3.35, 0.417485, -6.30526, 5.35, 0.417485, -3.80526, -2.4, 0.417485, -1.05526, -4.15, 0.417485, 3.69474, 7.6, 0.417485, 3.69474, -2.9, 0.417485, -0.555258, -4.15, 0.417485, -0.555258, 7.6, 0.417485, -3.30526, 12.1, 0.417485, -5.30526, 10.6, 0.417485, -3.80526, 14.1, 0.417485, 3.69474, -4.15, 1.41749, -1.55526, -3.4, 1.41749, -1.55526, -3.4, 1.41749, -4.05526, -4.15, 1.41749, -4.30526, -4.65, 0.167485, 8.19474, 14.6, 0.167485, 8.19474, 14.35, 0.167485, 5.19474, -4.65, 0.167485, 5.44474)
-polygons = [PackedInt32Array(2, 1, 0), PackedInt32Array(0, 4, 3), PackedInt32Array(3, 5, 0), PackedInt32Array(0, 5, 2), PackedInt32Array(2, 7, 1), PackedInt32Array(1, 7, 6), PackedInt32Array(9, 8, 10), PackedInt32Array(10, 8, 11), PackedInt32Array(14, 13, 12), PackedInt32Array(16, 15, 17), PackedInt32Array(17, 15, 18), PackedInt32Array(12, 11, 8), PackedInt32Array(19, 3, 20), PackedInt32Array(20, 3, 4), PackedInt32Array(20, 4, 18), PackedInt32Array(8, 20, 12), PackedInt32Array(12, 20, 14), PackedInt32Array(14, 20, 21), PackedInt32Array(21, 20, 18), PackedInt32Array(15, 21, 18), PackedInt32Array(16, 17, 22), PackedInt32Array(22, 17, 23), PackedInt32Array(27, 26, 24), PackedInt32Array(24, 26, 25), PackedInt32Array(23, 29, 28), PackedInt32Array(24, 30, 27), PackedInt32Array(27, 30, 31), PackedInt32Array(31, 30, 32), PackedInt32Array(35, 34, 33), PackedInt32Array(33, 34, 26), PackedInt32Array(26, 34, 25), PackedInt32Array(37, 36, 38), PackedInt32Array(38, 36, 39), PackedInt32Array(37, 40, 36), PackedInt32Array(36, 40, 41), PackedInt32Array(42, 43, 33), PackedInt32Array(33, 43, 35), PackedInt32Array(28, 22, 23), PackedInt32Array(43, 42, 45), PackedInt32Array(45, 42, 44), PackedInt32Array(45, 44, 46), PackedInt32Array(36, 29, 39), PackedInt32Array(39, 29, 23), PackedInt32Array(31, 32, 47), PackedInt32Array(47, 32, 41), PackedInt32Array(46, 44, 48), PackedInt32Array(41, 40, 47), PackedInt32Array(47, 40, 48), PackedInt32Array(48, 40, 46), PackedInt32Array(52, 51, 49), PackedInt32Array(49, 51, 50), PackedInt32Array(13, 54, 53), PackedInt32Array(53, 55, 13), PackedInt32Array(13, 55, 56), PackedInt32Array(56, 55, 57), PackedInt32Array(57, 55, 58), PackedInt32Array(57, 60, 59), PackedInt32Array(57, 59, 56), PackedInt32Array(56, 12, 13), PackedInt32Array(55, 61, 58), PackedInt32Array(62, 38, 39), PackedInt32Array(62, 39, 63), PackedInt32Array(63, 39, 64), PackedInt32Array(63, 64, 58), PackedInt32Array(58, 61, 63), PackedInt32Array(66, 65, 67), PackedInt32Array(67, 65, 68), PackedInt32Array(72, 71, 69), PackedInt32Array(69, 71, 70)]
+vertices = PackedVector3Array(1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, -4.15, 0.417485, -18.5553, 14.1, 0.417485, -15.5553, 14.1, 0.417485, -18.5553, -3.4, 0.417485, -6.80526, -4.15, 0.417485, -6.55526, -4.15, 0.417485, -5.55526, -2.9, 0.417485, -5.55526, -2.65, 0.417485, -5.05526, 4.85, 0.417485, -5.80526, 4.1, 0.417485, -7.05526, -4.15, 0.417485, -11.0553, -3.4, 0.417485, -10.8053, 1.1, 0.417485, -13.5553, 4.1, 0.417485, -9.30526, 5.85, 0.417485, -11.5553, 5.85, 0.417485, -13.5553, 7.6, 0.417485, -11.3053, 7.6, 0.417485, -10.0553, 8.35, 0.417485, -11.8053, 7.1, 0.417485, -11.8053, 11.1, 0.417485, -10.0553, 14.1, 0.417485, -8.30526, 14.1, 0.417485, -13.5553, 9.6, 0.417485, -11.5553, 11.35, 0.417485, -8.30526, 7.35, 5.16749, -8.55526, 7.35, 5.16749, -7.80526, 8.1, 5.16749, -7.80526, 8.1, 5.16749, -8.55526, 11.1, 0.417485, -6.30526, 9.6, 0.417485, -4.80526, 6.1, 0.417485, 3.69474, 14.1, 0.417485, 3.69474, 6.1, 0.417485, -4.80526, -2.9, 0.417485, -0.555258, -4.15, 0.417485, -0.555258, -4.15, 0.417485, 3.69474, -2.4, 0.417485, -1.05526, -4.15, 1.41749, -1.55526, -3.4, 1.41749, -1.55526, -3.4, 1.41749, -4.05526, -4.15, 1.41749, -4.30526, -4.65, 0.167485, 8.19474, 14.6, 0.167485, 8.19474, 14.35, 0.167485, 5.19474, -4.65, 0.167485, 5.44474)
+polygons = [PackedInt32Array(2, 1, 0), PackedInt32Array(0, 4, 3), PackedInt32Array(3, 5, 0), PackedInt32Array(0, 5, 2), PackedInt32Array(2, 7, 1), PackedInt32Array(1, 7, 6), PackedInt32Array(9, 8, 10), PackedInt32Array(10, 8, 11), PackedInt32Array(14, 13, 12), PackedInt32Array(12, 11, 8), PackedInt32Array(15, 3, 16), PackedInt32Array(16, 3, 4), PackedInt32Array(16, 4, 17), PackedInt32Array(19, 18, 20), PackedInt32Array(20, 18, 17), PackedInt32Array(8, 16, 12), PackedInt32Array(12, 16, 17), PackedInt32Array(12, 17, 18), PackedInt32Array(12, 18, 14), PackedInt32Array(23, 22, 21), PackedInt32Array(21, 24, 23), PackedInt32Array(23, 24, 20), PackedInt32Array(24, 19, 20), PackedInt32Array(25, 28, 26), PackedInt32Array(26, 28, 27), PackedInt32Array(26, 29, 25), PackedInt32Array(23, 20, 28), PackedInt32Array(28, 20, 27), PackedInt32Array(33, 32, 30), PackedInt32Array(30, 32, 31), PackedInt32Array(34, 29, 26), PackedInt32Array(34, 26, 35), PackedInt32Array(35, 26, 37), PackedInt32Array(35, 37, 36), PackedInt32Array(36, 38, 35), PackedInt32Array(41, 40, 39), PackedInt32Array(39, 42, 41), PackedInt32Array(41, 42, 36), PackedInt32Array(36, 42, 38), PackedInt32Array(38, 42, 13), PackedInt32Array(42, 12, 13), PackedInt32Array(44, 43, 45), PackedInt32Array(45, 43, 46), PackedInt32Array(50, 49, 47), PackedInt32Array(47, 49, 48)]
 geometry_parsed_geometry_type = 1
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kr071"]
@@ -104,16 +103,6 @@ size = Vector3(0.599991, 1, 1)
 [sub_resource type="Environment" id="Environment_kr071"]
 ambient_light_color = Color(0.4, 0.5, 0.7, 1)
 ambient_light_energy = 0.3
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x2ury"]
-albedo_color = Color(0.349295, 0.212264, 0.0891526, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_cwghm"]
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_n6x1j"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0nrlt"]
-albedo_color = Color(0.541176, 0.309804, 0.121569, 1)
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_bianl"]
 
@@ -477,11 +466,11 @@ mesh = SubResource("BoxMesh_m4lj6")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/WallWest/StaticBody3D"]
 shape = SubResource("BoxShape3D_6306u")
 
-[node name="TavernCounterCircular" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture" instance=ExtResource("20_ekigb")]
-transform = Transform3D(0.37316, 0, 0.417292, 0, 0.423669, 0, -0.449457, 0, 0.346455, 7.74015, 0.0243584, -8.21504)
-
 [node name="HourglassPillar" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture" instance=ExtResource("s254_pillar")]
 transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 7.74015, 0.1, -8.21504)
+
+[node name="RoundBar" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture" instance=ExtResource("s256_roundbar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.74015, 0.1, -8.21504)
 
 [node name="Barrier2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 transform = Transform3D(0.919255, 0, 0, 0, 1, 0, 0, 0, 0.420887, 8.65814, 3.57661, -14.6805)
@@ -517,10 +506,6 @@ skeleton = NodePath("../../../../..")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.7531, 0.151736, -14.412)
 mesh = ExtResource("10_lysou")
 skeleton = NodePath("../../../../..")
-
-[node name="Keg" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.95467, 0.0999992, -11.1322)
-mesh = ExtResource("11_ocxae")
 
 [node name="Shell" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 
@@ -1299,23 +1284,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0134249, -0.0343782, 0.0046
 
 [node name="Bar" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 
-[node name="BarCounter" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar"]
-transform = Transform3D(-1.12722, 0, -0.959472, 0, -0.2, 0, 3.83789, 0, -0.281806, 3.54761, 1.4, -8.90147)
-material_override = SubResource("StandardMaterial3D_x2ury")
-mesh = SubResource("BoxMesh_cwghm")
-skeleton = NodePath("../..")
-
-[node name="StaticBody3D" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar/BarCounter"]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar/BarCounter/StaticBody3D"]
-shape = SubResource("BoxShape3D_n6x1j")
-
-[node name="CounterFoot" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Bar/BarCounter"]
-transform = Transform3D(0.125, 0, 0, 0, -3.5, 0, 0, 0, 0.5, 0.353604, 3.5, 0)
-material_override = SubResource("StandardMaterial3D_0nrlt")
-mesh = SubResource("CylinderMesh_bianl")
-skeleton = NodePath("../../..")
-
 [node name="Desk" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 
 [node name="MissionDesk" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk"]
@@ -1411,12 +1379,6 @@ transform = Transform3D(-1.49659, 0, -0.101056, 0, 1.5, 0, 0.101056, 0, -1.49659
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0217896, 0.258972, 0.0111992)
 shape = SubResource("BoxShape3D_7d3yx")
 
-[node name="barrel5" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("6_0nrlt")]
-transform = Transform3D(1, 0, 0, 0, 1.27423, 0, 0, 0, 1, 3.96313, -0.25157, -9.01737)
-
-[node name="barrel4" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("6_0nrlt")]
-transform = Transform3D(1, 0, 0, 0, 1.19363, 0, 0, 0, 1, 4.27461, -0.236148, -10.3816)
-
 [node name="CoinStackMedium" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2282, 0.010641, 4.0245)
 mesh = ExtResource("8_wqxad")
@@ -1429,28 +1391,12 @@ mesh = ExtResource("15_8f0f3")
 transform = Transform3D(1, 0, 0, 0, -0.206187, 0.978513, 0, -0.978513, -0.206187, 7.68487, 0.209238, 2.67651)
 mesh = ExtResource("16_u7xbe")
 
-[node name="Plate" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.59662, 1.1363, -5.90892)
-mesh = ExtResource("17_8f2ew")
-
 [node name="StairsWoodDecorated" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 transform = Transform3D(0.0259488, 0, -0.905924, 0, 0.951075, 0, 0.988309, 0, 0.0237857, 1.5727, 0.134378, -16.9799)
 mesh = ExtResource("18_jhhm8")
 
 [node name="Stool" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.36628, -0.000377446, -1.56146)
-mesh = ExtResource("19_5g4jd")
-
-[node name="Stool2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.32338, 0.134378, -5.96387)
-mesh = ExtResource("19_5g4jd")
-
-[node name="Stool3" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.36104, 0.134378, -4.73734)
-mesh = ExtResource("19_5g4jd")
-
-[node name="Stool4" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.12349, 0.134378, -3.36038)
 mesh = ExtResource("19_5g4jd")
 
 [node name="TableLongTableclothDecoratedA" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture"]
@@ -1481,13 +1427,10 @@ mesh = ExtResource("18_xtcff")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.53674e-07, -1.19209e-07, 2.38419e-06)
 
 [node name="barrel2" parent="SubViewportContainer/SubViewport/TavernNavigation/Props" instance=ExtResource("6_0nrlt")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.26519, 0.0111728, -7.65725)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.3, 0.1, -13.72)
 
 [node name="barrel3" parent="SubViewportContainer/SubViewport/TavernNavigation/Props" instance=ExtResource("6_0nrlt")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.0062, 0.0810082, -8.34556)
-
-[node name="barrel4" parent="SubViewportContainer/SubViewport/TavernNavigation/Props" instance=ExtResource("6_0nrlt")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.03591, 0.0797064, -9.70633)
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 9.15, 0.1, -13.78)
 
 [node name="TorchMounted" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Props"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.1831, 1.9758, -14.4982)
