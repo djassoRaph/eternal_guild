@@ -17,6 +17,7 @@ commit. Status values:
 | `exported` | `.gltf` written to `assets/environment/custom/` |
 | `in game` | swapped into the scene/script and passed the Stage D check (08 §6.5) |
 | `planned` | the docs want it, nothing exists yet |
+| `replaced` | a stock file no longer used where this row says; its replacement is `in game` (the file stays on disk) |
 
 `<art>` = `F:/GAME I AM MAKING/eternal_guild_art`. "Used in" short names: **tavern** =
 `scenes/MainTavern.tscn`, **exterior** = `scenes/world/ExteriorWorld.tscn`, **hexworld** =
@@ -130,9 +131,9 @@ barrier ×2, column).
 
 | Asset (stock file) | Folder | Notes | Status |
 |---|---|---|---|
-| A1 The Guild Tavern (walkable) | — | replaces `building_tavern_blue` ×3 | `concept` |
+| A1 The Guild Tavern (walkable) | — | replaces `building_tavern_blue` ×3 | `in game` (2026-09-25, Story 25.8: `custom/a1_guild_tavern.gltf`, 4,568 tris, solid, door faces the camera side) |
 | A3 Yard dressing: firewood, lantern post, hitching rail, farm plots | — | backlog in `08` | `planned` |
-| `building_tavern_blue` | hexagons/blue | replaced by A1 | `stock` |
+| `building_tavern_blue` | hexagons/blue | replaced by A1 | `replaced` (2026-09-25; file kept on disk) |
 | `building_blacksmith_blue` | hexagons/blue | also map | `stock` |
 | `building_home_A_blue` | hexagons/blue | also map + hexworld | `stock` |
 | `building_market_blue` | hexagons/blue | also map | `stock` |
@@ -184,8 +185,9 @@ exterior or the tavern, which leaves the 89 unique files.)
 
 | Asset | Used in | Notes | Status |
 |---|---|---|---|
-| A2 Guild Tavern (hex miniature) | map-gen `TAVERN_TOPPER` | derived from A1 | `planned` |
-| `building_tavern_blue` | map-gen, exterior | replaced by A2 | `stock` |
+| A2 Guild Tavern (hex miniature) | map-gen `TAVERN_TOPPER` | derived from A1 | `in game` (2026-09-25, Story 25.8: `custom/a2_guild_tavern_mini.gltf`, 996 tris) |
+| C9 Home marker (guild banner) | map-gen `HOME_MARKER`, tavern hex | shares the sign's hourglass emblem | `in game` (2026-09-25, Story 25.8: `custom/c9_home_marker.gltf`, 116 tris) |
+| `building_tavern_blue` | map-gen, exterior | replaced by A2 | `replaced` (2026-09-25; file kept on disk) |
 | `building_castle_blue` | map-gen | capital / fortress missions | `stock` |
 | `building_barracks_blue` | map-gen | | `stock` |
 | `building_blacksmith_blue` | map-gen, exterior | | `stock` |

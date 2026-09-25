@@ -358,7 +358,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
-| 25: Demo Art Pipeline & Demo Cast | ~11% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset) and 25.3 (tavern room shell + front door) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
+| 25: Demo Art Pipeline & Demo Cast | ~14% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door) and 25.8 (Guild Tavern exterior + map miniature) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
 | 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
 
 ### Epic 25 progress
@@ -378,6 +378,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - Stage D passed in LookDev (map and tavern presets) and in-scene on `HexMapTest`.
 - `HexMapGenerator._reserve_ruin()` reserves one land hex next to the tavern (Story 6.2). The pick is seeded, with no extra RNG draw, and a fixture-based drift guard proves every other hex is unchanged.
 - `WorldManager.is_mission_eligible()` keeps missions off the ruin.
+- The board hover shows "Unknown Ruins" (Story 6.3).
+- Failsafe Test 6 added; the suite is at 57/57.
 
 **Story 25.3: tavern room shell and front door (in review, 2026-09-25).**
 - A 10-piece B9/B10 kit (2 m module, KayKit atlas) built in Blender and exported to `assets/environment/custom/`. Every piece is within budget (28–376 tris).
@@ -387,8 +389,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - The front door (`front_door.gd`) swings both leaves out when a patron or the player walks through, and emits `door_opened` / `door_closed` for the creak SFX (Story 25.24).
 - Stage D passed in LookDev and in-scene. Patrons still walk entrance → table.
 - Navmesh re-baked with the new colliders; the old bake had also gone stale on the porch. Verified in-game: patrons walk in → table → out, and the player walks out through the door to the exterior.
-- The board hover shows "Unknown Ruins" (Story 6.3).
-- Failsafe Test 6 added; the suite is at 57/57.
+
+**Story 25.8: the Guild Tavern outside and on the map (in review, 2026-09-25). Pulled ahead at Raphael's request.**
+- A1 Guild Tavern (4,568 tris), A2 hex miniature (996) and C9 home banner (116), built from one parametric Blender script (A2 is A1's "mini" level of detail) and exported to `assets/environment/custom/`.
+- `ExteriorWorld.tscn`: A1 replaces the scaled KayKit tavern; the door faces the camera side. It's solid (collision proxies from the glTF), the "Press E" zone and label sit at the door, and the player arriving from the tavern lands in front of it.
+- The exterior now has the ink-outline pass, like the map and the tavern.
+- Map: the tavern hex shows A2 + the C9 banner, on new worlds and on old saves (display-time override; no RNG change, the drift guard still passes).
+- Stage D passed in LookDev and in-scene (exterior round trip through the door; map tavern hex). Failsafe Test 8 added; the suite is at 98/98.
 
 ---
 

@@ -797,7 +797,8 @@ This table tracks each finished asset.
 | B9 Tavern room shell (10-piece kit with B10) | — | Claude via Blender MCP (scripted kit on a 2 m module, §6.3 atlas remap with one kit-wide 4 m height scale, §6.4 export) | 2026-09-24 | **in game** (MainTavern): Stage D passed (LookDev corner + in-scene); 28–376 tris a piece |
 | B10 Front door (frame + leaf) | — | same kit as B9 | 2026-09-24 | **in game**: leaves swing out on a trigger (`front_door.gd`); frame 144, leaf 84 tris |
 | B6 Hourglass Pillar | 1 | | | concepts generating |
-| A1 + A2 Guild Tavern | 1 | | | concepts generating |
+| A1 + A2 Guild Tavern | 1 | Claude via Blender MCP (one parametric script; A2 = its mini LOD), §6.3 remap, §6.4 export | 2026-09-25 | **in game**: Stage D passed (LookDev + ExteriorWorld + HexMapTest); A1 4,568 tris, A2 996; windows emissive at roughness 0 (dark base + amber, not white) |
+| C9 Home marker | — | same script as A1/A2 | 2026-09-25 | **in game**: guild banner with the hourglass emblem on the tavern hex; 116 tris |
 | B1 Hearth | 1 | | | concepts generating |
 | B2 Bar (round) | 1 | | | concepts generating |
 | D2 Demon Cult Crypt | 1 | | | concept picked (crypt v2) |
