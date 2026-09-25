@@ -233,21 +233,24 @@ river crossing).
 
 ---
 
-## 5. Characters — patrons and player (5 used)
+## 5. Characters — patrons and player (7 used)
 
 | Asset (stock file) | Used in | Status |
 |---|---|---|
 | `Knight` | patrons | `stock` |
-| `Barbarian` | patrons | `stock` |
+| `Barbarian` | patrons, Barbarian class (G6: in the hire pool since Story 25.9) | `stock` |
 | `Mage` | patrons | `stock` |
 | `Rogue` | patrons, player | `stock` |
 | `Rogue_Hooded` | patrons | `stock` |
-| `Cleric` (Healer class) | `data/classes.json`:52 | **missing**: the file isn't on disk |
+| Healer (G5) | Healer class, patrons | `in game` (2026-09-25, Story 25.9: `assets/characters/custom/healer.glb`, the Mage body recoloured cream-white with a hood, tabard, satchel and crystal staff; 6,285 tris, 76 clips). Replaces the missing `Cleric.glb` |
+| Ranger (G7) | Ranger class, patrons | `in game` (2026-09-25, Story 25.9: `assets/characters/custom/ranger.glb`, Rogue_Hooded recoloured forest green and brown with a longbow and a quiver; 4,369 tris, 76 clips) |
 | KayKit skeletons (4 files) | on disk, unused | `stock` (unused) |
 
 **Route (proposal ⚑):** keep KayKit's rig and animations, and build new inked-style meshes bound to
 that same skeleton, one class at a time. This avoids rigging and animating from scratch. Test it on
 one character (the player's `Rogue`) before committing the other four.
+
+**Proven 2026-09-25 (spike + Story 25.9):** outfit variants on KayKit bodies (a recoloured atlas plus bone-attached or skinned pieces) keep all 76 animations; the Healer and the Ranger are built that way. Recipe: `eternal_guild_art/spike/README.md`.
 
 ---
 
@@ -255,7 +258,7 @@ one character (the player's `Rogue`) before committing the other four.
 
 | Asset | Where | Notes | Status |
 |---|---|---|---|
-| Class portraits | `assets/portraits/` (11 images: barbarian, drow-girl, fighter-girl, fighter, healer ×2, mage ×2, rogue ×2, unnamed) | loaded by class name in `scripts/ui/portrait_socket.gd` (`res://assets/portraits/<class>.png`) | `stock` |
+| Class portraits | `assets/portraits/` (13 images: barbarian ×2, drow-girl, fighter-girl, fighter, healer ×2, mage ×2, ranger, rogue ×2, unnamed; every demo class has a PNG since Story 25.9) | loaded by class name in `scripts/ui/portrait_socket.gd` (`res://assets/portraits/<class>.png`) | `stock` |
 | UI images | `assets/ui/` (3 images) | | `stock` |
 | K1–K3 key art | `<art>/picked/` | inked, picked 2026-09-24 | `concept` (done as key art) |
 
@@ -288,7 +291,7 @@ pillar "stone-and-roots": the B6 concept has no roots yet.
 
 | Asset | Count | Status | Source |
 |---|---|---|---|
-| **Healer model**: `data/classes.json` maps Healer to `Cleric.glb`, which isn't on disk | 1 | missing today | classes.json:52 |
+| **Healer model**: `data/classes.json` mapped Healer to `Cleric.glb`, which wasn't on disk | 1 | `in game` (2026-09-25, Story 25.9: `custom/healer.glb`) | classes.json:52 |
 | Den Fa, "the Architect": 6'4", sylphlike, **bat ears**, **four wings of bare bone (no membrane)**, a **featureless mirror mask**, "assembled rather than born" (Hermit IX, lantern, magic hourglass) | 1 hero character | `planned`. Design marked **decided** in the art brief | 03_STORY_BIBLE:30-38; art brief:29 |
 | **Onibi**, the hearth fire-spirit (a shooting-star being living in the fire; LimboAI FSM planned) | 1 | `planned` | art brief:26,30; BMAD game-architecture.md:294,387 |
 | Bard (visiting NPC, Epic 9) | 1 | `planned` | EPIC_PROGRESS:258-260 |
