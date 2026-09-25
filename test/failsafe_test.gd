@@ -95,6 +95,15 @@ const DESK_SPOT := Vector3(11.6, 0.1, -4.3)      # the guild desk's floor centre
 const BOARD_SPOT := Vector3(4.3, 0.1, -14.5)     # under the board on the partition's face, facing +z
 const OLD_DESK_NODES := ["Furniture/Desk/MissionDesk", "Furniture/Chairs/Chair6", "Furniture/MissionBoard", "Environment/DeskLight"]
 
+const DEMO_CLASSES := ["Fighter", "Rogue", "Mage", "Healer", "Barbarian", "Ranger"]   # D-3, 2026-09-24
+const CLASSES_PATH := "res://data/characters/classes.json"
+const CLASS_COLORS_PATH := "res://data/config/class_colors.json"
+const FLAVOR_LINES_PATH := "res://data/reveal/flavor_lines.json"
+const HEALER_MODEL_PATH := "res://assets/characters/custom/healer.glb"
+const RANGER_MODEL_PATH := "res://assets/characters/custom/ranger.glb"
+const GAME_MANAGER_PATH := "res://scripts/GameManager.gd"
+const CAST_CLIPS := ["Idle", "Walking_A", "Running_A", "Sit_Chair_Down", "Sit_Chair_Idle", "Sit_Chair_StandUp", "Cheer", "Interact"]
+
 var _pass_count := 0
 var _fail_count := 0
 var _elapsed := 0.0
@@ -119,6 +128,7 @@ func _initialize() -> void:
 
 	await process_frame  # autoloads enter the tree after _initialize() yields
 	test_mission_payout_report()
+	test_class_roster()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -1165,6 +1175,83 @@ static func _payout_adventurer(adv_name: String, personality: String) -> Diction
 	return {"name": adv_name, "id": adv_name.to_lower(), "class": "Fighter", "portrait": "", "personality": personality,
 		"strength": 3, "dexterity": 3, "intelligence": 3, "endurance": 3, "status": AdventurerStatus.Status.ON_MISSION,
 		"missions_completed": 0, "missions_failed": 0, "gold_earned": 0}
+
+
+# --- Test 15: One class list, every class a body and a portrait (Story 25.9) ---
+# D-3's six demo classes, identical across the four data files (no stray Cleric); every class
+# model exists and carries the KayKit rig with the clips patrons and the player use; the new Healer
+# and Ranger bodies pass the glow rule and hang their props from the right bone slots; every class
+# resolves a portrait PNG; each class gets its recruit stat bonus; the Cleric gap is off the allowlist.
+func test_class_roster() -> void:
+	print("[Test 15] One class list, every class a body and a portrait")
+	var want: Array = DEMO_CLASSES.duplicate()
+	want.sort()
+	var classes = _read_json(CLASSES_PATH)
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var colors = _read_json(CLASS_COLORS_PATH)
+	var flavor = _read_json(FLAVOR_LINES_PATH)
+	var lists := {
+		"classes.json": classes.keys() if classes is Dictionary else [],
+		"game_config adventurer_classes": cfg.get("adventurer_classes", []) if cfg is Dictionary else [],
+		"class_colors.json": colors.get("classes", {}).keys() if colors is Dictionary else [],
+		"flavor_lines.json": (flavor.get("lines", {}).keys() if flavor is Dictionary else []).map(func(k): return str(k).capitalize()),
+	}
+	for name in lists:
+		var got: Array = Array(lists[name]).duplicate()
+		got.sort()
+		check(got == want, "%s lists exactly the six demo classes %s" % [name, got])
+
+	for cls in DEMO_CLASSES:
+		var path: String = str(classes.get(cls, {}).get("model_path", "")) if classes is Dictionary else ""
+		var ok := path != "" and ResourceLoader.exists(path)
+		var bones := 0
+		var missing_clips := []
+		if ok:
+			var inst := (load(path) as PackedScene).instantiate()
+			var sk := inst.find_children("*", "Skeleton3D", true, false)
+			bones = (sk[0] as Skeleton3D).get_bone_count() if not sk.is_empty() else 0
+			var ap := inst.find_children("*", "AnimationPlayer", true, false)
+			var clips: PackedStringArray = (ap[0] as AnimationPlayer).get_animation_list() if not ap.is_empty() else PackedStringArray()
+			missing_clips = CAST_CLIPS.filter(func(c): return not c in clips)
+			inst.free()
+		check(ok and bones >= 41 and missing_clips.is_empty(),
+			"%s body %s: %d bones, clips missing %s" % [cls, path.get_file(), bones, missing_clips])
+
+	for spec in [[HEALER_MODEL_PATH, {"Healer_Hood": "head", "Healer_Staff": "handslot.r"}],
+			[RANGER_MODEL_PATH, {"Ranger_Bow": "handslot.l", "Ranger_Quiver": "chest"}]]:
+		var ok := ResourceLoader.exists(spec[0])
+		var st := _mesh_stats(spec[0]) if ok else {"tris": 0, "glow": 0, "wrong": ["missing"]}
+		check(ok and st.tris > 0 and st.tris <= 7000 and st.wrong.is_empty(),
+			"%s: %d tris (≤ 7,000), glow rule (wrong: %s)" % [str(spec[0]).get_file(), st.tris, st.wrong])
+		var slots_ok := ok
+		var found := {}
+		if ok:
+			var inst := (load(spec[0]) as PackedScene).instantiate()
+			var sk := inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+			for prop in spec[1]:
+				var b := sk.find_bone(prop)
+				var parent := sk.get_bone_name(sk.get_bone_parent(b)) if b >= 0 and sk.get_bone_parent(b) >= 0 else ""
+				found[prop] = parent
+				if parent != spec[1][prop]:
+					slots_ok = false
+			inst.free()
+		check(slots_ok, "%s props hang from their slots %s" % [str(spec[0]).get_file(), found])
+	var gm = load(GAME_MANAGER_PATH) as Script
+	var has_bonus: bool = gm != null and gm.get_script_method_list().any(func(m): return m.name == "recruit_class_bonus")
+	check(has_bonus and DEMO_CLASSES.all(func(c): return not gm.recruit_class_bonus(c).is_empty())
+		and gm.recruit_class_bonus("Barbarian").get("strength", 0) == 3 and gm.recruit_class_bonus("Ranger").get("dexterity", 0) == 2
+		and gm.recruit_class_bonus("Fighter") == {"strength": 2, "endurance": 1},
+		"every class gets its recruit stat bonus (Fighter unchanged, Barbarian str +3, Ranger dex +2)")
+	var no_portrait := DEMO_CLASSES.filter(func(c): return not ResourceLoader.exists("res://assets/portraits/%s.png" % str(c).to_lower()))
+	check(no_portrait.is_empty(), "every class has a portrait PNG (missing: %s)" % [no_portrait])
+	var allow := FileAccess.get_file_as_string(ASSET_ALLOWLIST_PATH)
+	check(not allow.contains("Cleric.glb"), "the Cleric.glb gap is off the Test 5 allowlist")
+	var patron = (load(PATRON_SCRIPT_PATH) as Script).new()
+	var pool: Array = patron.character_models
+	patron.free()
+	check(HEALER_MODEL_PATH in pool and RANGER_MODEL_PATH in pool and pool.all(func(p): return ResourceLoader.exists(p)),
+		"the patron pool seats Healers and Rangers too, and every pool model exists")
+	print("")
 
 ## Radius (xz) of a scene's trimesh collider: the smallest vertex radius (inner = true) or the largest.
 static func _shape_radius(nodes: Dictionary, inner: bool) -> float:
