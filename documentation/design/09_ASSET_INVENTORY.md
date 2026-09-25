@@ -233,7 +233,7 @@ river crossing).
 
 ---
 
-## 5. Characters — patrons and player (7 used)
+## 5. Characters — patrons, villagers and player (13 used)
 
 | Asset (stock file) | Used in | Status |
 |---|---|---|
@@ -244,7 +244,10 @@ river crossing).
 | `Rogue_Hooded` | patrons | `stock` |
 | Healer (G5) | Healer class, patrons | `in game` (2026-09-25, Story 25.9: `assets/characters/custom/healer.glb`, the Mage body recoloured cream-white with a hood, tabard, satchel and crystal staff; 6,285 tris, 76 clips). Replaces the missing `Cleric.glb` |
 | Ranger (G7) | Ranger class, patrons | `in game` (2026-09-25, Story 25.9: `assets/characters/custom/ranger.glb`, Rogue_Hooded recoloured forest green and brown with a longbow and a quiver; 4,369 tris, 76 clips) |
+| Townsfolk (G19, G24): farmer, local, traveller, guard, merchant, old woman | patrons (~80%), villagers in ExteriorWorld | `in game` (2026-09-25, Story 25.14: `assets/characters/custom/townsfolk_*.glb` from one kit rig, 4,169–6,221 tris, 76 clips; listed with origin types and weights in `data/characters/townsfolk.json`) |
 | KayKit skeletons (4 files) | on disk, unused | `stock` (unused) |
+
+Since Story 25.14 patrons are mostly townsfolk whose body matches their origin; the class bodies above still visit as travelling adventurers (~20%, decision E1).
 
 **Route (proposal ⚑):** keep KayKit's rig and animations, and build new inked-style meshes bound to
 that same skeleton, one class at a time. This avoids rigging and animating from scratch. Test it on
@@ -296,6 +299,7 @@ pillar "stone-and-roots": the B6 concept has no roots yet.
 | **Onibi**, the hearth fire-spirit (a shooting-star being living in the fire; LimboAI FSM planned) | 1 | `planned` | art brief:26,30; BMAD game-architecture.md:294,387 |
 | Bard (visiting NPC, Epic 9) | 1 | `planned` | EPIC_PROGRESS:258-260 |
 | Disturbance NPCs: pickpocket, drunk, rare visitor | 3 | `planned` | EPIC_PROGRESS:332 |
+| Villagers + guards (G24): town ambient, overheard barks (the Villager's Voice) | 6 in the demo | `in game` (2026-09-25, Story 25.14: `scenes/npcs/Villager.tscn` placed in ExteriorWorld, three at posts and three on loops; lines in `data/dialogue/villager_barks.json`) | narrative-design.md §Ambient World Population |
 | Staff NPCs (Epic 16) | open | `planned` | EPIC_PROGRESS:343,361 |
 | Farm hands (off-roster workers) | open | ⚑ proposal | 03_STORY_BIBLE:109-110 |
 | Recruits and applicants | reuse class models | `planned` | ADVENTURER_PRESENCE_SYSTEM:13,130 |
