@@ -43,6 +43,19 @@ const BRIDGE_PATH := "res://assets/environment/custom/a6_bridge.gltf"
 const HEIGHTFIELD_FIXTURE := "res://test/fixtures/exterior_heightfield.json"
 const SEATED_GROUPS := ["Village/", "Yard/", "Forest/", "Scatter/", "Props/"]
 const SEATED_ROOT_NODES := ["GuildTavern", "barrel2", "candle_thin_lit_obj", "candle_thin_lit_obj (1)"]
+# Story 25.4: the Hourglass Pillar (B6) at the centre of the round bar, with reveal stages.
+const PILLAR_PATH := "res://assets/environment/custom/b6_hourglass_pillar.gltf"
+const PILLAR_SCENE_PATH := "res://scenes/game/HourglassPillar.tscn"
+const PILLAR_SCRIPT_PATH := "res://scripts/game/hourglass_pillar.gd"
+const PILLAR_RING_CENTRE := Vector3(7.74, 0.1, -8.22)   # TavernCounterCircular origin, floor top
+const GAME_CONFIG_PATH := "res://data/config/game_config.json"
+const PILLAR_STAGES := {
+	0: ["pillar_foundation", "pillar_base", "pillar_stub"],
+	1: ["pillar_foundation", "pillar_base", "pillar_band_low"],
+	2: ["pillar_foundation", "pillar_base", "pillar_band_low", "pillar_hourglass"],
+	3: ["pillar_foundation", "pillar_base", "pillar_band_low", "pillar_hourglass", "pillar_band_high"],
+	4: ["pillar_foundation", "pillar_base", "pillar_band_low", "pillar_hourglass", "pillar_band_high", "pillar_capital"],
+}
 
 var _pass_count := 0
 var _fail_count := 0
@@ -61,6 +74,7 @@ func _initialize() -> void:
 	test_tavern_shell()
 	test_tavern_exterior()
 	test_exterior_world()
+	test_hourglass_pillar()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -636,6 +650,80 @@ func test_exterior_world() -> void:
 	var bounds := ext.keys().filter(func(k): return str(k).begins_with("Bounds/") and ext[k].props.get("shape") is BoxShape3D)
 	check(ext.has("Bounds") and bounds.size() >= 4, "play-area bounds: %d walls" % bounds.size())
 	print("")
+
+
+# --- Test 10: The Hourglass Pillar (Story 25.4) ---
+# Segments and glow materials in the asset, the stage -> segments mapping (pure static function),
+# the demo stage in game_config.json, the placement at the round bar's centre, the collider and hum
+# anchor in the pillar scene, and the re-baked navmesh routing around the pillar.
+func test_hourglass_pillar() -> void:
+	print("[Test 10] The Hourglass Pillar")
+	var has_asset := ResourceLoader.exists(PILLAR_PATH)
+	check(has_asset, "asset exists: %s" % PILLAR_PATH.get_file())
+	var nodes := _scene_nodes(PILLAR_PATH) if has_asset else {}
+	for seg in PILLAR_STAGES[4] + ["pillar_stub"]:
+		check(nodes.keys().any(func(k): return str(k).ends_with(seg)), "segment present: %s" % seg)
+	var wrong := []
+	var glow := 0
+	for k in nodes:
+		var mesh = nodes[k].props.get("mesh")
+		if not mesh is Mesh:
+			continue
+		for s in (mesh as Mesh).get_surface_count():
+			var m := (mesh as Mesh).surface_get_material(s) as StandardMaterial3D
+			if m == null:
+				continue
+			if m.emission_enabled:
+				glow += 1
+			if (m.emission_enabled and m.roughness != 0.0) or (not m.emission_enabled and m.roughness <= 0.0):
+				wrong.append("%s/%s r=%.2f" % [str(k).get_file(), m.resource_name, m.roughness])
+	check(glow >= 3 and wrong.is_empty(), "glow surfaces at roughness 0, the rest > 0 (%d glow; wrong: %s)" % [glow, wrong])
+
+	var script = load(PILLAR_SCRIPT_PATH) if ResourceLoader.exists(PILLAR_SCRIPT_PATH) else null
+	var has_map: bool = script != null and script.get_script_method_list().any(func(m): return m.name == "segments_for_stage")
+	check(has_map, "hourglass_pillar.gd has segments_for_stage()")
+	if has_map:
+		for stage in PILLAR_STAGES:
+			check(Array(script.segments_for_stage(stage)) == PILLAR_STAGES[stage], "stage %d shows %s" % [stage, PILLAR_STAGES[stage]])
+		check(Array(script.segments_for_stage(-1)) == PILLAR_STAGES[0] and Array(script.segments_for_stage(99)) == PILLAR_STAGES[4],
+			"out-of-range stages clamp to 0 and 4")
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var demo_stage = cfg.get("pillar_reveal_stage") if cfg is Dictionary else null
+	check(demo_stage != null and int(demo_stage) >= 0 and int(demo_stage) <= 4, "game_config pillar_reveal_stage = %s" % [demo_stage])
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var hits := tav.keys().filter(func(k): return tav[k].instance == PILLAR_SCENE_PATH)
+	check(hits.size() == 1 and (tav[hits[0]].world as Transform3D).origin.distance_to(PILLAR_RING_CENTRE) < 0.05,
+		"MainTavern has the pillar at the round bar's centre %s" % [hits])
+	var ps := _scene_nodes(PILLAR_SCENE_PATH) if ResourceLoader.exists(PILLAR_SCENE_PATH) else {}
+	check(ps.values().any(func(n): return n.props.get("shape") is CylinderShape3D), "pillar scene has a cylinder collider")
+	check(ps.keys().any(func(k): return str(k).ends_with("HumAnchor")), "pillar scene has a HumAnchor for the hum (25.24)")
+	var nav = null
+	for k in tav:
+		if str(k).ends_with("TavernNavigation"):
+			nav = tav[k].props.get("navigation_mesh")
+	check(nav is NavigationMesh and not _nav_contains(nav, PILLAR_RING_CENTRE.x, PILLAR_RING_CENTRE.z)
+		and _nav_contains(nav, PILLAR_RING_CENTRE.x + 3.0, PILLAR_RING_CENTRE.z),
+		"navmesh routes around the pillar (floor level: centre off, 3 m away on)")
+	print("")
+
+
+## Floor-level only: a solid prop's flat top can bake into a small unreachable island above it.
+static func _nav_contains(nav: NavigationMesh, x: float, z: float, max_y := 1.0) -> bool:
+	var v := nav.get_vertices()
+	for i in nav.get_polygon_count():
+		var poly := nav.get_polygon(i)
+		if v[poly[0]].y > max_y:
+			continue
+		var inside := false
+		for a in poly.size():
+			var p1 := v[poly[a]]
+			var p2 := v[poly[(a + 1) % poly.size()]]
+			if (p1.z > z) != (p2.z > z) and x < p1.x + (z - p1.z) * (p2.x - p1.x) / (p2.z - p1.z):
+				inside = not inside
+		if inside:
+			return true
+	return false
 
 
 static func _scene_has_shape(scene_path: String, shape_class: String) -> bool:
