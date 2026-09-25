@@ -103,6 +103,15 @@ const HEALER_MODEL_PATH := "res://assets/characters/custom/healer.glb"
 const RANGER_MODEL_PATH := "res://assets/characters/custom/ranger.glb"
 const GAME_MANAGER_PATH := "res://scripts/GameManager.gd"
 const CAST_CLIPS := ["Idle", "Walking_A", "Running_A", "Sit_Chair_Down", "Sit_Chair_Idle", "Sit_Chair_StandUp", "Cheer", "Interact"]
+const TOWNSFOLK_PATH := "res://data/characters/townsfolk.json"
+const TOWNSFOLK_ROLES := ["farmer", "local", "traveller", "guard", "merchant", "old_woman"]   # Story 25.14
+const PATRON_ORIGIN_TYPES := ["traveler", "local", "soldier", "trader"]
+const PATRON_LINES_PATH := "res://data/dialogue/patron_lines.json"
+const VILLAGER_BARKS_PATH := "res://data/dialogue/villager_barks.json"
+const BARK_REGISTERS := ["grievance", "mirror", "paranoia"]   # narrative-design.md, the Villager's Voice
+const BANNED_BARK_WORDS := ["the state", "government", "politician", "democracy", "capitalism", "okay"]
+const VILLAGER_SCRIPT_PATH := "res://scripts/npcs/villager.gd"
+const VILLAGER_SCENE_PATH := "res://scenes/npcs/Villager.tscn"
 
 var _pass_count := 0
 var _fail_count := 0
@@ -129,6 +138,7 @@ func _initialize() -> void:
 	await process_frame  # autoloads enter the tree after _initialize() yields
 	test_mission_payout_report()
 	test_class_roster()
+	test_townsfolk_kit()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -1246,12 +1256,177 @@ func test_class_roster() -> void:
 	check(no_portrait.is_empty(), "every class has a portrait PNG (missing: %s)" % [no_portrait])
 	var allow := FileAccess.get_file_as_string(ASSET_ALLOWLIST_PATH)
 	check(not allow.contains("Cleric.glb"), "the Cleric.glb gap is off the Test 5 allowlist")
-	var patron = (load(PATRON_SCRIPT_PATH) as Script).new()
-	var pool: Array = patron.character_models
-	patron.free()
+	# Since Story 25.14 the pool comes from data/characters/townsfolk.json (decision E1: the class
+	# bodies stay in it as travelling adventurers)
+	var rp = load(PATRON_SCRIPT_PATH) as Script
+	var has_pool: bool = rp != null and rp.get_script_method_list().any(func(m): return m.name == "townsfolk_pool")
+	var pool: Array = (rp.townsfolk_pool() as Array).map(func(v): return str(v.get("model_path", ""))) if has_pool else []
 	check(HEALER_MODEL_PATH in pool and RANGER_MODEL_PATH in pool and pool.all(func(p): return ResourceLoader.exists(p)),
-		"the patron pool seats Healers and Rangers too, and every pool model exists")
+		"the patron pool still seats Healers and Rangers (as travelling adventurers), and every pool model exists")
 	print("")
+
+
+# --- Test 16: The townsfolk body kit, patrons by origin, villagers in town (Story 25.14) ---
+# Six townsfolk variants on the KayKit rig, listed in data; patrons take a body whose origin type
+# matches their origin, with adventurer bodies as a minority of travellers (decision E1, ~80 / 20);
+# the hands stay free (patrons carry these bodies into the tavern); villagers stand or walk loops in
+# town on the terrain, clear of the stream, buildings and street props, and bark the Villager's Voice
+# (three weighted registers, in-world words only).
+func test_townsfolk_kit() -> void:
+	print("[Test 16] Townsfolk body kit, patrons by origin, villagers in town")
+	var tf = _read_json(TOWNSFOLK_PATH)
+	var has_data: bool = tf is Dictionary and tf.get("variants", null) is Array
+	check(has_data, "townsfolk.json is readable, with a variants list")
+	var variants: Array = tf.variants if has_data else []
+	var ids := variants.map(func(v): return str(v.get("id", "")))
+	var townsfolk := variants.filter(func(v): return str(v.get("role", "")) == "townsfolk")
+	for role in TOWNSFOLK_ROLES:
+		check(townsfolk.any(func(v): return v.get("id", "") == role), "townsfolk variant '%s' is listed" % role)
+	for t in PATRON_ORIGIN_TYPES:
+		check(townsfolk.any(func(v): return v.get("origin_type", "") == t), "a townsfolk variant covers patron origin '%s'" % t)
+	var plines = _read_json(PATRON_LINES_PATH)
+	var flavours: Array = plines.get("origin_flavor", {}).keys() if plines is Dictionary else []
+	check(not flavours.is_empty() and flavours.all(func(k): return k in PATRON_ORIGIN_TYPES),
+		"patron_lines' origin flavours are all patron origin types %s" % [flavours])
+	var pools: Dictionary = tf.get("names", {}) if has_data else {}
+	check(has_data and variants.all(func(v): return str(v.get("names", "any")) == "any" or pools.has(str(v.names))),
+		"every variant's name pool exists %s" % [pools.keys()])
+	var old := variants.filter(func(v): return v.get("id", "") == "old_woman")
+	check(not old.is_empty() and str(old[0].get("names", "")) == "feminine", "the old woman draws feminine names")
+	var total := 0.0
+	var tf_weight := 0.0
+	for v in variants:
+		total += float(v.get("weight", 0))
+		if str(v.get("role", "")) == "townsfolk":
+			tf_weight += float(v.get("weight", 0))
+	var share := tf_weight / total if total > 0.0 else 0.0
+	check(share >= 0.75 and share <= 0.85, "townsfolk take about 80%% of the patron weight (%.2f)" % share)
+	var adventurers := variants.filter(func(v): return str(v.get("role", "")) == "adventurer")
+	check(not adventurers.is_empty() and adventurers.all(func(v): return v.get("origin_type", "") == "traveler"),
+		"adventurer bodies come only as travellers (%d)" % adventurers.size())
+	check([HEALER_MODEL_PATH, RANGER_MODEL_PATH].all(func(p): return adventurers.any(func(v): return v.get("model_path", "") == p)),
+		"the Healer and the Ranger still visit, as travelling adventurers (25.9's C4)")
+	check(variants.all(func(v): return ResourceLoader.exists(str(v.get("model_path", "")))), "every pool model exists")
+
+	for v in townsfolk:
+		var path := str(v.get("model_path", ""))
+		var ok := path != "" and ResourceLoader.exists(path)
+		var bones := 0
+		var missing := []
+		var hand_items := []
+		if ok:
+			var inst := (load(path) as PackedScene).instantiate()
+			var sks := inst.find_children("*", "Skeleton3D", true, false)
+			if not sks.is_empty():
+				var sk := sks[0] as Skeleton3D
+				bones = sk.get_bone_count()
+				for b in bones:
+					var par := sk.get_bone_parent(b)
+					if par >= 0 and sk.get_bone_name(par) in ["handslot.l", "handslot.r"]:
+						hand_items.append("%s<-%s" % [sk.get_bone_name(b), sk.get_bone_name(par)])
+			var aps := inst.find_children("*", "AnimationPlayer", true, false)
+			var clips: PackedStringArray = (aps[0] as AnimationPlayer).get_animation_list() if not aps.is_empty() else PackedStringArray()
+			missing = CAST_CLIPS.filter(func(c): return not c in clips)
+			inst.free()
+		check(ok and bones >= 41 and missing.is_empty(), "%s body %s: %d bones, clips missing %s" % [v.get("id"), path.get_file(), bones, missing])
+		var st := _mesh_stats(path) if ok else {"tris": 0, "glow": 0, "wrong": ["missing"]}
+		check(ok and st.tris > 0 and st.tris <= 7000 and st.wrong.is_empty(),
+			"%s: %d tris (≤ 7,000), glow rule (wrong: %s)" % [path.get_file(), st.tris, st.wrong])
+		var hands_ok: bool = hand_items.is_empty() or (v.get("id", "") == "old_woman" and hand_items.size() == 1 and str(hand_items[0]).ends_with("handslot.r"))
+		check(ok and hands_ok, "%s keeps its hands free (items: %s)" % [v.get("id"), hand_items])
+
+	var rp = load(PATRON_SCRIPT_PATH) as Script
+	var has_api: bool = rp != null and ["townsfolk_pool", "pick_variant"].all(func(m): return rp.get_script_method_list().any(func(x): return x.name == m))
+	check(has_api, "RealisticPatron.townsfolk_pool() and pick_variant() exist")
+	if has_api:
+		var pool: Array = rp.townsfolk_pool()
+		check(pool.map(func(v): return str(v.get("id", ""))) == ids, "the patron pool is townsfolk.json's variants")
+		var keeps := true
+		for t in PATRON_ORIGIN_TYPES:
+			for roll in [0.0, 0.5, 0.999]:
+				if rp.pick_variant(pool, t, roll).get("origin_type", "") != t:
+					keeps = false
+		check(keeps, "pick_variant keeps the origin type (rolls 0, 0.5, 0.999)")
+		check(not rp.pick_variant(pool, "dragon", 0.5).is_empty(), "an unknown origin still yields a body")
+		check(not pool.is_empty() and rp.pick_variant(pool, "", 0.0) == pool[0] and rp.pick_variant(pool, "", 0.999) == pool[-1],
+			"an empty origin picks across the whole pool by weight")
+
+	var barks = _read_json(VILLAGER_BARKS_PATH)
+	var regs: Dictionary = barks.get("registers", {}) if barks is Dictionary else {}
+	for r in BARK_REGISTERS:
+		var reg: Dictionary = regs.get(r, {})
+		var ls: Array = reg.get("lines", [])
+		check(float(reg.get("weight", 0)) > 0.0 and ls.size() >= 4, "bark register '%s': weight %s, %d lines" % [r, reg.get("weight", 0), ls.size()])
+		var bad_lines := ls.filter(func(l): return str(l).length() > 110 or BANNED_BARK_WORDS.any(func(w): return str(l).to_lower().contains(w)))
+		check(bad_lines.is_empty(), "'%s' lines stay short and in-world %s" % [r, bad_lines])
+	var vs = load(VILLAGER_SCRIPT_PATH) as Script if ResourceLoader.exists(VILLAGER_SCRIPT_PATH) else null
+	var vapi: bool = vs != null and ["pick_bark", "step_toward"].all(func(m): return vs.get_script_method_list().any(func(x): return x.name == m))
+	check(vapi, "villager.gd has pick_bark() and step_toward()")
+	if vapi and regs.size() == BARK_REGISTERS.size():
+		check(str(vs.pick_bark(barks, 0.0, 0.0)) in regs["grievance"]["lines"] and str(vs.pick_bark(barks, 0.999, 0.0)) in regs["paranoia"]["lines"],
+			"pick_bark: a low roll grumbles, a high roll turns paranoid")
+		var p1: Vector3 = vs.step_toward(Vector3(0, 5, 0), Vector3(3, 0, 4), 1.0, 1.0)
+		var p2: Vector3 = vs.step_toward(Vector3(0, 5, 0), Vector3(3, 0, 4), 10.0, 1.0)
+		check(p1.is_equal_approx(Vector3(0.6, 5, 0.8)) and p2.is_equal_approx(Vector3(3, 5, 4)),
+			"step_toward walks speed × dt in XZ, keeps y and never overshoots (%s, %s)" % [p1, p2])
+
+	var hf = _read_json(HEIGHTFIELD_FIXTURE)
+	var ext := _scene_nodes(EXTERIOR_SCENE_PATH)
+	var vill := ext.keys().filter(func(k): return str(k).begins_with("Villagers/") and str(k).count("/") == 1 and ext[k].instance == VILLAGER_SCENE_PATH)
+	check(vill.size() >= 4 and vill.size() <= 8, "ExteriorWorld has %d villagers (4–8)" % vill.size())
+	var buildings := []
+	var street := []
+	for k in ext:
+		var key := str(k)
+		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
+			buildings.append((ext[k].world as Transform3D).origin)
+		elif key.begins_with("Village/Street/") and key.count("/") == 2:
+			street.append((ext[k].world as Transform3D).origin)
+	var problems := []
+	var used := []
+	var walkers := 0
+	if hf is Dictionary:
+		for k in vill:
+			var n: Dictionary = ext[k]
+			var vid := str(n.props.get("variant_id", ""))
+			used.append(vid)
+			if not vid in ids:
+				problems.append("%s: unknown variant '%s'" % [k, vid])
+			var o: Vector3 = (n.world as Transform3D).origin
+			var ground := _hf_height(hf, o.x, o.z)
+			if o.y - ground > 0.15 or ground - o.y > 0.35:
+				problems.append("%s y=%.2f ground=%.2f" % [k, o.y, ground])
+			var pts := [Vector2(o.x, o.z)]
+			var wps: PackedVector3Array = n.props.get("waypoints", PackedVector3Array())
+			if wps.size() >= 2:
+				walkers += 1
+			for w in wps:
+				pts.append(Vector2(w.x, w.z))
+			for p in pts:
+				var why := _villager_spot_problem(hf, p, buildings, street)
+				if why != "":
+					problems.append("%s at (%.1f, %.1f): %s" % [k, p.x, p.y, why])
+	check(hf is Dictionary and problems.is_empty(), "villagers stand and walk on clear ground %s" % [problems.slice(0, 4)])
+	check(TOWNSFOLK_ROLES.all(func(r): return r in used), "one of each townsfolk variant lives in town (E2) %s" % [used])
+	check(walkers >= 2, "%d villagers walk loops (≥ 2)" % walkers)
+	print("")
+
+
+## Where a villager may not stand or step: outside the play area, in the stream, inside a building
+## (within 2.5 m of its origin, as Test 9's trees), or on a street prop (within 1 m).
+static func _villager_spot_problem(hf: Dictionary, p: Vector2, buildings: Array, props: Array) -> String:
+	var play: Array = hf.play
+	if p.x < float(play[0]) or p.x > float(play[1]) or p.y < float(play[2]) or p.y > float(play[3]):
+		return "outside the play area"
+	if absf(p.x - _hf_stream_x(hf, p.y)) < float(hf.stream_half) + 0.5:
+		return "in the stream"
+	for b in buildings:
+		if Vector2(b.x, b.z).distance_to(p) < 2.5:
+			return "inside a building"
+	for q in props:
+		if Vector2(q.x, q.z).distance_to(p) < 1.0:
+			return "on a street prop"
+	return ""
 
 ## Radius (xz) of a scene's trimesh collider: the smallest vertex radius (inner = true) or the largest.
 static func _shape_radius(nodes: Dictionary, inner: bool) -> float:
