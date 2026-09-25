@@ -233,7 +233,7 @@ river crossing).
 
 ---
 
-## 5. Characters — patrons, villagers and player (13 used)
+## 5. Characters — patrons, villagers, player and the cat (14 used)
 
 | Asset (stock file) | Used in | Status |
 |---|---|---|
@@ -245,6 +245,7 @@ river crossing).
 | Healer (G5) | Healer class, patrons | `in game` (2026-09-25, Story 25.9: `assets/characters/custom/healer.glb`, the Mage body recoloured cream-white with a hood, tabard, satchel and crystal staff; 6,285 tris, 76 clips). Replaces the missing `Cleric.glb` |
 | Ranger (G7) | Ranger class, patrons | `in game` (2026-09-25, Story 25.9: `assets/characters/custom/ranger.glb`, Rogue_Hooded recoloured forest green and brown with a longbow and a quiver; 4,369 tris, 76 clips) |
 | Townsfolk (G19, G24): farmer, local, traveller, guard, merchant, old woman | patrons (~80%), villagers in ExteriorWorld | `in game` (2026-09-25, Story 25.14: `assets/characters/custom/townsfolk_*.glb` from one kit rig, 4,169–6,221 tris, 76 clips; listed with origin types and weights in `data/characters/townsfolk.json`) |
+| The Cat (G11) + her basket (B20) | MainTavern (asleep in the basket by the hearth), ExteriorWorld (a short stroll) | `in game` (2026-09-25, Story 25.15: `assets/characters/custom/g11_the_cat.glb`, her own 22-bone rig, 1,310 tris, clips Sleep/Idle/Walk + Pet; `assets/environment/custom/b20_cat_basket.gltf`, 298 tris; `scenes/game/TheCat.tscn` + `scripts/game/the_cat.gd`: pettable, decision F0) |
 | KayKit skeletons (4 files) | on disk, unused | `stock` (unused) |
 
 Since Story 25.14 patrons are mostly townsfolk whose body matches their origin; the class bodies above still visit as travelling adventurers (~20%, decision E1).
@@ -303,6 +304,7 @@ pillar "stone-and-roots": the B6 concept has no roots yet.
 | Staff NPCs (Epic 16) | open | `planned` | EPIC_PROGRESS:343,361 |
 | Farm hands (off-roster workers) | open | ⚑ proposal | 03_STORY_BIBLE:109-110 |
 | Recruits and applicants | reuse class models | `planned` | ADVENTURER_PRESENCE_SYSTEM:13,130 |
+| The Cat (FR-112): the same cat in every scene, never explained | 1 | `in game` in the tavern and the town (2026-09-25, Story 25.15); the cemetery, church and alley get her when those scenes exist | epics FR-112, AR D11 |
 | Beast-kin race (foxes, badgers, wolves, cats) | open | design only | 06_Character_Design:22-24 |
 | Character animations: idle, walk, wave, sit/cheer/stand (patrons) | per model | partly built | ADVENTURER_PRESENCE_SYSTEM:42-43,91 |
 
