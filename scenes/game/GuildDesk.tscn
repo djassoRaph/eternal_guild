@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" uid="uid://j6lb6olmph0m" path="res://assets/environment/custom/b3_guild_desk.gltf" id="1_desk"]
+
+[node name="GuildDesk" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_desk")]
+
+[node name="DeskLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.76, 1.4, -0.22)
+light_color = Color(1, 0.9, 0.6, 1)
+light_energy = 1.5
+omni_range = 4.0
+
+[node name="WorkPoint" type="Marker3D" parent="." groups=["work_point"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.44, -0.78)
