@@ -284,7 +284,11 @@ func _update_day_phase_display():
 		
 func _init_zone_prompts():
 	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
-	var zui = zui_script.new()
-	add_child(zui)
+	# One prompt manager (Story 25.10): the scene's GameUI already runs ZonePromptUI; a second one made
+	# two labels print over each other and split the zones between two E arbiters.
+	var zui = zui_script.find(get_tree())
+	if zui == null:
+		zui = zui_script.new()
+		add_child(zui)
 	zui.connect_tavern_zones()
 	print("Tavern zone prompts initialized")

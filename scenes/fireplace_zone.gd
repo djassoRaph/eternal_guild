@@ -79,6 +79,10 @@ func _ready():
 	print("Fireplace interaction zone ready - Minigame system active")
 
 func _process(delta):
+	if not has_meta("prompt_anchored"):   # once the tavern's prompt UI has registered this zone
+		var ui = preload("res://scripts/game/ZonePromptUI.gd").find(get_tree())
+		if ui and ui.connected_zones.has(self):
+			_anchor_on_hearth(ui)
 	# Handle state timers
 	match current_state:
 		FireplaceState.BURNING_HIGH, FireplaceState.BURNING_LOW, FireplaceState.DYING:
@@ -119,7 +123,20 @@ func _input(event):
 	
 	# Check for E key (interact action)
 	if event.is_action_pressed("interact"):
+		# One E owner (Story 25.10, J6): beside the hearth the player can also stand in the cat's or Den Fa's
+		# zone; the prompt UI gives E to the nearest (and to a waiting patron, a pause or Game Over first).
+		var ui = preload("res://scripts/game/ZonePromptUI.gd").find(get_tree())
+		if ui and ui.connected_zones.has(self) and not ui.owns_e(self):
+			return
 		_on_player_interact()
+
+func _anchor_on_hearth(ui) -> void:
+	"""The fire's E distance is measured from where it is tended: the hearth's interact_point."""
+	if _hearth and not has_meta("prompt_anchored"):
+		var p = _hearth.find_child("interact_point", true, false)
+		if p:
+			ui.set_anchor(self, p)
+			set_meta("prompt_anchored", true)
 
 func _on_player_interact():
 	"""Called when player presses E near fireplace"""

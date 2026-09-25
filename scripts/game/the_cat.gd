@@ -6,12 +6,11 @@
 # No autoload, no name, no story entry (FR-112, AR D11, decision F0): she is a static scene element
 # with this small script. In town a parent CatStroll's AnimationPlayer walks her; petting pauses it.
 #
-# One E never does two things: she yields the key (and her prompt) whenever anything else would take
-# it: the player also standing in another prompt zone (the hearth's is a step away, and the fire
-# zone's own script acts on E whenever the player is inside), a waiting patron in serving range, an
-# open mission screen, a paused tree or Game Over. She shows her prompt through the scene's
-# ZonePromptUI (show/hide, not register_zone: the tavern has two managers, and a registered zone
-# claims the label even while the player also stands in the fire's zone), or a Label3D where none.
+# One E never does two things (Story 25.10, J6): she claims her PetZone with the scene's ZonePromptUI,
+# which gives E and the prompt to the NEAREST zone the player stands in (the hearth's fire and Den Fa
+# are a step away) and closes E for everyone while a patron waits in range, the tree is paused, it is
+# Game Over or a mission screen is open. She pets only while owns_e(PetZone); her own live checks stay
+# as a second guard. Where there's no ZonePromptUI, a Label3D over her is her prompt.
 extends Node3D
 
 const PURR_CHANCE := 0.75        # the rest of the time: "mrrp."
@@ -56,6 +55,7 @@ func _ready() -> void:
 			return
 		_prompt_ui = preload("res://scripts/game/ZonePromptUI.gd").find(get_tree())
 		if _prompt_ui:
+			_prompt_ui.claim(_zone, PROMPT, self)
 			return
 	# No ZonePromptUI in this scene: a small prompt over her instead, in its yellow.
 	_prompt_label = Label3D.new()
@@ -86,17 +86,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		pet()
 
 
-## The player is beside her and nothing else wants the E key.
+## The player is beside her and E is hers: the prompt UI's owner (nearest zone, gate open), and her
+## own live checks agree.
 func can_be_petted() -> bool:
 	if _player == null or not is_instance_valid(_player) or not is_inside_tree() or get_tree().paused:
+		return false
+	if _prompt_ui != null and is_instance_valid(_prompt_ui) and not _prompt_ui.owns_e(_zone):
 		return false
 	var gm := get_node_or_null("/root/GameManager")
 	if gm and gm.get("game_over_active"):
 		return false
-	for ui in get_tree().get_nodes_in_group("zone_prompt_ui"):
-		for z in ui.get("connected_zones"):
-			if z != _zone and is_instance_valid(z) and (z as Area3D).monitoring and (z as Area3D).overlaps_body(_player):
-				return false
 	for board in get_tree().get_nodes_in_group("mission_board"):
 		if board.visible:
 			return false
@@ -142,19 +141,14 @@ func _say(text: String) -> void:
 	bubble.say(text, 2.0)
 
 
-## Put her prompt up or take it down; never touches a prompt another zone is showing.
+## Her Label3D prompt, only in scenes without a ZonePromptUI (with one, the UI shows her claimed prompt).
 func _show_prompt(want: bool) -> void:
+	# With a ZonePromptUI the prompt is its job (she claimed PetZone); this is only the Label3D fallback.
 	if want == _prompt_shown:
 		return
 	_prompt_shown = want
 	if _prompt_label:
 		_prompt_label.visible = want
-	elif _prompt_ui:
-		if want:
-			_prompt_ui.show_prompt(PROMPT)
-		elif _prompt_ui.prompt_label.text == PROMPT:
-			_prompt_ui.prompt_label.visible = false
-			_prompt_ui.active = false
 
 
 func _on_body_entered(body: Node3D) -> void:
