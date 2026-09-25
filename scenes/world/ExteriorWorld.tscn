@@ -1,4 +1,4 @@
-[gd_scene load_steps=70 format=4 uid="uid://c8yad3n2k4p7q"]
+[gd_scene load_steps=73 format=4 uid="uid://c8yad3n2k4p7q"]
 
 [ext_resource type="Script" uid="uid://m1w8a7v1jx7e" path="res://scripts/world/exteriorworld.gd" id="1_gqbs3"]
 [ext_resource type="Script" uid="uid://noiotjjcccpn" path="res://scripts/world/entrance_zone_exterior.gd" id="2_hxdmn"]
@@ -47,6 +47,8 @@
 [ext_resource type="PackedScene" uid="uid://o1ekw2pbboby" path="res://assets/environment/hexagons/nature/tree_single_B_cut.gltf" id="s2529_27"]
 [ext_resource type="PackedScene" uid="uid://cy46h8233xbwl" path="res://assets/environment/hexagons/nature/tree_single_A_cut.gltf" id="s2529_28"]
 [ext_resource type="PackedScene" path="res://scenes/npcs/Villager.tscn" id="s2514_villager"]
+
+[ext_resource type="PackedScene" path="res://scenes/game/TheCat.tscn" id="s2515_cat"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_horizon_color = Color(0.646, 0.656, 0.67, 1)
@@ -167,6 +169,48 @@ size = Vector3(2, 12, 76)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_s2529_bounds_East"]
 size = Vector3(2, 12, 76)
+
+[sub_resource type="Animation" id="Animation_catstroll"]
+resource_name = "Stroll"
+length = 37.945
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("TheCat:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 4.596, 13.196, 16.217, 22.817, 27.345, 37.945),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(24.2, -3, 16), Vector3(25.5, -3, 17.3), Vector3(25.5, -3, 17.3), Vector3(26, -3, 16.2), Vector3(26, -3, 16.2), Vector3(24.2, -3, 16), Vector3(24.2, -3, 16)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("TheCat:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 12.596, 13.196, 22.217, 22.817, 37.345, 37.945),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector3(0, 0.785, 0), Vector3(0, 0.785, 0), Vector3(0, 2.715, 0), Vector3(0, 2.715, 0), Vector3(0, 4.602, 0), Vector3(0, 4.602, 0), Vector3(0, 7.069, 0)]
+}
+tracks/2/type = "animation"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("TheCat/AnimationPlayer")
+tracks/2/keys = {
+"clips": PackedStringArray("Walk", "Idle", "Walk", "Idle", "Walk", "Idle", "Walk"),
+"times": PackedFloat32Array(0, 4.596, 12.596, 16.217, 22.217, 27.345, 37.345)
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_catstroll"]
+_data = {
+&"Stroll": SubResource("Animation_catstroll")
+}
 
 [node name="ExteriorWorld" type="Node3D" groups=["player_scene"]]
 script = ExtResource("1_gqbs3")
@@ -1726,3 +1770,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.6, -2.98, 9.2)
 variant_id = "traveller"
 waypoints = PackedVector3Array(12.6, -2.98, 9.2, 9.4, -2.98, 10, 3.4, -2.98, 10, -3, -2.64, 9.6, -7.5, -0.14, 10, -12, 0.02, 10.4, -16.6, 0.02, 10.6, -12, 0.02, 10.4, -7.5, -0.14, 10, -3, -2.64, 9.6, 3.4, -2.98, 10, 9.4, -2.98, 10)
 pause_range = Vector2(0.3, 1.2)
+
+[node name="CatStroll" type="Node3D" parent="."]
+
+[node name="TheCat" parent="CatStroll" instance=ExtResource("s2515_cat")]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 24.2, -3, 16)
+bubble_scale = 1.5
+
+[node name="AnimationPlayer" parent="CatStroll/TheCat" index="1"]
+autoplay = "Walk"
+
+[node name="StrollPlayer" type="AnimationPlayer" parent="CatStroll"]
+libraries = {
+&"": SubResource("AnimationLibrary_catstroll")
+}
+autoplay = "Stroll"
