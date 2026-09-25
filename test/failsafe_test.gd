@@ -118,6 +118,17 @@ const CAT_SCENE_PATH := "res://scenes/game/TheCat.tscn"
 const CAT_SCRIPT_PATH := "res://scripts/game/the_cat.gd"
 const CAT_LOOPS := ["Idle", "Sleep", "Walk"]
 const HEARTH_INTERACT := Vector3(-2.98, 0.13, -9.30)   # the Hearth's interact_point in MainTavern: where the fire is tended
+const DEN_FA_PATH := "res://assets/characters/custom/g9_den_fa.glb"   # Story 25.10
+const DEN_FA_SCENE_PATH := "res://scenes/game/DenFa.tscn"
+const DEN_FA_SCRIPT_PATH := "res://scripts/game/den_fa.gd"
+const DEN_FA_LINES_PATH := "res://data/dialogue/den_fa_lines.json"
+const DEN_FA_LOOPS := ["Idle", "Sit", "Walk"]
+const DEN_FA_ONE_SHOTS := ["Point", "StandUp", "SitDown"]
+const DEN_FA_STATES := ["Sit", "SitDown", "StandUp", "Idle", "Walk", "Point"]
+const KNIGHT_TOP := 2.315          # KayKit Knight head top, the tallest of the chibi cast
+const FIRE_ANCHOR := Vector3(-2.970, 0.100, -9.300)   # the Hearth's interact_point, world (MainTavern)
+const CAT_WORLD := Vector3(-2.937, 0.160, -6.895)
+const BAR_SPOT := Vector3(3.95, 0.10, -7.55)            # between Stool03 and Stool04
 
 var _pass_count := 0
 var _fail_count := 0
@@ -147,6 +158,8 @@ func _initialize() -> void:
 	test_townsfolk_kit()
 	test_the_cat()
 	await test_the_cat_yields()
+	test_den_fa()
+	await test_den_fa_e()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -1664,13 +1677,14 @@ func test_the_cat() -> void:
 
 
 
-## Test 17 (review): one E never does two things. In a small world with a ZonePromptUI, a registered
-## "fire" zone and the cat a step apart, a player body standing in both gets neither her prompt nor
-## her E; standing only by her, it gets both; a waiting patron in range takes E first; and her
-## carry-on never starts an AnimationPlayer she didn't pause.
+## Test 17 (review; rule changed by Story 25.10 J6): one E never does two things. In a small world with
+## a ZonePromptUI, a registered "fire" zone and the cat a step apart, a player body in both zones gives
+## E and the prompt to the NEARER one (it was: the cat always yields); a waiting patron in range takes
+## E first; walking away takes the prompt down; her carry-on never starts an AnimationPlayer she didn't
+## pause.
 func test_the_cat_yields() -> void:
 	if not ResourceLoader.exists(CAT_SCENE_PATH):
-		check(false, "the cat yields E: TheCat.tscn missing")
+		check(false, "the cat and E: TheCat.tscn missing")
 		return
 	var world := Node3D.new()
 	root.add_child(world)
@@ -1684,7 +1698,7 @@ func test_the_cat_yields() -> void:
 	(fire_shape.shape as BoxShape3D).size = Vector3(2, 2, 2)
 	fire_shape.position = Vector3(0, 1, 0)
 	fire.add_child(fire_shape)
-	world.add_child(fire)                    # box z -1..1
+	world.add_child(fire)                    # box z -1..1; default anchor = its shape, (0, 1, 0), flat (0, 0)
 	ui.register_zone(fire, "Press E - Tend Fire")
 	var cat = (load(CAT_SCENE_PATH) as PackedScene).instantiate()
 	world.add_child(cat)
@@ -1699,25 +1713,39 @@ func test_the_cat_yields() -> void:
 	cap.position = Vector3(0, 0.75, 0)
 	player.add_child(cap)
 	world.add_child(player)
+	player.position = Vector3(0, 0, 6.0)
 
 	var settle := func(frames: int) -> void:
 		for i in frames:
 			await physics_frame
 		await process_frame
-	player.position = Vector3(0, 0, 1.3)     # body z 0.8..1.8: inside the fire box and her zone
-	await settle.call(6)
-	var both := [fire.overlaps_body(player), cat._zone.overlaps_body(player)]
-	check(both == [true, true] and not cat.can_be_petted() and not (ui.prompt_label.visible and ui.prompt_label.text == cat.PROMPT),
-		"a player in both her zone and another E zone gets neither her prompt nor her E (in both: %s)" % [both])
-	player.position = Vector3(0, 0, 2.9)     # beside her only
-	await settle.call(6)
-	check(cat.can_be_petted() and ui.prompt_label.visible and ui.prompt_label.text == cat.PROMPT,
-		"beside her only: her prompt shows and E is hers")
+	await settle.call(40)                    # she finds the prompt UI (she looks for 30 frames)
+	if not ui.has_method("owns_e"):
+		check(false, "ZonePromptUI.owns_e (one E owner, Story 25.10)")
+		world.queue_free()
+		await process_frame
+		return
+	for c in [[1.05, "fire"], [1.4, "cat"]]:  # z 1.05: fire 1.05 / cat 1.15; z 1.4: cat 0.80 / fire 1.40
+		player.position = Vector3(0, 0, 6.0)
+		await settle.call(4)
+		player.position = Vector3(0, 0, c[0])
+		await settle.call(6)
+		var both := [fire.overlaps_body(player), cat._zone.overlaps_body(player)]
+		var fire_owns: bool = ui.owns_e(fire)
+		var cat_owns: bool = ui.owns_e(cat._zone)
+		var ok: bool
+		if c[1] == "fire":
+			ok = fire_owns and not cat_owns and not cat.can_be_petted() and ui.prompt_label.text == "Press E - Tend Fire"
+		else:
+			ok = cat_owns and not fire_owns and cat.can_be_petted() and ui.prompt_label.text == cat.PROMPT
+		check(both == [true, true] and ok and ui.prompt_label.visible,
+			"in both zones at z %.2f, E and the prompt go to the nearer, the %s (in both: %s)" % [c[0], c[1], both])
 	var patron := Node3D.new()               # a waiting patron in serving range takes E first
 	patron.set_script(_waiting_patron_script())
 	patron.add_to_group("patrons")
 	world.add_child(patron)
-	check(not cat.can_be_petted(), "a waiting patron in range takes E before her")
+	await settle.call(2)
+	check(not cat.can_be_petted() and not ui.owns_e(cat._zone), "a waiting patron in range takes E before her")
 	patron.free()
 	player.position = Vector3(0, 0, 6.0)     # walked away
 	await settle.call(6)
@@ -1731,6 +1759,324 @@ func test_the_cat_yields() -> void:
 static func _waiting_patron_script() -> GDScript:
 	var gs := GDScript.new()
 	gs.source_code = "extends Node3D\nfunc can_be_served_by(_p: Vector3) -> bool:\n\treturn true\n"
+	gs.reload()
+	return gs
+
+# --- Test 18: Den Fa, the Architect (Story 25.10) ---
+# A tall construct on his own rig (ears, mask, four folded bone wings: Story 26.11 animates them), a
+# metallic mirror mask that keeps its ink outline, seated at the Hearth's SitPoint by his own seat
+# convention, talkable (placeholder lines until Story 10.3), a walk to the bar and a point at the
+# pillar, two reflection probes, and one E owner near the hearth (J6: the nearest zone wins, behind a
+# gate decided once per frame so serving a patron can never also talk).
+func test_den_fa() -> void:
+	print("[Test 18] Den Fa")
+	for p in [DEN_FA_PATH, DEN_FA_SCENE_PATH, DEN_FA_SCRIPT_PATH]:
+		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
+	check(FileAccess.file_exists(DEN_FA_LINES_PATH), "exists: %s" % DEN_FA_LINES_PATH.get_file())
+	if ResourceLoader.exists(DEN_FA_PATH):
+		var inst := (load(DEN_FA_PATH) as PackedScene).instantiate()
+		var sks := inst.find_children("*", "Skeleton3D", true, false)
+		var names := []
+		if not sks.is_empty():
+			for b in (sks[0] as Skeleton3D).get_bone_count():
+				names.append((sks[0] as Skeleton3D).get_bone_name(b))
+		var needed := ["d_mask", "d_ear1.L", "d_ear2.L", "d_ear1.R", "d_ear2.R"]
+		for w in ["U", "L"]:
+			for i in [1, 2, 3]:
+				for side in ["L", "R"]:
+					needed.append("d_wing%s%d.%s" % [w, i, side])
+		var missing := needed.filter(func(n): return not names.has(n))
+		var unprefixed := names.filter(func(n): return not str(n).begins_with("d_"))
+		check(names.size() >= 40 and missing.is_empty() and unprefixed.is_empty(),
+			"his rig: %d bones, all d_ (not: %s); ears, mask and 12 wing bones (missing: %s)" % [names.size(), unprefixed.slice(0, 3), missing])
+		var aps := inst.find_children("*", "AnimationPlayer", true, false)
+		var ap: AnimationPlayer = aps[0] if not aps.is_empty() else null
+		var wrong_clips := []
+		for c in DEN_FA_LOOPS:
+			if ap == null or not ap.has_animation(c) or ap.get_animation(c).loop_mode != Animation.LOOP_LINEAR:
+				wrong_clips.append(c)
+		for c in DEN_FA_ONE_SHOTS:
+			if ap == null or not ap.has_animation(c) or ap.get_animation(c).loop_mode != Animation.LOOP_NONE:
+				wrong_clips.append(c)
+		check(wrong_clips.is_empty(), "Idle, Sit and Walk loop; Point, StandUp and SitDown play once (wrong or missing: %s)" % [wrong_clips])
+		inst.free()
+		var st := _mesh_stats(DEN_FA_PATH)
+		check(st.tris > 0 and st.tris <= 6000 and st.glow == 0 and st.wrong.is_empty(),
+			"g9_den_fa.glb: %d tris (≤ 6,000), nothing glows, roughness > 0 (wrong: %s)" % [st.tris, st.wrong])
+		var gnodes := _scene_nodes(DEN_FA_PATH)
+		var top := -INF
+		var mask: StandardMaterial3D = null
+		for k in gnodes:
+			var mesh = gnodes[k].props.get("mesh")
+			if not mesh is Mesh:
+				continue
+			top = maxf(top, ((gnodes[k].world as Transform3D) * (mesh as Mesh).get_aabb()).end.y)
+			for s in (mesh as Mesh).get_surface_count():
+				var m = (mesh as Mesh).surface_get_material(s)
+				if m is StandardMaterial3D and (m as StandardMaterial3D).resource_name == "den_fa_mask":
+					mask = m
+		check(top >= KNIGHT_TOP + 0.45 and top <= 3.2,
+			"taller than the whole chibi cast: %.2f m (the Knight's %.3f + 0.45, at most 3.2)" % [top, KNIGHT_TOP])
+		check(mask != null and mask.metallic >= 0.9 and mask.roughness > 0.05 and mask.roughness <= 0.20
+			and not mask.emission_enabled and mask.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED,
+			"the mirror mask is metallic, roughness in (0.05, 0.20] (ink outline), opaque, not glowing (%s)"
+			% ["missing" if mask == null else "metallic %.2f roughness %.2f" % [mask.metallic, mask.roughness]])
+
+	var dscene := _scene_nodes(DEN_FA_SCENE_PATH) if ResourceLoader.exists(DEN_FA_SCENE_PATH) else {}
+	var root_script = dscene.get(".", {}).get("props", {}).get("script", null) if dscene.has(".") else null
+	check(root_script is Script and (root_script as Script).resource_path == DEN_FA_SCRIPT_PATH, "DenFa.tscn runs den_fa.gd")
+	var tz_r := 0.0
+	for k in dscene:
+		if str(k).begins_with("TalkZone/") and dscene[k].props.get("shape") is SphereShape3D:
+			tz_r = (dscene[k].props.shape as SphereShape3D).radius
+	check(dscene.has("TalkZone") and dscene.TalkZone.type == "Area3D" and tz_r >= 0.6 and tz_r <= 1.2, "a TalkZone (sphere, r %.2f m)" % tz_r)
+	var bodies := dscene.keys().filter(func(k): return dscene[k].type in ["CharacterBody3D", "RigidBody3D", "StaticBody3D"])
+	var groups := []
+	for k in dscene:
+		groups.append_array(dscene[k].groups)
+	check(dscene.has(".") and bodies.is_empty() and not (groups.has("patrons") or groups.has("villagers") or groups.has("patron_seat")),
+		"not a patron and no physics body (bodies %s, groups %s)" % [bodies, groups])
+	var project := FileAccess.get_file_as_string("res://project.godot")
+	var autoloads := project.substr(project.find("[autoload]"), 2000) if project.find("[autoload]") >= 0 else ""
+	autoloads = autoloads.substr(0, autoloads.find("\n[", 2)) if autoloads.find("\n[", 2) > 0 else autoloads
+	check(not autoloads.contains("den_fa") and not autoloads.contains("DenFa"), "no autoload for Den Fa (AR D11)")
+	var ds = load(DEN_FA_SCRIPT_PATH) as Script if ResourceLoader.exists(DEN_FA_SCRIPT_PATH) else null
+	var methods := ds.get_script_method_list().map(func(m): return m.name) if ds != null else []
+	var pl_ok: bool = methods.has("pick_line") and ds.pick_line(0, -1, 0.5) == -1 and ds.pick_line(1, 0, 0.5) == 0
+	if pl_ok:
+		var last := -1
+		for i in 20:
+			var n: int = ds.pick_line(3, last, float(i) / 20.0)
+			if n == last or n < 0 or n > 2:
+				pl_ok = false
+			last = n
+		for roll in [0.0, 0.34, 0.5, 0.99]:
+			if ds.pick_line(2, 0, roll) != 1:
+				pl_ok = false
+	check(pl_ok, "pick_line: none for no lines, the only one for one, never the same twice in a row")
+	var lines = _read_json(DEN_FA_LINES_PATH) if FileAccess.file_exists(DEN_FA_LINES_PATH) else null
+	var distinct := {}
+	for l in (lines.get("early", []) if lines is Dictionary else []):
+		if str(l).strip_edges() != "":
+			distinct[str(l)] = true
+	check(distinct.size() >= 2, "%d distinct early lines (≥ 2; placeholders until Story 10.3)" % distinct.size())
+
+	var sit_world := _hearth_sit_point_world()
+	var fwd := Vector3(sit_world.basis.z.x, 0, sit_world.basis.z.z).normalized()
+	check(fwd.distance_to(Vector3(0.906, 0, -0.423)) < 0.01, "the SitPoint faces the room, turned toward the fire")
+	var seat: Vector3 = ds.seat_root(sit_world) if methods.has("seat_root") else Vector3.INF
+	var ahead := (seat - sit_world.origin).dot(fwd) if seat != Vector3.INF else 0.0
+	check(seat != Vector3.INF and absf(seat.y - 0.10) < 0.02 and ahead > 0.25 and ahead < 0.7,
+		"seat_root: on the floor (y %.2f), %.2f m in front of the SitPoint" % [seat.y if seat != Vector3.INF else -1.0, ahead])
+	var hs := _scene_nodes(HEARTH_SCENE_PATH)
+	check(hs.has("SitPoint") and not (hs.SitPoint.groups as Array).has("patron_seat"), "the SitPoint is not a patron seat")
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var dens := tav.keys().filter(func(k): return tav[k].instance == DEN_FA_SCENE_PATH)
+	check(dens.size() == 1, "one Den Fa in the tavern (%d)" % dens.size())
+	if dens.size() == 1:
+		var dw: Transform3D = tav[dens[0]].world
+		var face := Vector3(dw.basis.z.x, 0, dw.basis.z.z).normalized()
+		var off := Vector2(dw.origin.x, dw.origin.z).distance_to(Vector2(seat.x, seat.z)) if seat != Vector3.INF else 99.0
+		check(off <= 0.05 and absf(dw.origin.y - seat.y) <= 0.05 and rad_to_deg(face.angle_to(fwd)) <= 5.0 and not (tav[dens[0]].groups as Array).has("patrons"),
+			"seated at the hearth: root %.2f m from seat_root, facing %.1f° off the SitPoint" % [off, rad_to_deg(face.angle_to(fwd))])
+		var props: Dictionary = tav[dens[0]].props
+		var route: PackedVector3Array = props.get("bar_route", PackedVector3Array())
+		var nav: NavigationMesh = tav["SubViewportContainer/SubViewport/TavernNavigation"].props.get("navigation_mesh")
+		var basket := Vector3.INF
+		var stools := []
+		for k in tav:
+			if tav[k].instance == CAT_BASKET_PATH:
+				basket = (tav[k].world as Transform3D).origin
+			if str(k).get_file() == "RoundBar":
+				var sub := _scene_nodes(tav[k].instance)
+				for s in ["Stools/Stool03", "Stools/Stool04"]:
+					if sub.has(s):
+						stools.append(((tav[k].world as Transform3D) * (sub[s].world as Transform3D)).origin)
+		var why := []
+		if route.size() < 3:
+			why.append("%d points" % route.size())
+		for p in route:
+			if absf(p.y - 0.10) > 0.05:
+				why.append("y %.2f" % p.y)
+		for i in route.size() - 1:
+			var a := route[i]
+			var b := route[i + 1]
+			var n := maxi(int(ceil(a.distance_to(b) / 0.25)), 1)
+			for t in n + 1:
+				var q := a.lerp(b, float(t) / n)
+				if i > 0 and not _nav_contains(nav, q.x, q.z):
+					why.append("off the navmesh at (%.1f, %.1f)" % [q.x, q.z])
+				if basket != Vector3.INF and Vector2(q.x, q.z).distance_to(Vector2(basket.x, basket.z)) < 0.8:
+					why.append("by the basket at (%.1f, %.1f)" % [q.x, q.z])
+		if route.size() > 0:
+			var end := route[route.size() - 1]
+			if end.distance_to(BAR_SPOT) > 0.6:
+				why.append("ends at (%.2f, %.2f)" % [end.x, end.z])
+			for s in stools:
+				if Vector2(end.x, end.z).distance_to(Vector2(s.x, s.z)) < 0.6:
+					why.append("on a stool")
+		check(route.size() >= 3 and stools.size() == 2 and why.is_empty(),
+			"his walk to the bar: on the floor, on the navmesh after the first leg, clear of the basket, between Stool03 and Stool04 %s" % [why.slice(0, 4)])
+		check(str(props.get("pillar_target", "")).ends_with("HourglassPillar/HumAnchor"), "he points at the pillar's HumAnchor")
+		var probes := tav.keys().filter(func(k): return tav[k].type == "ReflectionProbe")
+		var consts: Dictionary = ds.get_script_constant_map() if ds != null else {}
+		var masks := []
+		for c in ["MASK_SEATED", "MASK_STANDING"]:
+			if consts.get(c) is Vector3:
+				masks.append(dw * (consts[c] as Vector3))
+		var probe_ok := probes.size() == 2 and masks.size() == 2
+		var in_hearth := false
+		for k in probes:
+			var pp: Dictionary = tav[k].props
+			if int(pp.get("ambient_mode", 1)) != ReflectionProbe.AMBIENT_DISABLED or int(pp.get("update_mode", 0)) != ReflectionProbe.UPDATE_ONCE \
+					or not pp.get("box_projection", false) or not pp.get("interior", false):
+				probe_ok = false
+			if str(k).get_file() == "HearthProbe" and masks.size() == 2:
+				var half: Vector3 = (pp.get("size", Vector3(20, 20, 20)) as Vector3) / 2.0
+				var pw: Transform3D = tav[k].world
+				in_hearth = true
+				for m in masks:
+					var q: Vector3 = (pw.affine_inverse() * (m as Vector3)).abs() - half
+					if q.x > 0.0 or q.y > 0.0 or q.z > 0.0:
+						in_hearth = false
+		check(probe_ok and in_hearth, "two reflection probes (ambient off, once, box, interior); HearthProbe holds his mask seated and standing (%d probes)" % probes.size())
+	var mt := FileAccess.get_file_as_string("res://scripts/game/main_tavern.gd")
+	var zp := mt.substr(mt.find("func _init_zone_prompts"), 500)
+	check(zp.contains(".find(get_tree())"), "the tavern reuses its ZonePromptUI: one prompt manager")
+	print("")
+
+
+## One E owner near the hearth (Test 18, J6). A small world in tavern coordinates: the prompt UI, the
+## fire's zone (anchored at its interact_point), the cat, Den Fa seated at the SitPoint, a player body.
+func test_den_fa_e() -> void:
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	if not ResourceLoader.exists(DEN_FA_SCENE_PATH) or not ResourceLoader.exists(CAT_SCENE_PATH) or not ui.has_method("owns_e"):
+		check(false, "one E owner near the hearth: DenFa.tscn, TheCat.tscn and ZonePromptUI.owns_e needed")
+		ui.free()
+		return
+	var world := Node3D.new()
+	root.add_child(world)
+	world.add_child(ui)
+	var fire := Area3D.new()
+	var fire_shape := CollisionShape3D.new()
+	fire_shape.shape = BoxShape3D.new()
+	(fire_shape.shape as BoxShape3D).size = Vector3(2.7, 2.2, 2.8)
+	fire_shape.position = Vector3(0, 1.1, 0)
+	fire.add_child(fire_shape)
+	fire.position = Vector3(-3.55, 0, -9.3)
+	world.add_child(fire)
+	ui.register_zone(fire, "Press E - Tend Fire", FIRE_ANCHOR)
+	var cat = (load(CAT_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(cat)
+	cat.position = CAT_WORLD
+	var marker := Marker3D.new()
+	world.add_child(marker)
+	marker.transform = _hearth_sit_point_world()
+	var den = (load(DEN_FA_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(den)
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.add_to_group("player")
+	var cap := CollisionShape3D.new()
+	cap.shape = CapsuleShape3D.new()
+	(cap.shape as CapsuleShape3D).radius = PLAYER_RADIUS
+	(cap.shape as CapsuleShape3D).height = 1.5
+	cap.position = Vector3(0, 0.75, 0)
+	player.add_child(cap)
+	world.add_child(player)
+	var outside := Vector3(-3.4, 0, -4.0)
+	player.position = outside
+	var settle := func(frames: int) -> void:
+		for i in frames:
+			await physics_frame
+		await process_frame
+	await settle.call(40)                    # the cat and Den Fa find the prompt UI (they look for 30 frames)
+	if not den.has_method("sit_at") or not den.has_method("can_talk"):
+		check(false, "den_fa.gd has sit_at() and can_talk()")
+		world.queue_free()
+		await process_frame
+		return
+	den.sit_at(marker)
+	await settle.call(4)
+	var talk: Area3D = den.get_node("TalkZone")
+	var zones := {"fire": fire, "cat": cat._zone, "den_fa": talk}
+	var texts := {"fire": "Press E - Tend Fire", "cat": cat.PROMPT, "den_fa": den.PROMPT}
+	var owners := func() -> Array:
+		return zones.keys().filter(func(k): return ui.owns_e(zones[k]))
+	for c in [["den_fa", Vector3(-3.4, 0, -7.9)], ["cat", Vector3(-3.2, 0, -7.2)], ["fire", Vector3(-3.0, 0, -8.6)]]:
+		player.position = outside
+		await settle.call(4)
+		player.position = c[1]
+		await settle.call(6)
+		var o: Array = owners.call()
+		check(o == [c[0]] and ui.prompt_label.visible and ui.prompt_label.text == texts[c[0]],
+			"at (%.1f, %.1f) E and the prompt go to the nearest, %s (owners %s, prompt '%s')" % [c[1].x, c[1].z, c[0], o, ui.prompt_label.text])
+	player.position = outside
+	await settle.call(4)
+	player.position = Vector3(-3.2, 0, -7.2)
+	await settle.call(6)
+	player.position = Vector3(-3.43, 0, -7.21)  # Den Fa's root 0.49, the cat 0.59: within the 0.2 m hysteresis
+	await settle.call(6)
+	check(owners.call() == ["cat"], "hysteresis: the cat keeps E while Den Fa is nearer by less than 0.2 m (owners %s)" % [owners.call()])
+	var patron := Node3D.new()               # a waiting patron in serving range takes E first
+	patron.set_script(_waiting_patron_script())
+	patron.add_to_group("patrons")
+	world.add_child(patron)
+	await settle.call(2)
+	check(owners.call().is_empty() and not den.can_talk() and not cat.can_be_petted(), "a waiting patron takes E from the fire, the cat and Den Fa")
+	patron.free()
+	player.position = outside
+	await settle.call(4)
+	player.position = Vector3(-3.4, 0, -7.9)
+	var flip := Node3D.new()                 # serving flips a patron at once (RealisticPatron.serve_patron)
+	flip.set_script(_flip_patron_script())
+	flip.add_to_group("patrons")
+	world.add_child(flip)
+	await settle.call(6)
+	var before: bool = ui.owns_e(talk)
+	flip.serve_patron()
+	check(not before and not ui.owns_e(talk) and not den.can_talk(), "serving a patron can't also talk to him: the gate is decided once per frame")
+	flip.free()
+	await settle.call(3)
+	check(ui.owns_e(talk) and den.can_talk(), "once the patron is served, E is his again")
+	player.position = outside
+	await settle.call(6)
+	check(not ui.prompt_label.visible and owners.call().is_empty(), "walking away takes the prompt down")
+	var trees := den.find_children("*", "AnimationTree", true, false)
+	var sm = (trees[0] as AnimationTree).tree_root if not trees.is_empty() else null
+	var states_ok: bool = sm is AnimationNodeStateMachine and DEN_FA_STATES.all(func(s): return (sm as AnimationNodeStateMachine).has_node(s))
+	check(states_ok, "one AnimationTree whose state machine holds %s" % [DEN_FA_STATES])
+	if states_ok and den.has_method("stand") and den.has_method("point_at"):
+		var pb: AnimationNodeStateMachinePlayback = (trees[0] as AnimationTree).get("parameters/playback")
+		den.stand()
+		var t0 := Time.get_ticks_msec()
+		while pb.get_current_node() != "Idle" and Time.get_ticks_msec() - t0 < 4000:
+			await process_frame
+		den.point_at(Vector3(7.74, 2.2, -8.215))
+		t0 = Time.get_ticks_msec()
+		while pb.get_current_node() != "Point" and Time.get_ticks_msec() - t0 < 3000:
+			await process_frame
+		check(pb.get_current_node() == "Point", "he stands, then turns and points at the pillar (state %s)" % pb.get_current_node())
+	else:
+		check(false, "he stands, then turns and points at the pillar")
+	world.queue_free()
+	await process_frame
+
+
+## The Hearth's SitPoint in MainTavern world space (the Hearth instance composed with Hearth.tscn).
+static func _hearth_sit_point_world() -> Transform3D:
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var hs := _scene_nodes(HEARTH_SCENE_PATH)
+	for k in tav:
+		if tav[k].instance == HEARTH_SCENE_PATH and hs.has("SitPoint"):
+			return (tav[k].world as Transform3D) * (hs.SitPoint.world as Transform3D)
+	return Transform3D.IDENTITY
+
+
+static func _flip_patron_script() -> GDScript:
+	var gs := GDScript.new()
+	gs.source_code = "extends Node3D\nvar served := false\nfunc can_be_served_by(_p: Vector3) -> bool:\n\treturn not served\nfunc serve_patron() -> void:\n\tserved = true\n"
 	gs.reload()
 	return gs
 
