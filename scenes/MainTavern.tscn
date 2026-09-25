@@ -43,21 +43,21 @@
 [ext_resource type="PackedScene" uid="uid://b2m46soecam60" path="res://scenes/ui/debug_panel.tscn" id="32_ocxae"]
 [ext_resource type="Script" uid="uid://bkmu2w0hiyj1n" path="res://scenes/game_over_screen.gd" id="33_xtcff"]
 [ext_resource type="Script" uid="uid://b7ph34uiot0rh" path="res://scripts/menus/pause_menu.gd" id="36_u7xbe"]
+[ext_resource type="PackedScene" uid="uid://btchp2m8ft71r" path="res://assets/environment/custom/b9_beam.gltf" id="s253_b9_beam"]
 [ext_resource type="PackedScene" uid="uid://dwe8y7kaqv8e6" path="res://assets/environment/custom/b9_floor.gltf" id="s253_b9_floor"]
-[ext_resource type="PackedScene" uid="uid://cat84g5uagvnj" path="res://assets/environment/custom/b9_wall_full.gltf" id="s253_b9_wall_full"]
-[ext_resource type="PackedScene" uid="uid://cq5433qwjfct4" path="res://assets/environment/custom/b9_wall_window.gltf" id="s253_b9_wall_window"]
-[ext_resource type="PackedScene" uid="uid://dc75sijra2ute" path="res://assets/environment/custom/b9_wall_low.gltf" id="s253_b9_wall_low"]
 [ext_resource type="PackedScene" uid="uid://cdk0krfwpjifh" path="res://assets/environment/custom/b9_post_full.gltf" id="s253_b9_post_full"]
 [ext_resource type="PackedScene" uid="uid://cdneowir4dk0q" path="res://assets/environment/custom/b9_post_low.gltf" id="s253_b9_post_low"]
-[ext_resource type="PackedScene" uid="uid://btchp2m8ft71r" path="res://assets/environment/custom/b9_beam.gltf" id="s253_b9_beam"]
+[ext_resource type="PackedScene" uid="uid://cat84g5uagvnj" path="res://assets/environment/custom/b9_wall_full.gltf" id="s253_b9_wall_full"]
+[ext_resource type="PackedScene" uid="uid://dc75sijra2ute" path="res://assets/environment/custom/b9_wall_low.gltf" id="s253_b9_wall_low"]
+[ext_resource type="PackedScene" uid="uid://cq5433qwjfct4" path="res://assets/environment/custom/b9_wall_window.gltf" id="s253_b9_wall_window"]
 [ext_resource type="PackedScene" uid="uid://c52r7b63rln0" path="res://assets/environment/custom/b10_door_frame.gltf" id="s253_b10_door_frame"]
 [ext_resource type="PackedScene" uid="uid://cmrr8bdrxhfsh" path="res://assets/environment/custom/b10_door_leaf.gltf" id="s253_b10_door_leaf"]
-[ext_resource type="Script" path="res://scripts/game/front_door.gd" id="s253_front_door"]
+[ext_resource type="Script" uid="uid://dly33laq3asd4" path="res://scripts/game/front_door.gd" id="s253_front_door"]
 [ext_resource type="PackedScene" path="res://scenes/game/HourglassPillar.tscn" id="s254_pillar"]
 [ext_resource type="PackedScene" path="res://scenes/game/Hearth.tscn" id="s255_hearth"]
 [ext_resource type="PackedScene" path="res://scenes/game/RoundBar.tscn" id="s256_roundbar"]
-[ext_resource type="PackedScene" path="res://scenes/game/GuildDesk.tscn" id="s257_desk"]
 [ext_resource type="PackedScene" path="res://scenes/game/GuildNoticeBoard.tscn" id="s257_board"]
+[ext_resource type="PackedScene" path="res://scenes/game/GuildDesk.tscn" id="s257_desk"]
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
 vertices = PackedVector3Array(1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, -4.15, 0.417485, -18.5553, 14.1, 0.417485, -15.5553, 14.1, 0.417485, -18.5553, -3.4, 0.417485, -6.80526, -4.15, 0.417485, -6.55526, -4.15, 0.417485, -5.55526, -2.9, 0.417485, -5.55526, -2.65, 0.417485, -5.05526, 4.85, 0.417485, -5.80526, 4.1, 0.417485, -7.05526, -4.15, 0.417485, -11.0553, -3.4, 0.417485, -10.8053, 1.1, 0.417485, -13.5553, 4.1, 0.417485, -9.30526, 5.85, 0.417485, -11.5553, 5.85, 0.417485, -13.5553, 7.6, 0.417485, -11.3053, 7.6, 0.417485, -10.0553, 8.35, 0.417485, -11.8053, 7.1, 0.417485, -11.8053, 13.1, 0.417485, -5.30526, 13.35, 0.417485, -4.30526, 14.1, 0.417485, -4.30526, 11.35, 0.417485, -7.05526, 10.1, 0.417485, -5.30526, 11.1, 0.417485, -5.30526, 11.35, 0.417485, -4.80526, 14.1, 0.417485, -13.5553, 10.35, 0.417485, -11.0553, 11.35, 0.417485, -9.55526, 7.35, 5.16749, -8.55526, 7.35, 5.16749, -7.80526, 8.1, 5.16749, -7.80526, 8.1, 5.16749, -8.55526, 13.1, 0.417485, -3.30526, 14.1, 0.417485, 3.69474, 10.1, 0.417485, -3.30526, 9.85, 0.417485, -5.05526, 8.85, 0.417485, -4.55526, 6.6, 0.417485, -4.55526, -2.9, 0.417485, -0.555258, -4.15, 0.417485, -0.555258, -4.15, 0.417485, 3.69474, -2.4, 0.417485, -1.05526, -4.15, 1.41749, -1.55526, -3.4, 1.41749, -1.55526, -3.4, 1.41749, -4.05526, -4.15, 1.41749, -4.30526, -4.65, 0.167485, 8.19474, 14.6, 0.167485, 8.19474, 14.35, 0.167485, 5.19474, -4.65, 0.167485, 5.44474)
@@ -102,6 +102,21 @@ size = Vector3(0.599991, 1, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_6306u"]
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_CornerCollider"]
+size = Vector3(0.3, 4, 2.51)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_GapColliderWest"]
+size = Vector3(1.67, 4, 0.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_GapColliderEast"]
+size = Vector3(4.04, 4, 0.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_CornerColliderEast"]
+size = Vector3(0.3, 4, 2.58)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s253_door_trigger"]
+size = Vector3(3, 2.5, 4)
+
 [sub_resource type="Environment" id="Environment_kr071"]
 ambient_light_color = Color(0.4, 0.5, 0.7, 1)
 ambient_light_energy = 0.3
@@ -142,6 +157,9 @@ emission_enabled = true
 emission = Color(0.517647, 0.517647, 0.0705882, 1)
 emission_energy_multiplier = 2.0
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_s257_recruit"]
+size = Vector3(2.4, 2.2, 1.4)
+
 [sub_resource type="FogMaterial" id="FogMaterial_ocxae"]
 albedo = Color(1, 1, 0, 1)
 
@@ -152,6 +170,9 @@ next_pass = SubResource("FogMaterial_ocxae")
 size = Vector3(1.99072, 2.62048, 1.96149)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xtcff"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s257_board"]
+size = Vector3(3, 2.2, 1.6)
 
 [sub_resource type="FogMaterial" id="FogMaterial_lysou"]
 albedo = Color(1, 1, 0, 1)
@@ -324,27 +345,6 @@ cache/0/27/0/scale = 1.0
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6dl45"]
 bg_color = Color(0.533037, 0.533037, 0.533037, 1)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_s253_CornerCollider"]
-size = Vector3(0.3, 4, 2.51)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_s253_GapColliderWest"]
-size = Vector3(1.67, 4, 0.3)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_s253_GapColliderEast"]
-size = Vector3(4.04, 4, 0.3)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_s253_CornerColliderEast"]
-size = Vector3(0.3, 4, 2.58)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_s253_door_trigger"]
-size = Vector3(3, 2.5, 4)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_s257_recruit"]
-size = Vector3(2.4, 2.2, 1.4)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_s257_board"]
-size = Vector3(3, 2.2, 1.6)
-
 [node name="Node3D" type="Node3D" groups=["player_scene"]]
 script = ExtResource("1_0nrlt")
 
@@ -495,12 +495,6 @@ skeleton = NodePath("../../../../..")
 [node name="Shell" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture"]
 
 [node name="Floor" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
-
-[node name="FarWalls" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
-
-[node name="NearWalls" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
-
-[node name="Partition" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
 
 [node name="Hall_0_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, -0.1, -18.56)
@@ -922,6 +916,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.53, 5.72)
 [node name="Porch_9_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Floor" instance=ExtResource("s253_b9_floor")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.53, 7.72)
 
+[node name="FarWalls" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
+
 [node name="North_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls" instance=ExtResource("s253_b9_wall_full")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -19.3223)
 
@@ -1069,29 +1065,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 2, -17.915)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FarWalls/CornerCollider"]
 shape = SubResource("BoxShape3D_s253_CornerCollider")
 
-[node name="Partition_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
-transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 2.44714, 0, -14.6575)
-
-[node name="Partition_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
-transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 4.40143, 0, -14.6575)
-
-[node name="Partition_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
-transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 6.35571, 0, -14.6575)
-
-[node name="Partition_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
-transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 8.31, 0, -14.6575)
-
-[node name="Partition_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
-transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 10.2643, 0, -14.6575)
-
-[node name="Partition_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
-transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 12.2186, 0, -14.6575)
-
-[node name="Partition_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
-transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 14.1729, 0, -14.6575)
-
-[node name="PostEnd" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_post_full")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, -14.6575)
+[node name="NearWalls" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
 
 [node name="South_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls" instance=ExtResource("s253_b9_wall_low")]
 transform = Transform3D(0.95714, 0, 0, 0, 1, 0, 0, 0, 1, -4.04286, 0, 4.48)
@@ -1207,24 +1181,47 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.99, 2, -17.88)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls/CornerColliderEast"]
 shape = SubResource("BoxShape3D_s253_CornerColliderEast")
 
+[node name="Partition" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
+
+[node name="Partition_0" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 2.44714, 0, -14.6575)
+
+[node name="Partition_1" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 4.40143, 0, -14.6575)
+
+[node name="Partition_2" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 6.35571, 0, -14.6575)
+
+[node name="Partition_3" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 8.31, 0, -14.6575)
+
+[node name="Partition_4" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 10.2643, 0, -14.6575)
+
+[node name="Partition_5" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 12.2186, 0, -14.6575)
+
+[node name="Partition_6" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_wall_full")]
+transform = Transform3D(0.97714, 0, 0, 0, 1, 0, 0, 0, 1, 14.1729, 0, -14.6575)
+
+[node name="PostEnd" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/Partition" instance=ExtResource("s253_b9_post_full")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, -14.6575)
+
 [node name="FrontDoor" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0, 4.48)
 script = ExtResource("s253_front_door")
 
 [node name="Frame" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor" instance=ExtResource("s253_b10_door_frame")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="HingeLeft" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.05, 0)
 
 [node name="Leaf" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor/HingeLeft" instance=ExtResource("s253_b10_door_leaf")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="HingeRight" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor"]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.9, 0.05, 0)
 
 [node name="Leaf" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor/HingeRight" instance=ExtResource("s253_b10_door_leaf")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
 [node name="Trigger" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
@@ -1289,13 +1286,13 @@ material_override = SubResource("StandardMaterial3D_n6x1j")
 mesh = ExtResource("5_x2ury")
 
 [node name="Hearth" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s255_hearth")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -4.883426, 0.134378, -9.30465)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -4.88343, 0.134378, -9.30465)
 
 [node name="GuildDesk" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s257_desk")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.586574, 0.134378, -4.30465)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5866, 0.134378, -4.30465)
 
 [node name="GuildNoticeBoard" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s257_board")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.286574, 0.134378, -14.50465)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.28657, 0.134378, -14.5047)
 
 [node name="bench2" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("1_m4lj6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.44709, 0.16575, 0.194626)
@@ -1420,7 +1417,7 @@ script = ExtResource("8_x2ury")
 
 [node name="FireplaceArea" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive"]
 unique_name_in_owner = true
-transform = Transform3D(0.902494, 0, 0, 0, 1, 0, 0, 0, 1, -3.203855, 0, -9.3)
+transform = Transform3D(0.902494, 0, 0, 0, 1, 0, 0, 0, 1, -3.20386, 0, -9.3)
 script = ExtResource("21_lysou")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/FireplaceArea"]
@@ -1448,7 +1445,7 @@ skeleton = NodePath("../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
 
 [node name="RecruitmentDesk" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive"]
-transform = Transform3D(0.902494, 0, 0, 0, 1, 0, 0, 0, 1, 10.468936, 0, -3.1)
+transform = Transform3D(0.902494, 0, 0, 0, 1, 0, 0, 0, 1, 10.4689, 0, -3.1)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/RecruitmentDesk"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
@@ -1480,7 +1477,7 @@ skeleton = NodePath("../../..")
 surface_material_override/0 = SubResource("StandardMaterial3D_g0upg")
 
 [node name="MissionBoard" type="Area3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive"]
-transform = Transform3D(0.902494, 0, 0, 0, 1, 0, 0, 0, 1, 3.880726, 0, -13.4)
+transform = Transform3D(0.902494, 0, 0, 0, 1, 0, 0, 0, 1, 3.88073, 0, -13.4)
 visible = false
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Interactive/MissionBoard"]
