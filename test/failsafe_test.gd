@@ -37,6 +37,12 @@ const EXTERIOR_SCENE_PATH := "res://scenes/world/ExteriorWorld.tscn"
 const EXIT_ZONE_SCRIPT_PATH := "res://scripts/world/exit_zone_interior.gd"
 const EDGE_SHADER_PATH := "res://assets/shaders/edge_detection.gdshader"
 const PLAYER_RADIUS := 0.5   # Player.tscn CapsuleShape3D radius
+# Story 25.29: the exterior terrain (hill, path, stream), bridge, village and forest.
+const TERRAIN_PATH := "res://assets/environment/custom/a6_exterior_terrain.gltf"
+const BRIDGE_PATH := "res://assets/environment/custom/a6_bridge.gltf"
+const HEIGHTFIELD_FIXTURE := "res://test/fixtures/exterior_heightfield.json"
+const SEATED_GROUPS := ["Village/", "Yard/", "Forest/", "Scatter/", "Props/"]
+const SEATED_ROOT_NODES := ["GuildTavern", "barrel2", "candle_thin_lit_obj", "candle_thin_lit_obj (1)"]
 
 var _pass_count := 0
 var _fail_count := 0
@@ -54,6 +60,7 @@ func _initialize() -> void:
 	test_ruin_reservation()
 	test_tavern_shell()
 	test_tavern_exterior()
+	test_exterior_world()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -566,6 +573,106 @@ static func _scene_nodes(scene_path: String) -> Dictionary:
 static func _circle_hits_rect(c: Vector2, r: float, rect: Array) -> bool:
 	var nearest := Vector2(clampf(c.x, rect[0][0], rect[0][1]), clampf(c.y, rect[1][0], rect[1][1]))
 	return nearest.distance_to(c) < r
+
+
+# --- Test 9: Exterior ground, forest and village (Story 25.29) ---
+# The terrain is both the drawn and the walked ground (the old Ground box drew at y -0.11 but
+# collided at +0.25, so everything floated). Every placed building, tree, rock and prop must sit on
+# the terrain height (heightfield fixture exported with the terrain); trees stay off the path, the
+# stream and the buildings; the bridge deck and the play-area bounds have collision.
+func test_exterior_world() -> void:
+	print("[Test 9] Exterior ground, forest and village")
+	for p in [TERRAIN_PATH, BRIDGE_PATH]:
+		check(ResourceLoader.exists(p), "asset exists: %s" % p.get_file())
+	check(ResourceLoader.exists(TERRAIN_PATH) and _scene_has_shape(TERRAIN_PATH, "ConcavePolygonShape3D"),
+		"terrain imports a trimesh collider")
+	check(ResourceLoader.exists(BRIDGE_PATH) and _scene_has_shape(BRIDGE_PATH, "ConcavePolygonShape3D"),
+		"bridge deck imports a trimesh collider")
+	var hf = _read_json(HEIGHTFIELD_FIXTURE)
+	if not hf is Dictionary:
+		check(false, "heightfield fixture readable")
+		print("")
+		return
+	var ext := _scene_nodes(EXTERIOR_SCENE_PATH)
+	check(not ext.has("Ground"), "the old Ground box is gone")
+	check(ext.values().any(func(n): return n.instance == TERRAIN_PATH), "ExteriorWorld instances the terrain")
+	check(ext.values().any(func(n): return n.instance == BRIDGE_PATH), "ExteriorWorld instances the bridge")
+
+	var floating := []
+	var seated := 0
+	var trees_bad := []
+	var tree_count := 0
+	var buildings := []
+	for k in ext:
+		var key := str(k)
+		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
+			buildings.append((ext[k].world as Transform3D).origin)
+	for k in ext:
+		var key := str(k)
+		var n: Dictionary = ext[k]
+		var grouped: bool = SEATED_GROUPS.any(func(g): return key.begins_with(g))
+		var is_placed: bool = n.instance != "" or n.props.has("mesh")
+		if not ((grouped and is_placed and key.count("/") <= 2) or key in SEATED_ROOT_NODES):
+			continue
+		var o: Vector3 = (n.world as Transform3D).origin
+		var ground := _hf_height(hf, o.x, o.z)
+		seated += 1
+		# Floating is the bug (shadows detach); a little sinking is fine, and near the hill's creases
+		# the bilinear fixture sits a touch above the true ground.
+		if o.y - ground > 0.15 or ground - o.y > 0.35:
+			floating.append("%s y=%.2f ground=%.2f" % [key, o.y, ground])
+		if key.begins_with("Forest/"):
+			tree_count += 1
+			var on_path := _dist_to_polyline(Vector2(o.x, o.z), hf.path) < float(hf.path_half) + 0.3
+			var in_stream := absf(o.x - _hf_stream_x(hf, o.z)) < float(hf.stream_half) + 0.3
+			var in_building: bool = buildings.any(func(b): return Vector2(b.x, b.z).distance_to(Vector2(o.x, o.z)) < 2.5)
+			if on_path or in_stream or in_building:
+				trees_bad.append(key)
+	check(seated >= 50 and floating.is_empty(),
+		"%d placed nodes sit on the terrain (≤ 0.15 m above, ≤ 0.35 m sunk); off: %s" % [seated, floating.slice(0, 4)])
+	check(tree_count >= 100, "the forest has %d trees and rocks" % tree_count)
+	check(trees_bad.is_empty(), "no tree or rock on the path, stream or a building: %s" % [trees_bad.slice(0, 4)])
+	check(buildings.size() >= 7, "the village has %d buildings" % buildings.size())
+	var bounds := ext.keys().filter(func(k): return str(k).begins_with("Bounds/") and ext[k].props.get("shape") is BoxShape3D)
+	check(ext.has("Bounds") and bounds.size() >= 4, "play-area bounds: %d walls" % bounds.size())
+	print("")
+
+
+static func _scene_has_shape(scene_path: String, shape_class: String) -> bool:
+	var nodes := _scene_nodes(scene_path)
+	return nodes.values().any(func(n): return n.props.get("shape") != null and n.props.get("shape").get_class() == shape_class)
+
+
+static func _hf_height(hf: Dictionary, x: float, z: float) -> float:
+	var step := float(hf.step)
+	var fx := (x - float(hf.x0)) / step
+	var fz := (z - float(hf.z0)) / step
+	var i := clampi(int(floor(fx)), 0, int(hf.nx) - 2)
+	var j := clampi(int(floor(fz)), 0, int(hf.nz) - 2)
+	var tx := clampf(fx - i, 0.0, 1.0)
+	var tz := clampf(fz - j, 0.0, 1.0)
+	var H: Array = hf.heights
+	var a := lerpf(float(H[j][i]), float(H[j][i + 1]), tx)
+	var b := lerpf(float(H[j + 1][i]), float(H[j + 1][i + 1]), tx)
+	return lerpf(a, b, tz)
+
+
+static func _hf_stream_x(hf: Dictionary, z: float) -> float:
+	var s: Array = hf.stream
+	for k in s.size() - 1:
+		if float(s[k][0]) <= z and z <= float(s[k + 1][0]):
+			var t := (z - float(s[k][0])) / maxf(float(s[k + 1][0]) - float(s[k][0]), 0.0001)
+			return lerpf(float(s[k][1]), float(s[k + 1][1]), t)
+	return float(s[0][1]) if z < float(s[0][0]) else float(s[-1][1])
+
+
+static func _dist_to_polyline(p: Vector2, pts: Array) -> float:
+	var best := INF
+	for k in pts.size() - 1:
+		var a := Vector2(pts[k][0], pts[k][1])
+		var b := Vector2(pts[k + 1][0], pts[k + 1][1])
+		best = minf(best, p.distance_to(Geometry2D.get_closest_point_to_segment(p, a, b)))
+	return best
 
 
 static func _is_edge_material(mat) -> bool:
