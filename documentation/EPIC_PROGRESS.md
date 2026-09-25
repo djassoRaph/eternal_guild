@@ -358,7 +358,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
-| 25: Demo Art Pipeline & Demo Cast | ~20% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door), 25.4 (the Hourglass Pillar), 25.8 (Guild Tavern exterior + map miniature) and 25.29 (exterior ground, forest and village; added 2026-09-25) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
+| 25: Demo Art Pipeline & Demo Cast | ~24% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door), 25.4 (the Hourglass Pillar), 25.5 (the Hearth and firewood), 25.8 (Guild Tavern exterior + map miniature) and 25.29 (exterior ground, forest and village; added 2026-09-25) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
 | 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
 
 ### Epic 25 progress
@@ -409,6 +409,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - `scenes/game/HourglassPillar.tscn` + `hourglass_pillar.gd`: reveal stages 0 (worn stub) to 4 (full); the demo shows 4 via `game_config.json` › `pillar_reveal_stage`; `glow_energy` for the day phases (25.23); `HumAnchor` + `reveal_stage_changed` for the hum (25.24).
 - Placed at the centre of the round bar (×1.4, crown above the walls as in K2); solid, navmesh re-baked (control bake matched first). Patrons still reach their tables.
 - Failsafe Test 10 added; the suite is at 131/131.
+
+**Story 25.5: the Hearth and firewood (in review, 2026-09-25).**
+- B1 built in stone (arched firebox, stepped chimney, timber mantel with candles, tankard and hourglass, andirons, faint Prior runes on the apron) with Den Fa's stone seat and a log niche; 2,660 tris. H3 firewood log and bundle.
+- `scenes/game/Hearth.tscn` + `hearth.gd`: the fire's look (light, flames, sparks, smoke, ember glow, burning logs) follows the fireplace state (high / low / dying / out); out is dark (zero Comfort). Logs placed in the minigame appear on the andirons; the wood store shows the stock.
+- Fixed on the way: `fireplace_zone.gd` looked its light and particles up by a path that resolved to nothing, so the fire never changed look; it now finds the hearth by group.
+- In the hall: grey boxes removed, window panel behind the chimney made a full wall, trunk and a banner moved clear, the Tend Fire zone reshaped in front of the apron, navmesh re-baked (control bake matched first). Verified in-game: prompt, E opens the minigame, placed logs show, win → high → low → dying → out; 60 fps.
+- Failsafe Test 11 added; the suite is at 174/174.
 
 ---
 

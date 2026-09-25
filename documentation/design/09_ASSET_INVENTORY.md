@@ -82,7 +82,7 @@ New pieces from `08` (Batch 1 and 2):
 | B6 Hourglass Pillar (stacked segments) | nothing (new centrepiece) | `in game` (2026-09-25, Story 25.4: `custom/b6_hourglass_pillar.gltf` 2,480 tris, placed ×1.4 at the round bar's centre; reveal stages 0–4, demo = 4 from `game_config.json`; solid, navmesh re-baked) |
 | B2 Round bar (`bar_ring`, `bar_flap`) | `TavernCounterCircular`, `BarCounter` box | `concept` |
 | `bar_stool` (with `seat_point`) | `stool` | `planned` (compare with `stool.obj` first) |
-| B1 Hearth (`hearth_stone`, `log_pile`, `andirons`) | `FireplaceBase` / `FireplaceBack` / `Mantel` boxes | `concept` |
+| B1 Hearth (`hearth_stone`, `log_pile`, `andirons`) | `FireplaceBase` / `FireplaceBack` / `Mantel` boxes (removed) | `in game` (2026-09-25, Story 25.5: `custom/b1_hearth.gltf` 2,660 tris in `scenes/game/Hearth.tscn`; the fire's look follows the fireplace state (V2) and is dark at zero Comfort; Den Fa's `sit_point` on the stone seat; wood store under the seat shows the stock; `West_5` window panel swapped for a full wall behind the chimney) |
 | B3 Recruitment Desk | `MissionDesk` box | `planned` (Batch 2) |
 | B4 Mission Board | current 3 × 2 m board | `planned` (Batch 2) |
 | B5 Wall of the Fallen + plaque | Codex list (Epic 18/19) | `planned` (Batch 2) |
@@ -331,7 +331,7 @@ illustrations are ruled out (05_REVEAL_REWORK_PLAN:110).
 | Asset | Status | Source |
 |---|---|---|
 | Drinks: beer, mead; later cider and wine (mugs, bottles, barrels) | beer/mead in data; cider/wine ⚑ | game_config.json:34, 03_STORY_BIBLE:105-108 |
-| Firewood bundles, gold coins | built as gameplay; art is stock or VFX | EPIC_PROGRESS:131,139 |
+| Firewood bundles, gold coins | firewood: H3 `custom/h3_firewood_log.gltf` in game (logs on the andirons and in the hearth's wood store, Story 25.5); `h3_firewood_bundle.gltf` built, not yet placed (carrying comes later). Gold coins: stock or VFX | EPIC_PROGRESS:131,139 |
 | Equipment (10) and Prior artifacts (6) | built on `shiningsun` as text; the spec says **no icon assets** | LOOT_AND_EQUIPMENT_SYSTEM:112-165,253 |
 
 ### 7.6 UI

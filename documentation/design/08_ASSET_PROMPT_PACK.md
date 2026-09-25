@@ -801,6 +801,7 @@ This table tracks each finished asset.
 | C9 Home marker | — | same script as A1/A2 | 2026-09-25 | **in game**: guild banner with the hourglass emblem on the tavern hex; 116 tris |
 | B6 Hourglass Pillar | 1 | Claude via Blender MCP (parametric stacked segments, octagonal lofts, emissive rune glyphs), §6.3 remap | 2026-09-25 | **in game**: Stage D passed (LookDev stages 0–4 + MainTavern); 2,480 tris; runes/sand/glass emissive teal at roughness 0 with a dark base; placed ×1.4 (the card's 3.5 m read too slender in the round bar) |
 | A6 Exterior terrain (hill, path, stream) + bridge | — | Claude via Blender MCP (height-function mesh, atlas faces, creased ramp for ink outlines) + a scripted scene layout | 2026-09-25 | **in game** (ExteriorWorld): terrain 16,232 tris, trimesh collision; bridge 840 tris, walkable deck. Village and forest laid out from KayKit |
+| B1 Hearth + H3 firewood | 1 | Claude via Blender MCP (parametric stone courses clipped round the arched firebox, stepped chimney breast, markers + convex collision proxies), §6.3 remap | 2026-09-25 | **in game**: Stage D passed (LookDev four fire states + MainTavern TCP run); B1 2,660 tris, H3 log 24 / bundle 172; stone on `stone_warm` (`stone_light` read slate blue); ember bed, candle flames and Prior runes emissive at roughness 0; the fire itself is particles + light driven by `hearth.gd` |
 | B1 Hearth | 1 | | | concepts generating |
 | B2 Bar (round) | 1 | | | concepts generating |
 | D2 Demon Cult Crypt | 1 | | | concept picked (crypt v2) |
