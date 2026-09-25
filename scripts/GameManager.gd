@@ -329,10 +329,12 @@ func calculate_mission_success_chance(adventurer: Dictionary, mission: Dictionar
 	return clampi(final_chance, 10, 95)
 
 
-func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool) -> int:
+func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool, announce := true) -> int:
 	"""Enhanced mission completion with mandatory recovery period. Returns the actual gold
 	reward paid out (0 on failure) — Epic 12: the reveal report needs the real amount, not
-	the mission's config range."""
+	the mission's config range. The overnight resolver passes announce = false and logs the
+	success itself once the loot roll's gold has joined the reward, so the log line, the gold
+	total and the morning report show the same amount."""
 	var reward := 0
 	if success:
 		reward = randi_range(mission.reward_range[0], mission.reward_range[1])
@@ -357,8 +359,8 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		adjust_reputation(2)
 		GameManager.check_tier_unlocks()
 
-		log_message("SUCCESS! " + adventurer.name + " completed " + mission.name + " and earned " + str(reward) + " gold!")
-		log_message("" + adventurer.name + " rests for 1 day to recover their strength")
+		if announce:
+			_log_solo_success(adventurer, mission, reward)
 	else:
 		adventurer.missions_failed += 1
 		adjust_reputation(-1)
@@ -383,15 +385,15 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 
 
 
-func complete_party_mission(party: Array, mission: Dictionary, success: bool) -> int:
+func complete_party_mission(party: Array, mission: Dictionary, success: bool, announce := true) -> int:
 	"""Enhanced party missions with recovery periods. Returns the actual gold reward paid
 	out (0 on failure) — Epic 12: the reveal report needs the real amount, not the
-	mission's config range."""
+	mission's config range. announce = false: the caller logs the success (see
+	complete_mission)."""
 	var reward := 0
 	if success:
 		reward = randi_range(mission.reward_range[0], mission.reward_range[1])
 		add_gold(reward)
-		log_message("PARTY SUCCESS! Completed " + mission.name + " and earned " + str(reward) + " gold!")
 
 		for adventurer in party:
 			# SUCCESS: All party members need rest
@@ -401,7 +403,8 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool) ->
 			adventurer.gold_earned += reward / party.size()
 			check_adventurer_level_up(adventurer)
 
-		log_message("Party members rest for 1 day after their successful mission")
+		if announce:
+			_log_party_success(mission, reward)
 	else:
 		log_message("PARTY FAILED! Mission " + mission.name + " was catastrophic")
 		adjust_reputation(-1)  # one reputation hit per failed mission, not per party member
@@ -411,6 +414,16 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool) ->
 			adventurer_roster_changed.emit()
 
 	return reward
+
+
+func _log_solo_success(adventurer: Dictionary, mission: Dictionary, reward: int) -> void:
+	log_message("SUCCESS! " + adventurer.name + " completed " + mission.name + " and earned " + str(reward) + " gold!")
+	log_message("" + adventurer.name + " rests for 1 day to recover their strength")
+
+
+func _log_party_success(mission: Dictionary, reward: int) -> void:
+	log_message("PARTY SUCCESS! Completed " + mission.name + " and earned " + str(reward) + " gold!")
+	log_message("Party members rest for 1 day after their successful mission")
 
 
 
@@ -482,7 +495,7 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 		if randf() < trait_data.injury_chance:
 			adventurer["injured"] = true
 
-	var reward := complete_mission(adventurer, mission, success)
+	var reward := complete_mission(adventurer, mission, success, false)
 
 	# Epic 12 — one loot roll per resolved mission, success only (failure already has its own
 	# consequences via handle_party_failure_consequences()). Gold tier folds into `reward`
@@ -498,6 +511,8 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 				reward += bonus
 		else:
 			loot_report = loot
+		# Logged after the loot gold, so the line names the full payout, like the morning report.
+		_log_solo_success(adventurer, mission, reward)
 
 	return {
 		"type": "solo",
@@ -534,7 +549,7 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 	var roll = randi() % 100 + 1
 	var success = roll <= final_chance
 
-	var reward := complete_party_mission(party, mission, success)
+	var reward := complete_party_mission(party, mission, success, false)
 
 	# Epic 12 — same one-roll-per-mission rule as the solo path. All party members are alive
 	# on a success (death/injury only happen in the failure branch), so any member can be the
@@ -550,6 +565,8 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 				reward += bonus
 		else:
 			loot_report = loot
+	if success:
+		_log_party_success(mission, reward)  # after the loot gold, as in the solo path
 
 	var member_names = party.map(func(a): return a.get("name", "?"))
 	var casualties = party.filter(func(a): return a.get("status") == AStatus.DEAD)

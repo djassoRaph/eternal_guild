@@ -10,6 +10,9 @@ extends SceneTree
 ## runs from _initialize() rather than _init(). Autoloads start either way (they always did); the
 ## tests themselves still use none of them. A watchdog guarantees the run ends (SaveSystem's
 ## 300 s autosave must never fire from a test run).
+## Test 14 (mission payout, playtest 2026-09-25) is the exception: it drives GameManager's real
+## mission resolver, so it waits one frame for the autoloads' _ready (DataManager's data) and runs
+## last. Its fixtures keep every codex.dat write path unreachable (see the test).
 
 const ASSET_ALLOWLIST_PATH := "res://test/asset_path_allowlist.json"
 const WORLDGEN_FIXTURE_PATH := "res://test/fixtures/worldgen_seed_12345.json"
@@ -113,6 +116,9 @@ func _initialize() -> void:
 	test_hearth()
 	test_round_bar()
 	test_desk_and_board()
+
+	await process_frame  # autoloads enter the tree after _initialize() yields
+	test_mission_payout_report()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -1065,6 +1071,100 @@ func test_desk_and_board() -> void:
 			"the %s zone %s covers its interact point %s, which is on the navmesh" % [spec[2], zone, ip])
 	check(nav is NavigationMesh and not _nav_contains(nav, DESK_SPOT.x, DESK_SPOT.z + 0.35), "navmesh: the desk front is solid")
 	print("")
+
+
+# --- Test 14: Mission payout = log line = morning report (playtest 2026-09-25) ---
+# A solo run logged "earned 10 gold" while the Morning Briefing said 11: the loot roll's gold tier
+# was paid after the SUCCESS line had been written. Drives GameManager._resolve_mission() and, per
+# resolution, compares the gold GameManager actually gained, the amount in the SUCCESS line and the
+# report's `reward` (what the briefing shows): solo, solo with the Lucky trait, and a party.
+# Nothing here may reach user://: artifacts are emptied for the run (the artifact tier writes
+# codex.dat), solo entries succeed at 100 %, and danger -3 puts the death chance at or below 0
+# (a death writes codex.dat), checked with GameManager's own formula before any party is sent.
+func test_mission_payout_report() -> void:
+	print("[Test 14] Mission payout: gold paid = log line = morning report")
+	var gm = root.get_node_or_null("GameManager")
+	var dm = root.get_node_or_null("DataManager")
+	var ss = root.get_node_or_null("SaveSystem")
+	check(gm != null and dm != null and ss != null and not dm.character_traits.is_empty(),
+		"GameManager, DataManager (data loaded) and SaveSystem are up")
+	if gm == null or dm == null or ss == null:
+		return
+	var codex_before := [ss.codex_data.get("fallen_heroes", []).size(), ss.codex_data.get("artifacts_found", []).size()]
+	var saved_artifacts: Dictionary = dm.artifacts
+	dm.artifacts = {}
+	var capture_script := GDScript.new()
+	capture_script.source_code = "extends Node\nvar lines: Array[String] = []\nfunc log_message(m: String) -> void:\n\tlines.append(m)\n"
+	capture_script.reload()
+	var capture = Node.new()
+	capture.name = "PayoutLogCapture"
+	capture.set_script(capture_script)
+	root.add_child(capture)
+	current_scene = capture  # GameManager.log_message() forwards to current_scene.log_message()
+	seed(20260925)
+
+	var success_line := RegEx.create_from_string("^(PARTY )?SUCCESS!.* earned (\\d+) gold")
+	var mission := {"name": "Payout Drill", "reward_range": [40, 40], "danger": -3, "category": "delivery"}
+	var death_chance: float = gm.calculate_death_chance(1, mission.danger)
+	check(death_chance <= 0.0, "fixture: danger %d gives a level-1 death chance <= 0 (%.2f)" % [mission.danger, death_chance])
+	# [label, personality, least a success pays before loot: 40 base, 48 with Lucky's +20 %]
+	for case in [["solo", "", 40], ["solo, Lucky", "lucky", 48], ["party of 2", "", 40]]:
+		var party: bool = case[0].begins_with("party")
+		if party and death_chance > 0.0:
+			continue
+		var runs := 12
+		var report_ok := 0
+		var log_ok := 0
+		var successes := 0
+		var looted := 0
+		var short := 0
+		for i in runs:
+			var entry := {"mission": mission.duplicate(true), "total_duration": 1, "days_remaining": 0}
+			if party:
+				entry["is_party_mission"] = true
+				entry["party"] = [_payout_adventurer("Ada", ""), _payout_adventurer("Bram", "")]
+			else:
+				entry["adventurer"] = _payout_adventurer("Cole", case[1])
+				entry["success_chance"] = 100
+			capture.lines.clear()
+			var before: int = gm.gold
+			var report: Dictionary = gm._resolve_mission(entry)
+			var paid: int = gm.gold - before
+			if int(report.get("reward", -1)) == paid:
+				report_ok += 1
+			var logged := []
+			for line in capture.lines:
+				var m := success_line.search(line)
+				if m:
+					logged.append(int(m.get_string(2)))
+			if report.get("success", false):
+				successes += 1
+				if logged == [paid]:
+					log_ok += 1
+				if paid > case[2]:
+					looted += 1
+				elif paid < case[2]:
+					short += 1
+			elif logged.is_empty() and paid == 0:
+				log_ok += 1
+		check(report_ok == runs, "%s: report.reward == the gold actually paid (%d/%d runs)" % [case[0], report_ok, runs])
+		check(log_ok == runs, "%s: the log's SUCCESS line names that same amount (%d/%d runs)" % [case[0], log_ok, runs])
+		check(successes > 0 and looted > 0 and short == 0,
+			"%s: every success paid at least %d; the loot roll's gold tier joined the reward in %d of %d successes"
+			% [case[0], case[2], looted, successes])
+
+	dm.artifacts = saved_artifacts
+	current_scene = null
+	capture.free()
+	var codex_after := [ss.codex_data.get("fallen_heroes", []).size(), ss.codex_data.get("artifacts_found", []).size()]
+	check(codex_after == codex_before, "codex untouched (fallen heroes, artifacts found: %s)" % [codex_after])
+	print("")
+
+
+static func _payout_adventurer(adv_name: String, personality: String) -> Dictionary:
+	return {"name": adv_name, "id": adv_name.to_lower(), "class": "Fighter", "portrait": "", "personality": personality,
+		"strength": 3, "dexterity": 3, "intelligence": 3, "endurance": 3, "status": AdventurerStatus.Status.ON_MISSION,
+		"missions_completed": 0, "missions_failed": 0, "gold_earned": 0}
 
 ## Radius (xz) of a scene's trimesh collider: the smallest vertex radius (inner = true) or the largest.
 static func _shape_radius(nodes: Dictionary, inner: bool) -> float:
