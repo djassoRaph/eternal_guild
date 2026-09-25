@@ -28,6 +28,15 @@ const SHELL_NEW_COLLIDERS := {
 	"Shell/FarWalls/CornerCollider/CollisionShape3D": [[-5.15, -4.85], [0.0, 4.0], [-19.17, -16.66]],
 	"Shell/NearWalls/CornerColliderEast/CollisionShape3D": [[14.84, 15.14], [0.0, 4.0], [-19.17, -16.59]],
 }
+# Story 25.8: the Guild Tavern outside (A1), its hex miniature (A2) and the home marker (C9).
+const A1_PATH := "res://assets/environment/custom/a1_guild_tavern.gltf"
+const A2_PATH := "res://assets/environment/custom/a2_guild_tavern_mini.gltf"
+const C9_PATH := "res://assets/environment/custom/c9_home_marker.gltf"
+const OLD_TAVERN_PATH := "res://assets/environment/hexagons/blue/building_tavern_blue.gltf"
+const EXTERIOR_SCENE_PATH := "res://scenes/world/ExteriorWorld.tscn"
+const EXIT_ZONE_SCRIPT_PATH := "res://scripts/world/exit_zone_interior.gd"
+const EDGE_SHADER_PATH := "res://assets/shaders/edge_detection.gdshader"
+const PLAYER_RADIUS := 0.5   # Player.tscn CapsuleShape3D radius
 
 var _pass_count := 0
 var _fail_count := 0
@@ -44,6 +53,7 @@ func _initialize() -> void:
 	test_asset_path_integrity()
 	test_ruin_reservation()
 	test_tavern_shell()
+	test_tavern_exterior()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -342,7 +352,7 @@ func _generate_world(gen: Node, seed_value: int) -> Array:
 
 
 # Every record must match the baseline fixture captured before Story 25.2 changed the
-# generator; the ruin hex may differ only in its topper.
+# generator; the ruin hex (25.2) and the tavern hex (25.8) may differ only in their toppers.
 func _check_worldgen_drift(recs: Array) -> void:
 	var fixture = _read_json(WORLDGEN_FIXTURE_PATH)
 	if not fixture is Dictionary:
@@ -356,12 +366,15 @@ func _check_worldgen_drift(recs: Array) -> void:
 			mismatches.append(rec.id + " (missing from fixture)")
 			continue
 		var actual := [rec.biome, rec.base_path, rec.topper_paths, rec.is_zone, rec.get("zone_building", "")]
-		if rec.get("is_ruin", false):
-			actual[2] = row[2]   # the ruin's topper is the one intended change
+		if rec.get("is_ruin", false) or rec.get("is_center", false):
+			actual[2] = row[2]   # the ruin's and the tavern hex's toppers are the intended changes
 		if actual != row:
 			mismatches.append(rec.id)
 	check(recs.size() == int(fixture.get("record_count", -1)) and mismatches.is_empty(),
 		"seed 12345: %d records match the pre-change baseline; mismatches: %s" % [recs.size(), mismatches.slice(0, 5)])
+	var centre := recs.filter(func(r): return r.get("is_center", false))
+	check(centre.size() == 1 and centre[0].topper_paths == [A2_PATH, C9_PATH],
+		"seed 12345: the tavern hex carries the A2 miniature + C9 home marker (%s)" % [centre[0].topper_paths if centre.size() == 1 else "no centre"])
 
 
 # --- Test 7: Tavern Shell (Story 25.3) ---
@@ -436,3 +449,125 @@ static func _aabb_close(a: Array, b: Array, tol := 0.011) -> bool:
 			if absf(float(a[axis][end]) - float(b[axis][end])) > tol:
 				return false
 	return true
+
+
+# --- Test 8: Guild Tavern exterior + map miniature (Story 25.8) ---
+# Map: the tavern hex carries A2 + C9, also for old saves (display mode). Exterior (SceneState only,
+# nothing instanced): A1 replaces the stock tavern, the entrance zone and the "Press E" label sit at
+# A1's door, the player arriving from the tavern lands in front of the door (outside the zone and
+# outside A1's collision), and the exterior camera has the ink-outline quad (decision D2).
+func test_tavern_exterior() -> void:
+	print("[Test 8] Guild Tavern exterior (A1), map miniature (A2), home marker (C9)")
+	for p in [A1_PATH, A2_PATH, C9_PATH]:
+		check(ResourceLoader.exists(p), "asset exists: %s" % p.get_file())
+
+	var gen_script = load("res://scripts/world/HexMapGenerator.gd")
+	var consts: Dictionary = gen_script.get_script_constant_map() if gen_script else {}
+	check(consts.get("TAVERN_TOPPER") == A2_PATH and consts.get("HOME_MARKER") == C9_PATH,
+		"HexMapGenerator: TAVERN_TOPPER = A2, HOME_MARKER = C9")
+	var has_helper: bool = gen_script != null and gen_script.get_script_method_list().any(
+		func(m): return m.name == "home_toppers_for")
+	check(has_helper, "HexMapGenerator.home_toppers_for() exists")
+	if has_helper:
+		var old_save := {"is_center": true, "topper_paths": [OLD_TAVERN_PATH]}
+		var other := {"is_center": false, "topper_paths": ["res://assets/x.gltf"]}
+		check(gen_script.home_toppers_for(old_save) == [A2_PATH, C9_PATH], "old save: the tavern hex renders A2 + C9")
+		check(gen_script.home_toppers_for(other) == ["res://assets/x.gltf"], "old save: other hexes render what they stored")
+
+	var ext := _scene_nodes(EXTERIOR_SCENE_PATH)
+	check(not ext.values().any(func(n): return n.instance == OLD_TAVERN_PATH),
+		"ExteriorWorld no longer instances building_tavern_blue")
+	var a1_keys := ext.keys().filter(func(k): return ext[k].instance == A1_PATH)
+	check(a1_keys.size() == 1, "ExteriorWorld instances A1 once %s" % [a1_keys])
+	if a1_keys.size() != 1:
+		print("")
+		return
+	var a1_xf: Transform3D = ext[a1_keys[0]].world
+	var a1 := _scene_nodes(A1_PATH)
+	var door := Vector3.INF
+	var a1_boxes: Array = []   # world-space [[x0, x1], [z0, z1]] of A1's collision proxies
+	for k in a1:
+		if str(k).ends_with("interact_point"):
+			door = a1_xf * (a1[k].world as Transform3D).origin
+		var shape = a1[k].props.get("shape")
+		if shape is ConvexPolygonShape3D:
+			var lo := Vector3(INF, INF, INF)
+			var hi := Vector3(-INF, -INF, -INF)
+			for pt in (shape as ConvexPolygonShape3D).points:
+				var w: Vector3 = a1_xf * ((a1[k].world as Transform3D) * pt)
+				lo = lo.min(w)
+				hi = hi.max(w)
+			a1_boxes.append([[lo.x, hi.x], [lo.z, hi.z]])
+	check(door != Vector3.INF, "A1 has its interact_point marker (door) %s" % [door])
+	check(a1_boxes.size() >= 3, "A1 imports its collision proxies (%d convex shapes)" % a1_boxes.size())
+	if door == Vector3.INF:
+		print("")
+		return
+
+	var tavern := _scene_nodes(TAVERN_SCENE_PATH)
+	var spawn = null
+	for k in tavern:
+		if str(k).ends_with("Interactive/ExitArea"):
+			spawn = tavern[k].props.get("exterior_spawn_position")
+	if spawn == null:
+		spawn = load(EXIT_ZONE_SCRIPT_PATH).get_property_default_value("exterior_spawn_position")
+	var s2 := Vector2(spawn.x, spawn.z)
+	var d2 := Vector2(door.x, door.z)
+	check(s2.distance_to(d2) <= 3.0, "arrival spawn %s lands within 3 m of A1's door %s" % [spawn, door])
+	check(not a1_boxes.any(func(b): return _circle_hits_rect(s2, PLAYER_RADIUS, b)),
+		"arrival spawn is outside A1's collision")
+
+	var zone_boxes := _scene_box_collider_aabbs(EXTERIOR_SCENE_PATH)
+	var zone = zone_boxes.get("TavernEntranceZone/CollisionShape3D")
+	check(zone != null, "TavernEntranceZone has a box shape")
+	if zone != null:
+		var zone_xz := [zone[0], zone[2]]
+		check(_circle_hits_rect(d2, 0.6, zone_xz), "entrance zone sits at A1's door %s" % [zone_xz])
+		check(not _circle_hits_rect(s2, PLAYER_RADIUS, zone_xz), "arriving player starts outside the entrance zone")
+
+	var label = ext.get("TavernEntranceZone/InteractionPrompt")
+	check(label != null and Vector2(label.world.origin.x, label.world.origin.z).distance_to(d2) <= 1.5,
+		"'Press E' label floats at the door (D1) %s" % [label.world.origin if label else "missing"])
+	# The full-screen ink quad (render_priority 0) repaints the screen from the opaque pass, so a
+	# transparent Label3D must draw after it or it vanishes (seen in-scene, 2026-09-25).
+	check(label != null and int(label.props.get("render_priority", 0)) > 0 and label.props.get("no_depth_test", false),
+		"'Press E' label draws after the ink quad and through the wall")
+	var has_edge := ext.keys().any(func(k): return str(k).begins_with("Camera3D/") and \
+		_is_edge_material(ext[k].props.get("surface_material_override/0")))
+	check(has_edge, "exterior camera has the ink-outline quad (D2)")
+	print("")
+
+
+## Every node of a scene file via SceneState (nothing instanced):
+## path -> {world: Transform3D, instance: String, props: Dictionary}.
+static func _scene_nodes(scene_path: String) -> Dictionary:
+	var state: SceneState = (load(scene_path) as PackedScene).get_state()
+	var nodes := {}
+	var parents := {}
+	for i in state.get_node_count():
+		var path := str(state.get_node_path(i)).trim_prefix("./")
+		parents[path] = str(state.get_node_path(i, true)).trim_prefix("./")
+		var props := {}
+		for p in state.get_node_property_count(i):
+			props[state.get_node_property_name(i, p)] = state.get_node_property_value(i, p)
+		var inst := state.get_node_instance(i)
+		nodes[path] = {"local": props.get("transform", Transform3D.IDENTITY), "props": props,
+			"instance": inst.resource_path if inst else ""}
+	for path in nodes:
+		var world := Transform3D.IDENTITY
+		var cur: String = path
+		while cur != "" and cur != "." and nodes.has(cur):
+			world = nodes[cur].local * world
+			cur = parents[cur]
+		nodes[path]["world"] = world
+	return nodes
+
+
+static func _circle_hits_rect(c: Vector2, r: float, rect: Array) -> bool:
+	var nearest := Vector2(clampf(c.x, rect[0][0], rect[0][1]), clampf(c.y, rect[1][0], rect[1][1]))
+	return nearest.distance_to(c) < r
+
+
+static func _is_edge_material(mat) -> bool:
+	return mat is ShaderMaterial and (mat as ShaderMaterial).shader != null \
+		and (mat as ShaderMaterial).shader.resource_path == EDGE_SHADER_PATH
