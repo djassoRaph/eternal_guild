@@ -358,7 +358,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
-| 25: Demo Art Pipeline & Demo Cast | ~14% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door) and 25.8 (Guild Tavern exterior + map miniature) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
+| 25: Demo Art Pipeline & Demo Cast | ~17% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door), 25.8 (Guild Tavern exterior + map miniature) and 25.29 (exterior ground, forest and village; added 2026-09-25) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
 | 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
 
 ### Epic 25 progress
@@ -396,6 +396,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - The exterior now has the ink-outline pass, like the map and the tavern.
 - Map: the tavern hex shows A2 + the C9 banner, on new worlds and on old saves (display-time override; no RNG change, the drift guard still passes).
 - Stage D passed in LookDev and in-scene (exterior round trip through the door; map tavern hex). Failsafe Test 8 added; the suite is at 98/98.
+
+**Story 25.29: exterior ground, forest and village (in review, 2026-09-25). Added at Raphael's request after 25.8.**
+- The exterior's ground is now one terrain mesh (drawn = walked): the old ground box was drawn at y −0.11 but walked at +0.25, and the KayKit props floated at 0.6 with detached shadows.
+- The tavern stands on a hill (plateau at y 0, a creased 3 m ramp so the ink shader outlines it). A dirt path runs from the door down to a wooden bridge over a stream (walkable deck) and into the village square.
+- Village: 8 KayKit buildings (solid) round the square with the well, the watermill on the stream, the windmill beyond, 22 street and yard props. The farm plots stay by the tavern.
+- Forest: 422 seeded trees and rocks fill everything beyond the play area, with groves inside it and a clearing kept for the cemetery (25.18). Boundary walls keep the player in.
+- Failsafe Test 9 added (every placed node sits on the terrain; no tree on the path, stream or a building); the suite is at 110/110.
 
 ---
 

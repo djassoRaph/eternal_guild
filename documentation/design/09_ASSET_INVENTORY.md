@@ -33,13 +33,15 @@ commit. Status values:
 | | Count |
 |---|---|
 | Model files in `assets/` | 187 |
-| …actually used by the game | **89** |
-| …on disk but unused (don't remake these unless the game starts using them) | 98 |
+| …actually used by the game | **106** (89 before Story 25.29) |
+| …on disk but unused (don't remake these unless the game starts using them) | 81 (98 before Story 25.29) |
 | 2D portraits in use | 11 images |
 | Planned assets from the design docs | see §7 |
 
 *(Corrected 2026-09-24, Story 25.1: `Chair 3.obj` ×3 and `Chair 5.obj` ×2 are placed in MainTavern
 but were first counted as unused, so used is 89, not 87, and unused is 98, not 100.)*
+
+*(Story 25.29, 2026-09-25: the exterior village and forest put 17 more KayKit files into use: `building_home_B_blue`; `rock_single_D`, `rock_single_E`, `tree_single_A_cut`, `tree_single_B_cut`; and the props `bucket_empty`, `crate_B_small`, `crate_long_A`, `crate_open`, `ladder`, `pallet`, `resource_lumber`, `resource_stone`, `sack`, `target`, `weaponrack`, `wheelbarrow`. Counted by script from the ExteriorWorld diff. The per-section "used" counts in §1–§3 are pre-25.29.)*
 
 At roughly one evening per 3D asset, 89 models is many months. Four things make it survivable:
 
@@ -132,7 +134,9 @@ barrier ×2, column).
 | Asset (stock file) | Folder | Notes | Status |
 |---|---|---|---|
 | A1 The Guild Tavern (walkable) | — | replaces `building_tavern_blue` ×3 | `in game` (2026-09-25, Story 25.8: `custom/a1_guild_tavern.gltf`, 4,568 tris, solid, door faces the camera side) |
-| A3 Yard dressing: firewood, lantern post, hitching rail, farm plots | — | backlog in `08` | `planned` |
+| A3 Yard dressing: firewood, lantern post, hitching rail, farm plots | — | backlog in `08` | `planned` (KayKit placeholders placed in Story 25.29: firewood, wheelbarrow, sacks, bucket by the plots) |
+| A6 The hill, path and town bridge | — | terrain + path + stream + bridge | `in game` (2026-09-25, Story 25.29: `custom/a6_exterior_terrain.gltf` 16,232 tris with a trimesh collider; `custom/a6_bridge.gltf` 840 tris) |
+| Village + forest layout (E11/E12 with KayKit) | — | 8 buildings round a square with the well, 22 props, 422 trees/rocks | `in game` (2026-09-25, Story 25.29; KayKit stays until the R1 remakes) |
 | `building_tavern_blue` | hexagons/blue | replaced by A1 | `replaced` (2026-09-25; file kept on disk) |
 | `building_blacksmith_blue` | hexagons/blue | also map | `stock` |
 | `building_home_A_blue` | hexagons/blue | also map + hexworld | `stock` |
@@ -372,7 +376,7 @@ Kickstarter visuals = **reveal + tarot art + pillar** (02_STATE:50). K1–K3 ink
 
 ---
 
-## 8. On disk but unused (98 files)
+## 8. On disk but unused (81 files)
 
 Don't remake these unless the game starts using them. If a wave needs one (for example roads for
 `missing_caravan`), move its row into the right section first.
@@ -383,9 +387,9 @@ Don't remake these unless the game starts using them. If a wave needs one (for e
 | `hexagons/rivers` | 12 |
 | `hexagons/rivers/waterless` | 15 (all) |
 | `hexagons/coast/waterless` | 5 (all) |
-| `hexagons/props` | 22 |
-| `hexagons/nature` | 12 |
-| `hexagons/blue` | 6 |
+| `hexagons/props` | 10 (22 before Story 25.29) |
+| `hexagons/nature` | 8 (12 before Story 25.29) |
+| `hexagons/blue` | 5 (6 before Story 25.29) |
 | `furniture` | 3 (`candle.obj`, `crate.glb`, `stairs_wide.obj`) |
 | `characters/kaykit_skeletons` | 4 (all) |
 | `hexagons/base` | 3 |
