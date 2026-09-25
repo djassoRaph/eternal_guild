@@ -1302,7 +1302,6 @@ skeleton = NodePath("../CounterFoot")
 transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, -0.4, -2, 0.3)
 material_override = SubResource("StandardMaterial3D_rus88")
 mesh = SubResource("CylinderMesh_bianl")
-skeleton = NodePath("../../../Bar/BarCounter/CounterFoot")
 
 [node name="CounterFoot2" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture/Desk/MissionDesk"]
 transform = Transform3D(0.125, 0, 0, 0, 2, 0, 0, 0, 0.2, 0.4, -2, 0.3)

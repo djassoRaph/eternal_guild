@@ -15,6 +15,7 @@ const SIT_LIFT := 0.0            # model lift while seated (0 for the 0.44 m bar
 const TANKARD_FULL := "res://assets/environment/custom/h1_tankard_full.gltf"
 const TANKARD_EMPTY := "res://assets/environment/custom/h1_tankard_empty.gltf"
 const TANKARD_EMPTY_AT := 0.7    # the tankard is empty at 70% of the drinking time
+const TANKARD_HELD_SCALE := 1.8  # chunky in the hand, like KayKit's props; true size on the counter
 
 # State machine (Epic 8 — split the old SITTING_WAITING into SEATED, the pre-service beat, and
 # WAITING_SERVICE, once the sitting timer fires and the beer-mug indicator shows. WAITING_SERVICE
@@ -334,8 +335,18 @@ func _hold_tankard(full: bool) -> void:
 	skel.add_child(att)
 	var scene := load(TANKARD_FULL if full else TANKARD_EMPTY) as PackedScene
 	if scene:
-		att.add_child(scene.instantiate())
+		var mug := scene.instantiate() as Node3D
+		att.add_child(mug)
+		_stand_tankard_upright(mug)
 	_tankard = att
+
+func _stand_tankard_upright(mug: Node3D) -> void:
+	"""The hand bone is tilted in the sit pose; once the attachment has followed the bone, turn the
+	tankard upright in the patron's own frame (it then rides the hand with that offset)."""
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(mug) and patron_body_mesh:
+		mug.global_basis = Basis(patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * TANKARD_HELD_SCALE)
 
 func _on_tankard_empty() -> void:
 	if current_state == PatronState.DRINKING:
