@@ -1,0 +1,37 @@
+{
+	"_comment": "Story 25.14: the Villager's Voice, the ambient Social Mirror (narrative-design.md). Overheard, never addressed; tonal dial GENTLE: rueful and questioning, never accusatory, in-world terms only (the Crown, the lords, the Guild). Registers escalate; weights are relative and Epic 10.4 (Hidden Threshold) may reweight them from game state. Every line must rhyme with a pillar, or it's cut.",
+	"registers": {
+		"grievance": {
+			"weight": 6,
+			"lines": [
+				"Three new taxes this year and the road still washes out every spring. Where's it all going?",
+				"The Mages' Guild eats first, drinks first, never pays the toll. Funny, that.",
+				"The lord's men counted my geese twice this month. The geese didn't enjoy it either.",
+				"Bread's dearer every market day. The loaves aren't getting any bigger.",
+				"They mended the lord's bridge in a week. The mill road's been rutted since my father's time.",
+				"Tithe, toll, tax. I'd pay a coin to hear a word that doesn't start with a T.",
+				"Rain on the wheat again. Still, the Crown will want its share, wet or dry."
+			]
+		},
+		"mirror": {
+			"weight": 3,
+			"lines": [
+				"Another guild banner over the tavern. Watch — they'll send our boys off and call the dead ones 'heroes.'",
+				"Easy to be brave when it's someone else walking out the gate.",
+				"The Hendry boy signed on up the hill. His mother still sets a place for him.",
+				"They ring a bell up there when one doesn't come back. You stop counting, after a while.",
+				"Heroes, the songs say. My brother only wanted to see the sea."
+			]
+		},
+		"paranoia": {
+			"weight": 1,
+			"lines": [
+				"Why does the Chronicle always know what'll happen before it happens? Who writes that thing, really?",
+				"Is there a hand behind all this? …Course there is. There always is.",
+				"That hourglass up at the tavern. The sand never runs out. Have you noticed? Never.",
+				"My gran said there was a guild on that hill before the guild on that hill. And one before that.",
+				"Tall fellow in a mask walked the market at dawn. Nobody saw him come. Nobody saw him go."
+			]
+		}
+	}
+}

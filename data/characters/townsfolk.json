@@ -1,0 +1,162 @@
+{
+	"_comment": "Story 25.14: patron and villager bodies (catalogue G19, G24). Patrons pick a variant by weight and then an origin label of the same origin_type, so their look matches patron_lines' origin flavours. Decision E1 (2026-09-25): townsfolk take ~80% of the weight; the class bodies stay as travelling adventurers. names = a pool key below, or 'any'. A missing file falls back to RealisticPatron.character_models (MOD-6).",
+	"variants": [
+		{
+			"id": "farmer",
+			"display_name": "Farmer",
+			"role": "townsfolk",
+			"model_path": "res://assets/characters/custom/townsfolk_farmer.glb",
+			"origin_type": "local",
+			"weight": 5,
+			"names": "masculine"
+		},
+		{
+			"id": "local",
+			"display_name": "Townsperson",
+			"role": "townsfolk",
+			"model_path": "res://assets/characters/custom/townsfolk_local.glb",
+			"origin_type": "local",
+			"weight": 5,
+			"names": "any"
+		},
+		{
+			"id": "old_woman",
+			"display_name": "Old Woman",
+			"role": "townsfolk",
+			"model_path": "res://assets/characters/custom/townsfolk_old_woman.glb",
+			"origin_type": "local",
+			"weight": 4,
+			"names": "feminine"
+		},
+		{
+			"id": "traveller",
+			"display_name": "Traveller",
+			"role": "townsfolk",
+			"model_path": "res://assets/characters/custom/townsfolk_traveller.glb",
+			"origin_type": "traveler",
+			"weight": 5,
+			"names": "any"
+		},
+		{
+			"id": "guard",
+			"display_name": "Town Guard",
+			"role": "townsfolk",
+			"model_path": "res://assets/characters/custom/townsfolk_guard.glb",
+			"origin_type": "soldier",
+			"weight": 4,
+			"names": "any"
+		},
+		{
+			"id": "merchant",
+			"display_name": "Merchant",
+			"role": "townsfolk",
+			"model_path": "res://assets/characters/custom/townsfolk_merchant.glb",
+			"origin_type": "trader",
+			"weight": 5,
+			"names": "masculine"
+		},
+		{
+			"id": "adventurer_knight",
+			"display_name": "Knight",
+			"role": "adventurer",
+			"model_path": "res://assets/characters/models/kaykit_adventurers/Knight.glb",
+			"origin_type": "traveler",
+			"weight": 1,
+			"names": "any"
+		},
+		{
+			"id": "adventurer_rogue",
+			"display_name": "Rogue",
+			"role": "adventurer",
+			"model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+			"origin_type": "traveler",
+			"weight": 1,
+			"names": "any"
+		},
+		{
+			"id": "adventurer_rogue_hooded",
+			"display_name": "Hooded Rogue",
+			"role": "adventurer",
+			"model_path": "res://assets/characters/models/kaykit_adventurers/Rogue_Hooded.glb",
+			"origin_type": "traveler",
+			"weight": 1,
+			"names": "any"
+		},
+		{
+			"id": "adventurer_mage",
+			"display_name": "Mage",
+			"role": "adventurer",
+			"model_path": "res://assets/characters/models/kaykit_adventurers/Mage.glb",
+			"origin_type": "traveler",
+			"weight": 1,
+			"names": "any"
+		},
+		{
+			"id": "adventurer_barbarian",
+			"display_name": "Barbarian",
+			"role": "adventurer",
+			"model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb",
+			"origin_type": "traveler",
+			"weight": 1,
+			"names": "any"
+		},
+		{
+			"id": "adventurer_healer",
+			"display_name": "Healer",
+			"role": "adventurer",
+			"model_path": "res://assets/characters/custom/healer.glb",
+			"origin_type": "traveler",
+			"weight": 1,
+			"names": "any"
+		},
+		{
+			"id": "adventurer_ranger",
+			"display_name": "Ranger",
+			"role": "adventurer",
+			"model_path": "res://assets/characters/custom/ranger.glb",
+			"origin_type": "traveler",
+			"weight": 1,
+			"names": "any"
+		}
+	],
+	"names": {
+		"feminine": [
+			"Elara",
+			"Lydia",
+			"Sera",
+			"Mira",
+			"Agnes",
+			"Maud",
+			"Edda",
+			"Wynne",
+			"Hilde",
+			"Rosamund"
+		],
+		"masculine": [
+			"Gareth",
+			"Thorin",
+			"Marcus",
+			"Kael",
+			"Aldric",
+			"Bram",
+			"Osric",
+			"Tobin",
+			"Wat",
+			"Hugh"
+		],
+		"surnames": [
+			"Bold",
+			"Ironforge",
+			"Swiftblade",
+			"Goldbeard",
+			"Stormbringer",
+			"Shadowmend",
+			"Miller",
+			"Thatcher",
+			"Cooper",
+			"Fletcher",
+			"Tanner",
+			"Ashdown"
+		]
+	}
+}
