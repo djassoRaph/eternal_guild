@@ -799,6 +799,7 @@ This table tracks each finished asset.
 | B6 Hourglass Pillar | 1 | | | concepts generating |
 | A1 + A2 Guild Tavern | 1 | Claude via Blender MCP (one parametric script; A2 = its mini LOD), §6.3 remap, §6.4 export | 2026-09-25 | **in game**: Stage D passed (LookDev + ExteriorWorld + HexMapTest); A1 4,568 tris, A2 996; windows emissive at roughness 0 (dark base + amber, not white) |
 | C9 Home marker | — | same script as A1/A2 | 2026-09-25 | **in game**: guild banner with the hourglass emblem on the tavern hex; 116 tris |
+| B6 Hourglass Pillar | 1 | Claude via Blender MCP (parametric stacked segments, octagonal lofts, emissive rune glyphs), §6.3 remap | 2026-09-25 | **in game**: Stage D passed (LookDev stages 0–4 + MainTavern); 2,480 tris; runes/sand/glass emissive teal at roughness 0 with a dark base; placed ×1.4 (the card's 3.5 m read too slender in the round bar) |
 | A6 Exterior terrain (hill, path, stream) + bridge | — | Claude via Blender MCP (height-function mesh, atlas faces, creased ramp for ink outlines) + a scripted scene layout | 2026-09-25 | **in game** (ExteriorWorld): terrain 16,232 tris, trimesh collision; bridge 840 tris, walkable deck. Village and forest laid out from KayKit |
 | B1 Hearth | 1 | | | concepts generating |
 | B2 Bar (round) | 1 | | | concepts generating |

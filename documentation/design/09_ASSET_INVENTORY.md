@@ -79,7 +79,7 @@ New pieces from `08` (Batch 1 and 2):
 |---|---|---|
 | B9 Tavern room shell (plank floor, full/window/doorway walls, 1.0 m knee wall, posts, beam) | the `Floor`, `FloorEntrance`, `WallNorth`/`East`/`South`/`West`, `IndoorNorthwall` grey boxes (hidden; their colliders stay) | `in game` (2026-09-24, Story 25.3: `custom/b9_*.gltf`, 28–376 tris a piece; far walls full height, near walls cut to knee height) |
 | B10 Front door (timber frame + two swinging leaves) | the open gap in the south wall | `in game` (2026-09-24, Story 25.3: `custom/b10_*.gltf` + `scripts/game/front_door.gd`) |
-| B6 Hourglass Pillar (stacked segments) | nothing (new centrepiece) | `concept` |
+| B6 Hourglass Pillar (stacked segments) | nothing (new centrepiece) | `in game` (2026-09-25, Story 25.4: `custom/b6_hourglass_pillar.gltf` 2,480 tris, placed ×1.4 at the round bar's centre; reveal stages 0–4, demo = 4 from `game_config.json`; solid, navmesh re-baked) |
 | B2 Round bar (`bar_ring`, `bar_flap`) | `TavernCounterCircular`, `BarCounter` box | `concept` |
 | `bar_stool` (with `seat_point`) | `stool` | `planned` (compare with `stool.obj` first) |
 | B1 Hearth (`hearth_stone`, `log_pile`, `andirons`) | `FireplaceBase` / `FireplaceBack` / `Mantel` boxes | `concept` |

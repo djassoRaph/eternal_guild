@@ -358,7 +358,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
-| 25: Demo Art Pipeline & Demo Cast | ~17% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door), 25.8 (Guild Tavern exterior + map miniature) and 25.29 (exterior ground, forest and village; added 2026-09-25) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
+| 25: Demo Art Pipeline & Demo Cast | ~20% | Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door), 25.4 (the Hourglass Pillar), 25.8 (Guild Tavern exterior + map miniature) and 25.29 (exterior ground, forest and village; added 2026-09-25) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`). 28 stories — Tier 1 (25.1–25.25) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art. Tier 2 (25.26–25.28) is polish. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
 | 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
 
 ### Epic 25 progress
@@ -403,6 +403,12 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - Village: 8 KayKit buildings (solid) round the square with the well, the watermill on the stream, the windmill beyond, 22 street and yard props. The farm plots stay by the tavern.
 - Forest: 422 seeded trees and rocks fill everything beyond the play area, with groves inside it and a clearing kept for the cemetery (25.18). Boundary walls keep the player in.
 - Failsafe Test 9 added (every placed node sits on the terrain; no tree on the path, stream or a building); the suite is at 110/110.
+
+**Story 25.4: the Hourglass Pillar (in review, 2026-09-25).**
+- B6 built as stacked segments (foundation, base, worn stub, rune bands, the teal hourglass, the broken crown), 2,480 tris; runes and sand glow teal without an ink outline.
+- `scenes/game/HourglassPillar.tscn` + `hourglass_pillar.gd`: reveal stages 0 (worn stub) to 4 (full); the demo shows 4 via `game_config.json` › `pillar_reveal_stage`; `glow_energy` for the day phases (25.23); `HumAnchor` + `reveal_stage_changed` for the hum (25.24).
+- Placed at the centre of the round bar (×1.4, crown above the walls as in K2); solid, navmesh re-baked (control bake matched first). Patrons still reach their tables.
+- Failsafe Test 10 added; the suite is at 131/131.
 
 ---
 
