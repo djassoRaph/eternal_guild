@@ -21,6 +21,8 @@
 	"fire_dying_seconds": 60,
 	"fire_cooldown_seconds": 30,
 
+	"pillar_reveal_stage": 4,
+
 	"autosave_interval_seconds": 300,
 	"max_backup_files": 3,
 
