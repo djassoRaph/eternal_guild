@@ -1260,9 +1260,18 @@ func test_class_roster() -> void:
 	# bodies stay in it as travelling adventurers)
 	var rp = load(PATRON_SCRIPT_PATH) as Script
 	var has_pool: bool = rp != null and rp.get_script_method_list().any(func(m): return m.name == "townsfolk_pool")
-	var pool: Array = (rp.townsfolk_pool() as Array).map(func(v): return str(v.get("model_path", ""))) if has_pool else []
-	check(HEALER_MODEL_PATH in pool and RANGER_MODEL_PATH in pool and pool.all(func(p): return ResourceLoader.exists(p)),
-		"the patron pool still seats Healers and Rangers (as travelling adventurers), and every pool model exists")
+	var entries: Array = rp.townsfolk_pool() if has_pool else []
+	var pool: Array = entries.map(func(v): return str(v.get("model_path", "")))
+	var class_w := 0.0
+	var all_w := 0.0
+	for v in entries:
+		all_w += float(v.get("weight", 1.0))
+		if str(v.get("role", "")) == "adventurer":
+			class_w += float(v.get("weight", 1.0))
+	check(HEALER_MODEL_PATH in pool and RANGER_MODEL_PATH in pool and pool.all(func(p): return ResourceLoader.exists(p))
+		and all_w > 0.0 and class_w / all_w < 0.25,
+		"the patron pool still seats Healers and Rangers, as a minority of travelling adventurers (%.0f%%), and every pool model exists"
+		% (100.0 * class_w / maxf(all_w, 0.001)))
 	print("")
 
 
@@ -1293,6 +1302,18 @@ func test_townsfolk_kit() -> void:
 		"every variant's name pool exists %s" % [pools.keys()])
 	var old := variants.filter(func(v): return v.get("id", "") == "old_woman")
 	check(not old.is_empty() and str(old[0].get("names", "")) == "feminine", "the old woman draws feminine names")
+	check(has_data and variants.all(func(v): return v.has("weight") and float(v.weight) > 0.0),
+		"every variant has a positive weight (the game reads a missing one as 1)")
+	check(has_data and variants.all(func(v): return str(v.get("origin_type", "")) in PATRON_ORIGIN_TYPES),
+		"every variant's origin_type is a patron origin %s" % [PATRON_ORIGIN_TYPES])
+	var travellers := variants.filter(func(v): return v.get("origin_type", "") == "traveler")
+	var trav_w := 0.0
+	var trav_body_w := 0.0
+	for v in travellers:
+		trav_w += float(v.get("weight", 0))
+		if str(v.get("role", "")) == "townsfolk":
+			trav_body_w += float(v.get("weight", 0))
+	check(trav_w > 0.0 and trav_body_w / trav_w > 0.5, "the traveller body leads the travellers (%.2f)" % (trav_body_w / maxf(trav_w, 0.001)))
 	var total := 0.0
 	var tf_weight := 0.0
 	for v in variants:
@@ -1348,8 +1369,16 @@ func test_townsfolk_kit() -> void:
 					keeps = false
 		check(keeps, "pick_variant keeps the origin type (rolls 0, 0.5, 0.999)")
 		check(not rp.pick_variant(pool, "dragon", 0.5).is_empty(), "an unknown origin still yields a body")
-		check(not pool.is_empty() and rp.pick_variant(pool, "", 0.0) == pool[0] and rp.pick_variant(pool, "", 0.999) == pool[-1],
-			"an empty origin picks across the whole pool by weight")
+		var pool_w := 0.0
+		for v in pool:
+			pool_w += float(v.get("weight", 1.0))
+		var edge := float(pool[0].get("weight", 1.0)) / pool_w if pool.size() >= 2 and pool_w > 0.0 else 0.5
+		check(pool.size() >= 2 and rp.pick_variant(pool, "", 0.0) == pool[0] and rp.pick_variant(pool, "", 0.999) == pool[-1]
+			and rp.pick_variant(pool, "", edge - 0.001) == pool[0] and rp.pick_variant(pool, "", edge + 0.001) == pool[1],
+			"an empty origin picks across the whole pool by weight (the first entry ends at roll %.3f)" % edge)
+		var zero := [{"id": "a", "weight": 0}, {"id": "b", "weight": 0}]
+		check(rp.pick_variant(zero, "", 0.2).get("id") == "a" and rp.pick_variant(zero, "", 0.8).get("id") == "b",
+			"all-zero weights pick evenly")
 
 	var barks = _read_json(VILLAGER_BARKS_PATH)
 	var regs: Dictionary = barks.get("registers", {}) if barks is Dictionary else {}
@@ -1362,7 +1391,9 @@ func test_townsfolk_kit() -> void:
 	var vs = load(VILLAGER_SCRIPT_PATH) as Script if ResourceLoader.exists(VILLAGER_SCRIPT_PATH) else null
 	var vapi: bool = vs != null and ["pick_bark", "step_toward"].all(func(m): return vs.get_script_method_list().any(func(x): return x.name == m))
 	check(vapi, "villager.gd has pick_bark() and step_toward()")
-	if vapi and regs.size() == BARK_REGISTERS.size():
+	var regs_ok := regs.has_all(BARK_REGISTERS)
+	check(regs_ok, "villager_barks has the three registers %s" % [BARK_REGISTERS])
+	if vapi and regs_ok:
 		check(str(vs.pick_bark(barks, 0.0, 0.0)) in regs["grievance"]["lines"] and str(vs.pick_bark(barks, 0.999, 0.0)) in regs["paranoia"]["lines"],
 			"pick_bark: a low roll grumbles, a high roll turns paranoid")
 		var p1: Vector3 = vs.step_toward(Vector3(0, 5, 0), Vector3(3, 0, 4), 1.0, 1.0)
@@ -1381,7 +1412,7 @@ func test_townsfolk_kit() -> void:
 		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
 			buildings.append((ext[k].world as Transform3D).origin)
 		elif key.begins_with("Village/Street/") and key.count("/") == 2:
-			street.append((ext[k].world as Transform3D).origin)
+			street.append([(ext[k].world as Transform3D).origin, 2.0 if key.get_file().begins_with("StallTent") else 1.0])
 	var problems := []
 	var used := []
 	var walkers := 0
@@ -1400,8 +1431,12 @@ func test_townsfolk_kit() -> void:
 			var wps: PackedVector3Array = n.props.get("waypoints", PackedVector3Array())
 			if wps.size() >= 2:
 				walkers += 1
-			for w in wps:
-				pts.append(Vector2(w.x, w.z))
+				for i in wps.size():
+					var a := Vector2(wps[i].x, wps[i].z)
+					var b := Vector2(wps[(i + 1) % wps.size()].x, wps[(i + 1) % wps.size()].z)
+					var steps := maxi(int(ceil(a.distance_to(b) / 0.5)), 1)
+					for t in steps:
+						pts.append(a.lerp(b, float(t) / steps))
 			for p in pts:
 				var why := _villager_spot_problem(hf, p, buildings, street)
 				if why != "":
@@ -1413,7 +1448,8 @@ func test_townsfolk_kit() -> void:
 
 
 ## Where a villager may not stand or step: outside the play area, in the stream, inside a building
-## (within 2.5 m of its origin, as Test 9's trees), or on a street prop (within 1 m).
+## (within 2.5 m of its origin, as Test 9's trees), or on a street prop (props = [origin, radius]:
+## 1 m, 2 m for a stall tent).
 static func _villager_spot_problem(hf: Dictionary, p: Vector2, buildings: Array, props: Array) -> String:
 	var play: Array = hf.play
 	if p.x < float(play[0]) or p.x > float(play[1]) or p.y < float(play[2]) or p.y > float(play[3]):
@@ -1424,7 +1460,7 @@ static func _villager_spot_problem(hf: Dictionary, p: Vector2, buildings: Array,
 		if Vector2(b.x, b.z).distance_to(p) < 2.5:
 			return "inside a building"
 	for q in props:
-		if Vector2(q.x, q.z).distance_to(p) < 1.0:
+		if Vector2(q[0].x, q[0].z).distance_to(p) < float(q[1]):
 			return "on a street prop"
 	return ""
 

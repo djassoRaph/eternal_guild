@@ -177,26 +177,33 @@ static func _townsfolk_doc() -> Dictionary:
 				_townsfolk_doc_cache = parsed
 	return _townsfolk_doc_cache
 
-## The patron and villager bodies: townsfolk.json's variants, or the fallback models as plain
-## entries (no origin type, weight 1) when the file has none.
+## The patron and villager bodies: townsfolk.json's variants (entries that aren't objects with a
+## model_path are skipped), or the fallback models as plain entries (no origin type, weight 1) when
+## the file has none. Copies, so a caller can't change the cached data for everyone else.
 static func townsfolk_pool() -> Array:
 	var variants = _townsfolk_doc().get("variants", [])
-	if variants is Array and not variants.is_empty():
-		return variants
+	if variants is Array:
+		var good: Array = (variants as Array).filter(func(v): return v is Dictionary and str(v.get("model_path", "")) != "")
+		if not good.is_empty():
+			return good.map(func(v): return (v as Dictionary).duplicate(true))
 	return FALLBACK_MODELS.map(func(p): return {"id": str(p).get_file().get_basename(), "model_path": p, "origin_type": "", "weight": 1.0})
 
 ## Weighted pick among the variants of one origin type ("" = the whole pool). An origin type no
-## variant covers falls back to the whole pool, so a patron always gets a body. roll is in [0, 1).
+## variant covers falls back to the whole pool, so a patron always gets a body; if every weight is
+## zero the pick is even. roll is in [0, 1).
 static func pick_variant(pool: Array, origin_type: String, roll: float) -> Dictionary:
 	var cands := pool.filter(func(v): return origin_type == "" or str(v.get("origin_type", "")) == origin_type)
 	if cands.is_empty():
 		cands = pool
 	if cands.is_empty():
 		return {}
+	var r := clampf(roll, 0.0, 0.999999)
 	var total := 0.0
 	for v in cands:
 		total += maxf(float(v.get("weight", 1.0)), 0.0)
-	var x := clampf(roll, 0.0, 0.999999) * total
+	if total <= 0.0:
+		return cands[mini(int(r * cands.size()), cands.size() - 1)]
+	var x := r * total
 	for v in cands:
 		x -= maxf(float(v.get("weight", 1.0)), 0.0)
 		if x < 0.0:
@@ -204,19 +211,31 @@ static func pick_variant(pool: Array, origin_type: String, roll: float) -> Dicti
 	return cands[-1]
 
 ## A name that fits the body: the variant's pool ("feminine" / "masculine"), or both for "any".
+## Missing, empty or malformed pools fall back to the built-in names.
 static func pick_name(variant: Dictionary, roll_first: float, roll_last: float) -> String:
-	var pools: Dictionary = _townsfolk_doc().get("names", {})
+	var raw = _townsfolk_doc().get("names", {})
+	var pools: Dictionary = raw if raw is Dictionary else {}
 	var key := str(variant.get("names", "any"))
-	var firsts: Array = pools.get(key, []) if key != "any" else Array(pools.get("feminine", [])) + Array(pools.get("masculine", []))
+	var firsts: Array = []
+	for k in (["feminine", "masculine"] if key == "any" else [key]):
+		var pool = pools.get(k, [])
+		if pool is Array:
+			firsts += pool
 	if firsts.is_empty():
 		firsts = FALLBACK_NAMES
-	var lasts: Array = pools.get("surnames", FALLBACK_SURNAMES)
+	var lasts_raw = pools.get("surnames", [])
+	var lasts: Array = lasts_raw if lasts_raw is Array and not lasts_raw.is_empty() else FALLBACK_SURNAMES
 	var i := mini(int(clampf(roll_first, 0.0, 0.999999) * firsts.size()), firsts.size() - 1)
 	var j := mini(int(clampf(roll_last, 0.0, 0.999999) * lasts.size()), lasts.size() - 1)
 	return "%s %s" % [firsts[i], lasts[j]]
 
 func _swap_to_model(model_path: String) -> void:
 	"""Load a specific model, replacing any current one. Used for random spawn AND save-restore."""
+	# Load first: a bad path keeps the current body rather than leaving an invisible patron.
+	var model_resource = load(model_path) if model_path != "" and ResourceLoader.exists(model_path) else null
+	if not model_resource is PackedScene:
+		push_warning("RealisticPatron: Could not load model: " + model_path)
+		return
 	# Remove the existing model (the .tscn's built-in one on first call, or a prior PatronModel
 	# on restore). Never remove the service indicator, timers, collision, or nav agent.
 	for child in get_children():
@@ -224,11 +243,6 @@ func _swap_to_model(model_path: String) -> void:
 			child.queue_free()
 
 	current_model_path = model_path
-	var model_resource = load(model_path)
-	if not model_resource:
-		push_warning("RealisticPatron: Could not load model: " + model_path)
-		return
-
 	patron_body_mesh = model_resource.instantiate()
 	patron_body_mesh.name = "PatronModel"
 	add_child(patron_body_mesh)
@@ -650,7 +664,11 @@ func restore_from_save(save: Dictionary, table_pos: Vector3, entrance: Vector3, 
 	has_been_served = save.get("has_been_served", false)
 
 	var mp: String = save.get("model_path", "")
-	if mp != "":
+	if mp == "" or not ResourceLoader.exists(mp):
+		# Saves from before model_path (or a body since removed): a body of the saved origin type,
+		# so a patron from the old keep still looks like a guard.
+		mp = str(pick_variant(townsfolk_pool(), patron_origin_type, randf()).get("model_path", ""))
+	if mp != "" and mp != current_model_path:
 		_swap_to_model(mp)
 
 	var pos = save.get("position", [])

@@ -1,5 +1,5 @@
 {
-	"_comment": "Story 25.14: patron and villager bodies (catalogue G19, G24). Patrons pick a variant by weight and then an origin label of the same origin_type, so their look matches patron_lines' origin flavours. Decision E1 (2026-09-25): townsfolk take ~80% of the weight; the class bodies stay as travelling adventurers. names = a pool key below, or 'any'. A missing file falls back to RealisticPatron.character_models (MOD-6).",
+	"_comment": "Story 25.14: patron and villager bodies (catalogue G19, G24). Patrons pick a variant by weight and then an origin label of the same origin_type, so their look matches patron_lines' origin flavours. Decision E1 (2026-09-25): townsfolk take ~80% of the weight; the class bodies stay as travelling adventurers. names = a pool key below, or 'any'. A missing file falls back to RealisticPatron.FALLBACK_MODELS (MOD-6).",
 	"variants": [
 		{
 			"id": "farmer",
@@ -34,7 +34,7 @@
 			"role": "townsfolk",
 			"model_path": "res://assets/characters/custom/townsfolk_traveller.glb",
 			"origin_type": "traveler",
-			"weight": 5,
+			"weight": 10,
 			"names": "any"
 		},
 		{

@@ -1724,4 +1724,4 @@ waypoints = PackedVector3Array(24.4, -2.98, 6.4, 31, -2.98, 5.6, 32.4, -2.98, -1
 [node name="Traveller" parent="Villagers" instance=ExtResource("s2514_villager")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, -2.98, 10.4)
 variant_id = "traveller"
-waypoints = PackedVector3Array(10.9, -2.98, 10.4, 13.4, -2.98, 10.2, 12.2, -2.98, 11.8)
+waypoints = PackedVector3Array(10.9, -2.98, 10.4, 14.2, -2.98, 7, 12, -2.98, 11)

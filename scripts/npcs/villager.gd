@@ -12,9 +12,9 @@ const REGISTERS := ["grievance", "mirror", "paranoia"]   # escalating; weights l
 const BUBBLE_SCRIPT := preload("res://scripts/fx/patron_speech_bubble.gd")
 const GRAVITY := 9.8
 const HEAR_RADIUS := 6.0        # the player overhears within this distance
-const SHARED_COOLDOWN := 8.0    # seconds between any two villager barks, so bubbles never overlap
 const ARRIVE_DIST := 0.3
 const BUBBLE_SCALE := 1.5       # the town camera is about twice as wide as the tavern's; keep the words readable
+const FALL_LIMIT := 5.0         # this far below where it started = fell through the ground: put it back
 
 @export var variant_id: String = "local"
 @export var waypoints: PackedVector3Array = PackedVector3Array()   # world positions (XZ used); empty = stands
@@ -23,10 +23,12 @@ const BUBBLE_SCALE := 1.5       # the town camera is about twice as wide as the 
 @export var bark_cooldown_range: Vector2 = Vector2(25.0, 45.0)
 
 static var _barks_cache = null
-static var _last_bark_time := -1000.0
+static var _speaking := 0       # villager bubbles on screen; a new bark waits for silence (pause-proof)
 
 var _model: Node3D = null
 var _anim: AnimationPlayer = null
+var _home := Vector3.ZERO
+var _settled := false
 var _next := 0
 var _pause := 0.0
 var _stuck := 0.0
@@ -39,6 +41,7 @@ func _ready() -> void:
 	add_to_group("villagers")
 	collision_layer = 0b00000010   # as patrons: the world collides with us, we don't collide with each other
 	collision_mask = 0b00000001
+	_home = global_position
 	_spawn_model()
 	_cooldown = randf_range(3.0, 10.0)   # stagger the first barks
 	_pause = randf_range(0.0, pause_range.y)
@@ -53,10 +56,12 @@ func _spawn_model() -> void:
 			path = str(v.get("model_path", ""))
 	if path == "" and not pool.is_empty():
 		path = str(pool[0].get("model_path", ""))   # unknown id: any townsperson rather than nobody
-	if path == "" or not ResourceLoader.exists(path):
-		push_warning("Villager: no body for variant '%s'" % variant_id)
+		push_warning("Villager %s: unknown variant '%s', using %s" % [name, variant_id, path.get_file()])
+	var scene = load(path) if path != "" and ResourceLoader.exists(path) else null
+	if not scene is PackedScene:
+		push_warning("Villager %s: no body for variant '%s'" % [name, variant_id])
 		return
-	_model = (load(path) as PackedScene).instantiate()
+	_model = (scene as PackedScene).instantiate()
 	_model.name = "VillagerModel"
 	add_child(_model)
 	var aps := _model.find_children("*", "AnimationPlayer", true, false)
@@ -64,6 +69,18 @@ func _spawn_model() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if delta <= 0.0:
+		return   # time_scale 0: nothing moves, and no 0/0 velocity
+	if global_position.y < _home.y - FALL_LIMIT:
+		global_position = _home   # fell through the ground somehow: back where it started
+		velocity = Vector3.ZERO
+	var walker := waypoints.size() >= 2
+	if not walker and _settled:
+		# Standing at a post: once landed, no more physics, so the player walking through can't shove
+		# them off it (villagers collide with the player; the player passes through villagers).
+		_play("Idle")
+		_listen_for_player(delta)
+		return
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	else:
@@ -71,7 +88,7 @@ func _physics_process(delta: float) -> void:
 	var moving := false
 	velocity.x = 0.0
 	velocity.z = 0.0
-	if waypoints.size() >= 2:
+	if walker:
 		if _pause > 0.0:
 			_pause -= delta
 		else:
@@ -89,6 +106,8 @@ func _physics_process(delta: float) -> void:
 				moving = true
 	var before := global_position
 	move_and_slide()
+	if not walker and is_on_floor():
+		_settled = true
 	if moving:
 		# Blocked (a player standing in the way, a prop): give up on this stop after two seconds.
 		_stuck = _stuck + delta if (global_position - before).length() < walk_speed * delta * 0.2 else 0.0
@@ -102,7 +121,7 @@ func _physics_process(delta: float) -> void:
 func _face(dir: Vector3, delta: float) -> void:
 	if _model == null or dir.length() < 0.001:
 		return
-	var yaw := atan2(dir.x, dir.z) - rotation.y   # the model faces +Z; the root may be turned in the scene
+	var yaw := atan2(dir.x, dir.z) - global_rotation.y   # the model faces +Z; the root may be turned
 	_model.rotation.y = lerp_angle(_model.rotation.y, yaw, clampf(delta * 8.0, 0.0, 1.0))
 
 
@@ -115,6 +134,9 @@ func _play(anim_name: String) -> void:
 	_anim.play(anim_name, 0.2)
 
 
+## Once per half second: when the player is close, and this villager hasn't spoken to them yet on this
+## visit, speak when its own cooldown is over and no other villager's bubble is showing. Leaving the
+## radius resets the visit.
 func _listen_for_player(delta: float) -> void:
 	_cooldown -= delta
 	_listen -= delta
@@ -123,18 +145,26 @@ func _listen_for_player(delta: float) -> void:
 	_listen = 0.5
 	var player := get_tree().get_first_node_in_group("player") as Node3D
 	var near := player != null and player.global_position.distance_to(global_position) <= HEAR_RADIUS
-	if near and not _player_was_near and _cooldown <= 0.0:
-		var now := Time.get_ticks_msec() / 1000.0
-		if now - _last_bark_time >= SHARED_COOLDOWN:
-			var line := pick_bark(_barks(), randf(), randf())
-			if line != "":
-				var bubble = BUBBLE_SCRIPT.new()
-				bubble.scale = Vector3.ONE * BUBBLE_SCALE
-				add_child(bubble)
-				bubble.say(line, 4.0)
-				_last_bark_time = now
-				_cooldown = randf_range(bark_cooldown_range.x, bark_cooldown_range.y)
-	_player_was_near = near
+	if not near:
+		_player_was_near = false
+		return
+	if _player_was_near or _cooldown > 0.0 or _speaking > 0:
+		return
+	var line := pick_bark(_barks(), randf(), randf())
+	if line == "":
+		return
+	var bubble = BUBBLE_SCRIPT.new()
+	bubble.scale = Vector3.ONE * BUBBLE_SCALE
+	add_child(bubble)
+	_speaking += 1
+	bubble.tree_exited.connect(_on_bubble_gone)
+	bubble.say(line, 4.0)
+	_player_was_near = true
+	_cooldown = randf_range(bark_cooldown_range.x, bark_cooldown_range.y)
+
+
+func _on_bubble_gone() -> void:
+	_speaking = maxi(_speaking - 1, 0)
 
 
 static func _barks() -> Dictionary:
@@ -149,22 +179,27 @@ static func _barks() -> Dictionary:
 
 
 ## A register by weight (grievance, mirror, paranoia, in that order), then a line from it.
-## Rolls are in [0, 1); "" when the data has nothing to say.
+## Rolls are in [0, 1); "" when the data has nothing (usable) to say.
 static func pick_bark(data: Dictionary, roll_register: float, roll_line: float) -> String:
-	var regs: Dictionary = data.get("registers", {})
+	var regs = data.get("registers", {})
+	if not regs is Dictionary:
+		return ""
+	var usable := []
 	var total := 0.0
 	for r in REGISTERS:
-		total += maxf(float(regs.get(r, {}).get("weight", 0)), 0.0)
+		var reg = regs.get(r, {})
+		if reg is Dictionary and reg.get("lines", []) is Array and not (reg.get("lines", []) as Array).is_empty():
+			var w := maxf(float(reg.get("weight", 0)), 0.0)
+			if w > 0.0:
+				usable.append([w, reg.lines])
+				total += w
 	if total <= 0.0:
 		return ""
 	var x := clampf(roll_register, 0.0, 0.999999) * total
-	for r in REGISTERS:
-		var reg: Dictionary = regs.get(r, {})
-		x -= maxf(float(reg.get("weight", 0)), 0.0)
+	for u in usable:
+		x -= u[0]
 		if x < 0.0:
-			var lines: Array = reg.get("lines", [])
-			if lines.is_empty():
-				return ""
+			var lines: Array = u[1]
 			return str(lines[mini(int(clampf(roll_line, 0.0, 0.999999) * lines.size()), lines.size() - 1)])
 	return ""
 
