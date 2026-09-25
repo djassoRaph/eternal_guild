@@ -46,6 +46,7 @@
 [ext_resource type="PackedScene" uid="uid://1fk2dkc6a6vr" path="res://assets/environment/hexagons/nature/trees_A_small.gltf" id="s2529_26"]
 [ext_resource type="PackedScene" uid="uid://o1ekw2pbboby" path="res://assets/environment/hexagons/nature/tree_single_B_cut.gltf" id="s2529_27"]
 [ext_resource type="PackedScene" uid="uid://cy46h8233xbwl" path="res://assets/environment/hexagons/nature/tree_single_A_cut.gltf" id="s2529_28"]
+[ext_resource type="PackedScene" path="res://scenes/npcs/Villager.tscn" id="s2514_villager"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_horizon_color = Color(0.646, 0.656, 0.67, 1)
@@ -1695,3 +1696,32 @@ shape = SubResource("BoxShape3D_s2529_bounds_West")
 [node name="East" type="CollisionShape3D" parent="Bounds"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 0, 10)
 shape = SubResource("BoxShape3D_s2529_bounds_East")
+
+[node name="Villagers" type="Node3D" parent="."]
+
+[node name="Guard" parent="Villagers" instance=ExtResource("s2514_villager")]
+transform = Transform3D(0.371391, 0, -0.928477, 0, 1, 0, 0.928477, 0, 0.371391, 10.8, -2.98, 7.4)
+variant_id = "guard"
+
+[node name="Merchant" parent="Villagers" instance=ExtResource("s2514_villager")]
+transform = Transform3D(-0.480535, 0, -0.876976, 0, 1, 0, 0.876976, 0, -0.480535, 24.8, -2.98, 12)
+variant_id = "merchant"
+
+[node name="OldWoman" parent="Villagers" instance=ExtResource("s2514_villager")]
+transform = Transform3D(-0.723356, 0, 0.690476, 0, 1, 0, -0.690476, 0, -0.723356, 15.4, -2.98, 10.2)
+variant_id = "old_woman"
+
+[node name="Local" parent="Villagers" instance=ExtResource("s2514_villager")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -2.98, 4.9)
+variant_id = "local"
+waypoints = PackedVector3Array(14, -2.98, 4.9, 21, -2.98, 4.2, 22, -2.98, 10.8, 14, -2.98, 11.6)
+
+[node name="Farmer" parent="Villagers" instance=ExtResource("s2514_villager")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.4, -2.98, 6.4)
+variant_id = "farmer"
+waypoints = PackedVector3Array(24.4, -2.98, 6.4, 31, -2.98, 5.6, 32.4, -2.98, -1, 30.2, -2.98, -6, 32.4, -2.98, -1, 31, -2.98, 5.6)
+
+[node name="Traveller" parent="Villagers" instance=ExtResource("s2514_villager")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, -2.98, 10.4)
+variant_id = "traveller"
+waypoints = PackedVector3Array(10.9, -2.98, 10.4, 13.4, -2.98, 10.2, 12.2, -2.98, 11.8)
