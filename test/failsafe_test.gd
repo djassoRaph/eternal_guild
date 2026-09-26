@@ -129,6 +129,26 @@ const KNIGHT_TOP := 2.315          # KayKit Knight head top, the tallest of the 
 const FIRE_ANCHOR := Vector3(-2.970, 0.100, -9.300)   # the Hearth's interact_point, world (MainTavern)
 const CAT_WORLD := Vector3(-2.937, 0.160, -6.895)
 const BAR_SPOT := Vector3(3.95, 0.10, -7.55)            # between Stool03 and Stool04
+const STAFF_DATA_PATH := "res://data/characters/staff.json"          # Story 25.13
+const BARTENDER_PATH := "res://assets/characters/custom/g12_bartender.glb"
+const DEALER_PATH := "res://assets/characters/custom/g13_quest_dealer.glb"
+const BARTENDER_SCENE := "res://scenes/game/Bartender.tscn"
+const DEALER_SCENE := "res://scenes/game/QuestDealer.tscn"
+const STAFF_BASE_SCRIPT := "res://scripts/game/staff_npc.gd"
+const BARTENDER_SCRIPT := "res://scripts/game/bartender.gd"
+const DEALER_SCRIPT := "res://scripts/game/quest_dealer.gd"
+const FRONT_DOOR_SCRIPT := "res://scripts/game/front_door.gd"
+const STAFF_CLIPS := ["Walk_Bar", "Wipe", "Pour", "Serve", "Restock", "Write", "Brief"]
+const STAFF_LOOPS := ["Idle", "Walking_A", "Walk_Bar", "Sit_Chair_Idle", "Wipe", "Restock", "Write", "Brief"]
+const STAFF_ONE_SHOTS := ["Pour", "Serve", "Sit_Chair_Down", "Sit_Chair_StandUp", "Interact"]
+const BARTENDER_MESH_ALLOW := ["Barbarian_Body", "Barbarian_Head", "Barbarian_ArmLeft", "Barbarian_ArmRight", "Barbarian_LegLeft", "Barbarian_LegRight"]
+const DEALER_MESH_ALLOW := ["Mage_Body", "Mage_ArmLeft", "Mage_ArmRight", "Mage_LegLeft", "Mage_LegRight", "Rogue_Head"]
+const RING_CENTER := Vector3(7.740, 0.100, -8.215)     # the RoundBar's origin (MainTavern, no rotation)
+const DOOR_CENTER := Vector3(9.6, 0.0, 4.48)            # the FrontDoor's origin
+const DESK_WORLD := Vector3(11.600, 0.100, -4.300)      # the GuildDesk's origin (Furniture offset included)
+const DESK_SLAB_BACK := -4.776                          # the desk top's back edge (world z); its slab is y 0.88..0.95
+const DEALER_IDLE_FRONT := 0.363                        # the Mage body's Idle front at desk-top height (measured, T0)
+const LINTEL_Y := 2.30                                  # the door frame's lintel
 
 var _pass_count := 0
 var _fail_count := 0
@@ -160,6 +180,9 @@ func _initialize() -> void:
 	await test_the_cat_yields()
 	test_den_fa()
 	await test_den_fa_e()
+	test_staff()
+	await test_staff_tavern()
+	await test_staff_runtime()
 
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
@@ -2138,6 +2161,684 @@ func test_den_fa_e() -> void:
 	check(flipped and probe.update_mode == ReflectionProbe.UPDATE_ONCE, "the hearth probe re-captures on a fire band change (Always for two frames, then Once)")
 	world.queue_free()
 	await process_frame
+
+
+# --- Test 19: the Bartender and the Quest Dealer (Story 25.13) ---
+# Two staff bodies on the KayKit rig with seven work clips. The Bartender works the inside of the round
+# bar (the serve points and the restock station, arcs round the ring in Walk_Bar); the Quest Dealer
+# works the guild desk (her own seat offset; the stool pulled out, sat on and shuffled in). In the demo
+# profile they are there from the first morning (K9); in the full game they walk in through the front
+# door when GuildBus.staff_hired says so. Visuals only: no GameManager writes, no E, no physics body.
+func test_staff() -> void:
+	print("[Test 19] The Bartender and the Quest Dealer")
+	for p in [BARTENDER_PATH, DEALER_PATH, BARTENDER_SCENE, DEALER_SCENE, STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT]:
+		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
+	check(FileAccess.file_exists(STAFF_DATA_PATH), "exists: staff.json")
+	_check_staff_glb(BARTENDER_PATH, BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"])
+	_check_staff_glb(DEALER_PATH, DEALER_MESH_ALLOW, "Dealer_", ["Dealer_Quill", "Dealer_Ears"])
+
+	var data = _read_json(STAFF_DATA_PATH) if FileAccess.file_exists(STAFF_DATA_PATH) else null
+	var roles: Dictionary = data.get("roles", {}) if data is Dictionary else {}
+	var why := []
+	if not (data is Dictionary and str(data.get("_note", "")).length() > 10):
+		why.append("no _note")
+	for role in ["bartender", "desk_manager"]:
+		var r = roles.get(role)
+		if not r is Dictionary:
+			why.append("no role " + role)
+			continue
+		var variants = r.get("variants", {})
+		if not (variants is Dictionary and variants.has(str(r.get("default_variant", "")))):
+			why.append(role + ": default_variant not in variants")
+		for v in (variants.values() if variants is Dictionary else []):
+			for key in ["model_path", "fallback_model_path"]:
+				if not (v is Dictionary and ResourceLoader.exists(str(v.get(key, "")))):
+					why.append("%s: %s missing" % [role, key])
+		var distinct := {}
+		for l in r.get("barks", []):
+			if str(l).strip_edges() != "":
+				distinct[str(l)] = true
+		if distinct.size() < 3:
+			why.append("%s: %d barks" % [role, distinct.size()])
+		if str(r.get("display_name", "")) == "":
+			why.append(role + ": no display_name")
+	check(why.is_empty(), "staff.json: both roles, a default variant with existing model and fallback paths, ≥ 3 barks each %s" % [why])
+
+	var gms = load(GAME_MANAGER_PATH)
+	var gm_methods: Array = gms.get_script_method_list().map(func(m): return m.name)
+	var prof_ok: bool = gm_methods.has("staff_hired_by_profile") and gm_methods.has("is_staff_hired")
+	if prof_ok:
+		prof_ok = gms.staff_hired_by_profile("demo", ["bartender", "desk_manager"], "bartender") \
+			and not gms.staff_hired_by_profile("full", ["bartender", "desk_manager"], "bartender") \
+			and not gms.staff_hired_by_profile("demo", [], "bartender") \
+			and not gms.staff_hired_by_profile("demo", ["bartender", "desk_manager"], "gardener")
+	check(prof_ok, "staff_hired_by_profile: hired at start only in the demo profile and only for the listed roles")
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var start_staff = cfg.get("demo_start_staff", []) if cfg is Dictionary else []
+	var gm = root.get_node_or_null("GameManager")
+	check(cfg is Dictionary and str(cfg.get("profile", "")) == "demo" and start_staff is Array and start_staff.has("bartender") and start_staff.has("desk_manager")
+		and gm != null and gm.has_method("is_staff_hired") and gm.is_staff_hired("bartender") and gm.is_staff_hired("desk_manager"),
+		"the demo profile starts with both staff hired (K9: game_config profile + demo_start_staff)")
+	var gb = root.get_node_or_null("GuildBus")
+	check(gb != null and gb.has_signal("staff_hired") and gb.has_signal("staff_fired"), "GuildBus has staff_hired and staff_fired (Story 16.1's contract)")
+
+	var bs = load(BARTENDER_SCRIPT) if ResourceLoader.exists(BARTENDER_SCRIPT) else null
+	var bconst: Dictionary = bs.get_script_constant_map() if bs != null else {}
+	var bmethods: Array = bs.get_script_method_list().map(func(m): return m.name) if bs != null else []
+	check(absf(float(bconst.get("RING_R", 0.0)) - 1.80) < 0.001 and absf(float(bconst.get("RESTOCK_R", 0.0)) - 1.98) < 0.001,
+		"the ring walk runs at r 1.80 (the serve points) and the restock station at r 1.98 (in the flap gap; %s, %s)" % [bconst.get("RING_R"), bconst.get("RESTOCK_R")])
+	var ring_ok: bool = bmethods.has("ring_arc") and bmethods.has("ring_radius_at") and bmethods.has("nearest_station")
+	why = []
+	if ring_ok:
+		for phi in [0.0, 60.0, 120.0, 240.0, 300.0]:
+			if absf(bs.ring_radius_at(deg_to_rad(phi)) - 1.80) > 0.001:
+				why.append("r(%d)" % phi)
+		for phi in [150.0, 164.0, 172.0, 180.0, 188.0, 196.0, 210.0]:
+			if bs.ring_radius_at(deg_to_rad(phi)) < 1.898:
+				why.append("keg sector r(%d) %.3f" % [phi, bs.ring_radius_at(deg_to_rad(phi))])
+		var arc: PackedVector3Array = bs.ring_arc(RING_CENTER, 0.0, deg_to_rad(300.0), 0.25)
+		if arc.is_empty() or arc[0].distance_to(RING_CENTER + Vector3(0, 0, 1.8)) > 0.001 \
+				or arc[arc.size() - 1].distance_to(RING_CENTER + Vector3(sin(deg_to_rad(300.0)), 0, cos(deg_to_rad(300.0))) * 1.8) > 0.001:
+			why.append("endpoints")
+		for i in arc.size():
+			var d := arc[i] - RING_CENTER
+			var phi_deg := fposmod(rad_to_deg(atan2(d.x, d.z)), 360.0)
+			if phi_deg > 1.0 and phi_deg < 299.0:
+				why.append("the long way (%.0f°)" % phi_deg)
+				break
+			if absf(Vector2(d.x, d.z).length() - bs.ring_radius_at(atan2(d.x, d.z))) > 0.01 or absf(arc[i].y - RING_CENTER.y) > 0.001:
+				why.append("off the ring at %.0f°" % phi_deg)
+				break
+			if i > 0 and arc[i].distance_to(arc[i - 1]) > 0.26:
+				why.append("a %.2f m step" % arc[i].distance_to(arc[i - 1]))
+				break
+		var low := float(bconst.get("WALK_BAR_HALF_LOW", 9.0))        # at the kegs' height (0.26-0.49 m)
+		var shelf := float(bconst.get("WALK_BAR_HALF_SHELF", 9.0))    # at the shelf's lowest tier (0.3-0.6 m)
+		var mid := float(bconst.get("WALK_BAR_HALF_MID", 9.0))        # up to the counter top (0.6-1.12 m)
+		for deg in 360:
+			var r: float = bs.ring_radius_at(deg_to_rad(float(deg)))
+			if r - shelf < 1.28:
+				why.append("the shelf at %d°" % deg)
+				break
+			if absf(float(deg) - 180.0) <= 30.0 and r - low < 1.49:    # the kegs, and his body's length past them
+				why.append("the kegs at %d°" % deg)
+				break
+			if absf(float(deg) - 180.0) > 16.8 and r + mid > 2.355:    # the counter (0.005 m contact tolerance)
+				why.append("the counter at %d°" % deg)
+				break
+	check(ring_ok and why.is_empty(), "ring_arc: the shorter way round, on the ring (r 1.80; ≥ 1.898 past the kegs), 0.25 m steps; Walk_Bar clears the shelf, the kegs and the counter %s" % [why])
+	var stations := []
+	for deg in [0.0, 60.0, 120.0, 240.0, 300.0]:
+		stations.append(RING_CENTER + Vector3(sin(deg_to_rad(deg)), 0, cos(deg_to_rad(deg))) * 1.8)
+	var near_ok: bool = ring_ok
+	if ring_ok:
+		for pair in [[10.0, 0], [70.0, 1], [250.0, 3]]:
+			var t := RING_CENTER + Vector3(sin(deg_to_rad(pair[0])), 0, cos(deg_to_rad(pair[0]))) * 3.55
+			if bs.nearest_station(stations, t) != pair[1]:
+				near_ok = false
+	check(near_ok and bconst.get("CAMERA_VISIBLE", []) == [0, 1, 2, 4], "nearest_station picks the serve point facing a stool; the autopilot prefers 01, 02, 03 and 05")
+	var base = load(STAFF_BASE_SCRIPT) if ResourceLoader.exists(STAFF_BASE_SCRIPT) else null
+	var bm: Array = base.get_script_method_list().map(func(m): return m.name) if base != null else []
+	var pl_ok: bool = bm.has("pick_line") and base.pick_line(0, -1, 0.5) == -1 and base.pick_line(1, 0, 0.5) == 0
+	if pl_ok:
+		var last := -1
+		for i in 20:
+			var n: int = base.pick_line(4, last, float(i) / 20.0)
+			if n == last or n < 0 or n > 3:
+				pl_ok = false
+			last = n
+	check(pl_ok, "pick_line: none for no lines, the only one for one, never the same twice in a row")
+
+	var ds = load(DEALER_SCRIPT) if ResourceLoader.exists(DEALER_SCRIPT) else null
+	var dconst: Dictionary = ds.get_script_constant_map() if ds != null else {}
+	var desk := _scene_nodes(DESK_SCENE_PATH)
+	var wp_world: Transform3D = Transform3D(Basis(), DESK_WORLD) * (desk.WorkPoint.world as Transform3D) if desk.has("WorkPoint") else Transform3D.IDENTITY
+	var hip_back := float(dconst.get("DEALER_HIP_BACK", 0.0))
+	var pull := float(dconst.get("STOOL_PULL", 0.0))
+	var seated: Vector3 = ds.seated_root(wp_world) if ds != null and ds.get_script_method_list().any(func(m): return m.name == "seated_root") else Vector3.INF
+	var expect := Vector3(wp_world.origin.x, 0.10, wp_world.origin.z + hip_back)
+	var walk_half := float(dconst.get("WALK_HALF_AT_DESK", 9.0))
+	var seated_front := float(dconst.get("SEATED_FRONT", 9.0))
+	check(seated != Vector3.INF and seated.distance_to(expect) < 0.005 and hip_back > 0.25 and hip_back < 0.40
+		and seated.z + seated_front <= DESK_SLAB_BACK - 0.02,
+		"her seated root: %.2f m in front of the WorkPoint, on the floor; seated, she clears the desk top by ≥ 0.02 m" % hip_back)
+	var standing_z := seated.z - pull if seated != Vector3.INF else 0.0
+	check(pull >= 0.45 and standing_z <= DESK_SLAB_BACK - maxf(DEALER_IDLE_FRONT, walk_half) - 0.02,
+		"STOOL_PULL %.2f: standing to sit, and turning there, she clears the desk top (root z %.2f)" % [pull, standing_z])
+
+	for sp in [BARTENDER_SCENE, DEALER_SCENE]:
+		var sn := _scene_nodes(sp) if ResourceLoader.exists(sp) else {}
+		var scr = sn.get(".", {}).get("props", {}).get("script", null) if sn.has(".") else null
+		var based: bool = scr is Script and (scr as Script).get_base_script() != null and (scr as Script).get_base_script().resource_path == STAFF_BASE_SCRIPT
+		var bodies := sn.keys().filter(func(k): return sn[k].type in ["CharacterBody3D", "RigidBody3D", "StaticBody3D", "Area3D"])
+		var groups := []
+		for k in sn:
+			groups.append_array(sn[k].groups)
+		var bad_groups := groups.filter(func(gr): return gr in ["patrons", "patron_seat", "villagers", "player", "mission_board", "notice_board"])
+		check(sn.has(".") and sn["."].type == "Node3D" and based and bodies.is_empty() and bad_groups.is_empty(),
+			"%s: a Node3D running a staff_npc.gd script; no body, no zone, no patron group (bodies %s, groups %s)" % [sp.get_file(), bodies, bad_groups])
+	var project := FileAccess.get_file_as_string("res://project.godot")
+	var autoloads := project.substr(project.find("[autoload]"), 2000) if project.find("[autoload]") >= 0 else ""
+	autoloads = autoloads.substr(0, autoloads.find("\n[", 2)) if autoloads.find("\n[", 2) > 0 else autoloads
+	check(not autoloads.to_lower().contains("staff") and not autoloads.to_lower().contains("bartender") and not autoloads.to_lower().contains("dealer"), "no autoload for the staff")
+	var fd = load(FRONT_DOOR_SCRIPT)
+	var fdm: Array = fd.get_script_method_list().map(func(m): return m.name)
+	check(fdm.has("hold_open") and fdm.has("release_hold"), "the front door can be held open by a walker without a body")
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var bars := tav.keys().filter(func(k): return tav[k].instance == BARTENDER_SCENE)
+	var dealers := tav.keys().filter(func(k): return tav[k].instance == DEALER_SCENE)
+	var staff_parent := "SubViewportContainer/SubViewport/TavernNavigation/Staff"
+	check(bars.size() == 1 and dealers.size() == 1 and str(bars[0]).get_base_dir() == staff_parent and str(dealers[0]).get_base_dir() == staff_parent
+		and tav.has(staff_parent) and (tav[staff_parent].local as Transform3D).is_equal_approx(Transform3D.IDENTITY),
+		"one Bartender and one Quest Dealer under TavernNavigation/Staff (no offset) (%d, %d)" % [bars.size(), dealers.size()])
+	for k in bars + dealers:
+		var pr: Dictionary = tav[k].props
+		check(int(pr.get("hired_at_start_override", -1)) == -1 and str(pr.get("variant", "")) == "",
+			"%s asks GameManager whether it is hired and uses its role's default variant" % str(k).get_file())
+	print("")
+
+
+## One staff GLB (Test 19): the KayKit rig, the 76 clips plus the seven staff clips (loops set), its own
+## allowlisted mesh nodes and props, the budget and the glow rule, no metal, and under the door lintel.
+func _check_staff_glb(path: String, allow: Array, prefix: String, props: Array) -> void:
+	var fname := path.get_file()
+	if not ResourceLoader.exists(path):
+		check(false, "%s: the KayKit rig, 83 clips with loops set, allowlisted meshes, props, ≤ 7,000 tris, no metal, under 2.25 m" % fname)
+		return
+	var inst := (load(path) as PackedScene).instantiate()
+	var sks := inst.find_children("*", "Skeleton3D", true, false)
+	var bones := []
+	if not sks.is_empty():
+		for b in (sks[0] as Skeleton3D).get_bone_count():
+			bones.append((sks[0] as Skeleton3D).get_bone_name(b))
+	check(bones.size() >= 41 and ["handslot.l", "handslot.r", "hips", "head"].all(func(b): return bones.has(b)),
+		"%s: the KayKit rig (%d bones, handslots, hips, head)" % [fname, bones.size()])
+	var aps := inst.find_children("*", "AnimationPlayer", true, false)
+	var ap: AnimationPlayer = aps[0] if not aps.is_empty() else null
+	var clips: Array = Array(ap.get_animation_list()) if ap else []
+	var missing := (CAST_CLIPS + STAFF_CLIPS).filter(func(c): return not clips.has(c))
+	var dupes := clips.filter(func(c): return str(c).contains(".00"))
+	check(clips.size() == 83 and missing.is_empty() and dupes.is_empty(), "%s: 83 clips, the cast's and the seven staff clips (missing %s, .00x %s)" % [fname, missing, dupes])
+	var wrong := []
+	for c in STAFF_LOOPS:
+		if ap == null or not ap.has_animation(c) or ap.get_animation(c).loop_mode != Animation.LOOP_LINEAR:
+			wrong.append(c)
+	for c in STAFF_ONE_SHOTS:
+		if ap == null or not ap.has_animation(c) or ap.get_animation(c).loop_mode != Animation.LOOP_NONE:
+			wrong.append(c)
+	check(wrong.is_empty(), "%s: the work loops loop and the one-shots play once (wrong: %s)" % [fname, wrong])
+	var meshes := inst.find_children("*", "MeshInstance3D", true, false).map(func(m): return str(m.name))
+	var stray := meshes.filter(func(m): return not allow.has(m) and not m.begins_with(prefix))
+	var no_props := props.filter(func(p): return not meshes.has(p))
+	check(stray.is_empty() and no_props.is_empty(), "%s: only its own pieces (stray %s) and its props (missing %s)" % [fname, stray, no_props])
+	var metal := []
+	for m in inst.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (m as MeshInstance3D).mesh
+		for s in (mesh.get_surface_count() if mesh else 0):
+			var mat = mesh.surface_get_material(s)
+			if mat is StandardMaterial3D and (mat as StandardMaterial3D).metallic > 0.01:
+				metal.append(str(m.name))
+	inst.free()
+	var st := _mesh_stats(path)
+	check(st.tris > 0 and st.tris <= 7000 and st.glow == 0 and st.wrong.is_empty() and metal.is_empty(),
+		"%s: %d tris (≤ 7,000), nothing glows, roughness > 0, no metal (wrong %s, metal %s)" % [fname, st.tris, st.wrong, metal])
+	var top := -INF
+	var gnodes := _scene_nodes(path)
+	for k in gnodes:
+		var mesh = gnodes[k].props.get("mesh")
+		if mesh is Mesh:
+			top = maxf(top, ((gnodes[k].world as Transform3D) * (mesh as Mesh).get_aabb()).end.y)
+	check(top > 1.8 and top <= LINTEL_Y - 0.05, "%s: %.2f m tall, under the door lintel (%.2f)" % [fname, top, LINTEL_Y])
+
+
+## The staff in the real tavern (Test 19): their routes (on the navmesh except the listed legs, clear of
+## every seat and footprint, through the door opening), their node paths, one work_point, two probes.
+## The tavern is instanced with every script stripped (so nothing runs), after reading the staff exports.
+func test_staff_tavern() -> void:
+	var scene: Node = (load(TAVERN_SCENE_PATH) as PackedScene).instantiate()
+	var tn_path := "SubViewportContainer/SubViewport/TavernNavigation"
+	var staff := {}
+	for n in ["Bartender", "QuestDealer"]:
+		var node := scene.get_node_or_null(tn_path + "/Staff/" + n)
+		if node:
+			staff[n] = {"route": node.get("arrive_route"), "paths": {}}
+			for p in ["bar_path", "desk_path", "door_path", "recruitment_zone_path", "recruitment_popup_path"]:
+				if node.get(p) != null:
+					staff[n].paths[p] = node.get(p)
+	_strip_scripts(scene)
+	root.add_child(scene)
+	await process_frame
+	var tn: Node3D = scene.get_node(tn_path)
+	var nav: NavigationMesh = (tn as NavigationRegion3D).navigation_mesh
+	var seats := []
+	for n in scene.find_children("*", "Node3D", true, false):
+		if n.is_in_group("patron_seat"):
+			var t: Transform3D = (n as Node3D).global_transform
+			var f := Vector3(t.basis.z.x, 0, t.basis.z.z).normalized()
+			seats.append(t.origin + f * 0.40)
+	var ps = load("res://scripts/npcs/PatronSpawner.gd").new()
+	for p in ps.table_positions:
+		seats.append(p)
+	ps.free()
+	var foots := []
+	for parent in ["Furniture", "Props"]:
+		for m in tn.get_node(parent).find_children("*", "MeshInstance3D", true, false):
+			var ab: AABB = (m as MeshInstance3D).global_transform * (m as MeshInstance3D).get_aabb()
+			if ab.position.y < 2.0 and ab.size.y > 0.05 and not str(m.get_path()).contains("/TheCat") and not str(m.get_path()).contains("/DenFa"):
+				foots.append(ab)
+	var ring := RING_CENTER
+	var legs := {
+		"Bartender": func(q: Vector3) -> bool: return (q.z >= 3.69 and q.z <= 5.25) or Vector2(q.x - ring.x, q.z - ring.z).length() < 3.65,
+		"QuestDealer": func(q: Vector3) -> bool: return (q.z >= 3.69 and q.z <= 5.25) or (q.x < 10.2 and q.z >= -5.6 and q.z <= -5.2),
+	}
+	var ends := {"Bartender": RING_CENTER + Vector3(0, 0, -3.7), "QuestDealer": Vector3(11.0, 0.10, -5.5)}
+	for n in ["Bartender", "QuestDealer"]:
+		if not staff.has(n):
+			check(false, "%s: its arrive_route through the door, on the navmesh, clear of seats and furniture" % n)
+			continue
+		var route: PackedVector3Array = staff[n].route if staff[n].route is PackedVector3Array else PackedVector3Array()
+		var why := []
+		if route.size() < 3:
+			why.append("%d points" % route.size())
+		else:
+			if route[0].z <= 5.25 or absf(route[0].y + 0.33) > 0.05:
+				why.append("starts at (%.2f, %.2f, %.2f), not on the porch" % [route[0].x, route[0].y, route[0].z])
+			if Vector2(route[route.size() - 1].x, route[route.size() - 1].z).distance_to(Vector2(ends[n].x, ends[n].z)) > 0.2:
+				why.append("ends at (%.2f, %.2f)" % [route[route.size() - 1].x, route[route.size() - 1].z])
+			var crossings := 0
+			for i in route.size() - 1:
+				var a := route[i]
+				var b := route[i + 1]
+				if a.z < 3.69 and absf(a.y - 0.10) > 0.05:
+					why.append("hall point y %.2f" % a.y)
+				if (a.z - 4.48) * (b.z - 4.48) < 0.0:
+					crossings += 1
+					var x := a.x + (b.x - a.x) * (4.48 - a.z) / (b.z - a.z)
+					if x < 9.45 or x > 9.75:
+						why.append("the door at x %.2f" % x)
+				var steps := maxi(int(ceil(a.distance_to(b) / 0.25)), 1)
+				for s in steps + 1:
+					var q := a.lerp(b, float(s) / steps)
+					if not legs[n].call(q) and not _nav_contains(nav, q.x, q.z):
+						why.append("off the navmesh at (%.2f, %.2f)" % [q.x, q.z])
+					for st in seats:
+						if Vector2(q.x - st.x, q.z - st.z).length() < 0.9:
+							why.append("by a seat at (%.2f, %.2f)" % [q.x, q.z])
+							break
+					for ab in foots:
+						var dx := maxf(maxf(ab.position.x - q.x, 0.0), q.x - ab.end.x)
+						var dz := maxf(maxf(ab.position.z - q.z, 0.0), q.z - ab.end.z)
+						if Vector2(dx, dz).length() < 0.3:
+							why.append("by furniture at (%.2f, %.2f)" % [q.x, q.z])
+							break
+			if crossings != 1:
+				why.append("%d door crossings" % crossings)
+		check(why.is_empty() and seats.size() >= 17 and foots.size() > 20,
+			"%s: arrive_route from the porch through the door (x 9.45-9.75), on the navmesh but for its listed legs, ≥ 0.9 m from %d seats, ≥ 0.3 m from %d footprints %s" % [n, seats.size(), foots.size(), why.slice(0, 4)])
+	var expect_paths := {"bar_path": "Architecture/RoundBar", "desk_path": "Furniture/GuildDesk", "door_path": "Architecture/Shell/FrontDoor",
+		"recruitment_zone_path": "Interactive/RecruitmentDesk", "recruitment_popup_path": "GameUI/PopupManager/RecruitmentPopup"}
+	var need := {"Bartender": ["bar_path", "door_path"], "QuestDealer": ["desk_path", "door_path", "recruitment_zone_path", "recruitment_popup_path"]}
+	for n in need:
+		var why := []
+		var node := tn.get_node_or_null("Staff/" + n)
+		for p in need[n]:
+			var np = staff.get(n, {}).get("paths", {}).get(p)
+			var target: Node = node.get_node_or_null(np) if node and np is NodePath else null
+			if target == null or not str(target.get_path()).ends_with(expect_paths[p]):
+				why.append(p)
+		check(node != null and why.is_empty(), "%s: its node paths resolve in the tavern (bad: %s)" % [n, why])
+	var wps := scene.find_children("*", "Node3D", true, false).filter(func(w): return w.is_in_group("work_point"))
+	check(wps.size() == 1 and str(wps[0].get_path()).ends_with("GuildDesk/WorkPoint"), "exactly one work_point in the tavern: the desk's (%d)" % wps.size())
+	var b12 := tn.get_node_or_null("Architecture/RoundBar/BackBar")
+	var restock: Node3D = b12.find_child("work_point", true, false) if b12 else null
+	check(restock != null and restock.global_position.distance_to(Vector3(7.740, 0.1, -10.015)) < 0.01,
+		"the B12 restock marker, found scoped to BackBar, is at the ring's φ 180 (r 1.80)")
+	var probes := scene.find_children("*", "ReflectionProbe", true, false)
+	check(probes.size() == 2, "still exactly two reflection probes (%d)" % probes.size())
+	scene.queue_free()
+	await process_frame
+
+
+## The staff at work in small worlds (Test 19), stepped by hand (manual_tick): the door's hold, the
+## Bartender's walk-in, serve, restock and walk-out, the Quest Dealer's stool, sit, states and leave.
+func test_staff_runtime() -> void:
+	if not (ResourceLoader.exists(BARTENDER_SCENE) and ResourceLoader.exists(DEALER_SCENE) and ResourceLoader.exists(FRONT_DOOR_SCRIPT)):
+		check(false, "the staff at work: Bartender.tscn and QuestDealer.tscn needed")
+		return
+	var fd_methods: Array = load(FRONT_DOOR_SCRIPT).get_script_method_list().map(func(m): return m.name)
+	if not fd_methods.has("hold_open"):
+		check(false, "the front door's hold_open / release_hold needed")
+		return
+	var world := Node3D.new()
+	root.add_child(world)
+	var door := _make_door()
+	world.add_child(door)
+	door.global_position = DOOR_CENTER
+	var opened := [0]
+	var closed := [0]
+	door.door_opened.connect(func(): opened[0] += 1)
+	door.door_closed.connect(func(): closed[0] += 1)
+	await process_frame
+	var holder_a := Node.new()
+	var holder_b := Node.new()
+	door.hold_open(holder_a)
+	var open_once: bool = opened[0] == 1
+	door.hold_open(holder_b)
+	holder_b.free()                              # a holder freed without releasing is pruned
+	door.release_hold(holder_a)
+	var t0 := Time.get_ticks_msec()
+	while closed[0] == 0 and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	check(open_once and opened[0] == 1 and closed[0] == 1, "the door opens for a holder once and closes after the last release, a freed holder pruned (%d, %d)" % [opened[0], closed[0]])
+	holder_a.free()
+	var body := CharacterBody3D.new()
+	var cap := CollisionShape3D.new()
+	cap.shape = CapsuleShape3D.new()
+	body.add_child(cap)
+	body.collision_layer = 2
+	world.add_child(body)
+	body.global_position = DOOR_CENTER + Vector3(0, 1.0, -1.0)
+	for i in 6:
+		await physics_frame
+	var holder_c := Node.new()
+	door.hold_open(holder_c)
+	door.release_hold(holder_c)
+	t0 = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 1000:
+		await process_frame
+	var still_open: bool = door._is_open
+	body.queue_free()
+	holder_c.free()
+	t0 = Time.get_ticks_msec()
+	while door._is_open and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	check(still_open and not door._is_open, "a body still inside keeps the door open after a release; it closes once the body leaves")
+
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var routes := {}
+	for k in tav:
+		if tav[k].instance in [BARTENDER_SCENE, DEALER_SCENE]:
+			routes[tav[k].instance] = tav[k].props.get("arrive_route", PackedVector3Array())
+	var bar = (load(ROUND_BAR_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(bar)
+	bar.global_position = RING_CENTER
+	var gb = root.get_node("GuildBus")
+	var gm = root.get_node("GameManager")
+	var eb = root.get_node("EconomyBus")
+
+	var first = (load(BARTENDER_SCENE) as PackedScene).instantiate()
+	first.manual_tick = true
+	first.hired_at_start_override = 1
+	first.bar_path = bar.get_path()
+	first.door_path = door.get_path()
+	world.add_child(first)
+	first.tick(1.0 / 30.0)
+	var s01 := RING_CENTER + Vector3(0, 0, 1.8)
+	check(first.visible and first.global_position.distance_to(s01) < 0.05 and first.anim_state() == "Wipe",
+		"hired at start: he is at serve_point_01 wiping (at %s, %s)" % [first.global_position, first.anim_state()])
+	first.queue_free()
+	await process_frame
+
+	var bt = (load(BARTENDER_SCENE) as PackedScene).instantiate()
+	bt.manual_tick = true
+	bt.hired_at_start_override = 0
+	bt.arrive_route = routes.get(BARTENDER_SCENE, PackedVector3Array())
+	bt.bar_path = bar.get_path()
+	bt.door_path = door.get_path()
+	world.add_child(bt)
+	var hidden_at_start: bool = not bt.visible
+	gb.staff_hired.emit("t_dealer", "desk_manager")
+	var other_ignored: bool = not bt.visible
+	opened[0] = 0
+	gb.staff_hired.emit("t_bar", "bartender")
+	var arrived := [false]
+	bt.arrived_at_station.connect(func(): arrived[0] = true)
+	var why := []
+	var route: PackedVector3Array = bt.arrive_route
+	var dt := 1.0 / 30.0
+	var n := 0
+	while not arrived[0] and n < 3000:
+		bt.tick(dt)
+		n += 1
+		var p: Vector3 = bt.global_position
+		var d := Vector2(p.x - RING_CENTER.x, p.z - RING_CENTER.z)
+		if d.length() < 3.0:
+			var phi := rad_to_deg(atan2(d.x, d.y))
+			var on_flap := absf(absf(phi) - 180.0) <= 2.0
+			if not on_flap and absf(d.length() - bt.ring_radius_at(deg_to_rad(phi))) > 0.05:
+				why.append("off the arc at %.0f° r %.2f" % [phi, d.length()])
+		if d.length() < 3.2 and bt.is_walking() and bt.anim_state() != "WalkBar":
+			why.append("walking in %s inside the ring" % bt.anim_state())
+		elif d.length() >= 3.65 and _dist_to_route(p, route) > 0.05:
+			why.append("off his route at (%.2f, %.2f)" % [p.x, p.z])
+	check(hidden_at_start and other_ignored and bt.visible and arrived[0] and opened[0] >= 1 and why.is_empty(),
+		"the full game: hidden until hired, a hire for her ignored; hired, he walks in (door opened %d) and takes his station in %.0f s, Walk_Bar inside the ring %s" % [opened[0], n * dt, why.slice(0, 3)])
+	var beer_before: int = gm.beer_stock
+	var gold_before: int = gm.gold
+	var handed := [0]
+	bt.drink_handed.connect(func(_t): handed[0] += 1)
+	var stool08 := Vector3(8.357, 0.1, -4.719)
+	bt.serve_toward(stool08)
+	var seq := []
+	n = 0
+	while n < 2400 and not (handed[0] == 1 and bt.work_state() == "IDLE" and not bt.is_walking() and seq.has("Serve")):
+		bt.tick(dt)
+		n += 1
+		var s: String = bt.anim_state()
+		if seq.is_empty() or seq[seq.size() - 1] != s:
+			seq.append(s)
+	var pour_at := seq.find("Pour")
+	var serve_at := seq.rfind("Serve")
+	check(handed[0] == 1 and pour_at >= 0 and serve_at > pour_at and gm.beer_stock == beer_before and gm.gold == gold_before,
+		"serve_toward: he pours at the taps, then serves at the nearest station; drink_handed once; no beer or gold moves (%s)" % [seq.slice(0, 8)])
+	# Stage D found it: already in Walk_Bar, a state asked for in the frame a walk starts (place_at_station's Wipe,
+	# then serve_toward) must not stick - the tree's current node lags a pending travel by a frame
+	bt.play("WalkBar")
+	bt.tick(dt)
+	bt.place_at_station()
+	bt.serve_toward(stool08)
+	var walk_states := {}
+	for i in 30:
+		bt.tick(dt)
+		if bt.is_walking():
+			walk_states[bt.anim_state()] = true
+	check(walk_states.keys() == ["WalkBar"], "a state asked for in the frame a walk starts does not stick: he shuffles in Walk_Bar (%s)" % [walk_states.keys()])
+	bt.enter_idle()
+	gm.beer_stock = 0
+	eb.beer_changed.emit(0)
+	var restock_spot: Vector3 = RING_CENTER + Vector3(0, 0, -float(bt.RESTOCK_R))
+	n = 0
+	while n < 2400 and not (bt.work_state() == "RESTOCKING" and bt.global_position.distance_to(restock_spot) < 0.05 and bt.anim_state() == "Restock"):
+		bt.tick(dt)
+		n += 1
+	var restocked: bool = bt.work_state() == "RESTOCKING" and bt.global_position.distance_to(restock_spot) < 0.05
+	gm.beer_stock = beer_before
+	eb.beer_changed.emit(beer_before)
+	n = 0
+	while n < 2400 and bt.work_state() != "IDLE":
+		bt.tick(dt)
+		n += 1
+	check(restocked and bt.work_state() == "IDLE", "no beer: he restocks at the restock station (r 1.98); beer back: he goes back to work")
+	var before: Vector3 = bt.global_position
+	bt.tick(0.0)
+	check(bt.global_position == before and not is_nan(bt.global_position.x), "a zero tick changes nothing (no NaN)")
+	var left := [false]
+	bt.left_tavern.connect(func(): left[0] = true)
+	gb.staff_fired.emit("t_bar", "bartender")
+	n = 0
+	while n < 4000 and not left[0]:
+		bt.tick(dt)
+		n += 1
+	check(left[0] and not bt.visible and route.size() > 0 and bt.global_position.distance_to(route[0]) < 0.1,
+		"fired: he walks out the way he came and is gone from the porch (%.0f s)" % (n * dt))
+	for i in 10:
+		bt.tick(dt)
+	# Stage D found it: the tick that ends his walk-out must not run the autopilot (a new walk, a new hold on the door)
+	check(door._holders.is_empty() and not bt.is_walking(), "gone: he lets go of the door and stays put (holders %d, walking %s)" % [door._holders.size(), bt.is_walking()])
+	# AC 4's edges (the AC walk found them untested): fired during the walk-in he goes back the way he came;
+	# hired during the walk-out he turns back
+	left[0] = false
+	gb.staff_hired.emit("t_bar", "bartender")
+	for i in 450:                                          # 15 s in: in the hall, on his route
+		bt.tick(dt)
+	var mid_in: Vector3 = bt.global_position
+	gb.staff_fired.emit("t_bar", "bartender")
+	var near_ring := INF
+	var off_route := 0.0
+	n = 0
+	while n < 4000 and not left[0]:
+		bt.tick(dt)
+		n += 1
+		near_ring = minf(near_ring, Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z).length())
+		off_route = maxf(off_route, _dist_to_route(bt.global_position, route))
+	check(left[0] and near_ring > 3.5 and off_route < 0.05 and door._holders.is_empty(),
+		"fired during the walk-in (at %.1f, %.1f): he goes back along his route and leaves (closest to the ring %.2f m, off the route %.3f m)" % [mid_in.x, mid_in.z, near_ring, off_route])
+	arrived[0] = false
+	gb.staff_hired.emit("t_bar", "bartender")
+	n = 0
+	while n < 3000 and not arrived[0]:
+		bt.tick(dt)
+		n += 1
+	arrived[0] = false
+	gb.staff_fired.emit("t_bar", "bartender")
+	for i in 240:                                          # 8 s into the walk-out: still inside the ring
+		bt.tick(dt)
+	var in_ring_d := Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z).length()
+	gb.staff_hired.emit("t_bar", "bartender")
+	var crossed := false
+	n = 0
+	while n < 3000 and not arrived[0]:
+		bt.tick(dt)
+		n += 1
+		var d := Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z)
+		var phi_deg := absf(rad_to_deg(atan2(d.x, d.y)))
+		if d.length() > 2.30 and d.length() < 3.0 and phi_deg < 170.0:
+			crossed = true                                 # through the counter, not the flap
+	check(in_ring_d < 2.3 and arrived[0] and not crossed and bt.work_state() == "IDLE",
+		"hired while still leaving his station (r %.2f): he takes it again without crossing the counter" % in_ring_d)
+	left[0] = false
+	gb.staff_fired.emit("t_bar", "bartender")
+	n = 0
+	while n < 4000 and not left[0]:
+		bt.tick(dt)
+		n += 1
+		if n == 1050:                                      # 35 s out: on the route back to the porch
+			arrived[0] = false
+			gb.staff_hired.emit("t_bar", "bartender")
+			break
+	off_route = 0.0
+	n = 0
+	while n < 4000 and not arrived[0]:
+		bt.tick(dt)
+		n += 1
+		if Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z).length() > 3.65:
+			off_route = maxf(off_route, _dist_to_route(bt.global_position, route))
+	check(not left[0] and arrived[0] and off_route < 0.05, "hired during the walk-out: he turns back along his route and takes his station (off the route %.3f m)" % off_route)
+	bt.queue_free()
+
+	var desk = (load(DESK_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(desk)
+	desk.global_position = DESK_WORLD
+	var qd = (load(DEALER_SCENE) as PackedScene).instantiate()
+	qd.manual_tick = true
+	qd.hired_at_start_override = 0
+	qd.arrive_route = routes.get(DEALER_SCENE, PackedVector3Array())
+	qd.desk_path = desk.get_path()
+	qd.door_path = door.get_path()
+	world.add_child(qd)
+	var stool: Node3D = desk.get_node("Model").find_child("desk_stool", true, false)
+	var q_arrived := [false]
+	qd.arrived_at_station.connect(func(): q_arrived[0] = true)
+	gb.staff_hired.emit("t_desk", "desk_manager")
+	var stool_moved := false
+	n = 0
+	while n < 3000 and not q_arrived[0]:
+		qd.tick(dt)
+		n += 1
+		if stool and stool.position.length() > 0.2:
+			stool_moved = true
+	var wp: Node3D = desk.get_node("WorkPoint")
+	var want: Vector3 = qd.seated_root(wp.global_transform)
+	var face := Vector3(qd.global_basis.z.x, 0, qd.global_basis.z.z).normalized()
+	check(q_arrived[0] and stool_moved and qd.global_position.distance_to(want) < 0.02 and rad_to_deg(face.angle_to(Vector3(0, 0, 1))) < 5.0
+		and stool != null and stool.position.length() < 0.01 and qd.work_state() == "IDLE" and qd.anim_state() == "Write",
+		"hired, she walks in, pulls the stool out, sits and shuffles in: seated %.3f m from her seat, facing the room, the stool home, writing (%s)" % [qd.global_position.distance_to(want), qd.anim_state()])
+	var states_ok := true
+	for pair in [["BRIEFING", "Brief"], ["AVAILABLE", "Available"], ["IDLE", "Write"]]:
+		qd.set_autopilot(false)
+		qd.set_work_state(pair[0])
+		for i in 20:
+			qd.tick(dt)
+		if qd.work_state() != pair[0] or qd.anim_state() != pair[1]:
+			states_ok = false
+	check(states_ok, "set_work_state drives Brief, Available and Write (Story 16.4's states)")
+	var q_left := [false]
+	qd.left_tavern.connect(func(): q_left[0] = true)
+	gb.staff_fired.emit("t_desk", "desk_manager")
+	n = 0
+	while n < 3000 and not q_left[0]:
+		qd.tick(dt)
+		n += 1
+	check(q_left[0] and not qd.visible and stool != null and stool.position.length() < 0.01, "fired, she stands, puts the stool back and leaves")
+	for i in 10:
+		qd.tick(dt)
+	check(door._holders.is_empty() and not qd.is_walking(), "gone: she lets go of the door and stays put (holders %d)" % door._holders.size())
+	# fired while sitting down (the stool pulled out, not yet seated): the stool goes back before she leaves
+	q_arrived[0] = false
+	gb.staff_hired.emit("t_desk", "desk_manager")
+	n = 0
+	while n < 3000 and not (stool != null and stool.position.z < -0.4 and not qd._seated):
+		qd.tick(dt)
+		n += 1
+	var pulled_at: float = stool.position.z if stool else 0.0
+	q_left[0] = false
+	gb.staff_fired.emit("t_desk", "desk_manager")
+	n = 0
+	while n < 3000 and not q_left[0]:
+		qd.tick(dt)
+		n += 1
+	check(pulled_at < -0.4 and q_left[0] and not q_arrived[0] and stool != null and stool.position.length() < 0.01,
+		"fired while sitting down (the stool at z %.2f): she puts it back, then leaves (stool %.3f m from home)" % [pulled_at, stool.position.length() if stool else -1.0])
+	world.queue_free()
+	await process_frame
+
+
+## A minimal front door for Test 19 (the real one is built inline in MainTavern): the script and the
+## three children it needs.
+static func _make_door() -> Node3D:
+	var door := Node3D.new()
+	var trigger := Area3D.new()
+	trigger.name = "Trigger"
+	trigger.collision_mask = 3
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(3, 2.5, 4)
+	shape.position = Vector3(0, 1.25, 0)
+	trigger.add_child(shape)
+	door.add_child(trigger)
+	for h in ["HingeLeft", "HingeRight"]:
+		var n := Node3D.new()
+		n.name = h
+		door.add_child(n)
+	door.set_script(load(FRONT_DOOR_SCRIPT))
+	return door
+
+
+static func _strip_scripts(n: Node) -> void:
+	n.set_script(null)
+	for c in n.get_children():
+		_strip_scripts(c)
+
+
+## The flat distance from a point to a polyline (Test 19).
+static func _dist_to_route(p: Vector3, route: PackedVector3Array) -> float:
+	var best := INF
+	for i in route.size() - 1:
+		var a := Vector2(route[i].x, route[i].z)
+		var b := Vector2(route[i + 1].x, route[i + 1].z)
+		best = minf(best, Vector2(p.x, p.z).distance_to(Geometry2D.get_closest_point_to_segment(Vector2(p.x, p.z), a, b)))
+	return best
 
 
 ## The Hearth's SitPoint in MainTavern world space (the Hearth instance composed with Hearth.tscn).
