@@ -233,7 +233,7 @@ river crossing).
 
 ---
 
-## 5. Characters — patrons, villagers, player, the cat and Den Fa (15 used)
+## 5. Characters — patrons, villagers, player, the cat, Den Fa and the staff (17 used)
 
 | Asset (stock file) | Used in | Status |
 |---|---|---|
@@ -247,6 +247,8 @@ river crossing).
 | Townsfolk (G19, G24): farmer, local, traveller, guard, merchant, old woman | patrons (~80%), villagers in ExteriorWorld | `in game` (2026-09-25, Story 25.14: `assets/characters/custom/townsfolk_*.glb` from one kit rig, 4,169–6,221 tris, 76 clips; listed with origin types and weights in `data/characters/townsfolk.json`) |
 | The Cat (G11) + her basket (B20) | MainTavern (asleep in the basket by the hearth), ExteriorWorld (a short stroll) | `in game` (2026-09-25, Story 25.15: `assets/characters/custom/g11_the_cat.glb`, her own 22-bone rig, 1,310 tris, clips Sleep/Idle/Walk + Pet; `assets/environment/custom/b20_cat_basket.gltf`, 298 tris; `scenes/game/TheCat.tscn` + `scripts/game/the_cat.gd`: pettable, decision F0) |
 | Den Fa, the Architect (G9) | MainTavern (seated on the hearth's bench, the demo's first contact) | `in game` (2026-09-25, Story 25.10: `assets/characters/custom/g9_den_fa.glb`, his own 42-bone rig, 2,546 tris, 2.91 m (taller than the whole chibi cast), clips Idle/Sit/Walk + Point/StandUp/SitDown; `scenes/game/DenFa.tscn` + `scripts/game/den_fa.gd`; the mirror mask reflects the hall through `HearthProbe`) |
+| The Bartender (G12) | MainTavern (inside the round bar: wipes at the serve points, pours at the taps, restocks at the kegs) | `in game` (2026-09-26, Story 25.13, the art and the seam; the logic is Epic 16's: `assets/characters/custom/g12_bartender.glb`, the Barbarian body as a burly barkeep (apron, belt cloth, rolled sleeves); 4,473 tris, 83 clips = 76 KayKit + Walk_Bar/Wipe/Serve/Pour/Restock; `scenes/game/Bartender.tscn` + `scripts/game/bartender.gd`) |
+| The Quest Dealer (G13) | MainTavern (seated at the guild desk B3: writes, briefs while the RecruitmentPopup is open) | `in game` (2026-09-26, Story 25.13: `assets/characters/custom/g13_quest_dealer.glb`, the Mage body with the Rogue head as a silver-haired elf woman in a plum coat (ears, hair, circlet, high collar, a quill; after Raphael's reference); 4,815 tris, 83 clips incl. Write/Brief; `scenes/game/QuestDealer.tscn` + `scripts/game/quest_dealer.gd`). More looks are planned as `staff.json` variants (Epic 16.2) |
 | KayKit skeletons (4 files) | on disk, unused | `stock` (unused) |
 
 Since Story 25.14 patrons are mostly townsfolk whose body matches their origin; the class bodies above still visit as travelling adventurers (~20%, decision E1).
@@ -302,7 +304,7 @@ pillar "stone-and-roots": the B6 concept has no roots yet.
 | Bard (visiting NPC, Epic 9) | 1 | `planned` | EPIC_PROGRESS:258-260 |
 | Disturbance NPCs: pickpocket, drunk, rare visitor | 3 | `planned` | EPIC_PROGRESS:332 |
 | Villagers + guards (G24): town ambient, overheard barks (the Villager's Voice) | 6 in the demo | `in game` (2026-09-25, Story 25.14: `scenes/npcs/Villager.tscn` placed in ExteriorWorld, three at posts and three on loops; lines in `data/dialogue/villager_barks.json`) | narrative-design.md §Ambient World Population |
-| Staff NPCs (Epic 16) | open | `planned` | EPIC_PROGRESS:343,361 |
+| Staff NPCs (Epic 16): the Bartender (G12) and the Quest Dealer (G13) | 2 in the demo | `in game` (2026-09-26, Story 25.13: bodies, seven staff clips, `staff_npc.gd` controllers with a cosmetic autopilot, the `GuildBus.staff_hired` / `staff_fired` seam; in the demo profile both are there from day 1). Hiring, wages and the full work logic stay Epic 16; other staff roles stay `planned` | EPIC_PROGRESS:343,361; narrative-design.md Dialogue Framework 562/564 |
 | Farm hands (off-roster workers) | open | ⚑ proposal | 03_STORY_BIBLE:109-110 |
 | Recruits and applicants | reuse class models | `planned` | ADVENTURER_PRESENCE_SYSTEM:13,130 |
 | The Cat (FR-112): the same cat in every scene, never explained | 1 | `in game` in the tavern and the town (2026-09-25, Story 25.15); the cemetery, church and alley get her when those scenes exist | epics FR-112, AR D11 |
