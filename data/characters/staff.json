@@ -1,0 +1,21 @@
+{
+	"_note": "Story 25.13: the staff's bodies and placeholder barks. Barks are placeholders for Raphael to rewrite (Epic 10's Read and Setup, Epic 16). Epic 16 adds wages and hire candidates; each candidate names a variant here (several Quest Dealer looks are planned).",
+	"roles": {
+		"bartender": {
+			"display_name": "the Bartender",
+			"default_variant": "barkeep",
+			"variants": {
+				"barkeep": {"model_path": "res://assets/characters/custom/g12_bartender.glb", "fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb"}
+			},
+			"barks": ["Fire's warm, beer's cold. Don't get used to it.", "Somebody tipped. I'm framing it.", "You look like a guildmaster. That's not a compliment.", "Keg's lighter than yesterday. So's your purse."]
+		},
+		"desk_manager": {
+			"display_name": "the Quest Dealer",
+			"default_variant": "silver_elf",
+			"variants": {
+				"silver_elf": {"model_path": "res://assets/characters/custom/g13_quest_dealer.glb", "fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Mage.glb"}
+			},
+			"barks": ["The contract requires a signature. Two, if you're feeling lucky.", "I'll need three days. Four, if they're honest.", "Terms first. Heroics after.", "Sign here. And here. Mind the ink."]
+		}
+	}
+}
