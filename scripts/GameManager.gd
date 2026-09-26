@@ -132,6 +132,18 @@ func adjust_reputation(delta: int) -> void:
 	tavern_reputation = maxi(0, tavern_reputation + delta)
 	reputation_changed.emit(tavern_reputation)
 
+## Staff at the start (Story 25.13, K9: "Available right away in the demo. But then have to unlock in the
+## real game"): in the demo profile the roles listed in demo_start_staff are hired from the first morning;
+## in the full profile nobody is until Epic 16 hires them.
+static func staff_hired_by_profile(profile: String, start_staff: Array, role: String) -> bool:
+	return profile == "demo" and start_staff.has(role)
+
+## Whether a staff role is hired (Story 25.13 stub). Story 16.1 replaces this with the staff records,
+## keeping the demo's starting staff.
+func is_staff_hired(role: String) -> bool:
+	var start = DataManager.get_config("demo_start_staff", [])
+	return staff_hired_by_profile(str(DataManager.get_config("profile", "full")), start if start is Array else [], role)
+
 func get_reputation_tier() -> Dictionary:
 	"""Highest reputation_tiers entry (data/config/game_config.json) the guild currently qualifies
 	for. Tiers must be sorted ascending by threshold. Never empty — falls back to the base tier."""
