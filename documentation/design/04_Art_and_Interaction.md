@@ -48,7 +48,7 @@ Mission dispatch is handled through a full-screen **World Map**, not a list popu
 The atmosphere goal is for adventurers to be **residents of the world, not menu entries** — visible in the tavern, leaving when dispatched, returning when done. This is cosmetic and built in four separately-shippable layers. Each layer is good on its own; development can stop at any rung and still leave a livelier game. None of it is built until the core dispatch-and-reveal loop is proven.
 
 **Shared rules (apply to all layers):**
-* Avatars **reuse existing KayKit adventurer models** (Knight, Mage, Rogue, Barbarian), mapped from the adventurer's class. No new art cost.
+* Avatars use the class bodies set by `model_path` in `data/characters/classes.json` (Fighter, Rogue, Mage, Healer, Barbarian, Ranger), mapped from the adventurer's class; the anime class bodies come in Story 25.31.
 * **Only physically-present adventurers are rendered.** Adventurers out on missions are NOT in the tavern. Wounded, Resting, and Ready adventurers are.
 * **On-screen avatar count is capped** (target ~8–12 visible) regardless of roster size. With a soft roster cap of 78, the tavern can never render everyone — a dozen visible bodies reads as "full and lively"; the data layer still tracks the full roster. This mirrors the existing 5-patron visible cap.
 

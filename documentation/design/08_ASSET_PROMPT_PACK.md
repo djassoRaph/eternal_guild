@@ -6,7 +6,8 @@
 > Stage B–C prompts go into Claude Code **on your PC**, with Blender open and a
 > Blender MCP connected. Every size and budget here was measured from files in this
 > repo. If a number and your eye disagree, trust a KayKit model imported next to
-> the new asset.
+> the new asset. Characters are the exception: they follow the anime character
+> spec in §1 (route AN).
 
 ---
 
@@ -36,7 +37,20 @@ An honest check against your own docs:
 
 ---
 
-## 1. The one style rule
+## 1. The style rule: environment and characters
+
+Since 2026-09-26 the style rule has two halves (decision A-1, Story 25.30):
+
+- **Environment** (buildings, rooms, furniture, props, landmarks, tiles): the KayKit box, below.
+  Unchanged.
+- **Characters** (the people of the cast: the staff, patrons, adventurers, the player, townsfolk):
+  anime, route AN. The look is summed up under "Characters" below; the rules are the
+  **character spec (route AN)** at the end of this section. Den Fa and the Cat are Story 25.32's
+  (Den Fa keeps his own rig).
+
+The build contract below holds for both.
+
+### Environment (unchanged)
 
 Every new asset must look like it came in the same box as KayKit:
 
@@ -67,10 +81,35 @@ this look comes from the edge-detection outlines, the flat atlas colours and har
 from the models, so the modelling rules above don't change. Picked key art: K1 inked v1, K2 =
 style test S2 v1 (it came out inked despite its "pixel" prompt), K3 inked v1.
 
+### Characters: anime (route AN) — added by Story 25.30
+
+Decided 2026-09-26 (GDD decision log, A-1 to A-7). The environment above keeps its look (A-5); the
+cast becomes anime:
+
+- **SD proportions, slim:** about 3.5 heads, top ≤ 2.25 m.
+- **Two-tone toon shading and dark ink outlines,** applied in Godot when the body loads. They are not
+  modelled or painted in.
+- **Painted anime faces** on a face texture. At game zoom only the eyes must read; faces proper are
+  read in the dialogue portraits (A-2). The camera stays at ortho 12.
+- **Flat colours from the body's own small palette atlas,** not the KayKit atlas. Still **no baked
+  lighting**.
+- **Hair as opaque clumps,** never alpha cards.
+- **Under the hood:** the KayKit skeleton (all 41 joints) with its rest pose stretched, so the 76
+  KayKit clips keep working.
+- **References:** Raphael's silver-haired elf
+  (`F:\GAME I AM MAKING\documentation\artwork\use to inspire\b624803154761def2546d2e3207271d0.jpg`)
+  and the approved anime test, `<art>/anime_test/anime_test_report.jpg`.
+- **A demo cast:** Claude builds the Kickstarter demo's cast; after funding, paid 3D artists redo
+  it to the character spec below, and the bodies swap by data path (A-6). Colours are demo-grade
+  and never block anything.
+
 ### Build contract (Godot-side rules) — added by Story 25.1
 
 These sit on top of the style rules above. Every new asset card (Epic 25 / Epic 26 stories)
-assumes them.
+assumes them. **They stay in force for characters:** metres, +Y up, origin at bottom-centre on
+0,0,0 (for a character, that is the armature root, between the feet), and a snake_case asset id
+(`g13_quest_dealer_anime`). The character spec at the end of this section adds the character
+rules.
 
 - **Units and origin:** metres; +Y up in Godot (Z-up in Blender, exported with +Y Up ON); origin
   at bottom-centre on 0,0,0; all transforms applied.
@@ -102,7 +141,7 @@ assumes them.
   | Hex topper / landmark | ≤ 3,000 | `building_tavern_blue` 2,992 (only a capital earns more: castle 5,659) |
   | Hero interior piece (pillar, hearth, bar) | ≤ 5,000 | — |
   | Walkable exterior building | ≤ 8,000 | — |
-  | Character | ≈ KayKit density | `Knight.glb` 6,952 in total (≈ 4.6k body + ≈ 2.3k gear across 15 meshes) |
+  | Character (route AN, measured 2026-09-27) | ≤ 10,000 per body (`AN_TRI_BUDGET`: the whole GLB, props included) and ≤ 3 surfaces on `<Role>_Body`; the anime Quest Dealer measured 9,459 with her quill (character spec, Budgets) | `Knight.glb` 6,952 in total (≈ 4.6k body + ≈ 2.3k gear across 15 meshes) |
 
 - **Export folders:**
   - Props, buildings, landmarks: `res://assets/environment/custom/<asset_id>.gltf` (glTF Separate, §6.4).
@@ -114,6 +153,423 @@ assumes them.
 - **Quick check:** `scenes/dev/LookDev.tscn` (tavern or map preset) before the in-scene Stage D
   pass (§6.5).
 
+### Character spec (route AN) — added by Story 25.30
+
+This is the contract every anime body meets, whoever builds it: Claude through the Blender MCP for
+the demo, or a paid 3D artist after the Kickstarter (A-6). The scripts in `tools/blender/anime/`
+(their `README.md` lists the chain) are how the demo cast is built. An artist may model and paint
+by hand instead, as long as the body starts from the shared base and passes every rule and check
+below. Every number here was measured in Story 25.30 on the first AN body, G13 the Quest Dealer.
+
+**Where things live:**
+
+| What | Where |
+|---|---|
+| The pipeline scripts (versioned) | `<project>/tools/blender/anime/` and its `README.md` |
+| The KayKit source (never modified) | `<art>/blender/g19_g24_townsfolk_kit.blend`: the KayKit rig and its 76 clips |
+| The shared base | `<art>/blender/anime_base.blend`, with `anime_base_kaykit_feet.json`, `anime_base_kaykit_sit.json` and `anime_base_foot_report.json` beside it |
+| A character's file | `<art>/blender/<id>.blend`, a save-as of the base (the dealer: `g13_quest_dealer_anime.blend`) |
+| Its palette and face | `<art>/textures/anime/` (the dealer: `g13_quest_dealer_palette.png`, `g13_quest_dealer_face.png`) |
+| The game file | `res://assets/characters/custom/<id>.glb` (the dealer: `g13_quest_dealer_anime.glb`) |
+| The look at runtime | `res://scripts/game/anime_look.gd` and `res://assets/characters/materials/anime_outline.tres` |
+| The approved look | `<art>/anime_test/anime_test_report.jpg` (its `<art>/blender/anime_test_dealer.blend` is never modified) |
+
+Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = Blender (x, z, −y).
+
+#### Proportions: the base
+
+- **About 3.5 heads, slim.** The top is ≤ 2.25 m (the front door's lintel, 2.30, minus 0.05; Test 19
+  checks it); aim for about 2.10–2.20. The head is about 0.58–0.61 m, chin to crown. The Quest
+  Dealer stands 2.138 m (the KayKit Knight 2.315, the 25.13 KayKit dealer 2.187).
+- **The rest pose is KayKit's, stretched.** Every bone keeps KayKit's direction and roll; only heads
+  and lengths change (`anime_rig.py`). The table is candidate B of Raphael's T0 sheet (2026-09-27):
+  the approved test's rig with 0.08 m shorter legs and a 0.10 m longer torso, so a seated character
+  has room above the guild desk. Armature space, metres; each `.r` bone mirrors its `.l` in x.
+
+  | Bone | Head (x, y, z) | Length |
+  |---|---|---|
+  | `hips` | (0, 0, 0.742) | 0.198 |
+  | `spine` | (0, 0, 0.940) | 0.280 |
+  | `chest` | (0, 0, 1.220) | 0.250 |
+  | `head` | (0, 0, 1.487) | 0.251 |
+  | `upperarm.l` | (0.16, 0, 1.38) | 0.30 |
+  | `lowerarm.l` | the upper arm's tail | 0.28 |
+  | `wrist.l`, `hand.l` | their parent's tail | KayKit's |
+  | `handslot.l` | the palm's centre: `hand.l`'s head + 0.01 along the hand, − 0.004 in z | KayKit's |
+  | `upperleg.l` | (0.105, 0, 0.843) | 0.377 (the knee at z 0.466) |
+  | `lowerleg.l` | the knee | 0.326 (down to KayKit's own ankle height, 0.1452) |
+  | `foot.l`, `toes.l` | their parent's tail | KayKit's |
+
+- **The leg ratio is 1.8675:** the anime thigh + shin, 0.7031 m, over KayKit's 0.3765 (0.2271 +
+  0.1494). KayKit's lengths are stored on the rig as `rig["kaykit_thigh"]` and `rig["kaykit_shin"]`
+  before any edit, and read from there, never typed in.
+- **Arm adduction: 0°.** The one allowed exception to "directions kept" is an optional rigid
+  rotation of the whole arm chain about the `upperarm` head, toward the body, of up to 15°
+  (`anime_rig.ADDUCT_DEG`, applied as an absolute angle to KayKit's rest directions, never on top of
+  an earlier run). The base uses none: KayKit's Idle holds the arms about 35° off the body, as in
+  the approved test, and the T2 renders kept that.
+- **`Base_Body`** is the neutral, unclothed reference body on the stretched rig
+  (`anime_kit.build_base_body`): 4,872 tris, rest top 2.110. The foot report, the sit re-fit and the
+  seated-room report are measured on it. It is **never exported**: a character file deletes it by
+  name right after its save-as. **Its seat thickness is 0.0112 m** (the hips bone's height minus the
+  lowest seat vertex, seated); the dealer's is 0.0098.
+- **Seated room:** in Sit_Chair_Idle, both `upperarm` heads are ≥ 1.05 m above the root
+  (`AN_SEATED_SHOULDER_MIN`: the desk top, 0.85, + 0.20), so a seated character reads above the
+  desk. `anime_retarget.seated_room()` prints it. The base: 1.085 / 1.091. The dealer: Write
+  1.059–1.069, Brief 1.081–1.091.
+
+#### The rig and clip contract
+
+- **The 41 joints, all kept, with KayKit's names** (Godot's import shows 42 bones: it adds a root):
+  - the trunk: `root`, `hips`, `spine`, `chest`, `head`
+  - each arm (`.l`, `.r`): `upperarm`, `lowerarm`, `wrist`, `hand`, `handslot`
+  - each leg (`.l`, `.r`): `upperleg`, `lowerleg`, `foot`, `toes`
+  - the inert IK and control bones, each side (nothing drives them, but they stay): `kneeIK`,
+    `elbowIK`, `handIK`, `heelIK`, `IK-foot`, `IK-toe`, `control-toe-roll`, `control-heel-roll`,
+    `control-foot-roll`
+- **Bone lengths come from the base.** A character file never edits its bones. To change a length,
+  or the adduction:
+  1. Edit `anime_rig.py`'s `TABLE` (or `ADDUCT_DEG`).
+  2. Rebuild the base from the untouched kit with the whole chain: `anime_base_build.run()` →
+     `anime_rig.run()` → `anime_kit.build_base_body()` → `anime_retarget.ratio_step()` →
+     `anime_retarget.refit_sit("Base_Body")` → `anime_retarget.foot_report()`. The ratio step refuses
+     a file whose actions already carry the stamp, so it can't run twice on one base.
+  3. Rebuild each character file from the new base (`anime_dealer.py` for G13) and re-run the role's
+     own IK clips there (`anime_anims.py`).
+
+  **Never scale a character file's clips in place.**
+- **The retarget** (in the base, once per chain build): the location keys of `hips` and `root` are
+  scaled by the leg ratio in all 76 clips (KayKit keys `root`'s translation in Running_A and the four
+  Dodge clips), and each action is stamped `anime_leg_ratio`. Every other deform bone's location offsets
+  stay unscaled (the largest: `handslot` 0.53 m in the Death clips, `upperarm` 0.16, `upperleg`
+  0.155). Action names stay exactly KayKit's, with no `.00x` suffixes.
+- **The sit re-fit,** `anime_retarget.refit_sit(body_name, seat_y=0.44)`, rewrites the three
+  Sit_Chair_* clips absolutely (it never scales) from KayKit's recorded sit data
+  (`anime_base_kaykit_sit.json`):
+  - KayKit's own back offset, unscaled: the hips go 0 → 0.397 m back through Sit_Chair_Down, hold
+    0.397 in Sit_Chair_Idle and come back through Sit_Chair_StandUp. RealisticPatron's
+    `SIT_HIP_BACK` 0.40 stays valid.
+  - The seated height is solved so the body's lowest seat vertex rests on the 0.44 m seat. It prints
+    **`SIT_HIPS_Y` 0.450**: the seated hips height, Godot frame, model-local (Test 19's
+    `AN_SIT_HIPS_Y`).
+  - The feet are planted flat at their rest spot through all three clips (KayKit's own seated feet
+    dangle 0.23 m above the floor).
+  - Down's last frame and StandUp's first meet Sit_Chair_Idle's first within 0.01 m.
+
+  It covers every seat in the game: the bar stools (`seat_point` 0.44 ± 0.05), the desk stool
+  (`WorkPoint` y 0.44), and Den Fa's bench (0.45). It is repeatable and the stamp doesn't block it.
+  **The rule:** a character whose seat thickness differs from `Base_Body`'s 0.0112 m by more than
+  0.03 m runs `anime_retarget.refit_sit("<Role>_Body")` in its own file, and Test 19's
+  `AN_SIT_HIPS_Y` takes the `SIT_HIPS_Y` it prints. (The dealer, at 0.0098, didn't need it.)
+- **The handslots** (`handslot.l`, `handslot.r`) sit at the palms' centres and keep KayKit's axes:
+  in Idle, Walking_A and Sit_Chair_Idle, `handslot.r`'s local −X and `handslot.l`'s local +X point
+  up. (KayKit's own weapons use local Z and lie across the hips in those clips.) Build the hand
+  round the slot. A hand prop is its own mesh parented to the slot bone (Blender parent type BONE);
+  Godot imports it under a BoneAttachment3D. The dealer's quill rises up and back out of her fist
+  (`anime_dealer.QUILL_DIR`, in the rest frame).
+- **Clips: "the 76 KayKit clips + the role's own".** One armature per `.blend`, and the file holds
+  exactly these actions: no leftovers and no KayKit copies, because the exporter would pick them up
+  and break the clip count. Every body carries the clips the game plays (Test 19's `CAST_CLIPS`):
+  Idle, Walking_A, Running_A, Sit_Chair_Down, Sit_Chair_Idle, Sit_Chair_StandUp, Cheer and Interact.
+
+  | Role (catalogue) | Clips in the GLB | Its own clips | Loops |
+  |---|---|---|---|
+  | G13 Quest Dealer (`desk_manager`) | **79** | Walk_Bar, Write, Brief (re-posed for her proportions with the 25.13 IK method); never the Bartender's Wipe, Pour, Serve, Restock | Idle, Walking_A, Walk_Bar, Sit_Chair_Idle, Write, Brief |
+  | G12 Bartender (`bartender`) | his AN body is 25.31's; his KayKit file has 83 today (it also carries Write and Brief) | Walk_Bar, Wipe, Pour, Serve, Restock | 25.31 |
+  | Patrons, townsfolk, class bodies, the player | 76 on today's KayKit-rig bodies; the AN bodies are 25.31's | none so far | 25.31 |
+
+- **Loop rules.** In Blender, key each looping clip's last frame with its t = 0 pose. In Godot, the
+  `.glb.import`'s `_subresources` sets `"settings/loop_mode": 1` for exactly the role's loops;
+  every other clip plays once (the dealer's one-shots Sit_Chair_Down, Sit_Chair_StandUp and Interact
+  are checked). At runtime `staff_npc.gd`'s AnimationTree sets the staff's loops again, but Test 19
+  still checks the file's own.
+- **The foot report** (`anime_retarget.foot_report()`, over the 73 clips other than
+  Sit_Chair_Down/Idle/StandUp, whose feet `refit_sit` plants; saved to
+  `<art>/blender/anime_base_foot_report.json`):
+  - The rule: on every contact frame (KayKit's own lowest foot ≤ 0.01 m above the floor; airborne
+    frames aren't checked), the reference body's lowest foot vertex is within 0.03 m of the floor.
+  - A clip over the limit gets a hips-height contact correction with smoothed keys.
+  - The base's result for the clips the game plays, before → after the correction: Idle 0.020 →
+    0.020, Walking_A 0.089 → 0.011, Running_A 0.133 → 0.000, Cheer 0.021 → 0.021, Interact 0.015 →
+    0.015. **No clip is over 0.03 after the correction,** so none is listed as a limitation.
+  - **Outliers to judge by eye before first use:** the worst before the correction were Lie_* (0.38),
+    Jump_* (0.22), Death_B (0.17) and Running_B (0.17). The Lie_*, Death_* and Jump_* clips were
+    corrected by the feet-only rule, so look at them in a render before a story first uses one.
+
+#### The body
+
+- **One joined, skinned mesh object, `<Role>_Body`** (the dealer: `Dealer_Body`), parented to `Rig`,
+  with exactly one modifier: an Armature pointing at `Rig`.
+- **≤ 3 surfaces** (material slots), one per material family: the palette atlas, the face, and
+  optionally the hair. The cap counts that node only. The dealer has 2: the face and the palette
+  (her hair is on the palette).
+- **Props on item bones:** separate mesh nodes named with the role's prefix (the dealer:
+  `Dealer_Quill` on `handslot.r`), parent type BONE, no vertex groups, no modifiers, at least one
+  material. They count toward the triangles, not the surface cap. Anything that never moves apart
+  from the body (the ears, a circlet) is merged into it. Every mesh node in the file starts with
+  the prefix (`Dealer_`).
+- **Weights:** every vertex is in at least one deform bone's group, has at most **4** influences,
+  normalised, and no weight on a non-deform bone.
+- **Unsplit, smooth normals:** `mesh.normals_domain == 'POINT'`, no `sharp_edge` or `sharp_face`
+  attribute holding True, no custom normals, every face smooth. The outline's `grow` moves each
+  exported vertex along its own normal, and glTF splits a vertex wherever its corner normals differ,
+  so any split (a hard edge, a flat face, custom normals, Edge Split) opens a crack in the ink.
+- **Scale 1:** `Rig` and `<Role>_Body` at object scale 1.0 (the outline's `grow_amount` is in local
+  metres), the rig's origin at 0,0,0 between the feet.
+- **One UV layer, named `UVMap`,** on every part: the atlas cell UVs or the face projection.
+- **Before the join,** apply every non-Armature modifier on each part (`join()` keeps only the
+  active object's modifiers) and give each part its single `UVMap` (`join()` merges UV layers by
+  name). Make a skinned part the active object.
+- **The check:** `anime_merge.check(body, props)` prints STRUCTURE / UV / WEIGHTS / NORMALS /
+  MATERIALS / TRIS / SURFACES (and one PROP row per prop) as OK or OVER. Every row must be OK. The
+  dealer: 9,427 tris + the quill's 32 = 9,459, 2 surfaces, all OK.
+
+#### The atlas
+
+- **One palette atlas per body,** `<art>/textures/anime/<name>_palette.png` (the dealer's:
+  `g13_quest_dealer_palette.png`, named without `_anime`), with cells ≥ 4 px on a
+  4-px grid. The dealer's is **32 × 32 px: a 4 × 4 grid of 8-px cells** (`anime_atlas.CELL` 8,
+  `GRID` 4), 10 of them used.
+- **Flat-colour parts collapse every UV onto one cell's centre** (the KayKit cell method), so each
+  part samples exactly one colour, with no mip blur. The image texture's interpolation is Closest.
+- **Recolours are atlas edits:** a variant is the same mesh with a different PNG (25.31).
+- **No baked lighting** in the atlas or the face: no AO, no painted shading. Godot adds the toon
+  tones and the ink.
+- **Not the KayKit atlas:** characters never use `hexagons_medieval.png` (§6.3).
+
+#### The face
+
+- **1024 × 1024 px, RGB with no alpha channel.** Paint in RGBA if you like, then save it as RGB
+  (`img.convert("RGB")`).
+- **Front-projected onto the head:** u = 0.5 + x / 0.5 (x in head-relative metres, −0.25 … 0.25) and
+  v = (z − chin) / (crown − chin), with the chin at −0.29 and the crown at +0.29 from the head's
+  centre. The back of the head samples one skin texel. `anime_face.py` paints it (system Python with
+  Pillow) and `anime_kit.build_head` projects it.
+- **What must read at game zoom is the eye mass:** a dark-rimmed iris at least as big and dark as the
+  approved test's (140 × 188 texels), with the lash line on its top. At zoom 8 one SubViewport pixel
+  covers about 30 face texels (mip about 5); at zoom 12 about 45 face-on, and about 64 in a
+  three-quarter view (mip 5.5–6). Brows and highlights are for the portraits (A-2): keep them light,
+  in the approved test's style.
+- **The mip-5 eye rule:** at mip 5, the darkest texel in each eye's area (a 220 × 240-texel box round
+  the eye) is at least 40% darker than the skin, in luminance. **How to check it:**
+  1. Build the mip chain the way Godot does, by repeated 2 × 2 averages: five `reduce(2)` steps for
+     mip 5, one more for mip 6.
+  2. Save `<id>_face_mip5.png` and `<id>_face_mip6.png` beside the face and look at them.
+  3. Print, per eye, the darkest mip-5 texel against the skin.
+
+  `python anime_face.py <out.png>` does all three and prints `mip-5 gate (>= 40%): OK`. The dealer:
+  75% and 76% darker at mip 5, 60% at mip 6.
+- **The import keys,** in each extracted image's `.png.import` `[params]` (the face and the palette
+  alike): `compress/mode=0` (Lossless), `mipmaps/generate=true` and `detect_3d/compress_to=0`
+  (Detect 3D off). Then reimport. With Detect 3D on, the first editor preview of the GLB switches the
+  texture to VRAM Compressed, which breaks the mip-5 read, and S3TC corrupts palette cells. Test 19
+  checks all three keys.
+- Keep the 1024 source for the dialogue portraits (25.17).
+- **Known (Stage D, 2026-09-27):** under some light angles (LookDev's light) the face falls in the
+  toon's dark band. The eyes still read, and in the tavern the desk light lights her face.
+  Face-normal shading is noted for 25.17 and 25.31.
+
+#### Hair
+
+- **Opaque clumps only:** tapered tubes following the head (the fringe, the face-framing locks, the
+  back hair; `anime_hair.py`), on the palette atlas or the optional hair surface. No hair cards and no
+  alpha cut-outs (see "No transparency" below). Lashes, iris rims and highlights are painted into the
+  face texture instead.
+- **They must clear the arms** in every clip the role plays: no hair vertex inside the upper-arm,
+  forearm or hand capsules (the sleeve radius + 0.01 m). What worked for the dealer: the back hair
+  as a central sheet of 7 clumps within ±31° of straight back (clumps at the sides hung where the
+  lowered arms go, and Walking_A swings the arms 0.21 m behind the shoulders), and face-framing
+  locks that end at the collarbone (longer tips sat where the arms reach forward).
+
+#### Materials and ink
+
+- **In Blender** (what the GLB carries), every material is a Principled BSDF with:
+  - **the Alpha input unlinked, at 1.0,** and no image alpha or colour-attribute alpha linked
+    anywhere. The Blender 4.5 glTF exporter takes `alphaMode` from that socket, not from a blend
+    mode, so the GLB stays OPAQUE and Godot imports `transparency` DISABLED.
+  - **backface culling off,** so glTF writes `doubleSided: true` and Godot imports `CULL_DISABLED`.
+  - Metallic 0, Emission Strength 0, and roughness above 0 (the dealer's is 0.85; the runtime
+    replaces it).
+
+  `anime_merge.check` asserts all of it except roughness (its MATERIALS row: a Principled BSDF,
+  Alpha unlinked at 1.0, backface culling off, Metallic 0, Emission Strength 0). Roughness > 0 is
+  checked on the imported GLB by Test 19 (`_mesh_stats`).
+- **No transparency anywhere on a character:** `transparency` DISABLED, no alpha blend, no alpha
+  scissor. The edge-shader quad paints over transparent passes, and the shared outline hull has no
+  texture or alpha test, so it would ink a cut-out card's whole shape.
+- **In Godot the look is applied at load, not authored.** `scripts/game/anime_look.gd`'s
+  `apply(model)` gives every imported StandardMaterial3D surface (props included) a toon copy as a
+  surface override:
+  - `diffuse_mode` TOON, with the band width set by roughness: **`TOON_BAND` 0.12** (the approved
+    test's value; kept above 0 for Test 19's roughness rule. The edge shader inks skinned bodies
+    whatever their roughness, because the renderer writes roughness as 1 − r·127/255 for dynamic
+    instances)
+  - `specular_mode` DISABLED, `metallic` 0, `metallic_specular` 0 (emission is left as imported:
+    the Blender side keeps Emission Strength 0, and Test 19 fails an emissive toon surface)
+  - `next_pass` = the shared outline
+
+  There is one copy per imported material, shared by every instance, and the imported materials are
+  never edited. A surface that isn't a StandardMaterial3D is left as imported, and one that isn't
+  opaque gets no outline, each with a warning (Test 19 fails both), so deliver plain opaque
+  materials. `staff_npc.gd` calls it for a variant whose `look` is `"anime"`, and never on a
+  fallback body.
+- **The ink outline** is `res://assets/characters/materials/anime_outline.tres`: one
+  StandardMaterial3D for the whole cast, never duplicated. It is unshaded, `cull_mode` FRONT, `grow`
+  on, **`grow_amount` 0.011** m (the approved test's; recommended at Stage D, pending Raphael's OK),
+  **ink colour (0.17, 0.09, 0.12)**, metallic 0, roughness above 0 (the default 1), no emission,
+  opaque. At zoom 12, 0.011 m is about 0.5 px on the half-resolution SubViewport (45 px/m), so in
+  the hall the edge shader does most of the inking and the hull shows up close. Raphael was shown
+  0.011 against 0.018 at zoom 8 at Stage D. Portrait-width outlines are 25.17's.
+- **Shadow tone:** the dark side is albedo × the tavern ambient (cool and dark), by design. Don't
+  fight it with lights: the environment's lights don't change for characters (A-5). The tavern's
+  omni lights showed no extra tone bands in the Stage D hall shots.
+
+#### Budgets
+
+- **Triangles: `AN_TRI_BUDGET` = 10,000 per body,** counted over the whole GLB with its props (as
+  Test 19's `_mesh_stats` counts): min(10,000, ceil(9,459 × 1.15 / 500) × 500) = 10,000, from the
+  dealer's measured 9,459 (`Dealer_Body` 9,427 + `Dealer_Quill` 32). The hard cap, `AN_TRI_CAP`, is
+  also 10,000. The same number is in Test 19 (`AN_TRI_BUDGET`) and `anime_merge.py` (`TRI_BUDGET`):
+  change all three together. (The approved test was 13,574 tris in 29 objects.)
+- **Surfaces: ≤ 3 on `<Role>_Body`** (`AN_BODY_SURFACES` in Test 19, `SURFACE_CAP` in
+  `anime_merge.py`). The outline draws each surface again, so a body is ≤ 6 render elements, and each
+  prop adds its surfaces × 2 (the dealer seated with her quill may have ≤ 8). The dealer: 2 body
+  surfaces + the quill's 1 = 6 elements.
+- **The hall: 200 VISIBLE draw calls at 24 bodies.** 24 is the GDD's full hall at the avatar cap
+  (5 patrons + 12 avatars + 4 staff), plus the player, Den Fa and the Cat. Measured in MainTavern on
+  2026-09-27 with the crowd check (§6.5), on an **RTX 3080 with V-Sync off**, with render times
+  summed over both viewports and averaged over ≥ 2,900 frames per sample:
+
+  | Bodies | VISIBLE draw calls | GPU (ms) | CPU (ms) | fps |
+  |---|---|---|---|---|
+  | 6 (the baseline: the hall's own, clones freed) | 115 | 0.331 | 0.271 | 957 |
+  | 22 | 181 | 0.343 | 0.352 | 842 |
+  | 24 (the counter read 25: a patron walked in) | 193 | 0.350 | 0.368 | 849 |
+
+  - The budget is the 24-body count, 193, rounded up to the next 50.
+  - Each added body cost about 4 VISIBLE draws, 0.0008 ms of GPU and 0.005 ms of CPU (6 → 22
+    bodies: +66 draws, +0.012 ms, +0.081 ms).
+  - The clones' outline hulls are 38 of the 24-body draws (193 → 155 with them off).
+  - **It passes:** at 24 bodies the larger of the GPU and CPU render times, 0.368 ms, is ≤ 8.3 ms
+    (half a 60 fps frame, kept as headroom for the GDD's mid-range target).
+  - The VISIBLE counter counts each opaque element once, but Forward+ draws opaque geometry again in
+    the depth prepass, so the GPU's real draws are about twice the counter. Compare only against a
+    baseline from the same run.
+- **Shadows:** the hall budget is measured with no shadow-casting light (MainTavern has none; its
+  SHADOW draws are 0). The outline is an opaque `next_pass`, so under a shadowed light each body
+  surface and its hull are drawn again in every shadow view: up to 4 PSSM splits for ExteriorWorld's
+  sun, and up to 6 faces for a shadowed omni. The town gets its own budget, measured with the anime
+  villagers and the player under the sun (25.31).
+
+#### Export
+
+- **In Blender,** in its own MCP call (never open a file and export in the same call), with only
+  `Rig`, `<Role>_Body` and its props selected:
+  `bpy.ops.export_scene.gltf(use_selection=True, export_apply=False, export_skins=True, export_animations=True, export_yup=True)`.
+  That is glTF Binary (`.glb`), +Y up, the skin and every action, modifiers not applied (the body's
+  only modifier is its Armature; the rest were applied before the join; §6.4). Re-export after every
+  clip change and compare the GLB's timestamp.
+- **File naming:** a snake_case id that starts with the catalogue id (`g13_quest_dealer_anime`): the
+  `.blend` at `<art>/blender/<id>.blend`, the GLB at `res://assets/characters/custom/<id>.glb`.
+  Godot extracts each image beside the GLB as `<GLB name>_<image file name>.png`: the Blender 4.5
+  exporter names each glTF image after its PNG file, not after the Blender image datablock (the
+  dealer's datablocks are `dealer_face` and `dealer_palette`, but her files `g13_quest_dealer_face.png`
+  and `g13_quest_dealer_palette.png` give `g13_quest_dealer_anime_g13_quest_dealer_face.png` and
+  `…_palette.png`), each with its own `.png.import`.
+- **Never overwrite a file:** a rebuilt body gets a new name. The anime dealer is
+  `g13_quest_dealer_anime.glb` because the 25.13 KayKit `g13_quest_dealer.glb` exists; that file
+  stays on disk, with its PNGs, as her fallback for as long as `staff.json` names it. If a name
+  exists, stop and ask.
+- **No `-col`, `-colonly`, `-convcolonly` or `-navmesh` style suffix on any Blender object name.**
+  The import keeps `nodes/use_node_type_suffixes=true`, so such a node would become collision or a
+  navmesh. Characters carry no collision.
+- **The Godot import:**
+  - Import headless (`--headless --path . --import`; exit code 139 is harmless) and check by loading
+    the resource.
+  - Each extracted image's `.png.import`: the three keys under "The face".
+  - The `.glb.import`: `meshes/generate_lods=false`, and a minimal `_subresources` =
+    `{"animations": {"<clip>": {"settings/loop_mode": 1}, …}}` for exactly the role's loops. Godot
+    expands it on reimport; commit the expanded file.
+  - Materials aren't extracted: the runtime look replaces them by override.
+
+#### Data: bodies swap by data path
+
+- **(a) Implemented and tested (Story 25.30): the staff,** in `data/characters/staff.json` ›
+  `roles.<role>.variants.<variant>`:
+  - `model_path`: the AN body's GLB.
+  - `fallback_model_path`: a file that exists, loaded when `model_path` doesn't load (the dealer's:
+    the 25.13 KayKit `g13_quest_dealer.glb`). Tests 5 and 19 check that both files exist; before
+    removing a fallback file, repoint the field in the same commit.
+  - `look`: `"anime"` makes `staff_npc.gd` call `anime_look.apply` on the variant's own body, never
+    on the fallback.
+  - `body`: the body-measured numbers, used only when the variant's own body loaded; a fallback body
+    uses the script constants. Every key is a number > 0 (`seated_front` may be ≤ 0). A missing key
+    would silently fall back to the KayKit constant, so Test 19 checks them all. Re-measure them on
+    the skinned body for every new body (`anime_clearcheck.measure()`). The controllers read
+    `hip_back`, `stool_pull`, `bubble_seated` and the speeds; `seated_front`, `walk_half_at_desk`
+    and `idle_front` feed Test 19's desk geometry.
+
+    | Key | What it is | The dealer (AN) | Her fallback (the KayKit g13 constant) |
+    |---|---|---|---|
+    | `hip_back` | how far in front of the WorkPoint her seated root sits (the sit clips put her hips 0.397 behind the root, so 0.397 puts them right over the WorkPoint). Rules: 0.18 ≤ `hip_back` ≤ 0.57, and the desk clearance `seated.z + seated_front <= DESK_SLAB_BACK - 0.02` | 0.397 | `DEALER_HIP_BACK` 0.32 |
+    | `stool_pull` | how far the stool slides back while she sits down; **≥ 0.45** (Test 19's floor) | 0.45 | `STOOL_PULL` 0.52 |
+    | `seated_front` | Sit_Chair_Idle's front at desk-top height, from her root | −0.276 | `SEATED_FRONT` −0.039 |
+    | `walk_half_at_desk` | Walk_Bar's half-width at desk-top height | 0.289 | `WALK_HALF_AT_DESK` 0.40 |
+    | `idle_front` | Idle's front at desk-top height, from her root | 0.159 | Test 19's `DEALER_IDLE_FRONT` 0.363 |
+    | `bubble_seated` | the bark bubble's height while seated (the seated top + 0.10) | 1.94 | `BUBBLE_SEATED` 1.95 |
+    | `hall_speed` | Walking_A's ground speed: stance length ÷ stance time, both feet, so the feet don't skate (m/s) | 1.51 | `HALL_SPEED` 0.82 |
+    | `bar_speed` | Walk_Bar's ground speed, measured the same way (m/s) | 0.75 | `BAR_SPEED` 0.48 |
+
+  - The approach point is not a body number: it stays `APPROACH_LOCAL` (desk geometry) for every
+    body.
+- **(b) As they are today** (no anime fields yet):
+  - `data/characters/classes.json`: `<Class>.model_path` (Fighter, Rogue, Mage, Healer, Barbarian,
+    Ranger), read by DataManager, with no per-class fallback.
+  - `data/characters/townsfolk.json`: `variants[].model_path` (the patrons and villagers); a missing
+    or empty `townsfolk.json` falls back to `RealisticPatron.FALLBACK_MODELS`.
+- **(c) Planned, 25.31; the field names are final when 25.31's code reads them:** the `look` gate
+  for classes, townsfolk and the player; the player's data path; any per-entry fallback. Patrons and
+  class bodies get no `body` block: they keep RealisticPatron's seat constants (`SIT_HIP_BACK` 0.40,
+  `SIT_SEAT_HEIGHT` 0.44), which the sit re-fit keeps valid.
+
+#### Validation
+
+- **In Blender:**
+  - `anime_merge.check`: every row OK; the top ≤ 2.25 m.
+  - The foot report (no clip the game plays over 0.03 m on a contact frame) and the seated-room
+    report (≥ 1.05).
+  - For a role that works at furniture, `anime_clearcheck.py`: the 25.13 method on densified point
+    clouds (edges sampled at 1/3 and 2/3), each check first shown to report a hit on a deliberately
+    bad pose:
+    - 0 hits on the desk's slab, front and side panels, in every clip and at every station;
+    - the stool: overlap allowed only below the seat top and behind the root, seated depth
+      ≤ 0.048 m (the dealer: 0.039);
+    - the self-clips, 0 each: hair against the arm capsules; thighs outside the skirt above the hem
+      (seated poke-through ≤ 0.01 m); each wrist ring inside its cuff.
+
+    The dealer: all zero (her hands keep their rest gap of 0.0105 m inside the cuffs in every frame).
+- **In Godot, Test 19** (in the failsafe suite: 502/0 after Story 25.30, Test 19 118 checks in about
+  5.4–6.9 s) runs on every variant `staff.json` names:
+  - **The GLB:** the KayKit rig (≥ 41 bones, the handslots, `hips`, `head`); exactly 76 + the role's
+    own clips, the cast's clips present, no `.00x`, none of the excluded ones; the loops loop and the
+    one-shots play once; only `<Role>_` meshes and the listed props; one `<Role>_Body` with ≤ 3
+    surfaces; its textures Lossless with mipmaps and Detect 3D off; no LODs; tris ≤ `AN_TRI_BUDGET`,
+    nothing glows, roughness > 0, no metal; the top above 1.8 and ≤ 2.25 m.
+  - **The data:** `look` "anime", the fallback path, every `body` number; the desk geometry checked
+    twice, once on the KayKit constants and once on the variant's `body`.
+  - **The loaded body** (`_staff_look_wrong`): every surface overridden by a toon StandardMaterial3D
+    (TOON, specular off, metallic 0, roughness > 0, no emission, opaque) with the shared outline as
+    `next_pass`; the outline unshaded, CULL_FRONT, grow on; two instances sharing their overrides;
+    the imported materials untouched; a fallback body not toned.
+  - **The fallback case:** a missing `model_path` loads the fallback with the script constants and
+    no toon.
+  - **The sit re-fit on the loaded body:** Sit_Chair_Idle's hips within 0.03 of `AN_SIT_HIPS_Y` and
+    0.40 (± 0.02) behind the root, the feet within 0.03 m of their rest height, Down and StandUp
+    meeting it within 0.01 m, the `upperarm` heads ≥ 1.05.
+  - **The staff behaviour with the body's numbers:** the first frame, the stool choreography, the
+    autopilot, `set_work_state`, fire and re-hire.
+- **Stage D:** the character variant in §6.5 (six pass criteria and the crowd check).
+
 ---
 
 ## 2. The pipeline
@@ -122,7 +578,9 @@ assumes them.
 Stage A  Concept image    any image generator            → reference only, never shipped
 Stage B  Model            Route 1: Claude builds it in Blender (default)
                           Route 2: image-to-3D, then Claude cleans it (organic shapes only)
+                          Route AN: anime characters on the stretched KayKit rig (§1 character spec)
 Stage C  Atlas + export   Claude in Blender               → assets/environment/custom/<id>.gltf
+                          characters: own palette + face  → assets/characters/custom/<id>.glb
 Stage D  Check in Godot   under the real shader + camera  → keep / redo / kill
 ```
 
@@ -144,6 +602,17 @@ a lumpy mound, a statue. Make a clean "model sheet" image (sheet suffix below), 
 Hyper3D Rodin or Hunyuan3D (both are built into the community Blender MCP), or to Meshy or Tripo by hand.
 Then Claude decimates it hard and remaps it onto the atlas (§6.3). Expect to throw away
 about 1 in 2.
+
+**Route AN: anime characters (since 2026-09-26, Story 25.30).** Use it for every character: the
+staff, patrons, adventurers, the player and townsfolk. Claude builds the body in Blender through the
+MCP with Route 1's method (scripted, from primitives), on the KayKit skeleton with its rest pose
+stretched to SD proportions, so the 76 KayKit clips keep working. The scripts are versioned in the
+game repo at `tools/blender/anime/` (its `README.md` lists the chain), and every character starts
+from the shared base `<art>/blender/anime_base.blend`. The rules are the character spec at the end
+of §1. The toon look and the ink outline are applied in Godot at load, and bodies swap by data
+path. First built: G13, the Quest Dealer. After the Kickstarter, paid 3D artists
+redo the cast to the same spec. The RS route of the §8 log (an inked mesh on the unchanged KayKit
+rig: G5, G7, G12, G13, the townsfolk kit) is retired for new characters.
 
 **Which Blender MCP to use:**
 
@@ -584,6 +1053,10 @@ Paste these into Claude Code on your PC with Blender open and the MCP connected.
 `F:/GAME I AM MAKING/eternal_guild_art`. Keep it outside, because Godot tries to import any `.blend` it
 finds inside the project.
 
+**Characters (route AN)** have their own chain: `tools/blender/anime/README.md` and the character
+spec in §1. Of this section, only 6.4's note on rigged characters and 6.5's character variant apply
+to them.
+
 ### 6.0 Session setup (once per Blender session)
 
 ```
@@ -661,6 +1134,10 @@ Make it fit the KayKit style:
 
 ### 6.3 Atlas remap: the step that makes it look like KayKit
 
+**Characters don't use this atlas.** Each AN body has its own small palette atlas,
+`<art>/textures/anime/<name>_palette.png` (the character spec in §1, "The atlas"), not
+`hexagons_medieval.png`. This section is for the environment.
+
 ```
 Remap <asset_id> onto the KayKit atlas:
 1. For each material slot except emissive_*, find its swatch in the table below.
@@ -734,12 +1211,28 @@ Export <asset_id> for Godot:
    no lights, no animation.
 4. Save to <project>/assets/environment/custom/<asset_id>.gltf.
    Characters instead: format "glTF Binary (.glb)" with the armature and animations included
-   (Animation ON), saved to <project>/assets/characters/custom/<asset_id>.glb.
+   (Animation ON) and Apply Modifiers OFF (see the note below), saved to
+   <project>/assets/characters/custom/<asset_id>.glb.
    Never write into the KayKit folders (hexagons/, furniture/, characters/models/).
    Never overwrite an existing file. If the name exists, stop and ask. (The one exception
    is the atlas copy hexagons_medieval.png written next to it, which is identical every time.)
 5. Report the files written and their sizes.
 ```
+
+**Rigged characters: `export_apply=False`.** A skinned body exports with Apply Modifiers off. Its
+non-Armature modifiers are applied in Blender before the join (the character spec in §1, "The
+body"), so its only modifier left is the Armature, which the exporter writes as the skin. The
+settings used for the route AN bodies, with only `Rig`, `<Role>_Body` and its props selected, in an
+MCP call of its own (never open a file and export in the same call):
+
+```python
+bpy.ops.export_scene.gltf(filepath="<project>/assets/characters/custom/<id>.glb",
+                          use_selection=True, export_apply=False, export_skins=True,
+                          export_animations=True, export_yup=True)
+```
+
+For a character, step 2's "apply all transforms" means `Rig` and `<Role>_Body` at scale 1.0 with
+the rig's root at 0,0,0. Then set the import keys in the character spec ("Export"), and reimport.
 
 ### 6.5 Stage D: check it in Godot
 
@@ -761,6 +1254,44 @@ Export <asset_id> for Godot:
   3. Outlines draw the same way as on KayKit models.
   4. The silhouette reads at game zoom.
   5. Its triangle count is within budget.
+- **Characters (route AN): the character variant** (Story 25.30's Stage D). For an AN body, the six
+  criteria below replace the five above, whose criteria 2 and 3 compare with KayKit.
+  - **Where to test:**
+    - **LookDev:** instance the character's own scene so the shipped load path applies the look (the
+      dealer: `res://scenes/game/QuestDealer.tscn` with `hired_at_start_override = 1` and autopilot
+      off). Show it beside the KayKit Knight and the body it replaces, in its clips; seated clips on
+      a 0.44 m proxy stool behind a 0.85 m proxy desk.
+    - **MainTavern at zoom 12 and zoom 8,** set through the camera's `target_zoom`: the character at
+      its job, next to the player, Den Fa and the patrons.
+    - **A portrait framing:** the driver's own ortho Camera3D, about 1 m, on the head, under the
+      tavern lights. It is judged, not shipped: the portraits are 25.17's.
+    - **The crowd check** (for a new kind of body, or a budget change):
+      - Clones are raw instances of the GLB, each passed through `anime_look.apply`, each looping
+        Idle or Walking_A from a staggered start time (static bodies skip skinning), on free hall
+        floor. Never duplicate a staff node: a copy binds to the same desk, stool and GuildBus.
+        On one clone, confirm that the VISIBLE draw calls rise by 2 per surface.
+      - Fill the hall to 24 bodies, counting the ones already there; record 22 as well.
+      - In its own eval, turn on `RenderingServer.viewport_set_measure_render_time` for the
+        SubViewport and the root viewport, and turn V-Sync off (a capped GPU downclocks).
+      - In later evals (the counters read 0 for the first 2 frames), average over ≥ 120 frames: the
+        SubViewport's VISIBLE and SHADOW draw calls, the GPU and CPU render times summed over both
+        viewports (plus the frame setup CPU time), and the uncapped fps.
+      - Take the baseline in the same run with the clones freed. Free the clones and restore V-Sync
+        in their own eval.
+      - It passes if, at 24 bodies, the larger of the GPU and CPU render times is ≤ 8.3 ms. The
+        budget and the 2026-09-27 measurements are in the character spec's "Budgets".
+    - Keep each run under 4 minutes (the autosave), and grep the run log after every driven E.
+  - **It passes if all six hold:**
+    1. Scale and height read right beside the Knight and the body it replaces (top ≤ 2.25 m).
+    2. The silhouette reads at zoom 12.
+    3. Hair clumps, ears, headwear (the dealer's circlet) and the costume's trims still read at half
+       resolution at zoom 12.
+    4. The eyes show at zoom 8. Faces proper are judged in the portrait framing.
+    5. Two toon tones plus the ink outline: no alpha artefacts, no z-fighting or gaps from the
+       outline hull, and it works with the edge shader.
+    6. Tris and surfaces are within budget, and the crowd check passes.
+  - Colours are demo-grade: note the palette, but it isn't a gate. Mark each shot keep or redo.
+    Raphael's verdict on the result shots closes Stage D.
 - **If it fails twice, stop** (§0 rule 4).
 - Keep a screenshot for your records using the TCP method in `MCP_SETUP.md`.
 
@@ -809,7 +1340,8 @@ This table tracks each finished asset.
 | G11 The Cat + B20 her basket | R1 | Claude via Blender MCP: a scripted build from primitives (charcoal fur, white socks, chest and muzzle, pale green eyes) on her own 22-bone rig, four keyframed clips (Sleep, Idle, Walk, and Pet, a one-shot); the basket from the tavern atlas (wicker bands, a red cushion) | 2026-09-25 | **in game**: Stage D passed (MainTavern: asleep in the basket by the hearth, the prompt beside her, E plays Pet with "prrr…" or an "mrrp.", then back to sleep; ExteriorWorld: her stroll by the stall and the barrel, which a pet pauses and resumes); 1,310 tris (basket 298) |
 | G9 Den Fa, the Architect | R1 + custom rig | Claude via Blender MCP: a scripted build from primitives on his own 42-bone rig (d_-prefixed; ears, mask and three bones per wing for Story 26.11), six keyframed clips (Idle, Sit, Walk loop; Point, StandUp, SitDown once); the Sit pose solved against the hearth's bench, wall and chimney | 2026-09-25 | **in game**: Stage D passed (LookDev beside the Knight in Idle, Walk, Point and Sit; MainTavern: seated by the lit fire, the mirror mask reflecting the hall through the new HearthProbe, "Press E - Talk to Den Fa" with a placeholder line, E going to the nearest of him, the cat and the fire, the walk to the bar, the point at the pillar, the walk back; the other tavern zones and the town unchanged); 2,546 tris, 2.91 m to the ear tips |
 | G12 The Bartender | RS | Claude via Blender MCP: the Barbarian body as a burly barkeep (bald, a grey beard, rolled sleeves, a knee-length apron, a belt cloth), recoloured by atlas cell, in `g12_g13_staff.blend` (a save-as of the townsfolk kit); five IK-posed clips (Walk_Bar, Wipe, Serve, Pour, Restock) checked for clearance against the counter, the shelf and the kegs | 2026-09-26 | **in game**: Stage D passed (LookDev beside the Knight in every state; MainTavern: wiping at a serve point with patrons seated, serve_toward = pour at the taps then serve at the nearest station with drink_handed, restock at beer 0, fired and re-hired through GuildBus with the front door held open as he passes); 4,473 tris, 83 clips |
-| G13 The Quest Dealer | RS | Claude via Blender MCP: the Mage body with the Rogue head as a silver-haired elf woman after Raphael's reference (ears, long hair, a gold circlet with a red gem, a high collar with gold trim, a plum coat, a quill on `handslot.r`), in the same file; Write and Brief clips (IK) at the guild desk B3 | 2026-09-26 | **in game**: Stage D passed (LookDev on a proxy stool and desk; MainTavern: writing at the desk at load, the stool pulled out and the shuffle in on arrival, AVAILABLE with the player at the desk front, BRIEFING with a bark while E's RecruitmentPopup is open); 4,815 tris, 83 clips |
+| G13 The Quest Dealer | RS | Claude via Blender MCP: the Mage body with the Rogue head as a silver-haired elf woman after Raphael's reference (ears, long hair, a gold circlet with a red gem, a high collar with gold trim, a plum coat, a quill on `handslot.r`), in the same file; Write and Brief clips (IK) at the guild desk B3 | 2026-09-26 | **in game**: Stage D passed (LookDev on a proxy stool and desk; MainTavern: writing at the desk at load, the stool pulled out and the shuffle in on arrival, AVAILABLE with the player at the desk front, BRIEFING with a bark while E's RecruitmentPopup is open); 4,815 tris, 83 clips; since 2026-09-27 the fallback body of the anime G13 below (`silver_elf.fallback_model_path`) |
+| G13 The Quest Dealer (anime) | AN | Claude via Blender MCP, route AN (`tools/blender/anime/`): the shared base `anime_base.blend` (the KayKit rig stretched to the §1 bone table, its 76 clips retargeted with the sits re-fitted to the 0.44 m seats), then her body after Raphael's silver-haired elf and the approved anime test (long platinum hair, elf ears, a gold circlet with a red gem, painted teal eyes, a high-collared plum coat with gold trim); one `Dealer_Body` (face + palette) and `Dealer_Quill` on `handslot.r`; Walk_Bar, Write and Brief re-posed by IK; desk, stool and self-clip clearance checked; `g13_quest_dealer_anime.glb`, a new file | 2026-09-27 | **in game** (`staff.json` `silver_elf`, `look: "anime"`): Stage D shots all kept against the six character criteria (§6.5: LookDev beside the Knight and the 25.13 dealer; MainTavern at zoom 12 and 8: writing at load, fire and re-hire, AVAILABLE, BRIEFING with a bark; the portrait framing; the zones walk; the crowd check at 24 bodies, 193 draws, 0.368 ms); 9,459 tris with the quill, 2 surfaces, 79 clips, 2.138 m; outline 0.011 (the approved test's; recommended at Stage D, pending Raphael's OK) |
 | B1 Hearth | 1 | | | concepts generating |
 | B2 Bar (round) | 1 | | | concepts generating |
 | D2 Demon Cult Crypt | 1 | | | concept picked (crypt v2) |

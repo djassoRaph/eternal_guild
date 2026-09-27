@@ -3,7 +3,8 @@
 *v1, 2026-09-24. Every visual asset the game uses today, plus what the design docs plan.*
 
 **Goal (Raphael, 2026-09-24):** remake **all** of the game's assets in the locked inked style
-(`08_ASSET_PROMPT_PACK.md` §1), replacing the stock KayKit models. This file is the checklist.
+(`08_ASSET_PROMPT_PACK.md` §1), replacing the stock KayKit models. Since 2026-09-26 the characters are
+anime instead (route AN: §0 item 4, §5 and the character spec in `08` §1). This file is the checklist.
 The *how* (image pipeline, Blender prompts, atlas remap, export, Godot check) lives in `08`.
 
 **How to use it:** one row per asset. When an asset moves, update its **Status** here in the same
@@ -53,9 +54,14 @@ At roughly one evening per 3D asset, 89 models is many months. Four things make 
    with toppings. §3 groups them, and that cuts the real count a lot.
 3. **2D comes from the image pipeline.** Portraits, tarot cards, icons and UI art don't need Blender
    at all. The n8n pipeline makes them directly, so they're the cheapest part.
-4. **Characters: re-skin on the KayKit skeleton.** The 5 characters are rigged and animated. Building
-   new meshes bound to KayKit's *existing* rig keeps every animation working, instead of rigging and
-   animating from scratch (§5).
+4. **Characters: route AN, anime bodies on the KayKit skeleton.** Since the anime correct course
+   (2026-09-26) the cast is being remade as anime (first built: the Quest Dealer, Story 25.30; the rest in
+   Stories 25.31 and 25.32): SD bodies of about 3.5 heads, two-tone toon shading and ink
+   outlines, every visible part built in Blender. Each human body starts from one shared base,
+   `<art>/blender/anime_base.blend`: KayKit's own skeleton (all 41 joints) with its rest pose
+   stretched, and the 76 KayKit clips retargeted to it, so nothing is rigged or animated from scratch.
+   The scripts are versioned in `tools/blender/anime/`; the character spec is in `08`; the route
+   note is in §5. Den Fa and the Cat keep their own rigs and are redesigned in Story 25.32.
 
 **Order (waves).** Each wave finishes before the next starts, so the game always looks consistent
 in at least one place:
@@ -248,16 +254,28 @@ river crossing).
 | The Cat (G11) + her basket (B20) | MainTavern (asleep in the basket by the hearth), ExteriorWorld (a short stroll) | `in game` (2026-09-25, Story 25.15: `assets/characters/custom/g11_the_cat.glb`, her own 22-bone rig, 1,310 tris, clips Sleep/Idle/Walk + Pet; `assets/environment/custom/b20_cat_basket.gltf`, 298 tris; `scenes/game/TheCat.tscn` + `scripts/game/the_cat.gd`: pettable, decision F0) |
 | Den Fa, the Architect (G9) | MainTavern (seated on the hearth's bench, the demo's first contact) | `in game` (2026-09-25, Story 25.10: `assets/characters/custom/g9_den_fa.glb`, his own 42-bone rig, 2,546 tris, 2.91 m (taller than the whole chibi cast), clips Idle/Sit/Walk + Point/StandUp/SitDown; `scenes/game/DenFa.tscn` + `scripts/game/den_fa.gd`; the mirror mask reflects the hall through `HearthProbe`) |
 | The Bartender (G12) | MainTavern (inside the round bar: wipes at the serve points, pours at the taps, restocks at the kegs) | `in game` (2026-09-26, Story 25.13, the art and the seam; the logic is Epic 16's: `assets/characters/custom/g12_bartender.glb`, the Barbarian body as a burly barkeep (apron, belt cloth, rolled sleeves); 4,473 tris, 83 clips = 76 KayKit + the seven staff clips (his Walk_Bar/Wipe/Serve/Pour/Restock and the dealer's Write/Brief: actions are file-global in the shared g12_g13_staff.blend); `scenes/game/Bartender.tscn` + `scripts/game/bartender.gd`) |
-| The Quest Dealer (G13) | MainTavern (seated at the guild desk B3: writes, briefs while the RecruitmentPopup is open) | `in game` (2026-09-26, Story 25.13: `assets/characters/custom/g13_quest_dealer.glb`, the Mage body with the Rogue head as a silver-haired elf woman in a plum coat (ears, hair, circlet, high collar, a quill; after Raphael's reference); 4,815 tris, 83 clips = 76 KayKit + the seven staff clips (her Write/Brief and the Bartender's five, from the same .blend); `scenes/game/QuestDealer.tscn` + `scripts/game/quest_dealer.gd`). More looks are planned as `staff.json` variants (Epic 16.2) |
+| The Quest Dealer (G13) | MainTavern (seated at the guild desk B3: writes, briefs while the RecruitmentPopup is open) | `in game` (2026-09-27, Story 25.30, route AN: `assets/characters/custom/g13_quest_dealer_anime.glb`, the silver-haired elf after Raphael's reference rebuilt as an anime body on the shared base (long platinum hair, elf ears, the gold circlet with a red gem, painted teal eyes, the high-collared plum coat with gold trim, a quill); one skinned `Dealer_Body` with 2 surfaces (face + palette; cap 3) and the `Dealer_Quill` prop on `handslot.r`; 9,459 tris with the quill (budget 10,000); top 2.138 m; 79 clips = the 76 KayKit clips retargeted + her own Walk_Bar/Write/Brief (none of the Bartender's); the toon look and ink outline applied at load (`"look": "anime"`, `scripts/game/anime_look.gd`); her body numbers in `staff.json` `silver_elf.body`; `scenes/game/QuestDealer.tscn` + `scripts/game/quest_dealer.gd`). **Fallback:** the 25.13 KayKit body, `g13_quest_dealer.glb` (the Mage body with the Rogue head; 4,815 tris, 83 clips), is silver_elf's `fallback_model_path`. It stays on disk with its `.import` and its extracted PNGs (`g13_quest_dealer_dealer_mage.png`, `g13_quest_dealer_dealer_rogue.png`) for as long as `staff.json` names it, and `<art>/blender/g12_g13_staff.blend` stays its source. More looks are planned as `staff.json` variants (Epic 16.2) |
 | KayKit skeletons (4 files) | on disk, unused | `stock` (unused) |
 
 Since Story 25.14 patrons are mostly townsfolk whose body matches their origin; the class bodies above still visit as travelling adventurers (~20%, decision E1).
 
-**Route (proposal ⚑):** keep KayKit's rig and animations, and build new inked-style meshes bound to
-that same skeleton, one class at a time. This avoids rigging and animating from scratch. Test it on
-one character (the player's `Rogue`) before committing the other four.
+**Route AN (decided 2026-09-26; first built: the Quest Dealer, Story 25.30):** an AN character is an
+anime body built from the shared base `<art>/blender/anime_base.blend`. The base keeps KayKit's
+skeleton (all 41 joints) with its rest pose stretched to about 3.5 heads (shorter legs and a longer
+torso, so a seated body has room above the desk) and all 76 KayKit clips retargeted: the hips and
+root keys scaled by the leg ratio, the three Sit_Chair_* clips re-fitted to the game's 0.44 m seats.
+A character is a save-as of the base: its parts, a palette atlas and a painted face merged into one
+skinned `<Role>_Body` (≤ 3 surfaces; props stay separate on item bones), plus the role's own clips,
+exported to a new `.glb`. The toon look and the shared ink outline are applied at load when the data
+says `"look": "anime"`, and each body is named by a data path with a fallback, so paid artists'
+bodies swap in after the Kickstarter by changing `model_path`. Scripts and the chain:
+`tools/blender/anime/README.md`; the spec: `08`. The rest of the anime cast follows in Stories
+25.31 (the Bartender, the player, the class bodies, the townsfolk) and 25.32 (Den Fa and the Cat,
+redesigned in the anime style on their own rigs, not on the base).
+This replaces the earlier proposal (new inked meshes on the unchanged KayKit rig, tested first on
+the player's `Rogue`).
 
-**Proven 2026-09-25 (spike + Story 25.9):** outfit variants on KayKit bodies (a recoloured atlas plus bone-attached or skinned pieces) keep all 76 animations; the Healer and the Ranger are built that way. Recipe: `eternal_guild_art/spike/README.md`.
+**Proven 2026-09-25 (spike + Story 25.9), the earlier KayKit route:** outfit variants on KayKit bodies (a recoloured atlas plus bone-attached or skinned pieces) keep all 76 animations; the Healer and the Ranger are built that way. Recipe: `eternal_guild_art/spike/README.md`.
 
 ---
 
