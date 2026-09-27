@@ -10,7 +10,8 @@
 # States follow Story 16.4's FSM (work_state IDLE = Write / BRIEFING = Brief / AVAILABLE = Sit_Chair_Idle);
 # 16.4 drives her through set_work_state. Until then a cosmetic autopilot: BRIEFING while the recruitment or
 # a mission screen is open (with a bark on its rising edge), AVAILABLE while the player is at the desk front,
-# else writing. No game effects, no E.
+# else writing. No game effects, no E. Call set_autopilot(false) before driving the API; while it is on, the
+# autopilot owns the state.
 extends "res://scripts/game/staff_npc.gd"
 
 const DEALER_HIP_BACK := 0.32      # her seated root is this far in front of the WorkPoint (measured, T0)
@@ -22,6 +23,8 @@ const APPROACH_LOCAL := Vector3(-0.60, 0.0, -1.20)   # desk-local: west of the s
 const DESK_NEAR := 1.0             # within this of the desk top she shuffles (Walk_Bar)
 const SLIDE_TIME := 0.5
 const BARK_GAP := 20.0
+const WORK_STATES := ["IDLE", "BRIEFING", "AVAILABLE"]
+const QUILL := "Dealer_Quill"      # the body's prop node: shows while she is seated
 
 @export var desk_path: NodePath
 @export var recruitment_zone_path: NodePath
@@ -47,6 +50,7 @@ func _states() -> Dictionary:
 
 func _ready() -> void:
 	_resolve_desk()
+	_check_route_end()
 	super._ready()
 
 
@@ -59,8 +63,12 @@ func _resolve_desk() -> void:
 		if n.is_in_group("work_point"):
 			_work_point = n
 			break
+	if _work_point == null:
+		push_warning("[Staff] missing: no work_point under the Quest Dealer's desk %s" % _desk.get_path())
 	var m := _desk.get_node_or_null("Model")
 	_stool = m.find_child("desk_stool", true, false) as Node3D if m else null
+	if _stool == null:
+		push_warning("[Staff] missing: no desk_stool under %s/Model; she sits without pulling it out" % _desk.get_path())
 	_zone = get_node_or_null(recruitment_zone_path) as Area3D if not recruitment_zone_path.is_empty() else null
 	_popup = get_node_or_null(recruitment_popup_path) if not recruitment_popup_path.is_empty() else null
 
@@ -92,17 +100,42 @@ func _approach() -> Vector3:
 	return _desk.global_transform * APPROACH_LOCAL if _desk else global_position
 
 
+## arrive_route must end at her approach point: MainTavern's route and APPROACH_LOCAL are one point twice.
+func _check_route_end() -> void:
+	if arrive_route.is_empty() or _desk == null:
+		return
+	var want := _approach()
+	var last := arrive_route[arrive_route.size() - 1]
+	var off := Vector2(last.x - want.x, last.z - want.z).length()
+	if off > 0.2:
+		push_warning("[Staff] mismatch: the Quest Dealer's arrive_route ends %.2f m from her approach point %s" % [off, want])
+
+
+## The stool's centre in the world: its mesh's box centre (desk_stool's origin is the desk's, its vertices baked).
+func _stool_centre() -> Vector3:
+	if _stool == null:
+		return _standing_root()
+	var mi := _stool as MeshInstance3D
+	if mi == null:
+		var ms := _stool.find_children("*", "MeshInstance3D", true, false)
+		mi = ms[0] as MeshInstance3D if not ms.is_empty() else null
+	if mi and mi.mesh:
+		return mi.global_transform * mi.get_aabb().get_center()
+	if _work_point and _desk:
+		return _work_point.global_position + _desk.global_basis * _stool.position
+	return _standing_root()
+
+
 # ------------------------------------------------------------------ the visual API (Story 16.4)
 
 func work_state() -> String:
 	return _work
 
 
-func set_autopilot(on: bool) -> void:
-	autopilot = on
-
-
 func set_work_state(state: String) -> void:
+	if not WORK_STATES.has(state):
+		push_warning("[Staff] unknown: work state '%s' for the Quest Dealer" % state)
+		return
 	_work = state
 	if _seated and not is_busy():
 		play(_state_for(state))
@@ -136,25 +169,47 @@ func _walk_state_at(p: Vector3) -> String:
 
 
 func _take_station(then: Callable) -> void:
-	var stand := _standing_root()
-	var to_stool := (_stool.global_position if _stool else stand) - global_position
+	if _seated:                                   # re-hired mid shuffle-out: straight back in with the stool
+		play("Available")
+		_slide_seat(_seat(), 0.0, func():
+			play(_state_for(_work))
+			then.call())
+		return
+	if _stool and absf(_stool.position.z + STOOL_PULL) < 0.01:   # the stool is out (re-hired standing up): sit again
+		_sit_from_stand(then)
+		return
+	var to_stool := _stool_centre() - global_position
 	turn_to(atan2(to_stool.x, to_stool.z), func():
 		hold("Interact", state_length("Interact") * 0.4, func():
-			_slide_stool(-STOOL_PULL, func():
-				walk(PackedVector3Array([stand]), func():
-					turn_to(_facing_yaw(), func():
-						hold("SitDown", state_length("SitDown"), func():
-							_seated = true
-							play("Available")
-							_slide_seat(_seat(), 0.0, func():
-								_work = "IDLE"
-								play("Write")
-								then.call())))))))
+			_slide_stool(-STOOL_PULL, func(): _sit_from_stand(then))))
+
+
+## From beside the pulled-out stool: step to the standing root, face the room, sit down and shuffle in; then
+## the state asked for (a set_work_state during the walk-in holds).
+func _sit_from_stand(then: Callable) -> void:
+	walk(PackedVector3Array([_standing_root()]), func():
+		turn_to(_facing_yaw(), func():
+			hold("SitDown", state_length("SitDown"), func():
+				_seated = true
+				play("Available")
+				_slide_seat(_seat(), 0.0, func():
+					play(_state_for(_work))
+					then.call()))))
+
+
+## Fired: a re-hire starts writing, not in the state from before the fire. Reset here, not in _leave_station:
+## fired on her way in she walks straight back out and _leave_station never runs.
+func leave() -> void:
+	_work = "IDLE"
+	super.leave()
 
 
 func _leave_station(then: Callable) -> void:
 	if not _seated:
-		_stool_home(then)             # fired while sitting down: the stool goes back first
+		if _wanted == "SitDown":      # fired mid Sit_Chair_Down: she stands up again first (standing up is the reverse)
+			hold("StandUp", state_length("StandUp"), func(): _stool_home(then))
+		else:
+			_stool_home(then)         # fired before she sat (the stool pull, the step in): the stool goes back first
 		return
 	play("Available")
 	_slide_seat(_standing_root(), -STOOL_PULL, func():
@@ -169,7 +224,7 @@ func _stool_home(then: Callable) -> void:
 		return
 	var app := _approach()
 	walk(PackedVector3Array([app]), func():
-		var to_stool := (_stool.global_position if _stool else app) - global_position
+		var to_stool := _stool_centre() - global_position
 		turn_to(atan2(to_stool.x, to_stool.z), func():
 			hold("Interact", state_length("Interact") * 0.4, func():
 				_slide_stool(0.0, then))))
@@ -245,9 +300,13 @@ func _player_at_desk() -> bool:
 
 
 func _update_quill() -> void:
-	var q := model.find_child("Dealer_Quill", true, false) as Node3D if model else null
+	var q := model.find_child(QUILL, true, false) as Node3D if model else null
 	if q:
 		q.visible = _seated
+
+
+func _prop_nodes() -> Array:
+	return [QUILL]
 
 
 func _bubble_height() -> float:

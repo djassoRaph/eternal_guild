@@ -38,6 +38,7 @@ var anim: AnimationPlayer
 var tree: AnimationTree
 var playback: AnimationNodeStateMachinePlayback
 var present := false
+## The role's name from staff.json (display_name), for the UIs of Epic 10 and Epic 16 (read, never shown here).
 var display_name := ""
 var autopilot := true
 var using_fallback := false
@@ -53,11 +54,10 @@ var _turn_goal := NAN
 var _turn_done := Callable()
 var _wait := 0.0
 var _wait_done := Callable()
-var _queue: Array[Callable] = []
 var _door: Node = null
 var _holding_door := false
 var _leaving := false
-var _route_phase := ""          # "in" / "out" while walking arrive_route, "" at or near the station
+var _route_phase := ""          # "in" / "out" while walking arrive_route, "station" from its end to the station, "" there
 var _state_len := {}            # state name -> its clip length (s)
 var _wanted := ""               # the state last asked for (the tree's current node lags a pending travel by a frame)
 
@@ -92,6 +92,10 @@ func _tick_work(_delta: float) -> void:
 func _bubble_height() -> float:
 	return PatronSpeechBubble.HEAD_HEIGHT
 
+## The prop nodes the role's own body carries by name (subclasses): a missing one is warned about at load.
+func _prop_nodes() -> Array:
+	return []
+
 
 # ------------------------------------------------------------------ setup
 
@@ -118,6 +122,11 @@ func hired_at_start() -> bool:
 		return hired_at_start_override == 1
 	var gm := get_node_or_null("/root/GameManager")
 	return gm != null and gm.has_method("is_staff_hired") and gm.is_staff_hired(role)
+
+
+## The cosmetic autopilot on or off. Stories 16.3 and 16.4 turn it off before they drive the API.
+func set_autopilot(on: bool) -> void:
+	autopilot = on
 
 
 func _load_data() -> void:
@@ -158,16 +167,27 @@ func _load_model() -> void:
 		if fb != "" and ResourceLoader.exists(fb):
 			scene = load(fb) as PackedScene
 			using_fallback = true
+			path = fb
 	if scene == null:
 		push_warning("[Staff] missing: no body for %s" % role)
 		return
-	model = scene.instantiate() as Node3D
+	var inst := scene.instantiate()
+	model = inst as Node3D
+	if model == null:
+		if inst:
+			inst.free()
+		push_warning("[Staff] missing: %s's body '%s' has no Node3D root" % [role, path])
+		return
 	model.name = "Model"
 	add_child(model)
 	var aps := model.find_children("*", "AnimationPlayer", true, false)
 	anim = aps[0] if not aps.is_empty() else null
 	if using_fallback:
 		_hide_hand_items()
+	else:
+		for p in _prop_nodes():
+			if model.find_child(str(p), true, false) == null:
+				push_warning("[Staff] missing: prop %s on %s's body '%s'" % [p, role, path])
 
 
 func _hide_hand_items() -> void:
@@ -187,16 +207,19 @@ func _build_tree() -> void:
 		return
 	var sm := AnimationNodeStateMachine.new()
 	var states := _states()
+	var available := anim.get_animation_list()
 	for s in states:
-		var clip: String = states[s]
-		var original := clip
-		if not anim.has_animation(clip):
-			clip = CLIP_FALLBACK.get(clip, "Idle")
+		var original: String = states[s]
+		var clip := resolve_clip(available, original)
+		if clip == "":
+			push_warning("[Staff] missing: %s has neither %s nor a fallback clip" % [role, original])
+		elif clip != original:
 			push_warning("[Staff] fallback: %s has no clip %s, playing %s" % [role, original, clip])
 		var node := AnimationNodeAnimation.new()
 		node.animation = clip
-		if using_fallback and "use_custom_timeline" in node:
-			# never touch the shared KayKit Animation resources' loop_mode (patrons rewrite them)
+		if "use_custom_timeline" in node:
+			# the tree owns the loop modes for any body (a swapped GLB imports its clips unlooped): the shared
+			# Animation resources are never written (the patrons rewrite KayKit's loop_mode)
 			node.use_custom_timeline = true
 			node.timeline_length = anim.get_animation(clip).length if anim.has_animation(clip) else 1.0
 			node.stretch_time_scale = false
@@ -219,6 +242,15 @@ func _build_tree() -> void:
 	playback = tree.get("parameters/playback")
 
 
+## The clip a state plays on a body with `available` clips: its own, else CLIP_FALLBACK's, else Idle ("" if none).
+static func resolve_clip(available: PackedStringArray, clip: String) -> String:
+	if available.has(clip):
+		return clip
+	if CLIP_FALLBACK.has(clip) and available.has(str(CLIP_FALLBACK[clip])):
+		return str(CLIP_FALLBACK[clip])
+	return "Idle" if available.has("Idle") else ""
+
+
 # ------------------------------------------------------------------ states and time
 
 func play(state: String) -> void:
@@ -229,6 +261,9 @@ func play(state: String) -> void:
 		playback.start(state)
 	elif cur == state and _wanted != state:
 		playback.start(state, false)   # a travel elsewhere is pending: travel() back to the current node would not cancel it
+	elif cur != state and playback.get_fading_from_node() != "":
+		playback.start(cur, false)     # mid-crossfade a travel waits for the fade to end (a walk would play the old clip
+		playback.travel(state)         # for up to 0.2 s): end the fade on the current node, then travel from it at once
 	else:
 		playback.travel(state)
 	_wanted = state
@@ -278,9 +313,6 @@ func tick(delta: float) -> void:
 		return
 	_tick_work(delta)
 	_update_door()
-	if not is_busy() and not _queue.is_empty():
-		var job: Callable = _queue.pop_front()
-		job.call()
 	if tree:
 		tree.advance(delta)
 
@@ -365,10 +397,14 @@ func _step_turn(delta: float) -> void:
 		global_rotation = Vector3(0.0, cur + signf(diff) * step, 0.0)
 
 
-## Hold `state` for `seconds`, then call `then` (a one-shot's length, a dwell).
+## Hold `state` for `seconds`, then call `then` (a one-shot's length, a dwell). A one-shot that is already
+## the current node starts over: travel() to the current node is a no-op, so the hold would time a clip half done.
 func hold(state: String, seconds: float, then := Callable()) -> void:
 	if state != "":
+		var replay := playback != null and playback.get_current_node() == state and not LOOPING.has(_states().get(state, ""))
 		play(state)
+		if replay:
+			playback.start(state, true)
 	_wait = maxf(seconds, 0.001)
 	_wait_done = then
 
@@ -381,7 +417,6 @@ func stop_all() -> void:
 	_turn_done = Callable()
 	_wait = 0.0
 	_wait_done = Callable()
-	_queue.clear()
 	_route_phase = ""
 
 
@@ -428,6 +463,7 @@ func _on_staff_hired(_staff_id: String, r: String) -> void:
 			_route_phase = "in"
 			walk(ahead, _end_route_in)
 		else:                             # still leaving the station: take it again from here
+			_route_phase = "station"
 			_take_station(_arrived)
 		return
 	arrive()
@@ -460,11 +496,12 @@ func arrive() -> void:
 
 
 func _end_route_in() -> void:
-	_route_phase = ""
+	_route_phase = "station"          # still arriving (the take-station leg): the API is refused until _arrived
 	_take_station(_arrived)
 
 
 func _arrived() -> void:
+	_route_phase = ""
 	arrived_at_station.emit()
 
 

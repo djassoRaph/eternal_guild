@@ -153,6 +153,7 @@ const LINTEL_Y := 2.30                                  # the door frame's linte
 var _pass_count := 0
 var _fail_count := 0
 var _elapsed := 0.0
+var _t19_ms := 0          # Test 19's start (Time.get_ticks_msec), printed with its real time at the end (AC 8)
 
 
 func _initialize() -> void:
@@ -2171,14 +2172,24 @@ func test_den_fa_e() -> void:
 # door when GuildBus.staff_hired says so. Visuals only: no GameManager writes, no E, no physics body.
 func test_staff() -> void:
 	print("[Test 19] The Bartender and the Quest Dealer")
+	_t19_ms = Time.get_ticks_msec()
 	for p in [BARTENDER_PATH, DEALER_PATH, BARTENDER_SCENE, DEALER_SCENE, STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT]:
 		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
 	check(FileAccess.file_exists(STAFF_DATA_PATH), "exists: staff.json")
-	_check_staff_glb(BARTENDER_PATH, BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"])
-	_check_staff_glb(DEALER_PATH, DEALER_MESH_ALLOW, "Dealer_", ["Dealer_Quill", "Dealer_Ears"])
 
 	var data = _read_json(STAFF_DATA_PATH) if FileAccess.file_exists(STAFF_DATA_PATH) else null
 	var roles: Dictionary = data.get("roles", {}) if data is Dictionary else {}
+	# the GLB checks run on the bodies staff.json loads (every variant of each role), not on fixed paths
+	var glb_rules := {"bartender": [BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"]],
+		"desk_manager": [DEALER_MESH_ALLOW, "Dealer_", ["Dealer_Quill", "Dealer_Ears"]]}
+	for role in glb_rules:
+		var rv = roles.get(role)
+		var vs = rv.get("variants", {}) if rv is Dictionary else {}
+		if not (vs is Dictionary and not vs.is_empty()):
+			check(false, "staff.json: %s has variants whose bodies the GLB checks can run on" % role)
+			continue
+		for v in vs.values():
+			_check_staff_glb(str(v.get("model_path", "")) if v is Dictionary else "", glb_rules[role][0], glb_rules[role][1], glb_rules[role][2])
 	var why := []
 	if not (data is Dictionary and str(data.get("_note", "")).length() > 10):
 		why.append("no _note")
@@ -2225,8 +2236,9 @@ func test_staff() -> void:
 	var bs = load(BARTENDER_SCRIPT) if ResourceLoader.exists(BARTENDER_SCRIPT) else null
 	var bconst: Dictionary = bs.get_script_constant_map() if bs != null else {}
 	var bmethods: Array = bs.get_script_method_list().map(func(m): return m.name) if bs != null else []
-	check(absf(float(bconst.get("RING_R", 0.0)) - 1.80) < 0.001 and absf(float(bconst.get("RESTOCK_R", 0.0)) - 1.98) < 0.001,
-		"the ring walk runs at r 1.80 (the serve points) and the restock station at r 1.98 (in the flap gap; %s, %s)" % [bconst.get("RING_R"), bconst.get("RESTOCK_R")])
+	check(absf(float(bconst.get("RING_R", 0.0)) - 1.80) < 0.001 and absf(float(bconst.get("RESTOCK_R", 0.0)) - 1.98) < 0.001
+		and absf(float(bconst.get("SERVE_R", 0.0)) - 1.76) < 0.001,
+		"the ring walk runs at r 1.80 (the serve points), he stands to serve at r 1.76 (his beard clears the counter) and the restock station is at r 1.98 (in the flap gap; %s, %s, %s)" % [bconst.get("RING_R"), bconst.get("SERVE_R"), bconst.get("RESTOCK_R")])
 	var ring_ok: bool = bmethods.has("ring_arc") and bmethods.has("ring_radius_at") and bmethods.has("nearest_station")
 	why = []
 	if ring_ok:
@@ -2288,6 +2300,18 @@ func test_staff() -> void:
 				pl_ok = false
 			last = n
 	check(pl_ok, "pick_line: none for no lines, the only one for one, never the same twice in a row")
+	var rc_ok: bool = bm.has("resolve_clip")
+	if rc_ok:
+		rc_ok = base.resolve_clip(PackedStringArray(["Wipe"]), "Wipe") == "Wipe" \
+			and base.resolve_clip(PackedStringArray(["Idle", "Interact"]), "Wipe") == "Interact" \
+			and base.resolve_clip(PackedStringArray(["Idle"]), "Wipe") == "Idle" \
+			and base.resolve_clip(PackedStringArray(), "Wipe") == ""
+	check(rc_ok, "resolve_clip: a state plays its own clip, else CLIP_FALLBACK's, else Idle, else none (never a clip the body lacks)")
+	var ana := AnimationNodeAnimation.new()
+	check("use_custom_timeline" in ana and "loop_mode" in ana and "timeline_length" in ana,
+		"AnimationNodeAnimation has use_custom_timeline, timeline_length and loop_mode in this engine (the tree owns the staff's loop modes, AC 6)")
+	var named := [STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT].filter(func(p): return ResourceLoader.exists(p) and (load(p) as Script).get_global_name() != "")
+	check(named.is_empty(), "no class_name on the staff scripts (AC 6) %s" % [named])
 
 	var ds = load(DEALER_SCRIPT) if ResourceLoader.exists(DEALER_SCRIPT) else null
 	var dconst: Dictionary = ds.get_script_constant_map() if ds != null else {}
@@ -2427,12 +2451,20 @@ func test_staff_tavern() -> void:
 			var ab: AABB = (m as MeshInstance3D).global_transform * (m as MeshInstance3D).get_aabb()
 			if ab.position.y < 2.0 and ab.size.y > 0.05 and not str(m.get_path()).contains("/TheCat") and not str(m.get_path()).contains("/DenFa"):
 				foots.append(ab)
-	var ring := RING_CENTER
 	var legs := {
-		"Bartender": func(q: Vector3) -> bool: return (q.z >= 3.69 and q.z <= 5.25) or Vector2(q.x - ring.x, q.z - ring.z).length() < 3.65,
+		"Bartender": func(q: Vector3) -> bool: return q.z >= 3.69 and q.z <= 5.25,
 		"QuestDealer": func(q: Vector3) -> bool: return (q.z >= 3.69 and q.z <= 5.25) or (q.x < 10.2 and q.z >= -5.6 and q.z <= -5.2),
 	}
-	var ends := {"Bartender": RING_CENTER + Vector3(0, 0, -3.7), "QuestDealer": Vector3(11.0, 0.10, -5.5)}
+	# the route ends from the scripts' own constants and the live bar and desk: a re-measured FLAP_R or
+	# APPROACH_LOCAL without a matching MainTavern route fails here
+	var bconst_t: Dictionary = load(BARTENDER_SCRIPT).get_script_constant_map()
+	var dconst_t: Dictionary = load(DEALER_SCRIPT).get_script_constant_map()
+	var round_bar := tn.get_node_or_null("Architecture/RoundBar") as Node3D
+	var guild_desk := tn.get_node_or_null("Furniture/GuildDesk") as Node3D
+	var ends := {
+		"Bartender": load(BARTENDER_SCRIPT).ring_point(round_bar.global_position, PI, float(bconst_t.get("FLAP_R", 0.0))) if round_bar else Vector3.INF,
+		"QuestDealer": guild_desk.global_transform * (dconst_t.get("APPROACH_LOCAL", Vector3.INF) as Vector3) if guild_desk else Vector3.INF,
+	}
 	for n in ["Bartender", "QuestDealer"]:
 		if not staff.has(n):
 			check(false, "%s: its arrive_route through the door, on the navmesh, clear of seats and furniture" % n)
@@ -2472,6 +2504,9 @@ func test_staff_tavern() -> void:
 						if Vector2(dx, dz).length() < 0.3:
 							why.append("by furniture at (%.2f, %.2f)" % [q.x, q.z])
 							break
+			var last := route[route.size() - 1]
+			if last.z < 3.69 and absf(last.y - 0.10) > 0.05:
+				why.append("hall point y %.2f" % last.y)
 			if crossings != 1:
 				why.append("%d door crossings" % crossings)
 		check(why.is_empty() and seats.size() >= 17 and foots.size() > 20,
@@ -2485,7 +2520,9 @@ func test_staff_tavern() -> void:
 		for p in need[n]:
 			var np = staff.get(n, {}).get("paths", {}).get(p)
 			var target: Node = node.get_node_or_null(np) if node and np is NodePath else null
-			if target == null or not str(target.get_path()).ends_with(expect_paths[p]):
+			if np is NodePath and (np as NodePath).is_absolute():
+				why.append(p + " absolute")
+			elif target == null or not str(target.get_path()).ends_with(expect_paths[p]):
 				why.append(p)
 		check(node != null and why.is_empty(), "%s: its node paths resolve in the tavern (bad: %s)" % [n, why])
 	var wps := scene.find_children("*", "Node3D", true, false).filter(func(w): return w.is_in_group("work_point"))
@@ -2501,7 +2538,9 @@ func test_staff_tavern() -> void:
 
 
 ## The staff at work in small worlds (Test 19), stepped by hand (manual_tick): the door's hold, the
-## Bartender's walk-in, serve, restock and walk-out, the Quest Dealer's stool, sit, states and leave.
+## Bartender's walk-in, serve, restock and walk-out, the Quest Dealer's stool, sit, states and leave; the
+## fallback bodies, the API with the autopilot off (Story 16.3's mode), both autopilots' own choices, and
+## the hire and fire edges (mid walk-in, mid walk-out, mid-serve, mid-sit, while gone or already there).
 func test_staff_runtime() -> void:
 	if not (ResourceLoader.exists(BARTENDER_SCENE) and ResourceLoader.exists(DEALER_SCENE) and ResourceLoader.exists(FRONT_DOOR_SCRIPT)):
 		check(false, "the staff at work: Bartender.tscn and QuestDealer.tscn needed")
@@ -2510,6 +2549,9 @@ func test_staff_runtime() -> void:
 	if not fd_methods.has("hold_open"):
 		check(false, "the front door's hold_open / release_hold needed")
 		return
+	var gb = root.get_node("GuildBus")
+	var gm = root.get_node("GameManager")
+	var eb = root.get_node("EconomyBus")
 	var world := Node3D.new()
 	root.add_child(world)
 	var door := _make_door()
@@ -2532,6 +2574,21 @@ func test_staff_runtime() -> void:
 		await process_frame
 	check(open_once and opened[0] == 1 and closed[0] == 1, "the door opens for a holder once and closes after the last release, a freed holder pruned (%d, %d)" % [opened[0], closed[0]])
 	holder_a.free()
+	# two live holders: no close is armed while one of them still holds it
+	var holder_d := Node.new()
+	var holder_e := Node.new()
+	door.hold_open(holder_d)
+	door.hold_open(holder_e)
+	door.release_hold(holder_d)
+	var kept_open: bool = door._is_open and door._close_timer.is_stopped()
+	door.release_hold(holder_e)
+	var close_armed: bool = not door._close_timer.is_stopped()
+	t0 = Time.get_ticks_msec()
+	while door._is_open and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	check(kept_open and close_armed and not door._is_open, "two holders: the door stays open until the last one lets go")
+	holder_d.free()
+	holder_e.free()
 	var body := CharacterBody3D.new()
 	var cap := CollisionShape3D.new()
 	cap.shape = CapsuleShape3D.new()
@@ -2556,6 +2613,9 @@ func test_staff_runtime() -> void:
 	check(still_open and not door._is_open, "a body still inside keeps the door open after a release; it closes once the body leaves")
 
 	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var door_key := "SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/FrontDoor"
+	var door_at: Vector3 = (tav[door_key].world as Transform3D).origin if tav.has(door_key) else Vector3.INF
+	check(door_at.distance_to(DOOR_CENTER) < 0.01, "Test 19's door stands where MainTavern's FrontDoor does (%s)" % door_at)
 	var routes := {}
 	for k in tav:
 		if tav[k].instance in [BARTENDER_SCENE, DEALER_SCENE]:
@@ -2563,9 +2623,25 @@ func test_staff_runtime() -> void:
 	var bar = (load(ROUND_BAR_SCENE_PATH) as PackedScene).instantiate()
 	world.add_child(bar)
 	bar.global_position = RING_CENTER
-	var gb = root.get_node("GuildBus")
-	var gm = root.get_node("GameManager")
-	var eb = root.get_node("EconomyBus")
+	# the serve target is stool 08's seat root (φ +10°, facing serve_point_01); stool 10's (φ 90) lies between two stations
+	var s08: Node = bar.get_node_or_null("Stools/Stool08")
+	var sp08: Node3D = s08.find_child("SeatPoint", true, false) as Node3D if s08 else null
+	var s10: Node = bar.get_node_or_null("Stools/Stool10")
+	var sp10: Node3D = s10.find_child("SeatPoint", true, false) as Node3D if s10 else null
+	var s03: Node = bar.get_node_or_null("Stools/Stool03")      # φ 270: midway between serve_point_04 and serve_point_05
+	var sp03: Node3D = s03.find_child("SeatPoint", true, false) as Node3D if s03 else null
+	check(sp08 != null and sp10 != null and sp03 != null, "precondition: stool 03's, 08's and 10's SeatPoints exist in RoundBar")
+	var patron_script = load(PATRON_SCRIPT_PATH)
+	var stool08: Vector3 = patron_script.seat_root(sp08.global_transform) if sp08 else RING_CENTER + Vector3(0.755, 0.0, 3.496)
+	var stool10: Vector3 = patron_script.seat_root(sp10.global_transform) if sp10 else RING_CENTER + Vector3(3.55, 0.0, 0.0)
+	var stool03: Vector3 = patron_script.seat_root(sp03.global_transform) if sp03 else RING_CENTER + Vector3(-3.55, 0.0, 0.0)
+	var beer_saved: int = gm.beer_stock
+	gm.beer_stock = 5
+	check(get_nodes_in_group("patrons").is_empty() and get_nodes_in_group("mission_board").is_empty(),
+		"Test 19's small worlds start clean (beer pinned, no patrons, no mission board)")
+	var staff_data = _read_json(STAFF_DATA_PATH)
+	var staff_roles: Dictionary = staff_data.get("roles", {}) if staff_data is Dictionary else {}
+	var dt := 1.0 / 30.0
 
 	var first = (load(BARTENDER_SCENE) as PackedScene).instantiate()
 	first.manual_tick = true
@@ -2573,11 +2649,93 @@ func test_staff_runtime() -> void:
 	first.bar_path = bar.get_path()
 	first.door_path = door.get_path()
 	world.add_child(first)
-	first.tick(1.0 / 30.0)
-	var s01 := RING_CENTER + Vector3(0, 0, 1.8)
-	check(first.visible and first.global_position.distance_to(s01) < 0.05 and first.anim_state() == "Wipe",
-		"hired at start: he is at serve_point_01 wiping (at %s, %s)" % [first.global_position, first.anim_state()])
+	first.tick(dt)
+	var s01: Vector3 = RING_CENTER + Vector3(0, 0, 1.76)          # the geometry table's serve radius, not the script's SERVE_R
+	check(first.visible and first.global_position.distance_to(s01) < 0.02 and first.anim_state() == "Wipe"
+		and first._stands.size() == 6 and absf(wrapf(float(first._stands[first.RESTOCK_INDEX].phi) - PI, -PI, PI)) < 0.01,
+		"hired at start: he is at serve_point_01 wiping (at %s, %s); five serve stations and the restock station at φ 180 (%d stations)" % [first.global_position, first.anim_state(), first._stands.size()])
+	_check_staff_body(first, "the Bartender", _staff_model_path(staff_roles, "bartender"))
+	var bt_name: String = first.display_name
+	first.set_autopilot(false)
+	var cloth_hand: Node3D = first.model.find_child("Bartender_ClothHand", true, false) as Node3D if first.model else null
+	var cloth_belt: Node3D = first.model.find_child("Bartender_ClothBelt", true, false) as Node3D if first.model else null
+	first.place_at_station()
+	first.tick(dt)
+	var wipe_cloths: bool = cloth_hand != null and cloth_belt != null and first.anim_state() == "Wipe" and cloth_hand.visible and not cloth_belt.visible
+	first.play("Idle")
+	first.tick(dt)
+	var idle_cloths: bool = cloth_hand != null and cloth_belt != null and not cloth_hand.visible and cloth_belt.visible
+	check(wipe_cloths and idle_cloths, "his cloths: the hand cloth shows while he wipes and the belt cloth hides; otherwise the other way round")
+	# the facing stool: a seated patron counts for the station nearest his stool, and only that one
+	var dummy := Node3D.new()
+	dummy.add_to_group("patrons")
+	world.add_child(dummy)
+	dummy.global_position = stool08
+	var near_08: Array = range(5).filter(func(i): return first._patron_near(i))
+	first._station = 2
+	var picked := {}
+	for i in 20:                                   # a picker that ignored him would pick 01 only one time in three
+		picked[first._pick_station()] = true
+	dummy.global_position = stool10
+	var near_10: Array = range(5).filter(func(i): return first._patron_near(i))
+	dummy.global_position = stool03
+	var near_03: Array = range(5).filter(func(i): return first._patron_near(i))
+	dummy.free()
+	first._station = 0
+	check(near_08 == [0] and picked.keys() == [0] and near_10.size() == 1,
+		"a seated patron counts for the station his stool faces, only that one: stool 08 for serve_point_01 %s (picked from 03, 20 times: %s), the φ 90 stool for one station %s" % [near_08, picked.keys(), near_10])
+	check(near_03 == [4],
+		"the φ 270 stool, as near serve_point_04 (behind the pillar) as serve_point_05, counts for 05, the one the camera sees %s" % [near_03])
 	first.queue_free()
+	await process_frame
+
+	# AC 6's fallbacks: an unknown variant uses the role's default; a missing body file loads the KayKit body with
+	# CLIP_FALLBACK's clips on the tree's own loop modes, its hand items hidden; a body whose root is not a Node3D is refused
+	var vn = (load(BARTENDER_SCENE) as PackedScene).instantiate()
+	vn.manual_tick = true
+	vn.hired_at_start_override = 0
+	vn.variant = "nope"
+	world.add_child(vn)
+	var vn_path: String = vn.model.scene_file_path if vn.model else "no body"
+	check(vn.model != null and not vn.using_fallback and vn_path == _staff_model_path(staff_roles, "bartender"),
+		"an unknown variant falls back to the role's default_variant (%s)" % vn_path)
+	vn.queue_free()
+	var fb_wrong := []
+	for spec in [[BARTENDER_SCRIPT, "bartender", "res://assets/characters/models/kaykit_adventurers/Barbarian.glb"],
+			[DEALER_SCRIPT, "desk_manager", "res://assets/characters/models/kaykit_adventurers/Mage.glb"]]:
+		var fb = Node3D.new()
+		fb.set_script(_staff_variant_script(spec[0], {"model_path": "res://missing.glb", "fallback_model_path": spec[2]}))
+		fb.role = spec[1]
+		fb.manual_tick = true
+		fb.hired_at_start_override = 0
+		world.add_child(fb)
+		for fw in _staff_fallback_wrong(fb):
+			fb_wrong.append("%s: %s" % [spec[1], fw])
+		fb.queue_free()
+	check(fb_wrong.is_empty(), "a missing body file: the KayKit fallback body, each state on its CLIP_FALLBACK clip, looping on the tree's own nodes, its hand items hidden (wrong: %s)" % [fb_wrong.slice(0, 4)])
+	var card_path := "res://scenes/ui/AdventurerCard.tscn"             # a UI scene: its root is a Control
+	var card = (load(card_path) as PackedScene).instantiate() if ResourceLoader.exists(card_path) else null
+	check(card != null and not (card is Node3D), "precondition: %s exists and its root is not a Node3D" % card_path.get_file())
+	if card:
+		card.free()
+	var orphans := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
+	var cr = Node3D.new()
+	cr.set_script(_staff_variant_script(BARTENDER_SCRIPT, {"model_path": card_path, "fallback_model_path": ""}))
+	cr.role = "bartender"
+	cr.manual_tick = true
+	cr.hired_at_start_override = 0
+	world.add_child(cr)
+	var cr_leaked := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)) - orphans
+	var cr_ready: bool = cr.model == null and not cr.visible and cr_leaked == 0
+	cr.arrive()
+	cr._bark_cd = 1.0
+	var cr_from: Vector3 = cr.global_position
+	cr.walk(PackedVector3Array([cr_from + Vector3(1.0, 0.0, 0.0)]))
+	cr.tick(dt)
+	var cr_step: float = cr.global_position.distance_to(cr_from)
+	check(cr_ready and cr.present and cr.model == null and cr_step > 0.005 and cr_step < 0.05 and cr._bark_cd < 1.0,
+		"a body scene whose root is not a Node3D is refused: no model, nothing left behind (%d orphan nodes), _ready runs to the end (hidden); with no body a tick still walks him and runs his work tick (%.3f m)" % [cr_leaked, cr_step])
+	cr.queue_free()
 	await process_frame
 
 	var bt = (load(BARTENDER_SCENE) as PackedScene).instantiate()
@@ -2596,42 +2754,87 @@ func test_staff_runtime() -> void:
 	bt.arrived_at_station.connect(func(): arrived[0] = true)
 	var why := []
 	var route: PackedVector3Array = bt.arrive_route
-	var dt := 1.0 / 30.0
 	var n := 0
+	var zero_bt := false
+	var zero_bt_tried := false
 	while not arrived[0] and n < 3000:
 		bt.tick(dt)
 		n += 1
-		var p: Vector3 = bt.global_position
-		var d := Vector2(p.x - RING_CENTER.x, p.z - RING_CENTER.z)
-		if d.length() < 3.0:
-			var phi := rad_to_deg(atan2(d.x, d.y))
-			var on_flap := absf(absf(phi) - 180.0) <= 2.0
-			if not on_flap and absf(d.length() - bt.ring_radius_at(deg_to_rad(phi))) > 0.05:
-				why.append("off the arc at %.0f° r %.2f" % [phi, d.length()])
-		if d.length() < 3.2 and bt.is_walking() and bt.anim_state() != "WalkBar":
-			why.append("walking in %s inside the ring" % bt.anim_state())
-		elif d.length() >= 3.65 and _dist_to_route(p, route) > 0.05:
-			why.append("off his route at (%.2f, %.2f)" % [p.x, p.z])
+		_bar_walk_why(bt, route, why)
+		var zp: Vector3 = bt.global_position
+		if not zero_bt_tried and Vector2(zp.x - RING_CENTER.x, zp.z - RING_CENTER.z).length() < 3.0 and bt.is_turning():
+			zero_bt_tried = true                     # turning in place at his station (a negative step would turn him
+			var xf: Transform3D = bt.global_transform    # back; a walk step of 0 or less moves nothing): a zero and a
+			var cd0: float = bt._bark_cd                 # negative tick change nothing, nor the playhead or the bark timer
+			var at0: float = bt.playback.get_current_play_position() if bt.playback else -1.0
+			bt.tick(0.0)
+			bt.tick(-0.25)                               # not -1.0: that is a whole period of the stool slide's ease
+			zero_bt = bt.global_transform == xf and xf.is_finite() and bt._bark_cd == cd0 \
+				and (bt.playback.get_current_play_position() if bt.playback else -1.0) == at0
 	check(hidden_at_start and other_ignored and bt.visible and arrived[0] and opened[0] >= 1 and why.is_empty(),
 		"the full game: hidden until hired, a hire for her ignored; hired, he walks in (door opened %d) and takes his station in %.0f s, Walk_Bar inside the ring %s" % [opened[0], n * dt, why.slice(0, 3)])
 	var beer_before: int = gm.beer_stock
 	var gold_before: int = gm.gold
 	var handed := [0]
-	bt.drink_handed.connect(func(_t): handed[0] += 1)
-	var stool08 := Vector3(8.357, 0.1, -4.719)
+	var handed_in := [""]                        # the state he is in at the release
+	var handed_at := [-1.0]                      # and how far into it (s)
+	bt.drink_handed.connect(func(_t):
+		handed[0] += 1
+		handed_in[0] = bt.anim_state()
+		handed_at[0] = bt.playback.get_current_play_position() if bt.playback else -1.0)
+	var serve_pts := []
+	for i in 5:
+		serve_pts.append(bt._stands[i].pos if bt._stands.size() > i else Vector3.INF)
+	var k_serve: int = bt.nearest_station(serve_pts, stool08)
 	bt.serve_toward(stool08)
 	var seq := []
+	var pour_pos := Vector3.INF
+	var serve_pos := Vector3.INF
+	var saw_serving := false
+	var tank_why := []
+	var carrying := false                        # from the first Pour to the release, the carry walk included
+	var hand_tilt := 0.0                         # the most his hand slot leans, a frame on (every 10th tick of the carry)
 	n = 0
 	while n < 2400 and not (handed[0] == 1 and bt.work_state() == "IDLE" and not bt.is_walking() and seq.has("Serve")):
+		if carrying and handed[0] == 0 and n % 10 == 0:
+			await process_frame                  # the slot follows handslot.r (the skeleton updates deferred: with no frame
+			var slot = bt._tankard.get_parent() if is_instance_valid(bt._tankard) else null   # the tilt read back is the
+			if slot is Node3D:                   # one just set); the tick below has to set the tankard upright again
+				hand_tilt = maxf(hand_tilt, rad_to_deg((slot as Node3D).global_basis.y.normalized().angle_to(Vector3.UP)))
 		bt.tick(dt)
 		n += 1
 		var s: String = bt.anim_state()
 		if seq.is_empty() or seq[seq.size() - 1] != s:
 			seq.append(s)
+		if s == "Pour" and pour_pos == Vector3.INF:
+			pour_pos = bt.global_position
+		if s == "Serve" and serve_pos == Vector3.INF:
+			serve_pos = bt.global_position
+		if bt.work_state() == "SERVING":
+			saw_serving = true
+		if s == "Pour":
+			carrying = true
+		if carrying and handed[0] == 0:
+			var tw := _tankard_wrong(bt)
+			if tw != "":
+				tank_why.append("%s: %s" % [s, tw])
+	var dropped: bool = bt._tankard == null
 	var pour_at := seq.find("Pour")
 	var serve_at := seq.rfind("Serve")
-	check(handed[0] == 1 and pour_at >= 0 and serve_at > pour_at and gm.beer_stock == beer_before and gm.gold == gold_before,
-		"serve_toward: he pours at the taps, then serves at the nearest station; drink_handed once; no beer or gold moves (%s)" % [seq.slice(0, 8)])
+	var stand_pour: Vector3 = bt._stands[bt.RESTOCK_INDEX].pos if bt._stands.size() == 6 else Vector3.INF
+	var stand_serve: Vector3 = bt._stands[k_serve].pos if k_serve >= 0 and k_serve < bt._stands.size() else Vector3.INF
+	var release_k: float = handed_at[0] / bt.state_length("Serve")     # the set-down is at k ≈ 0.6 of Serve (the clip table)
+	check(handed[0] == 1 and handed_in[0] == "Serve" and release_k > 0.45 and release_k < 0.75 and pour_at >= 0 and serve_at > pour_at
+		and gm.beer_stock == beer_before and gm.gold == gold_before and saw_serving and pour_pos.distance_to(stand_pour) < 0.05 and serve_pos.distance_to(stand_serve) < 0.05,
+		"serve_toward: he pours at the taps (SERVING), then serves at the station nearest stool 08; drink_handed once, inside Serve at its set-down (k %.2f of %.2f s); no beer or gold moves (%s)" % [release_k, bt.state_length("Serve"), seq.slice(0, 8)])
+	await process_frame                                    # the dropped tankard's slot is freed
+	var slots := 0
+	var bsks: Array = bt.model.find_children("*", "Skeleton3D", true, false) if bt.model else []
+	for c in (bsks[0].get_children() if not bsks.is_empty() else []):
+		if c is BoneAttachment3D and str(c.name).begins_with("TankardSlot"):
+			slots += 1
+	check(tank_why.is_empty() and hand_tilt > 5.0 and dropped and slots == 0,
+		"the tankard: on handslot.r and upright every tick from Pour to the release (the carry walk included; a frame on, with the slot on his hand leaning up to %.0f°), then dropped, no slot left on his skeleton (%s, %d slots)" % [hand_tilt, tank_why.slice(0, 3), slots])
 	# Stage D found it: already in Walk_Bar, a state asked for in the frame a walk starts (place_at_station's Wipe,
 	# then serve_toward) must not stick - the tree's current node lags a pending travel by a frame
 	bt.play("WalkBar")
@@ -2660,28 +2863,182 @@ func test_staff_runtime() -> void:
 		bt.tick(dt)
 		n += 1
 	check(restocked and bt.work_state() == "IDLE", "no beer: he restocks at the restock station (r 1.98); beer back: he goes back to work")
-	var before: Vector3 = bt.global_position
-	bt.tick(0.0)
-	check(bt.global_position == before and not is_nan(bt.global_position.x), "a zero tick changes nothing (no NaN)")
+
+	# The autopilot off (how Story 16.3 drives him): every call leaves a state that plays, and nothing undoes a call
+	bt.set_autopilot(false)
+	bt.place_at_station()                                  # from serve_point_01: restock(true) has to walk him to the kegs
+	var took := [bt.restock(true)]                         # what each call that takes him returns (true)
+	n = 0
+	while n < 2400 and not (bt.global_position.distance_to(restock_spot) < 0.05 and bt.anim_state() == "Restock"):
+		bt.tick(dt)
+		n += 1
+	var d1: bool = bt.work_state() == "RESTOCKING" and bt.anim_state() == "Restock" and bt.global_position.distance_to(restock_spot) < 0.05
+	took.append(bt.restock(false))
+	for i in 10:
+		bt.tick(dt)
+	var d2: bool = bt.work_state() == "IDLE" and bt.anim_state() == "Idle" and not bt.is_walking()
+	bt.serve_toward(stool08)
+	n = 0
+	while n < 2400 and bt.anim_state() != "Pour":
+		bt.tick(dt)
+		n += 1
+	var at_pour: bool = bt.anim_state() == "Pour" and bt._tankard != null     # the moment each call below is about, reached
+	took.append(bt.enter_idle())
+	for i in 10:
+		bt.tick(dt)
+	var d3: bool = at_pour and bt._tankard == null and bt.anim_state() == "Idle" and not bt.is_walking()
+	bt.serve_toward(stool08)
+	n = 0
+	while n < 2400 and not (bt.is_walking() and bt.anim_state() == "WalkBar" and bt._tankard != null):   # carrying it
+		bt.tick(dt)
+		n += 1
+	var carrying4: bool = bt.is_walking() and bt.anim_state() == "WalkBar" and bt._tankard != null
+	bt.enter_idle()
+	for i in 10:
+		bt.tick(dt)
+	var d4: bool = carrying4 and bt.anim_state() == "Idle" and not bt.is_walking()
+	bt.serve_toward(stool08)
+	n = 0
+	while n < 2400 and not (bt.is_walking() and bt._tankard != null):
+		bt.tick(dt)
+		n += 1
+	var had5: bool = bt.is_walking() and bt._tankard != null
+	bt.restock(true)
+	var d5: bool = had5 and bt._tankard == null
+	check(d1 and d2 and d3 and d4 and d5,
+		"the autopilot off: restock(true) restocks at the kegs; restock(false) and enter_idle mid-pour or mid-walk leave him standing in Idle (no frozen Pour, no Walk_Bar in place); restock drops the tankard %s" % [[d1, d2, d3, d4, d5]])
+	var on_handed := func(_t): bt.restock(true)
+	bt.drink_handed.connect(on_handed, CONNECT_ONE_SHOT)
+	var h0: int = handed[0]
+	bt.serve_toward(stool08)
+	n = 0
+	while n < 2400 and not (handed[0] > h0 and bt.global_position.distance_to(restock_spot) < 0.05 and bt.anim_state() == "Restock"):
+		bt.tick(dt)
+		n += 1
+	for i in 90:
+		bt.tick(dt)
+	var kept_restocking: bool = handed[0] == h0 + 1 and bt.work_state() == "RESTOCKING" and bt.anim_state() == "Restock" \
+		and bt.global_position.distance_to(restock_spot) < 0.05
+	if bt.drink_handed.is_connected(on_handed):
+		bt.drink_handed.disconnect(on_handed)
+	bt.restock(false)
+	check(kept_restocking, "a drink_handed handler that sends him to restock is not undone by the serve's tail: still RESTOCKING 3 s after he reached the kegs (%s, %s)" % [bt.work_state(), bt.anim_state()])
+	bt.serve_toward(stool08)
+	n = 0
+	while n < 2400 and bt.anim_state() != "Pour":
+		bt.tick(dt)
+		n += 1
+	for i in int(minf(1.0, 0.5 * bt.state_length("Pour")) / dt):
+		bt.tick(dt)
+	var h1: int = handed[0]
+	bt.serve_toward(stool08)
+	for i in 5:
+		bt.tick(dt)
+	var pour_again_at: float = bt.playback.get_current_play_position() if bt.playback else 9.0
+	var restarted: bool = bt.anim_state() == "Pour" and pour_again_at < 0.3
+	seq = []
+	n = 0
+	while n < 2400 and not (handed[0] > h1 and bt.work_state() == "IDLE" and not bt.is_walking()):
+		bt.tick(dt)
+		n += 1
+		var s2: String = bt.anim_state()
+		if seq.is_empty() or seq[seq.size() - 1] != s2:
+			seq.append(s2)
+	check(restarted and seq.has("Serve") and handed[0] == h1 + 1,
+		"serve_toward again mid-Pour starts the Pour over (at %.2f s after 5 ticks), then serves; drink_handed once" % pour_again_at)
+	bt.set_autopilot(true)
+
+	# The autopilot's own choices: the dwell, the station with a seated patron, a bark there, one bubble at a time
+	bt.enter_idle()                                        # at serve_point_01, no patron: he wipes there, then moves on
+	n = 0
+	while n < 900 and not bt.is_walking():
+		bt.tick(dt)
+		n += 1
+	var dwell: float = n * dt                              # timed by his ticks, not read back from the draw
+	var dwell_ok: bool = dwell >= 6.0 - 2.0 * dt and dwell <= 12.0 + 2.0 * dt
+	var fan := Node3D.new()
+	fan.add_to_group("patrons")
+	world.add_child(fan)
+	var best_root := Vector3.INF
+	for r in bt._stool_roots:
+		var rv: Vector3 = r
+		if rv.distance_to(bt._stands[2].pos) < best_root.distance_to(bt._stands[2].pos):
+			best_root = rv
+	fan.global_position = best_root
+	var hops := []
+	for i in 10:                                           # his first hop from 01, ten times: a picker that ignored the
+		bt.place_at_station()                              # patron would head for 03 only one time in three
+		n = 0
+		while n < 10 and bt.anim_state() != "Wipe":
+			bt.tick(dt)
+			n += 1
+		bt._dwell = 0.0
+		bt.tick(dt)
+		var hop_to: Vector3 = bt._path[bt._path.size() - 1] if bt.is_walking() else Vector3.INF
+		hops.append(hop_to.distance_to(bt._stands[2].pos) < 0.01)
+	n = 0
+	while n < 900 and not (bt._station == 2 and bt.anim_state() == "Wipe" and not bt.is_busy()):
+		bt.tick(dt)
+		n += 1
+	var prefers: bool = hops.all(func(h): return h) and bt._station == 2 and bt.anim_state() == "Wipe"
+	var lb0: int = bt._last_bark
+	bt._bark_cd = 0.0
+	bt.tick(dt)
+	var bubble1 := _live_bubbles(bt)
+	var lb1: int = bt._last_bark
+	var one_bubble: bool = lb1 != lb0 and bubble1.size() == 1 and bt._bark_cd >= 45.0     # a new line, then 45-90 s quiet
+	for i in 60:
+		bt.tick(dt)
+	var still_one: bool = bt._last_bark == lb1 and _live_bubbles(bt) == bubble1
+	var bubbles_before := _live_bubbles(bt)
+	paused = true
+	bt.bark()
+	paused = false
+	var none_paused: bool = _live_bubbles(bt) == bubbles_before
+	var over_was: bool = gm.game_over_active
+	gm.game_over_active = true
+	bt.bark()
+	gm.game_over_active = over_was
+	var none_over: bool = _live_bubbles(bt) == bubbles_before
+	fan.free()
+	check(dwell_ok and prefers and one_bubble and still_one and none_paused and none_over,
+		"the autopilot prefers a station with a seated patron (his first hop, ten times out of ten), dwells 6-12 s, and barks there once (a new line, then quiet for 45 s or more); one bubble; none while paused or at Game Over (dwell %.1f s, %s)" % [dwell, [hops.count(true), prefers, one_bubble, still_one, none_paused, none_over]])
+
 	var left := [false]
 	bt.left_tavern.connect(func(): left[0] = true)
 	gb.staff_fired.emit("t_bar", "bartender")
+	var why_out := []
 	n = 0
 	while n < 4000 and not left[0]:
 		bt.tick(dt)
 		n += 1
-	check(left[0] and not bt.visible and route.size() > 0 and bt.global_position.distance_to(route[0]) < 0.1,
-		"fired: he walks out the way he came and is gone from the porch (%.0f s)" % (n * dt))
+		_bar_walk_why(bt, route, why_out)
+		if n == 60:                                    # mid walk-out: the API is refused, he still leaves
+			bt.enter_idle()
+			bt.serve_toward(stool08)
+			bt.restock(true)
+	check(left[0] and not bt.visible and route.size() > 0 and bt.global_position.distance_to(route[0]) < 0.1 and why_out.is_empty(),
+		"fired: he walks out the way he came and is gone from the porch (%.0f s) %s" % [n * dt, why_out.slice(0, 3)])
 	for i in 10:
 		bt.tick(dt)
 	# Stage D found it: the tick that ends his walk-out must not run the autopilot (a new walk, a new hold on the door)
 	check(door._holders.is_empty() and not bt.is_walking(), "gone: he lets go of the door and stays put (holders %d, walking %s)" % [door._holders.size(), bt.is_walking()])
+	var served_gone = bt.serve_toward(stool08)
+	for i in 10:
+		bt.tick(dt)
+	check(served_gone is bool and not served_gone and bt.work_state() != "SERVING" and not bt.is_walking() and not bt.visible,
+		"gone: serve_toward is refused (false); he is not SERVING and does not walk (%s, %s)" % [served_gone, bt.work_state()])
 	# AC 4's edges (the AC walk found them untested): fired during the walk-in he goes back the way he came;
 	# hired during the walk-out he turns back
 	left[0] = false
 	gb.staff_hired.emit("t_bar", "bartender")
-	for i in 450:                                          # 15 s in: in the hall, on his route
+	var in_hall := false
+	n = 0
+	while n < 3000 and not in_hall:                        # in the hall on his route, by position (the walk speeds are re-measured)
 		bt.tick(dt)
+		n += 1
+		var hp: Vector3 = bt.global_position
+		in_hall = bt._route_phase == "in" and hp.z < 3.0 and Vector2(hp.x - RING_CENTER.x, hp.z - RING_CENTER.z).length() > 5.0
 	var mid_in: Vector3 = bt.global_position
 	gb.staff_fired.emit("t_bar", "bartender")
 	var near_ring := INF
@@ -2692,14 +3049,54 @@ func test_staff_runtime() -> void:
 		n += 1
 		near_ring = minf(near_ring, Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z).length())
 		off_route = maxf(off_route, _dist_to_route(bt.global_position, route))
-	check(left[0] and near_ring > 3.5 and off_route < 0.05 and door._holders.is_empty(),
+	check(in_hall and left[0] and near_ring > 3.5 and off_route < 0.05 and door._holders.is_empty(),
 		"fired during the walk-in (at %.1f, %.1f): he goes back along his route and leaves (closest to the ring %.2f m, off the route %.3f m)" % [mid_in.x, mid_in.z, near_ring, off_route])
+	# Nothing takes him off his way in: in the hall and again on the flap leg (the take-station leg), serve_toward is
+	# refused, enter_idle and the last pint (beer_changed 0) change nothing; he takes his station, then restocks
 	arrived[0] = false
 	gb.staff_hired.emit("t_bar", "bartender")
+	var refused := []
+	var refused_api := []                                  # what enter_idle and restock return there (false)
+	var poked_hall := false
+	var poked_flap := false
+	var why_in := []
+	var cut := false
 	n = 0
 	while n < 3000 and not arrived[0]:
 		bt.tick(dt)
 		n += 1
+		var ip: Vector3 = bt.global_position
+		var idv := Vector2(ip.x - RING_CENTER.x, ip.z - RING_CENTER.z)
+		if not poked_hall and bt._route_phase == "in" and ip.z < 0.0:
+			poked_hall = true
+			refused.append(bt.serve_toward(stool08))
+			refused_api.append(bt.enter_idle())
+			refused_api.append(bt.restock(true))
+			gm.beer_stock = 0
+			eb.beer_changed.emit(0)
+		elif poked_hall and not poked_flap and bt._route_phase == "station" and idv.length() < 3.2 and bt.is_walking():
+			poked_flap = true                                  # the take-station leg, by its phase (not only its radius)
+			refused.append(bt.serve_toward(stool08))
+			refused_api.append(bt.enter_idle())
+			refused_api.append(bt.restock(true))
+			eb.beer_changed.emit(0)
+		_bar_walk_why(bt, route, why_in)
+		if idv.length() > 2.30 and idv.length() < 3.0 and absf(rad_to_deg(atan2(idv.x, idv.y))) < 170.0:
+			cut = true                                     # through the counter, not the flap
+	var refused_ok: bool = refused.size() == 2 and refused.all(func(r): return r is bool and not r)
+	var restock_after := false
+	n = 0
+	while n < 2400 and not restock_after:
+		bt.tick(dt)
+		n += 1
+		restock_after = bt.work_state() == "RESTOCKING" and bt.global_position.distance_to(restock_spot) < 0.05 and bt.anim_state() == "Restock"
+	gm.beer_stock = beer_before
+	eb.beer_changed.emit(beer_before)
+	check(poked_hall and poked_flap and refused_ok and arrived[0] and why_in.is_empty() and not cut and restock_after,
+		"nothing takes him off his way in (serve_toward refused %s, enter_idle and the last pint ignored, in the hall and on the flap leg): he keeps to his route and the flap, takes his station, then restocks %s" % [refused, why_in.slice(0, 3)])
+	check(refused_api.size() == 4 and refused_api.all(func(r): return r is bool and not r) and took.size() == 3 and took.all(func(r): return r is bool and r),
+		"enter_idle and restock report a refusal as serve_toward does: false on his way in (in the hall, on the flap leg), so 16.3 can re-issue its state on arrived_at_station; true when they take him %s %s" % [refused_api, took])
+	bt.place_at_station()                                  # back at serve_point_01 for the walk-out below
 	arrived[0] = false
 	gb.staff_fired.emit("t_bar", "bartender")
 	for i in 240:                                          # 8 s into the walk-out: still inside the ring
@@ -2717,13 +3114,23 @@ func test_staff_runtime() -> void:
 			crossed = true                                 # through the counter, not the flap
 	check(in_ring_d < 2.3 and arrived[0] and not crossed and bt.work_state() == "IDLE",
 		"hired while still leaving his station (r %.2f): he takes it again without crossing the counter" % in_ring_d)
+	# fired in the tick he takes his station: the tree is mid-crossfade into Wipe, where a travel waits for the fade to end
+	var mid_fade: bool = bt.playback != null and bt.playback.get_fading_from_node() != ""
 	left[0] = false
 	gb.staff_fired.emit("t_bar", "bartender")
+	var why_back := []
+	var hired_on_route := false
+	var bar_walk_n := -1                                   # the ticks until his walk-out plays Walk_Bar
 	n = 0
 	while n < 4000 and not left[0]:
 		bt.tick(dt)
 		n += 1
-		if n == 1050:                                      # 35 s out: on the route back to the porch
+		if bar_walk_n < 0 and bt.anim_state() == "WalkBar":
+			bar_walk_n = n
+		_bar_walk_why(bt, route, why_back)
+		var op: Vector3 = bt.global_position
+		if bt._route_phase == "out" and Vector2(op.x - RING_CENTER.x, op.z - RING_CENTER.z).length() > 5.0:
+			hired_on_route = true                          # on the route back to the porch
 			arrived[0] = false
 			gb.staff_hired.emit("t_bar", "bartender")
 			break
@@ -2732,14 +3139,63 @@ func test_staff_runtime() -> void:
 	while n < 4000 and not arrived[0]:
 		bt.tick(dt)
 		n += 1
+		_bar_walk_why(bt, route, why_back)                 # the way back in too: the turn-back, the flap leg, the arc
 		if Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z).length() > 3.65:
 			off_route = maxf(off_route, _dist_to_route(bt.global_position, route))
-	check(not left[0] and arrived[0] and off_route < 0.05, "hired during the walk-out: he turns back along his route and takes his station (off the route %.3f m)" % off_route)
+	check(hired_on_route and not left[0] and arrived[0] and off_route < 0.05 and why_back.is_empty(),
+		"hired during the walk-out: he turns back along his route and takes his station, through the flap and round the arc in Walk_Bar (off the route %.3f m) %s" % [off_route, why_back.slice(0, 3)])
+	check(mid_fade and bar_walk_n >= 1 and bar_walk_n <= 2,
+		"a state asked for mid-crossfade lands at once: fired in the tick he takes his station (the Wipe's fade running %s), he walks out in Walk_Bar from the next tick, not once the fade is over (%d ticks)" % [mid_fade, bar_walk_n])
+	bt.serve_toward(stool08)
+	n = 0
+	while n < 900 and bt._tankard == null:
+		bt.tick(dt)
+		n += 1
+	var had_tankard: bool = bt._tankard != null
+	gb.staff_fired.emit("t_bar", "bartender")
+	check(had_tankard and bt._tankard == null and bt.work_state() != "SERVING" and bt._leaving,
+		"fired mid-serve: he drops the tankard and is no longer SERVING (%s)" % bt.work_state())
 	bt.queue_free()
+	await process_frame
+	# a staff member freed while holding the door lets go (_exit_tree)
+	var w = (load(BARTENDER_SCENE) as PackedScene).instantiate()
+	w.manual_tick = true
+	w.hired_at_start_override = 0
+	w.arrive_route = routes.get(BARTENDER_SCENE, PackedVector3Array())
+	w.bar_path = bar.get_path()
+	w.door_path = door.get_path()
+	world.add_child(w)
+	w.arrive()
+	w.tick(dt)                                             # on the porch, 1.7 m from the door, walking
+	var w_held: bool = w._holding_door and door._holders.size() == 1
+	w.queue_free()
+	await process_frame
+	check(w_held and door._holders.is_empty(), "a staff member freed while holding the door lets go (_exit_tree)")
 
 	var desk = (load(DESK_SCENE_PATH) as PackedScene).instantiate()
 	world.add_child(desk)
 	desk.global_position = DESK_WORLD
+	var stool: Node3D = desk.get_node("Model").find_child("desk_stool", true, false)
+	var wp: Node3D = desk.get_node("WorkPoint")
+	var want: Vector3 = load(DEALER_SCRIPT).seated_root(wp.global_transform)
+	# the demo's first frame (AC 4, AC 7): hired at start by GameManager, seated and writing, the stool home
+	if stool:
+		stool.position.z = -0.3                           # so the reset to home cannot pass by doing nothing
+	var q0 = (load(DEALER_SCENE) as PackedScene).instantiate()
+	q0.manual_tick = true
+	q0.hired_at_start_override = -1
+	q0.desk_path = desk.get_path()
+	q0.door_path = door.get_path()
+	world.add_child(q0)
+	q0.tick(dt)
+	var q0_face := Vector3(q0.global_basis.z.x, 0, q0.global_basis.z.z).normalized()
+	var q0_quill: Node3D = q0.model.find_child("Dealer_Quill", true, false) as Node3D if q0.model else null
+	check(gm.is_staff_hired("desk_manager") and q0.visible and q0.present and q0.global_position.distance_to(want) < 0.02
+		and rad_to_deg(q0_face.angle_to(Vector3(0, 0, 1))) < 5.0 and stool != null and stool.position.length() < 0.01
+		and q0.work_state() == "IDLE" and q0.anim_state() == "Write" and q0_quill != null and q0_quill.visible,
+		"hired at start (GameManager says so): she is seated at her seat root facing the room, the stool home, writing, her quill out (%s)" % q0.anim_state())
+	q0.queue_free()
+	await process_frame
 	var qd = (load(DEALER_SCENE) as PackedScene).instantiate()
 	qd.manual_tick = true
 	qd.hired_at_start_override = 0
@@ -2747,23 +3203,60 @@ func test_staff_runtime() -> void:
 	qd.desk_path = desk.get_path()
 	qd.door_path = door.get_path()
 	world.add_child(qd)
-	var stool: Node3D = desk.get_node("Model").find_child("desk_stool", true, false)
+	_check_staff_body(qd, "the Quest Dealer", _staff_model_path(staff_roles, "desk_manager"))
+	var want_names := [str(staff_roles.get("bartender", {}).get("display_name", "?")), str(staff_roles.get("desk_manager", {}).get("display_name", "?"))]
+	check(bt_name == want_names[0] and qd.display_name == want_names[1] and bt_name != "" and qd.display_name != "",
+		"display_name comes from staff.json (%s, %s)" % [bt_name, qd.display_name])
+	var quill: Node3D = qd.model.find_child("Dealer_Quill", true, false) as Node3D if qd.model else null
 	var q_arrived := [false]
 	qd.arrived_at_station.connect(func(): q_arrived[0] = true)
 	gb.staff_hired.emit("t_desk", "desk_manager")
 	var stool_moved := false
+	var q_seq := []
+	var min_stool_z := INF
+	var sat_down := false
+	var ahead := false
+	var end_x := NAN
+	var seated_ticks := 0
+	var pull_aim := -1.0
+	var zero_qd := false
+	var zero_qd_tried := false
 	n = 0
 	while n < 3000 and not q_arrived[0]:
 		qd.tick(dt)
 		n += 1
 		if stool and stool.position.length() > 0.2:
 			stool_moved = true
-	var wp: Node3D = desk.get_node("WorkPoint")
-	var want: Vector3 = qd.seated_root(wp.global_transform)
+		var qs: String = qd.anim_state()
+		if q_seq.is_empty() or q_seq[q_seq.size() - 1] != qs:
+			q_seq.append(qs)
+		if qs == "SitDown":
+			sat_down = true
+		if not sat_down and stool:
+			min_stool_z = minf(min_stool_z, stool.position.z)
+		if qd._route_phase != "in":
+			if is_nan(end_x):
+				end_x = qd.global_position.x
+			if not qd._seated and qd.global_position.z > qd._standing_root().z + 0.01:
+				ahead = true                               # standing, her root never ahead of the standing root (the desk top)
+		if qd._seated:
+			seated_ticks += 1
+		if pull_aim < 0.0 and qd._wanted == "Interact":
+			pull_aim = _stool_aim_deg(qd, stool)
+		if not zero_qd_tried and not qd._slide.is_empty():
+			zero_qd_tried = true                         # mid stool-slide: a zero and a negative tick change nothing
+			var qxf: Transform3D = qd.global_transform
+			var sz: Vector3 = stool.position if stool else Vector3.ZERO
+			qd.tick(0.0)
+			qd.tick(-0.25)
+			zero_qd = qd.global_transform == qxf and qxf.is_finite() and (stool == null or stool.position == sz)
 	var face := Vector3(qd.global_basis.z.x, 0, qd.global_basis.z.z).normalized()
+	var k10_ok: bool = _is_subsequence(["Interact", "SitDown", "Available", "Write"], q_seq) and min_stool_z <= -float(qd.STOOL_PULL) + 0.01 \
+		and not ahead and end_x < want.x - 0.3 and seated_ticks <= int(round(float(qd.SLIDE_TIME) / dt)) + 1
 	check(q_arrived[0] and stool_moved and qd.global_position.distance_to(want) < 0.02 and rad_to_deg(face.angle_to(Vector3(0, 0, 1))) < 5.0
-		and stool != null and stool.position.length() < 0.01 and qd.work_state() == "IDLE" and qd.anim_state() == "Write",
-		"hired, she walks in, pulls the stool out, sits and shuffles in: seated %.3f m from her seat, facing the room, the stool home, writing (%s)" % [qd.global_position.distance_to(want), qd.anim_state()])
+		and stool != null and stool.position.length() < 0.01 and qd.work_state() == "IDLE" and qd.anim_state() == "Write" and k10_ok,
+		"hired, she walks in from the west, pulls the stool out, sits and shuffles in: seated %.3f m from her seat, facing the room, the stool home, writing (%s; %s, stool out to %.2f, shuffle %d ticks)" % [qd.global_position.distance_to(want), qd.anim_state(), q_seq, min_stool_z, seated_ticks])
+	check(zero_bt and zero_qd, "a zero tick changes nothing (no NaN): his turn in place, her stool slide %s" % [[zero_bt, zero_qd]])
 	var states_ok := true
 	for pair in [["BRIEFING", "Brief"], ["AVAILABLE", "Available"], ["IDLE", "Write"]]:
 		qd.set_autopilot(false)
@@ -2773,18 +3266,116 @@ func test_staff_runtime() -> void:
 		if qd.work_state() != pair[0] or qd.anim_state() != pair[1]:
 			states_ok = false
 	check(states_ok, "set_work_state drives Brief, Available and Write (Story 16.4's states)")
+	var quill_in: bool = quill != null and qd._seated and quill.visible
+	var pos_here: Vector3 = qd.global_position
+	var state_here: String = qd.anim_state()
+	gb.staff_hired.emit("t_desk_2", "desk_manager")
+	for i in 60:
+		qd.tick(dt)
+	check(qd.visible and qd.global_position == pos_here and qd.anim_state() == state_here and not qd.is_walking(),
+		"hired again while she is here: ignored (seated, %s)" % qd.anim_state())
+	# her autopilot (what the demo runs until 16.4): BRIEFING while the popup is open (a bark on its rising edge, at most
+	# one per 20 s) over AVAILABLE while the player is at the desk, else IDLE
+	qd.set_autopilot(true)
+	var popup := Control.new()
+	popup.visible = false
+	world.add_child(popup)
+	var zone := Area3D.new()
+	zone.collision_mask = 2
+	var zshape := CollisionShape3D.new()
+	zshape.shape = BoxShape3D.new()
+	(zshape.shape as BoxShape3D).size = Vector3(2.0, 2.0, 1.2)
+	zone.add_child(zshape)
+	world.add_child(zone)
+	zone.global_position = DESK_WORLD + Vector3(0, 1.0, 1.2)
+	var player := CharacterBody3D.new()
+	var pcap := CollisionShape3D.new()
+	pcap.shape = CapsuleShape3D.new()
+	player.add_child(pcap)
+	player.collision_layer = 2
+	player.add_to_group("player")
+	world.add_child(player)
+	player.global_position = DESK_WORLD + Vector3(0, 1.0, 1.2)
+	for i in 6:
+		await physics_frame
+	qd._zone = zone
+	qd._popup = popup
+	for i in 20:
+		qd.tick(dt)
+	var avail: bool = qd.work_state() == "AVAILABLE" and qd.anim_state() == "Available"
+	popup.visible = true
+	for i in 3:
+		qd.tick(dt)
+	var brief: bool = qd.work_state() == "BRIEFING" and qd.anim_state() == "Brief" and qd._last_bark >= 0
+	var bark1: int = qd._last_bark
+	var bubbles := _live_bubbles(qd)
+	var bubble_ok: bool = bubbles.size() == 1 and absf(bubbles[0].position.y - (1.95 - PatronSpeechBubble.HEAD_HEIGHT)) < 0.01
+	for i in 690:                                          # kept open 23 s: no second bark without a new opening
+		qd.tick(dt)
+	var held_quiet: bool = qd._last_bark == bark1 and qd.work_state() == "BRIEFING"
+	popup.visible = false
+	for i in 3:
+		qd.tick(dt)
+	popup.visible = true
+	qd.tick(dt)                                            # opened again, 23 s after the bark: the next one
+	var bark2: int = qd._last_bark
+	var rebark: bool = bark2 != bark1
+	popup.visible = false
+	for i in 568:
+		qd.tick(dt)
+	popup.visible = true
+	qd.tick(dt)                                            # opened again 19 s after that bark: none yet
+	var no_rebark: bool = qd._last_bark == bark2
+	popup.visible = false
+	for i in 44:
+		qd.tick(dt)
+	popup.visible = true
+	qd.tick(dt)                                            # and at 20.5 s: one
+	var rebark_after: bool = qd._last_bark != bark2
+	popup.visible = false
+	player.global_position = Vector3(30.0, 1.0, 30.0)
+	for i in 6:
+		await physics_frame
+	for i in 20:
+		qd.tick(dt)
+	var idle_again: bool = qd.work_state() == "IDLE" and qd.anim_state() == "Write"
+	var idle_seen := "%s/%s" % [qd.work_state(), qd.anim_state()]
+	qd._zone = null
+	qd._popup = null
+	popup.queue_free()
+	zone.queue_free()
+	player.queue_free()
+	check(avail and brief and bubble_ok and held_quiet and rebark and no_rebark and rebark_after and idle_again,
+		"her autopilot: AVAILABLE with the player at the desk; BRIEFING while the popup is open, with a bark on its rising edge only (one bubble, at seated height; none while it stays open 23 s), none on an opening 19 s after a bark, one at 20.5 s; IDLE once both are gone %s" % [[avail, brief, bubble_ok, held_quiet, rebark, no_rebark, rebark_after, idle_seen]])
 	var q_left := [false]
-	qd.left_tavern.connect(func(): q_left[0] = true)
+	var q_left_n := [0]
+	qd.left_tavern.connect(func():
+		q_left[0] = true
+		q_left_n[0] += 1)
 	gb.staff_fired.emit("t_desk", "desk_manager")
+	var push_aim := -1.0
+	var quill_out := true
 	n = 0
 	while n < 3000 and not q_left[0]:
 		qd.tick(dt)
 		n += 1
+		if push_aim < 0.0 and qd._wanted == "Interact":
+			push_aim = _stool_aim_deg(qd, stool)
+		if quill and qd.is_walking() and quill.visible:
+			quill_out = false
 	check(q_left[0] and not qd.visible and stool != null and stool.position.length() < 0.01, "fired, she stands, puts the stool back and leaves")
+	check(pull_aim >= 0.0 and pull_aim < 10.0 and push_aim >= 0.0 and push_aim < 10.0,
+		"Interact faces the stool (its mesh's centre): %.1f° off pulling it out, %.1f° off pushing it back (< 10°)" % [pull_aim, push_aim])
+	check(quill_in and quill_out, "her quill shows while she is seated and hides while she walks")
 	for i in 10:
 		qd.tick(dt)
 	check(door._holders.is_empty() and not qd.is_walking(), "gone: she lets go of the door and stays put (holders %d)" % door._holders.size())
-	# fired while sitting down (the stool pulled out, not yet seated): the stool goes back before she leaves
+	var lefts_before: int = q_left_n[0]
+	gb.staff_fired.emit("t_desk", "desk_manager")
+	for i in 30:
+		qd.tick(dt)
+	check(not qd.visible and not qd.is_walking() and q_left_n[0] == lefts_before, "fired while gone: ignored (hidden, still, no second left_tavern)")
+	# fired while pulling the stool out (at the approach, not yet seated): the stool goes back before she leaves
 	q_arrived[0] = false
 	gb.staff_hired.emit("t_desk", "desk_manager")
 	n = 0
@@ -2799,9 +3390,284 @@ func test_staff_runtime() -> void:
 		qd.tick(dt)
 		n += 1
 	check(pulled_at < -0.4 and q_left[0] and not q_arrived[0] and stool != null and stool.position.length() < 0.01,
-		"fired while sitting down (the stool at z %.2f): she puts it back, then leaves (stool %.3f m from home)" % [pulled_at, stool.position.length() if stool else -1.0])
+		"fired while pulling the stool out (the stool at z %.2f): she puts it back, then leaves (stool %.3f m from home)" % [pulled_at, stool.position.length() if stool else -1.0])
+	# fired while sitting down (Sit_Chair_Down), and during the shuffle in: she stands, puts the stool back, leaves
+	for mode in ["SitDown", "the shuffle in"]:
+		q_arrived[0] = false
+		gb.staff_hired.emit("t_desk", "desk_manager")
+		var reached := false
+		n = 0
+		while n < 3000 and not reached:
+			qd.tick(dt)
+			n += 1
+			reached = qd.anim_state() == "SitDown" if mode == "SitDown" else (qd._seated and not qd._slide.is_empty())
+		q_left[0] = false
+		gb.staff_fired.emit("t_desk", "desk_manager")
+		var ahead_out := false
+		var seq_out := []                                  # her states after the fire
+		n = 0
+		while n < 3000 and not q_left[0]:
+			qd.tick(dt)
+			n += 1
+			var so: String = qd.anim_state()
+			if seq_out.is_empty() or seq_out[seq_out.size() - 1] != so:
+				seq_out.append(so)
+			if qd._route_phase != "out" and (qd.anim_state() == "Interact" or qd.is_walking()) and qd.global_position.z > qd._standing_root().z + 0.01:
+				ahead_out = true                           # at the desk (not the route out to the door)
+		var up_at := seq_out.find("StandUp")               # she stands up before she walks or reaches for the stool
+		var moved_at := -1
+		for i in seq_out.size():
+			if seq_out[i] in ["Walk", "WalkBar", "Interact"]:
+				moved_at = i
+				break
+		check(reached and q_left[0] and not q_arrived[0] and stool != null and stool.position.length() < 0.01 and not ahead_out
+			and up_at >= 0 and moved_at > up_at,
+			"fired during %s: she stands (StandUp before she walks or reaches for the stool), puts the stool back and leaves, never walking or reaching ahead of her standing spot (%s)" % [mode, seq_out])
+	# a state asked for during the walk-in holds once she sits (the autopilot off); an unknown one is refused
+	qd.set_autopilot(false)
+	q_arrived[0] = false
+	gb.staff_hired.emit("t_desk", "desk_manager")
+	for i in 60:
+		qd.tick(dt)
+	var walking_in: bool = qd._route_phase == "in" and qd.is_walking()
+	qd.set_work_state("BRIEFING")
+	n = 0
+	while n < 3000 and not q_arrived[0]:
+		qd.tick(dt)
+		n += 1
+	for i in 20:
+		qd.tick(dt)
+	var kept: bool = q_arrived[0] and qd.work_state() == "BRIEFING" and qd.anim_state() == "Brief"
+	qd.set_work_state("BOGUS")
+	for i in 3:
+		qd.tick(dt)
+	check(walking_in and kept and qd.work_state() == "BRIEFING" and qd.anim_state() == "Brief",
+		"set_work_state during her walk-in holds once she is seated (Brief); an unknown state is refused (%s, %s)" % [qd.work_state(), qd.anim_state()])
+	qd.set_autopilot(true)
+	for i in 3:
+		qd.tick(dt)
+	# re-hired while leaving her seat: mid shuffle-out she slides straight back in; standing up, she sits straight back down
+	q_left[0] = false
+	gb.staff_fired.emit("t_desk", "desk_manager")
+	for i in 8:
+		qd.tick(dt)
+	var mid_out: bool = qd._seated and not qd._slide.is_empty()
+	q_arrived[0] = false
+	gb.staff_hired.emit("t_desk", "desk_manager")
+	var saw_interact := false
+	n = 0
+	while n < 3000 and not q_arrived[0]:
+		qd.tick(dt)
+		n += 1
+		if qd.anim_state() == "Interact":
+			saw_interact = true
+	for i in 3:
+		qd.tick(dt)
+	check(mid_out and q_arrived[0] and not q_left[0] and not saw_interact and qd.global_position.distance_to(want) < 0.02
+		and stool != null and stool.position.length() < 0.01 and qd.anim_state() == "Write",
+		"re-hired mid shuffle-out: she slides straight back in (no Interact), seated, the stool home, writing (%s)" % qd.anim_state())
+	gb.staff_fired.emit("t_desk", "desk_manager")
+	n = 0
+	while n < 3000 and qd.anim_state() != "StandUp":
+		qd.tick(dt)
+		n += 1
+	var standing_up: bool = qd.anim_state() == "StandUp"
+	q_arrived[0] = false
+	gb.staff_hired.emit("t_desk", "desk_manager")
+	var seq_b := []
+	var ahead_b := false
+	n = 0
+	while n < 3000 and not q_arrived[0]:
+		qd.tick(dt)
+		n += 1
+		var sb: String = qd.anim_state()
+		if seq_b.is_empty() or seq_b[seq_b.size() - 1] != sb:
+			seq_b.append(sb)
+		if sb in ["Idle", "Walk", "WalkBar", "Interact", "StandUp"] and qd.global_position.z > qd._standing_root().z + 0.02:
+			ahead_b = true
+	check(standing_up and q_arrived[0] and not q_left[0] and seq_b.has("SitDown") and not seq_b.has("Interact") and not ahead_b
+		and stool != null and stool.position.length() < 0.01 and qd.global_position.distance_to(want) < 0.02,
+		"re-hired while standing up: she sits straight back down (no Interact), never ahead of her standing spot, seated with the stool home (%s)" % [seq_b])
+	# a state asked for on her way in does not outlive a fire there (the autopilot off): hired again, she writes
+	qd.set_autopilot(false)
+	q_left[0] = false
+	gb.staff_fired.emit("t_desk", "desk_manager")
+	n = 0
+	while n < 3000 and not q_left[0]:
+		qd.tick(dt)
+		n += 1
+	q_arrived[0] = false
+	gb.staff_hired.emit("t_desk", "desk_manager")
+	for i in 60:
+		qd.tick(dt)
+	var in_again: bool = qd._route_phase == "in" and qd.is_walking()
+	qd.set_work_state("BRIEFING")
+	q_left[0] = false
+	gb.staff_fired.emit("t_desk", "desk_manager")          # fired on her way in: back out along the route, the desk never reached
+	n = 0
+	while n < 3000 and not q_left[0]:
+		qd.tick(dt)
+		n += 1
+	var out_again: bool = q_left[0] and not q_arrived[0]
+	gb.staff_hired.emit("t_desk", "desk_manager")
+	n = 0
+	while n < 3000 and not q_arrived[0]:
+		qd.tick(dt)
+		n += 1
+	for i in 20:
+		qd.tick(dt)
+	check(in_again and out_again and q_arrived[0] and qd.work_state() == "IDLE" and qd.anim_state() == "Write",
+		"fired on her way in after a set_work_state, then hired again: she sits down writing (IDLE), not in the state from before the fire (%s, %s)" % [qd.work_state(), qd.anim_state()])
+	qd.set_autopilot(true)
+	gm.beer_stock = beer_saved
+	eb.beer_changed.emit(beer_saved)
 	world.queue_free()
 	await process_frame
+	print("  [Test 19] %.1f s of real time (AC 8: ≤ 10 s)" % ((Time.get_ticks_msec() - _t19_ms) / 1000.0))
+
+
+## A staff node's loaded body (Test 19): staff.json's own model (no fallback), every tree state bound to its own
+## clip, the tree owning each state's loop mode, and no physics body or Area3D brought in with the model.
+func _check_staff_body(x, who: String, want_path: String) -> void:
+	var bound := _staff_bound_wrong(x)
+	var path: String = x.model.scene_file_path if x.model else "no body"
+	check(x.model != null and not x.using_fallback and path == want_path and bound.is_empty(),
+		"%s: its own body from staff.json (%s), every state bound to its own clip, no CLIP_FALLBACK (wrong: %s)" % [who, path.get_file(), bound])
+	var loops := _staff_loops_wrong(x)
+	check(loops.is_empty(), "%s: the tree owns every state's loop mode, whatever the import says (the loops loop, the one-shots play once, each on its clip's own length) (wrong: %s)" % [who, loops])
+	check(x.find_children("*", "CollisionObject3D", true, false).is_empty(), "%s: the loaded body adds no physics body or Area3D (AC 6)" % who)
+
+
+## The states of a staff node's AnimationTree not bound to their own clip (Test 19).
+static func _staff_bound_wrong(x) -> Array:
+	if x.tree == null:
+		return ["no tree"]
+	var sm := x.tree.tree_root as AnimationNodeStateMachine
+	var states: Dictionary = x._states()
+	var out := []
+	for s in states:
+		var node = sm.get_node(s) if sm and sm.has_node(s) else null
+		if not (node is AnimationNodeAnimation and str((node as AnimationNodeAnimation).animation) == str(states[s])):
+			out.append(s)
+	return out
+
+
+## The states whose tree node does not set its own loop mode (use_custom_timeline; linear for STAFF_LOOPS) on the
+## clip's own timeline: timeline_length the clip's length, unstretched (else a loop wraps at 1 s, a one-shot is cut).
+static func _staff_loops_wrong(x) -> Array:
+	if x.tree == null:
+		return ["no tree"]
+	var sm := x.tree.tree_root as AnimationNodeStateMachine
+	var states: Dictionary = x._states()
+	var out := []
+	for s in states:
+		var node: AnimationNodeAnimation = sm.get_node(s) as AnimationNodeAnimation if sm and sm.has_node(s) else null
+		var loop_want: int = Animation.LOOP_LINEAR if STAFF_LOOPS.has(str(states[s])) else Animation.LOOP_NONE
+		var clip_len: float = x.anim.get_animation(node.animation).length if node and x.anim and x.anim.has_animation(node.animation) else 1.0
+		if node == null or not node.use_custom_timeline or node.loop_mode != loop_want \
+				or absf(node.timeline_length - clip_len) > 0.001 or node.stretch_time_scale:
+			out.append(s)
+	return out
+
+
+## What is wrong with a staff node on the KayKit fallback body (Test 19): each state plays its own clip when
+## the body has it, else CLIP_FALLBACK's; the tree sets the loop modes; the hand-slot items are hidden.
+static func _staff_fallback_wrong(x) -> Array:
+	if not x.using_fallback or x.anim == null or x.tree == null:
+		return ["not on the fallback body"]
+	var out := []
+	var sm := x.tree.tree_root as AnimationNodeStateMachine
+	var states: Dictionary = x._states()
+	for s in states:
+		var clip := str(states[s])
+		var clip_want: String = clip if x.anim.has_animation(clip) else str(x.CLIP_FALLBACK.get(clip, "Idle"))
+		var node = sm.get_node(s) if sm and sm.has_node(s) else null
+		var got: String = str((node as AnimationNodeAnimation).animation) if node is AnimationNodeAnimation else "nothing"
+		if got != clip_want or not x.anim.has_animation(got):
+			out.append("%s plays %s" % [s, got])
+	out.append_array(_staff_loops_wrong(x))
+	var sks: Array = x.model.find_children("*", "Skeleton3D", true, false)
+	if not sks.is_empty():
+		var sk := sks[0] as Skeleton3D
+		for a in x.model.find_children("*", "BoneAttachment3D", true, false):
+			var b := sk.find_bone((a as BoneAttachment3D).bone_name)
+			var par: int = sk.get_bone_parent(b) if b >= 0 else -1
+			if par >= 0 and sk.get_bone_name(par).begins_with("handslot") and (a as Node3D).visible:
+				out.append("%s shows" % a.name)
+	return out
+
+
+## A staff script with its body spec overridden (Test 19's fallback cases).
+static func _staff_variant_script(base_path: String, spec: Dictionary) -> GDScript:
+	var gs := GDScript.new()
+	gs.source_code = "extends \"%s\"\n\nfunc _variant_spec() -> Dictionary:\n\treturn %s\n" % [base_path, var_to_str(spec)]
+	gs.reload()
+	return gs
+
+
+## A role's default body in staff.json (Test 19).
+static func _staff_model_path(roles: Dictionary, role: String) -> String:
+	var r = roles.get(role)
+	if not (r is Dictionary and r.get("variants") is Dictionary):
+		return ""
+	var v = r.variants.get(str(r.get("default_variant", "")))
+	return str(v.get("model_path", "")) if v is Dictionary else ""
+
+
+## One tick of the Bartender's walk (Test 19): inside r 3.0 he is on the ring's arc or on the φ 180 flap leg,
+## inside r 3.2 a walk is Walk_Bar, and outside r 3.65 he keeps to his arrive_route; reasons go into `why`.
+static func _bar_walk_why(bt, route: PackedVector3Array, why: Array) -> void:
+	var p: Vector3 = bt.global_position
+	var d := Vector2(p.x - RING_CENTER.x, p.z - RING_CENTER.z)
+	if d.length() < 3.0:
+		var phi := rad_to_deg(atan2(d.x, d.y))
+		var on_flap := absf(absf(phi) - 180.0) <= 2.0
+		if not on_flap and absf(d.length() - float(bt.ring_radius_at(deg_to_rad(phi)))) > 0.05:
+			why.append("off the arc at %.0f° r %.2f" % [phi, d.length()])
+	if d.length() < 3.2 and bt.is_walking() and bt.anim_state() != "WalkBar":
+		why.append("walking in %s inside the ring" % bt.anim_state())
+	elif d.length() >= 3.65 and _dist_to_route(p, route) > 0.05:
+		why.append("off his route at (%.2f, %.2f)" % [p.x, p.z])
+
+
+## What is wrong with the Bartender's tankard while he holds it (Test 19): "" when it is on handslot.r, upright.
+static func _tankard_wrong(bt) -> String:
+	var tk = bt._tankard
+	if not is_instance_valid(tk):
+		return "no tankard"
+	var att: Node = (tk as Node).get_parent()
+	if not (att is BoneAttachment3D and (att as BoneAttachment3D).bone_name == "handslot.r"):
+		return "not on handslot.r"
+	var tilt := rad_to_deg((tk as Node3D).global_basis.y.normalized().angle_to(Vector3.UP))
+	return "tilted %.1f°" % tilt if tilt > 5.0 else ""
+
+
+## The flat angle (degrees) between where a staff member faces and the centre of the stool's mesh (Test 19).
+static func _stool_aim_deg(x: Node3D, stool: Node3D) -> float:
+	if stool == null:
+		return 180.0
+	var mi := stool as MeshInstance3D
+	if mi == null:
+		var ms := stool.find_children("*", "MeshInstance3D", true, false)
+		mi = ms[0] as MeshInstance3D if not ms.is_empty() else null
+	var c: Vector3 = mi.global_transform * mi.get_aabb().get_center() if mi else stool.global_position
+	var to := Vector3(c.x - x.global_position.x, 0.0, c.z - x.global_position.z)
+	var f := Vector3(x.global_basis.z.x, 0.0, x.global_basis.z.z)
+	return rad_to_deg(f.angle_to(to)) if to.length() > 0.001 and f.length() > 0.001 else 180.0
+
+
+## The speech bubbles a staff member shows (not already on their way out).
+static func _live_bubbles(x: Node) -> Array:
+	return x.get_children().filter(func(c): return c is PatronSpeechBubble and not c.is_queued_for_deletion())
+
+
+## Whether `want` appears in `seq` in order (other entries may sit between).
+static func _is_subsequence(want: Array, seq: Array) -> bool:
+	var i := 0
+	for s in seq:
+		if i < want.size() and s == want[i]:
+			i += 1
+	return i == want.size()
 
 
 ## A minimal front door for Test 19 (the real one is built inline in MainTavern): the script and the
