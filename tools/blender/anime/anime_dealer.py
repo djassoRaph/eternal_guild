@@ -199,7 +199,7 @@ def build_quill(name, mat):
     BoneAttachment3D), rising up and back out of her fist while she writes."""
     bm = bmesh.new()
     K.strand(bm, [Vector((0, 0, -0.06)), Vector((0, 0, 0.26))], [0.011, 0.011], sides=5)
-    vane = [(0.05, 0.0), (0.10, 0.034), (0.18, 0.042), (0.24, 0.026), (0.28, 0.0)]
+    vane = [(0.05, 0.0), (0.10, 0.020), (0.18, 0.026), (0.24, 0.016), (0.28, 0.0)]   # slim: a wider vane read as a blob at zoom 8
     for sx in (1, -1):
         prev = None
         for z, w in vane:
