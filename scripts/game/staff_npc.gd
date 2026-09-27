@@ -4,7 +4,9 @@
 # they are hidden until GuildBus.staff_hired names their role, then walk in from the porch through the front
 # door, and on staff_fired walk out the same way (Story 16.1's contract; GameManager.is_staff_hired decides
 # at load). The model is loaded from data/characters/staff.json by role and variant, with a KayKit body as
-# the fallback (MOD-3/MOD-6). Everything that moves happens in tick(delta) — the walk, the turns, the
+# the fallback (MOD-3/MOD-6). Story 25.30: a variant whose look is "anime" gets anime_look.gd's toon look and
+# ink outline, and its body block's measured numbers (read through _body()) replace the script's KayKit
+# constants — only while its own body is loaded. Everything that moves happens in tick(delta) — the walk, the turns, the
 # timers, the door hold, the AnimationTree (callback mode MANUAL) — so tests can step it by hand
 # (manual_tick). Visuals only: no GameManager writes, no E, no physics body, no autoload.
 # bartender.gd and quest_dealer.gd extend this script by path (no class_name).
@@ -14,8 +16,9 @@ signal arrived_at_station
 signal left_tavern
 
 const STAFF_DATA := "res://data/characters/staff.json"
-const HALL_SPEED := 0.82        # Walking_A's stride, m/s (measured in Blender, Story 25.13 T0)
-const BAR_SPEED := 0.48         # Walk_Bar: 45% of that stride, the shuffle for tight spots
+const ANIME_LOOK := "res://scripts/game/anime_look.gd"      # Story 25.30: the toon look for variants whose look is "anime"
+const HALL_SPEED := 0.82        # Walking_A's stride on the KayKit bodies, m/s (Story 25.13 T0); a variant's body.hall_speed wins
+const BAR_SPEED := 0.48         # Walk_Bar: 45% of that stride, the shuffle for tight spots; a variant's body.bar_speed wins
 const TURN_RATE := 4.5          # rad/s for turns in place
 const DOOR_REACH := 2.5         # hold the front door from this far before it until this far past it
 const CLIP_FALLBACK := {"Walk_Bar": "Walking_A", "Wipe": "Interact", "Serve": "Interact", "Pour": "PickUp",
@@ -60,6 +63,7 @@ var _leaving := false
 var _route_phase := ""          # "in" / "out" while walking arrive_route, "station" from its end to the station, "" there
 var _state_len := {}            # state name -> its clip length (s)
 var _wanted := ""               # the state last asked for (the tree's current node lags a pending travel by a frame)
+var _spec := {}                 # the variant spec the body was loaded from (its look and body numbers; read once, at load)
 
 
 # ------------------------------------------------------------------ the parts a role fills in
@@ -157,6 +161,7 @@ func _variant_spec() -> Dictionary:
 
 func _load_model() -> void:
 	var spec := _variant_spec()
+	_spec = spec
 	var path := str(spec.get("model_path", ""))
 	var scene: PackedScene = null
 	if path != "" and ResourceLoader.exists(path):
@@ -188,6 +193,25 @@ func _load_model() -> void:
 		for p in _prop_nodes():
 			if model.find_child(str(p), true, false) == null:
 				push_warning("[Staff] missing: prop %s on %s's body '%s'" % [p, role, path])
+		if str(spec.get("look", "")) == "anime":
+			load(ANIME_LOOK).apply(model)
+
+
+## A body number from the variant's own body block (staff.json; Story 25.30, N4), converted to the type of
+## `default` (an Array of 3 numbers to a Vector3, a number to a float). `default` (the script's KayKit constant) when
+## there is no body yet, when the fallback body loaded, or when the key is missing: the numbers follow the body.
+func _body(key: String, default: Variant) -> Variant:
+	if model == null or using_fallback:
+		return default
+	var b = _spec.get("body")
+	if not (b is Dictionary and b.has(key)):
+		return default
+	var v = b[key]
+	if default is Vector3 and v is Array and v.size() == 3:
+		return Vector3(float(v[0]), float(v[1]), float(v[2]))
+	if (default is float or default is int) and (v is float or v is int):
+		return float(v)
+	return default
 
 
 func _hide_hand_items() -> void:
@@ -332,7 +356,7 @@ func walk(points: PackedVector3Array, then := Callable()) -> void:
 
 func _set_walk_state(p: Vector3) -> void:
 	var st := _walk_state_at(p)
-	_path_speed = BAR_SPEED if st == "WalkBar" else HALL_SPEED
+	_path_speed = float(_body("bar_speed", BAR_SPEED)) if st == "WalkBar" else float(_body("hall_speed", HALL_SPEED))
 	if _wanted != st:
 		play(st)
 	_path_state = st

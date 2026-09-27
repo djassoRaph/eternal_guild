@@ -131,7 +131,8 @@ const CAT_WORLD := Vector3(-2.937, 0.160, -6.895)
 const BAR_SPOT := Vector3(3.95, 0.10, -7.55)            # between Stool03 and Stool04
 const STAFF_DATA_PATH := "res://data/characters/staff.json"          # Story 25.13
 const BARTENDER_PATH := "res://assets/characters/custom/g12_bartender.glb"
-const DEALER_PATH := "res://assets/characters/custom/g13_quest_dealer.glb"
+const DEALER_PATH := "res://assets/characters/custom/g13_quest_dealer_anime.glb"       # Story 25.30: the anime body
+const DEALER_FALLBACK_PATH := "res://assets/characters/custom/g13_quest_dealer.glb"     # the 25.13 KayKit dealer: her fallback
 const BARTENDER_SCENE := "res://scenes/game/Bartender.tscn"
 const DEALER_SCENE := "res://scenes/game/QuestDealer.tscn"
 const STAFF_BASE_SCRIPT := "res://scripts/game/staff_npc.gd"
@@ -149,6 +150,19 @@ const DESK_WORLD := Vector3(11.600, 0.100, -4.300)      # the GuildDesk's origin
 const DESK_SLAB_BACK := -4.776                          # the desk top's back edge (world z); its slab is y 0.88..0.95
 const DEALER_IDLE_FRONT := 0.363                        # the Mage body's Idle front at desk-top height (measured, T0)
 const LINTEL_Y := 2.30                                  # the door frame's lintel
+# Story 25.30: the anime cast (route AN). Per-role clip lists: the dealer's file carries the 76 KayKit clips + her three.
+const DEALER_CLIPS := ["Walk_Bar", "Write", "Brief"]
+const DEALER_EXCLUDED := ["Wipe", "Pour", "Serve", "Restock"]
+const DEALER_LOOPS := ["Idle", "Walking_A", "Walk_Bar", "Sit_Chair_Idle", "Write", "Brief"]
+const DEALER_ONE_SHOTS := ["Sit_Chair_Down", "Sit_Chair_StandUp", "Interact"]
+const DEALER_BODY_KEYS := ["hip_back", "stool_pull", "seated_front", "walk_half_at_desk", "idle_front", "bubble_seated", "hall_speed", "bar_speed"]
+const ANIME_LOOK_SCRIPT := "res://scripts/game/anime_look.gd"
+const ANIME_OUTLINE := "res://assets/characters/materials/anime_outline.tres"
+const AN_TRI_CAP := 10000              # the hard cap per AN body (whole GLB, props included)
+const AN_BODY_SURFACES := 3            # surfaces on <Role>_Body (props counted apart)
+const AN_TRI_BUDGET := 10000           # min(10000, ceil(9,459 measured x 1.15 / 500) x 500) = the cap (T3); the same number as 08
+const AN_SIT_HIPS_Y := 0.450           # the re-fitted Sit_Chair_Idle hips height (model-local): T2's SIT_HIPS_Y (Base_Body; her seat within 0.03)
+const AN_SEATED_SHOULDER_MIN := 1.05   # seated upperarm heads, root-local: the desk top 0.85 + 0.20 (N2)
 
 var _pass_count := 0
 var _fail_count := 0
@@ -2173,15 +2187,18 @@ func test_den_fa_e() -> void:
 func test_staff() -> void:
 	print("[Test 19] The Bartender and the Quest Dealer")
 	_t19_ms = Time.get_ticks_msec()
-	for p in [BARTENDER_PATH, DEALER_PATH, BARTENDER_SCENE, DEALER_SCENE, STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT]:
+	for p in [BARTENDER_PATH, DEALER_PATH, DEALER_FALLBACK_PATH, BARTENDER_SCENE, DEALER_SCENE, STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT,
+			ANIME_LOOK_SCRIPT, ANIME_OUTLINE]:
 		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
 	check(FileAccess.file_exists(STAFF_DATA_PATH), "exists: staff.json")
 
 	var data = _read_json(STAFF_DATA_PATH) if FileAccess.file_exists(STAFF_DATA_PATH) else null
 	var roles: Dictionary = data.get("roles", {}) if data is Dictionary else {}
-	# the GLB checks run on the bodies staff.json loads (every variant of each role), not on fixed paths
-	var glb_rules := {"bartender": [BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"]],
-		"desk_manager": [DEALER_MESH_ALLOW, "Dealer_", ["Dealer_Quill", "Dealer_Ears"]]}
+	# the GLB checks run on the bodies staff.json loads (every variant of each role), not on fixed paths. Per role:
+	# [mesh allowlist, prefix, props, own clips, excluded clips, loops, one-shots, tri budget, surface cap (-1: none)]
+	var glb_rules := {"bartender": [BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"],
+			STAFF_CLIPS, [], STAFF_LOOPS, STAFF_ONE_SHOTS, 7000, -1],
+		"desk_manager": [[], "Dealer_", ["Dealer_Quill"], DEALER_CLIPS, DEALER_EXCLUDED, DEALER_LOOPS, DEALER_ONE_SHOTS, AN_TRI_BUDGET, AN_BODY_SURFACES]}
 	for role in glb_rules:
 		var rv = roles.get(role)
 		var vs = rv.get("variants", {}) if rv is Dictionary else {}
@@ -2189,7 +2206,15 @@ func test_staff() -> void:
 			check(false, "staff.json: %s has variants whose bodies the GLB checks can run on" % role)
 			continue
 		for v in vs.values():
-			_check_staff_glb(str(v.get("model_path", "")) if v is Dictionary else "", glb_rules[role][0], glb_rules[role][1], glb_rules[role][2])
+			_check_staff_glb(str(v.get("model_path", "")) if v is Dictionary else "", glb_rules[role])
+	# the anime dealer's data (Story 25.30, N4): look "anime", the KayKit g13 dealer as the fallback, every body number
+	var se = roles.get("desk_manager", {}).get("variants", {}).get("silver_elf") if roles.get("desk_manager") is Dictionary and roles.desk_manager.get("variants") is Dictionary else null
+	var se_body = se.get("body") if se is Dictionary else null
+	var bad_keys := DEALER_BODY_KEYS.filter(func(k): return not (se_body is Dictionary and (se_body.get(k) is float or se_body.get(k) is int)
+		and (k == "seated_front" or float(se_body.get(k)) > 0.0)))
+	check(se is Dictionary and str(se.get("look", "")) == "anime" and str(se.get("model_path", "")) == DEALER_PATH
+		and str(se.get("fallback_model_path", "")) == DEALER_FALLBACK_PATH and bad_keys.is_empty(),
+		"staff.json silver_elf: the anime body (look anime), the 25.13 KayKit dealer as its fallback, and every body number (missing or bad %s)" % [bad_keys])
 	var why := []
 	if not (data is Dictionary and str(data.get("_note", "")).length() > 10):
 		why.append("no _note")
@@ -2310,8 +2335,8 @@ func test_staff() -> void:
 	var ana := AnimationNodeAnimation.new()
 	check("use_custom_timeline" in ana and "loop_mode" in ana and "timeline_length" in ana,
 		"AnimationNodeAnimation has use_custom_timeline, timeline_length and loop_mode in this engine (the tree owns the staff's loop modes, AC 6)")
-	var named := [STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT].filter(func(p): return ResourceLoader.exists(p) and (load(p) as Script).get_global_name() != "")
-	check(named.is_empty(), "no class_name on the staff scripts (AC 6) %s" % [named])
+	var named := [STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT, ANIME_LOOK_SCRIPT].filter(func(p): return ResourceLoader.exists(p) and (load(p) as Script).get_global_name() != "")
+	check(named.is_empty(), "no class_name on the staff scripts or the anime look helper (AC 6) %s" % [named])
 
 	var ds = load(DEALER_SCRIPT) if ResourceLoader.exists(DEALER_SCRIPT) else null
 	var dconst: Dictionary = ds.get_script_constant_map() if ds != null else {}
@@ -2329,6 +2354,22 @@ func test_staff() -> void:
 	var standing_z := seated.z - pull if seated != Vector3.INF else 0.0
 	check(pull >= 0.45 and standing_z <= DESK_SLAB_BACK - maxf(DEALER_IDLE_FRONT, walk_half) - 0.02,
 		"STOOL_PULL %.2f: standing to sit, and turning there, she clears the desk top (root z %.2f)" % [pull, standing_z])
+	# the data pass (Story 25.30): the same geometry with the anime body's own numbers from staff.json. Her hips,
+	# 0.397 behind the root after the sit re-fit, stay over the stool (z -5.302..-4.905): 0.18 <= hip_back <= 0.57
+	var bd: Dictionary = se_body if se_body is Dictionary else {}
+	var hb_d := float(bd.get("hip_back", NAN))
+	var pull_d := float(bd.get("stool_pull", NAN))
+	var sf_d := float(bd.get("seated_front", NAN))
+	var wh_d := float(bd.get("walk_half_at_desk", NAN))
+	var if_d := float(bd.get("idle_front", NAN))
+	var seated_d := _dealer_seated_root(ds, wp_world, hb_d)
+	var expect_d := Vector3(wp_world.origin.x, 0.10, wp_world.origin.z + hb_d)
+	check(seated_d != Vector3.INF and seated_d.distance_to(expect_d) < 0.005 and hb_d >= 0.18 and hb_d <= 0.57
+		and seated_d.z + sf_d <= DESK_SLAB_BACK - 0.02,
+		"her anime body's seated root (staff.json hip_back %.2f): over the stool, on the floor; seated, she clears the desk top by ≥ 0.02 m" % hb_d)
+	var standing_d := seated_d.z - pull_d if seated_d != Vector3.INF else NAN
+	check(pull_d >= 0.45 and standing_d <= DESK_SLAB_BACK - maxf(if_d, wh_d) - 0.02,
+		"her anime body's stool_pull %.2f: standing to sit, and turning there, she clears the desk top (root z %.2f)" % [pull_d, standing_d])
 
 	for sp in [BARTENDER_SCENE, DEALER_SCENE]:
 		var sn := _scene_nodes(sp) if ResourceLoader.exists(sp) else {}
@@ -2363,12 +2404,35 @@ func test_staff() -> void:
 	print("")
 
 
-## One staff GLB (Test 19): the KayKit rig, the 76 clips plus the seven staff clips (loops set), its own
-## allowlisted mesh nodes and props, the budget and the glow rule, no metal, and under the door lintel.
-func _check_staff_glb(path: String, allow: Array, prefix: String, props: Array) -> void:
+## quest_dealer.gd's seated root for a hip-back (Story 25.30); INF while its seated_root takes no hip-back yet.
+static func _dealer_seated_root(ds, wp: Transform3D, hip_back: float) -> Vector3:
+	if ds == null or is_nan(hip_back):
+		return Vector3.INF
+	var m = ds.get_script_method_list().filter(func(x): return x.name == "seated_root")
+	if m.is_empty() or m[0].args.size() < 2:
+		return Vector3.INF
+	return ds.seated_root(wp, hip_back)
+
+
+## One staff GLB (Test 19): the KayKit rig, the 76 clips plus the role's own clips (and none of the other role's;
+## loops set), its own mesh nodes and props, the tri budget and the glow rule, no metal, under the door lintel.
+## An anime body (a surface cap ≥ 0) also has one <prefix>Body within the cap, Lossless face and palette textures
+## that Detect 3D cannot switch, and no LODs. rule = [allow, prefix, props, clips, excluded, loops, one_shots,
+## tri_budget, surface_cap].
+func _check_staff_glb(path: String, rule: Array) -> void:
+	var allow: Array = rule[0]
+	var prefix: String = rule[1]
+	var props: Array = rule[2]
+	var own: Array = rule[3]
+	var excluded: Array = rule[4]
+	var loops: Array = rule[5]
+	var one_shots: Array = rule[6]
+	var tri_budget: int = rule[7]
+	var cap: int = rule[8]
+	var want_clips := 76 + own.size()
 	var fname := path.get_file()
 	if not ResourceLoader.exists(path):
-		check(false, "%s: the KayKit rig, 83 clips with loops set, allowlisted meshes, props, ≤ 7,000 tris, no metal, under 2.25 m" % fname)
+		check(false, "%s: the KayKit rig, %d clips with loops set, its own meshes, props, ≤ %d tris, no metal, under 2.25 m" % [fname, want_clips, tri_budget])
 		return
 	var inst := (load(path) as PackedScene).instantiate()
 	var sks := inst.find_children("*", "Skeleton3D", true, false)
@@ -2381,14 +2445,16 @@ func _check_staff_glb(path: String, allow: Array, prefix: String, props: Array) 
 	var aps := inst.find_children("*", "AnimationPlayer", true, false)
 	var ap: AnimationPlayer = aps[0] if not aps.is_empty() else null
 	var clips: Array = Array(ap.get_animation_list()) if ap else []
-	var missing := (CAST_CLIPS + STAFF_CLIPS).filter(func(c): return not clips.has(c))
+	var missing := (CAST_CLIPS + own).filter(func(c): return not clips.has(c))
 	var dupes := clips.filter(func(c): return str(c).contains(".00"))
-	check(clips.size() == 83 and missing.is_empty() and dupes.is_empty(), "%s: 83 clips, the cast's and the seven staff clips (missing %s, .00x %s)" % [fname, missing, dupes])
+	var foreign := excluded.filter(func(c): return clips.has(c))
+	check(clips.size() == want_clips and missing.is_empty() and dupes.is_empty() and foreign.is_empty(),
+		"%s: %d clips, the cast's and its own %s, none of %s (%d; missing %s, .00x %s, foreign %s)" % [fname, want_clips, own, excluded, clips.size(), missing, dupes, foreign])
 	var wrong := []
-	for c in STAFF_LOOPS:
+	for c in loops:
 		if ap == null or not ap.has_animation(c) or ap.get_animation(c).loop_mode != Animation.LOOP_LINEAR:
 			wrong.append(c)
-	for c in STAFF_ONE_SHOTS:
+	for c in one_shots:
 		if ap == null or not ap.has_animation(c) or ap.get_animation(c).loop_mode != Animation.LOOP_NONE:
 			wrong.append(c)
 	check(wrong.is_empty(), "%s: the work loops loop and the one-shots play once (wrong: %s)" % [fname, wrong])
@@ -2396,6 +2462,29 @@ func _check_staff_glb(path: String, allow: Array, prefix: String, props: Array) 
 	var stray := meshes.filter(func(m): return not allow.has(m) and not m.begins_with(prefix))
 	var no_props := props.filter(func(p): return not meshes.has(p))
 	check(stray.is_empty() and no_props.is_empty(), "%s: only its own pieces (stray %s) and its props (missing %s)" % [fname, stray, no_props])
+	if cap >= 0:
+		# an AN body: one <prefix>Body within the surface cap (props apart), Lossless textures that Detect 3D cannot
+		# switch to VRAM (the face reads at mip 5; S3TC would smear the palette cells), and no LODs
+		var body_mi := inst.find_child(prefix + "Body", true, false) as MeshInstance3D
+		var nsurf: int = body_mi.mesh.get_surface_count() if body_mi and body_mi.mesh else -1
+		var tex_wrong := []
+		var tex_n := 0
+		for s in (nsurf if nsurf > 0 else 0):
+			var mat = body_mi.mesh.surface_get_material(s)
+			var tex: Texture2D = (mat as BaseMaterial3D).albedo_texture if mat is BaseMaterial3D else null
+			if tex == null or tex.resource_path == "":
+				continue
+			tex_n += 1
+			var cf := ConfigFile.new()
+			if cf.load(tex.resource_path + ".import") != OK:
+				tex_wrong.append(tex.resource_path.get_file() + ": no .import")
+			elif int(cf.get_value("params", "compress/mode", -1)) != 0 or not bool(cf.get_value("params", "mipmaps/generate", false)) \
+					or int(cf.get_value("params", "detect_3d/compress_to", -1)) != 0:
+				tex_wrong.append(tex.resource_path.get_file())
+		var gcf := ConfigFile.new()
+		var lods_off: bool = gcf.load(path + ".import") == OK and not bool(gcf.get_value("params", "meshes/generate_lods", true))
+		check(body_mi != null and nsurf >= 1 and nsurf <= cap and tex_n >= 1 and tex_wrong.is_empty() and lods_off,
+			"%s: one %sBody with %d surfaces (≤ %d); its %d textures Lossless with mipmaps and Detect 3D off (wrong %s); no LODs (%s)" % [fname, prefix, nsurf, cap, tex_n, tex_wrong, lods_off])
 	var metal := []
 	for m in inst.find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = (m as MeshInstance3D).mesh
@@ -2405,8 +2494,8 @@ func _check_staff_glb(path: String, allow: Array, prefix: String, props: Array) 
 				metal.append(str(m.name))
 	inst.free()
 	var st := _mesh_stats(path)
-	check(st.tris > 0 and st.tris <= 7000 and st.glow == 0 and st.wrong.is_empty() and metal.is_empty(),
-		"%s: %d tris (≤ 7,000), nothing glows, roughness > 0, no metal (wrong %s, metal %s)" % [fname, st.tris, st.wrong, metal])
+	check(st.tris > 0 and st.tris <= tri_budget and st.glow == 0 and st.wrong.is_empty() and metal.is_empty(),
+		"%s: %d tris (≤ %d), nothing glows, roughness > 0, no metal (wrong %s, metal %s)" % [fname, st.tris, tri_budget, st.wrong, metal])
 	var top := -INF
 	var gnodes := _scene_nodes(path)
 	for k in gnodes:
@@ -3177,7 +3266,63 @@ func test_staff_runtime() -> void:
 	desk.global_position = DESK_WORLD
 	var stool: Node3D = desk.get_node("Model").find_child("desk_stool", true, false)
 	var wp: Node3D = desk.get_node("WorkPoint")
-	var want: Vector3 = load(DEALER_SCRIPT).seated_root(wp.global_transform)
+	var want_const: Vector3 = load(DEALER_SCRIPT).seated_root(wp.global_transform)      # the KayKit g13 numbers (the fallback)
+	# Story 25.30: the body numbers follow the body loaded. The expected values come from staff.json read here (or the
+	# script's constants on a fallback body), never from the dealer's own accessor
+	var dconst_r: Dictionary = load(DEALER_SCRIPT).get_script_constant_map()
+	var se_r = staff_roles.get("desk_manager", {}).get("variants", {}).get("silver_elf", {}) if staff_roles.get("desk_manager") is Dictionary else {}
+	var body_r: Dictionary = se_r.get("body", {}) if se_r is Dictionary and se_r.get("body") is Dictionary else {}
+	# the g13 fallback case: silver_elf's own spec (look anime, the full body block) with its anime file missing. The
+	# fallback body takes the script constants and no toon, and keeps its quill (only while she is seated)
+	var fb_spec: Dictionary = (se_r as Dictionary).duplicate(true) if se_r is Dictionary else {}
+	fb_spec["model_path"] = "res://missing.glb"
+	if fb_spec.get("body") is Dictionary and absf(float(fb_spec.body.get("hip_back", 0.0)) - float(dconst_r.get("DEALER_HIP_BACK", 0.32))) < 0.005:
+		fb_spec.body["hip_back"] = 0.45                  # so the case can fail if the fallback read the data
+	var fg = Node3D.new()
+	fg.set_script(_staff_variant_script(DEALER_SCRIPT, fb_spec))
+	fg.role = "desk_manager"
+	fg.manual_tick = true
+	fg.hired_at_start_override = 1
+	fg.desk_path = desk.get_path()
+	fg.door_path = door.get_path()
+	world.add_child(fg)
+	fg.set_autopilot(false)
+	fg.tick(dt)
+	var fg_quill: Node3D = fg.model.find_child("Dealer_Quill", true, false) as Node3D if fg.model else null
+	var fg_seated_quill: bool = fg_quill != null and fg_quill.is_visible_in_tree()
+	var fg_pull: float = (fg._seat() - fg._standing_root()).length() if fg.model else -1.0
+	var fg_head_ok := true
+	for hn in ["Dealer_Circlet", "Dealer_Ears"]:
+		var h: Node3D = fg.model.find_child(hn, true, false) as Node3D if fg.model else null
+		if h == null or not h.is_visible_in_tree():
+			fg_head_ok = false
+	var fg_hands := []
+	var fg_sks: Array = fg.model.find_children("*", "Skeleton3D", true, false) if fg.model else []
+	if not fg_sks.is_empty():
+		for a in fg.model.find_children("*", "BoneAttachment3D", true, false):
+			var bi: int = (fg_sks[0] as Skeleton3D).find_bone((a as BoneAttachment3D).bone_name)
+			var par: int = (fg_sks[0] as Skeleton3D).get_bone_parent(bi) if bi >= 0 else -1
+			if par >= 0 and (fg_sks[0] as Skeleton3D).get_bone_name(par).begins_with("handslot") and str(a.name) != "Dealer_Quill" and (a as Node3D).visible:
+				fg_hands.append(str(a.name))
+	var fg_look := _staff_look_wrong(fg, false)
+	var fg_at: float = fg.global_position.distance_to(want_const)
+	fg.leave()                                            # she stands and walks to the approach: the quill goes
+	var fg_walk_quill := true
+	var fg_walked := false
+	n = 0
+	while n < 900 and not fg_walked:
+		fg.tick(dt)
+		n += 1
+		if fg.is_walking():
+			fg_walked = true
+			fg_walk_quill = fg_quill != null and fg_quill.is_visible_in_tree()
+	check(fg.using_fallback and fg.model != null and fg.model.scene_file_path == DEALER_FALLBACK_PATH and fg_at < 0.02 and absf(fg_pull - float(dconst_r.get("STOOL_PULL", 0.52))) < 0.005
+		and fg_look.is_empty() and fg_seated_quill and fg_walked and not fg_walk_quill and fg_head_ok and fg_hands.is_empty(),
+		"her anime file missing: the 25.13 KayKit dealer, seated by the script's own numbers (%.3f m off, stool pull %.2f), not the data's; no toon (%s); her quill out seated, gone walking %s; circlet and ears shown, no hand items %s" % [fg_at, fg_pull, fg_look.slice(0, 2), [fg_seated_quill, fg_walk_quill], fg_hands])
+	fg.queue_free()
+	await process_frame
+	if stool:
+		stool.position = Vector3.ZERO
 	# the demo's first frame (AC 4, AC 7): hired at start by GameManager, seated and writing, the stool home
 	if stool:
 		stool.position.z = -0.3                           # so the reset to home cannot pass by doing nothing
@@ -3188,6 +3333,11 @@ func test_staff_runtime() -> void:
 	q0.door_path = door.get_path()
 	world.add_child(q0)
 	q0.tick(dt)
+	var on_fb: bool = q0.using_fallback
+	var want: Vector3 = want_const if on_fb else _dealer_seated_root(load(DEALER_SCRIPT), wp.global_transform, float(body_r.get("hip_back", NAN)))
+	var pull_want: float = float(dconst_r.get("STOOL_PULL", 0.52)) if on_fb else float(body_r.get("stool_pull", NAN))
+	var bubble_want: float = 1.95 if on_fb else float(body_r.get("bubble_seated", NAN))
+	var q0_ovs := _staff_overrides(q0)
 	var q0_face := Vector3(q0.global_basis.z.x, 0, q0.global_basis.z.z).normalized()
 	var q0_quill: Node3D = q0.model.find_child("Dealer_Quill", true, false) as Node3D if q0.model else null
 	check(gm.is_staff_hired("desk_manager") and q0.visible and q0.present and q0.global_position.distance_to(want) < 0.02
@@ -3203,7 +3353,10 @@ func test_staff_runtime() -> void:
 	qd.desk_path = desk.get_path()
 	qd.door_path = door.get_path()
 	world.add_child(qd)
-	_check_staff_body(qd, "the Quest Dealer", _staff_model_path(staff_roles, "desk_manager"))
+	_check_staff_body(qd, "the Quest Dealer", _staff_model_path(staff_roles, "desk_manager"), true)
+	var qd_ovs := _staff_overrides(qd)
+	check(not qd_ovs.is_empty() and qd_ovs == q0_ovs and qd_ovs.all(func(m): return m is Material),
+		"two anime dealers share one toon material per surface (the helper's cache; %d surfaces)" % qd_ovs.size())
 	var want_names := [str(staff_roles.get("bartender", {}).get("display_name", "?")), str(staff_roles.get("desk_manager", {}).get("display_name", "?"))]
 	check(bt_name == want_names[0] and qd.display_name == want_names[1] and bt_name != "" and qd.display_name != "",
 		"display_name comes from staff.json (%s, %s)" % [bt_name, qd.display_name])
@@ -3251,7 +3404,7 @@ func test_staff_runtime() -> void:
 			qd.tick(-0.25)
 			zero_qd = qd.global_transform == qxf and qxf.is_finite() and (stool == null or stool.position == sz)
 	var face := Vector3(qd.global_basis.z.x, 0, qd.global_basis.z.z).normalized()
-	var k10_ok: bool = _is_subsequence(["Interact", "SitDown", "Available", "Write"], q_seq) and min_stool_z <= -float(qd.STOOL_PULL) + 0.01 \
+	var k10_ok: bool = _is_subsequence(["Interact", "SitDown", "Available", "Write"], q_seq) and absf(min_stool_z + pull_want) < 0.02 \
 		and not ahead and end_x < want.x - 0.3 and seated_ticks <= int(round(float(qd.SLIDE_TIME) / dt)) + 1
 	check(q_arrived[0] and stool_moved and qd.global_position.distance_to(want) < 0.02 and rad_to_deg(face.angle_to(Vector3(0, 0, 1))) < 5.0
 		and stool != null and stool.position.length() < 0.01 and qd.work_state() == "IDLE" and qd.anim_state() == "Write" and k10_ok,
@@ -3309,7 +3462,7 @@ func test_staff_runtime() -> void:
 	var brief: bool = qd.work_state() == "BRIEFING" and qd.anim_state() == "Brief" and qd._last_bark >= 0
 	var bark1: int = qd._last_bark
 	var bubbles := _live_bubbles(qd)
-	var bubble_ok: bool = bubbles.size() == 1 and absf(bubbles[0].position.y - (1.95 - PatronSpeechBubble.HEAD_HEIGHT)) < 0.01
+	var bubble_ok: bool = bubbles.size() == 1 and absf(bubbles[0].position.y - (bubble_want - PatronSpeechBubble.HEAD_HEIGHT)) < 0.01
 	for i in 690:                                          # kept open 23 s: no second bark without a new opening
 		qd.tick(dt)
 	var held_quiet: bool = qd._last_bark == bark1 and qd.work_state() == "BRIEFING"
@@ -3519,6 +3672,7 @@ func test_staff_runtime() -> void:
 	check(in_again and out_again and q_arrived[0] and qd.work_state() == "IDLE" and qd.anim_state() == "Write",
 		"fired on her way in after a set_work_state, then hired again: she sits down writing (IDLE), not in the state from before the fire (%s, %s)" % [qd.work_state(), qd.anim_state()])
 	qd.set_autopilot(true)
+	_check_sit_refit(world)
 	gm.beer_stock = beer_saved
 	eb.beer_changed.emit(beer_saved)
 	world.queue_free()
@@ -3528,7 +3682,7 @@ func test_staff_runtime() -> void:
 
 ## A staff node's loaded body (Test 19): staff.json's own model (no fallback), every tree state bound to its own
 ## clip, the tree owning each state's loop mode, and no physics body or Area3D brought in with the model.
-func _check_staff_body(x, who: String, want_path: String) -> void:
+func _check_staff_body(x, who: String, want_path: String, anime := false) -> void:
 	var bound := _staff_bound_wrong(x)
 	var path: String = x.model.scene_file_path if x.model else "no body"
 	check(x.model != null and not x.using_fallback and path == want_path and bound.is_empty(),
@@ -3536,6 +3690,109 @@ func _check_staff_body(x, who: String, want_path: String) -> void:
 	var loops := _staff_loops_wrong(x)
 	check(loops.is_empty(), "%s: the tree owns every state's loop mode, whatever the import says (the loops loop, the one-shots play once, each on its clip's own length) (wrong: %s)" % [who, loops])
 	check(x.find_children("*", "CollisionObject3D", true, false).is_empty(), "%s: the loaded body adds no physics body or Area3D (AC 6)" % who)
+	var look := _staff_look_wrong(x, anime)
+	check(look.is_empty(), ("%s: the anime look on every surface (toon, no specular, no metal, roughness > 0, opaque, the shared outline as next_pass), the imported materials untouched (wrong: %s)" if anime
+		else "%s: its imported materials as they are, no toon override (wrong: %s)") % [who, look.slice(0, 4)])
+
+
+## What is wrong with a loaded staff body's look (Test 19, Story 25.30; F48): the anime body's surfaces carry the
+## toon override (shared, never the imported material edited) with the shared outline as next_pass; any other body
+## has no override. Fails when fewer than two surfaces were inspected (never vacuous).
+static func _staff_look_wrong(x, anime: bool) -> Array:
+	if x.model == null:
+		return ["no body"]
+	var outline: Material = load(ANIME_OUTLINE) if ResourceLoader.exists(ANIME_OUTLINE) else null
+	var out := []
+	var n := 0
+	for mi in x.model.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (mi as MeshInstance3D).mesh
+		for s in (mesh.get_surface_count() if mesh else 0):
+			n += 1
+			var tag := "%s/%d" % [mi.name, s]
+			var ov: Material = (mi as MeshInstance3D).get_surface_override_material(s)
+			var src: Material = mesh.surface_get_material(s)
+			if src is BaseMaterial3D and ((src as BaseMaterial3D).diffuse_mode == BaseMaterial3D.DIFFUSE_TOON or src.next_pass != null):
+				out.append(tag + " imported material edited")
+			if not anime:
+				if ov != null:
+					out.append(tag + " overridden")
+				continue
+			if not ov is StandardMaterial3D:
+				out.append(tag + " not toned")
+				continue
+			var m := ov as StandardMaterial3D
+			if m.diffuse_mode != BaseMaterial3D.DIFFUSE_TOON or m.specular_mode != BaseMaterial3D.SPECULAR_DISABLED or m.metallic > 0.0 \
+					or m.metallic_specular > 0.0 or m.roughness <= 0.0 or m.emission_enabled or m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				out.append(tag + " look")
+			if outline == null or m.next_pass != outline:
+				out.append(tag + " no outline")
+	if anime:
+		var o := outline as StandardMaterial3D
+		if o == null or o.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED or o.cull_mode != BaseMaterial3D.CULL_FRONT or not o.grow \
+				or o.grow_amount <= 0.0 or o.metallic > 0.0 or o.emission_enabled or o.roughness <= 0.0 or o.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			out.append("the outline material")
+	if n < 2:
+		out.append("only %d surfaces inspected" % n)
+	return out
+
+
+## The anime base's sit re-fit on the loaded dealer (Test 19, Story 25.30 AC 1/N3): Sit_Chair_Idle's hips at
+## AN_SIT_HIPS_Y and KayKit's 0.40 behind the root (RealisticPatron's convention), the feet planted, the
+## seated shoulders above the desk (N2), and Down / StandUp meeting Sit_Chair_Idle's pose. Posed by hand: the
+## tree off, the player seeked.
+func _check_sit_refit(world: Node) -> void:
+	var sr = (load(DEALER_SCENE) as PackedScene).instantiate()
+	sr.manual_tick = true
+	sr.hired_at_start_override = 0
+	world.add_child(sr)
+	var why := []
+	var sk: Skeleton3D = null
+	if sr.model:
+		var sks: Array = sr.model.find_children("*", "Skeleton3D", true, false)
+		sk = sks[0] as Skeleton3D if not sks.is_empty() else null
+	var ap: AnimationPlayer = sr.anim
+	if sk == null or ap == null or sr.tree == null or not (ap.has_animation("Sit_Chair_Idle") and ap.has_animation("Sit_Chair_Down") and ap.has_animation("Sit_Chair_StandUp")):
+		why.append("no body, skeleton or sit clips")
+	else:
+		sr.tree.active = false
+		var to_model: Transform3D = sr.model.global_transform.affine_inverse() * sk.global_transform
+		var bone_at := func(clip: String, t: float, bone: String) -> Vector3:
+			ap.play(clip)
+			ap.seek(t, true)
+			return to_model * sk.get_bone_global_pose(sk.find_bone(bone)).origin
+		var idle_len: float = ap.get_animation("Sit_Chair_Idle").length
+		var hips0: Vector3 = bone_at.call("Sit_Chair_Idle", 0.0, "hips")
+		for t in [0.0, idle_len * 0.5]:
+			var hp: Vector3 = bone_at.call("Sit_Chair_Idle", t, "hips")
+			if absf(hp.y - AN_SIT_HIPS_Y) > 0.03 or absf(hp.z + 0.40) > 0.02:
+				why.append("hips (%.3f, %.3f) at t %.2f" % [hp.y, hp.z, t])
+			for f in ["foot.l", "foot.r"]:
+				var rest_y: float = (to_model * sk.get_bone_global_rest(sk.find_bone(f)).origin).y
+				var fy: float = (bone_at.call("Sit_Chair_Idle", t, f) as Vector3).y
+				if absf(fy - rest_y) > 0.03:
+					why.append("%s %.3f (rest %.3f)" % [f, fy, rest_y])
+			for u in ["upperarm.l", "upperarm.r"]:
+				var uy: float = (bone_at.call("Sit_Chair_Idle", t, u) as Vector3).y
+				if uy < AN_SEATED_SHOULDER_MIN:
+					why.append("%s %.3f" % [u, uy])
+		var down_end: Vector3 = bone_at.call("Sit_Chair_Down", ap.get_animation("Sit_Chair_Down").length, "hips")
+		var up_start: Vector3 = bone_at.call("Sit_Chair_StandUp", 0.0, "hips")
+		if down_end.distance_to(hips0) > 0.01 or up_start.distance_to(hips0) > 0.01:
+			why.append("Down ends %.3f / StandUp starts %.3f from the seat pose" % [down_end.distance_to(hips0), up_start.distance_to(hips0)])
+		ap.stop()
+	check(why.is_empty(), "the sit re-fit on her anime body: Sit_Chair_Idle's hips at %.2f and 0.40 behind the root, the feet planted, the shoulders ≥ %.2f (the desk top + 0.20), Down and StandUp meeting it (wrong: %s)" % [AN_SIT_HIPS_Y, AN_SEATED_SHOULDER_MIN, why.slice(0, 4)])
+	sr.queue_free()
+
+
+## The override material of every surface of a loaded staff body, in order (Test 19: two anime instances share them).
+static func _staff_overrides(x) -> Array:
+	var out := []
+	if x.model:
+		for mi in x.model.find_children("*", "MeshInstance3D", true, false):
+			var mesh: Mesh = (mi as MeshInstance3D).mesh
+			for s in (mesh.get_surface_count() if mesh else 0):
+				out.append((mi as MeshInstance3D).get_surface_override_material(s))
+	return out
 
 
 ## The states of a staff node's AnimationTree not bound to their own clip (Test 19).

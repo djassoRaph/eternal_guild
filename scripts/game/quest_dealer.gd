@@ -12,10 +12,15 @@
 # a mission screen is open (with a bark on its rising edge), AVAILABLE while the player is at the desk front,
 # else writing. No game effects, no E. Call set_autopilot(false) before driving the API; while it is on, the
 # autopilot owns the state.
+# Story 25.30: the constants below are the KayKit g13 body's (her fallback). The anime body's own measured
+# numbers come from staff.json (silver_elf.body) through _body(): hip_back, stool_pull, bubble_seated and the
+# walk speeds; seated_front, walk_half_at_desk and idle_front are data for Test 19's desk geometry. Her approach
+# stays APPROACH_LOCAL for every body: it is desk geometry and the end of MainTavern's route.
 extends "res://scripts/game/staff_npc.gd"
 
 const DEALER_HIP_BACK := 0.32      # her seated root is this far in front of the WorkPoint (measured, T0)
 const STOOL_PULL := 0.52           # the stool slides back this far while she sits down (measured, T3)
+const BUBBLE_SEATED := 1.95        # her bark bubble's height while seated (the KayKit body)
 const SEAT_HEIGHT := 0.44
 const SEATED_FRONT := -0.039       # Sit_Chair_Idle's front at desk-top height, from her root (measured)
 const WALK_HALF_AT_DESK := 0.40    # Walk_Bar's half-width at desk-top height (measured 0.392)
@@ -73,17 +78,23 @@ func _resolve_desk() -> void:
 	_popup = get_node_or_null(recruitment_popup_path) if not recruitment_popup_path.is_empty() else null
 
 
-## Her seated root for a work point: DEALER_HIP_BACK along its flat +Z, on the floor under the seat.
-static func seated_root(work_point: Transform3D) -> Vector3:
+## Her seated root for a work point: hip_back (her body's; the KayKit g13's by default) along its flat +Z, on
+## the floor under the seat.
+static func seated_root(work_point: Transform3D, hip_back := DEALER_HIP_BACK) -> Vector3:
 	var f := Vector3(work_point.basis.z.x, 0.0, work_point.basis.z.z)
 	f = f.normalized() if f.length() > 0.001 else Vector3(0, 0, 1)
-	var p := work_point.origin + f * DEALER_HIP_BACK
+	var p := work_point.origin + f * hip_back
 	p.y = work_point.origin.y - SEAT_HEIGHT
 	return p
 
 
 func _seat() -> Vector3:
-	return seated_root(_work_point.global_transform) if _work_point else global_position
+	return seated_root(_work_point.global_transform, float(_body("hip_back", DEALER_HIP_BACK))) if _work_point else global_position
+
+
+## How far the stool slides back while she sits down or stands up (her body's).
+func _pull() -> float:
+	return float(_body("stool_pull", STOOL_PULL))
 
 
 func _facing_yaw() -> float:
@@ -93,7 +104,7 @@ func _facing_yaw() -> float:
 
 func _standing_root() -> Vector3:
 	var yaw := _facing_yaw()
-	return _seat() - Vector3(sin(yaw), 0.0, cos(yaw)) * STOOL_PULL
+	return _seat() - Vector3(sin(yaw), 0.0, cos(yaw)) * _pull()
 
 
 func _approach() -> Vector3:
@@ -175,13 +186,13 @@ func _take_station(then: Callable) -> void:
 			play(_state_for(_work))
 			then.call())
 		return
-	if _stool and absf(_stool.position.z + STOOL_PULL) < 0.01:   # the stool is out (re-hired standing up): sit again
+	if _stool and absf(_stool.position.z + _pull()) < 0.01:   # the stool is out (re-hired standing up): sit again
 		_sit_from_stand(then)
 		return
 	var to_stool := _stool_centre() - global_position
 	turn_to(atan2(to_stool.x, to_stool.z), func():
 		hold("Interact", state_length("Interact") * 0.4, func():
-			_slide_stool(-STOOL_PULL, func(): _sit_from_stand(then))))
+			_slide_stool(-_pull(), func(): _sit_from_stand(then))))
 
 
 ## From beside the pulled-out stool: step to the standing root, face the room, sit down and shuffle in; then
@@ -212,7 +223,7 @@ func _leave_station(then: Callable) -> void:
 			_stool_home(then)         # fired before she sat (the stool pull, the step in): the stool goes back first
 		return
 	play("Available")
-	_slide_seat(_standing_root(), -STOOL_PULL, func():
+	_slide_seat(_standing_root(), -_pull(), func():
 		_seated = false
 		hold("StandUp", state_length("StandUp"), func(): _stool_home(then)))
 
@@ -310,4 +321,4 @@ func _prop_nodes() -> Array:
 
 
 func _bubble_height() -> float:
-	return 1.95 if _seated else PatronSpeechBubble.HEAD_HEIGHT
+	return float(_body("bubble_seated", BUBBLE_SEATED)) if _seated else PatronSpeechBubble.HEAD_HEIGHT
