@@ -1,9 +1,18 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-09-24 (Epics 25–26 added — Demo Art Pipeline & Full Cast; Epic 16 demo-Partial; Story 4.2 unparked; 6-class list decided) · 2026-08-20 (mission-count display cap fixed + animation-hang regression fixed + duplicate recruit names fixed + roster portrait clipping partially fixed, on top of 2026-08-18's Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-10-03 (progress snapshot refreshed; BMAD `sprint-status.yaml` created and seeded from this file; demo roadmap written; Epic 25 through Story 25.30) · 2026-09-24 (Epics 25–26 added — Demo Art Pipeline & Full Cast; Epic 16 demo-Partial; Story 4.2 unparked; 6-class list decided) · 2026-08-20 (mission-count display cap fixed + animation-hang regression fixed + duplicate recruit names fixed + roster portrait clipping partially fixed, on top of 2026-08-18's Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
-## Snapshot (2026-08-20)
+## Snapshot (2026-10-03)
+**Story totals (BMAD `sprint-status.yaml`):** 171 stories in 26 epics — 52 done, 10 in review, 14 in progress, 95 backlog.
+**Done:** Epic 1 · Epic 3 · Epic 7 · Epic 8.
+**In progress:** Epic 2 (3/4) · Epic 4 (3/5) · Epic 6 (4/6) · Epic 11 (2/4) · Epic 12 (4/5) · Epic 13 (2/4) · Epic 14 (3/6) · Epic 16 (art + seam from 25.13; FSMs not started) · Epic 17 (deck data) · Epic 18 (basic Codex overlay) · Epic 19 (fallen-hero data + list) · **Epic 25 (4/32 done, 10 in review, 25.1 in progress)**.
+**Not started:** Epics 5, 9, 10 (Dialogue Manager installed, unused), 15, 20, 21, 22, 23, 24 (SfxManager only), 26.
+**Recent (2026-09-24 → 09-27):** the whole Epic 25 track so far — the tavern hall (shell, door, Hourglass Pillar, hearth, round bar, desk and board), the exterior (tavern, hill, path, bridge, village, forest), the six-class roster, the villager/patron kit, the Cat, Den Fa, the Bartender and the Quest Dealer; then the anime correct course (2026-09-26) and Story 25.30, the anime pipeline with the Quest Dealer as its first body (failsafe suite 502/502). Details under "Epic 25 progress" below.
+**Next (see `_bmad-output/planning-artifacts/demo-roadmap-2026-10-03.md` in the BMAD workspace):** close the review queue (25.30 first), then Story 10.2 (the dialogue box: walk up, press E, portrait, text and choices — Den Fa first) and 10.3, a scope correct-course (Farmland, City Hub and the legacy transition: the Kickstarter plan and the epics disagree), then 25.31 (the anime human cast) and the demo systems critical path.
+**Tracking:** story statuses now live in the BMAD workspace's `_bmad-output/implementation-artifacts/sprint-status.yaml` (what the BMAD workflows read); this file stays the detailed per-feature log. Update both when a story changes status.
+
+## Earlier snapshot (2026-08-20)
 **Shipped:** Epic 1 (100%) · Epic 2 (~92%) · Epic 3 (~100%) · Epic 7 (~95%, all 6 stories) · Epic 13 (~85%).
 **In progress:** Epic 4 (~88%) · Epic 6 (~70%, mission-count cap fixed) · Epic 8 (~80%, Stories 8.4 + 8.5 done, FSM granularity + real sit/cheer/stand animations, animation-hang regression fixed) · Epic 11 (~65%) · Epic 12 (~75%, built same-day as its own spec) · Epic 14 (~40%) · Epic 18 (~30%) · Epic 19 (~30%).
 **Eternal layer:** deaths write to `codex.dat` cemetery (Story 7.1) and are now viewable in-game via the Codex overlay (2026-08-18) — still a plain list, not the "Dragon Eye Book" set-piece. Artifact-tier loot (Epic 12) now feeds the same eternal file.
@@ -268,9 +277,10 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 10: Narrative Systems & Story Beats
-**Status: ~5%**
-- [x] Dialogue Manager plugin installed and active
-- [ ] No narrative panel system, no Den Fa, no Hidden Threshold, no Kingdom Chronicle
+**Status: ~5% — next up: Story 10.2 (the dialogue box, Den Fa first), then 10.3 (Den Fa's Early/Mid/Late states).**
+- [x] Dialogue Manager plugin installed and active (no `.dialogue` files yet)
+- [x] Den Fa has a body and a seat by the hearth (Story 25.10); "Press E - Talk to Den Fa" shows a placeholder speech bubble from `data/dialogue/den_fa_lines.json` until 10.2/10.3
+- [ ] No dialogue box, no narrative panel system, no Den Fa state machine, no Hidden Threshold, no Kingdom Chronicle
 
 ---
 
@@ -344,12 +354,12 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 
 ---
 
-## Epics 15–26: Not Started
+## Epics 15–26
 
 | Epic | Status | Notes |
 |------|--------|-------|
 | 15: Farmland & Drinks | 0% | No farmland, no drink types beyond beer |
-| 16: Staff & Automation | 0% | **Demo-Partial since 2026-09-24:** Stories 16.1–16.5 (Bartender + Desk Manager) are in the demo's scope: in the demo profile both are there from day 1 (K9, Story 25.13); in the full game they unlock by reputation (Story 14.6) and are hired through Epic 16. LimboAI 1.6.0 loads as a GDExtension (`.godot/extension_list.cfg`; no editor-plugin switch needed) for 16.3/16.4 (plain GDScript FSM is the fallback). **Art and seam ready (Story 25.13, 2026-09-26):** the Bartender and the Quest Dealer bodies with seven staff clips; `scripts/game/staff_npc.gd` + `bartender.gd` / `quest_dealer.gd` with a cosmetic autopilot and the API 16.3/16.4 drive (`serve_toward`, `restock`, `enter_idle`, `set_work_state`, `drink_handed`); `GuildBus.staff_hired` / `staff_fired`; `GameManager.is_staff_hired(role)` (a stub for 16.1); the demo profile (`game_config.json` `profile: "demo"`, `demo_start_staff`) has both there from day 1 |
+| 16: Staff & Automation | ~10% (art + seam only) | **Demo-Partial since 2026-09-24:** Stories 16.1–16.5 (Bartender + Desk Manager) are in the demo's scope: in the demo profile both are there from day 1 (K9, Story 25.13); in the full game they unlock by reputation (Story 14.6) and are hired through Epic 16. LimboAI 1.6.0 loads as a GDExtension (`.godot/extension_list.cfg`; no editor-plugin switch needed) for 16.3/16.4 (plain GDScript FSM is the fallback). **Art and seam ready (Story 25.13, 2026-09-26):** the Bartender and the Quest Dealer bodies with seven staff clips; `scripts/game/staff_npc.gd` + `bartender.gd` / `quest_dealer.gd` with a cosmetic autopilot and the API 16.3/16.4 drive (`serve_toward`, `restock`, `enter_idle`, `set_work_state`, `drink_handed`); `GuildBus.staff_hired` / `staff_fired`; `GameManager.is_staff_hired(role)` (a stub for 16.1); the demo profile (`game_config.json` `profile: "demo"`, `demo_start_staff`) has both there from day 1 |
 | 17: Tarot Evolution | ~5% | 78-card deck data + `DataManager` Tarot API exist and recruits carry a unique card (Epic 4.1); no evolution/leveling mechanic yet |
 | 18: Codex | ~30% | **Basic viewer shipped (2026-08-18)** — `scripts/menus/codex_menu.gd`, a code-built overlay (same pattern as `settings_menu.gd`) reachable from Main Menu + Pause Menu, shows guild-wide stats (runs/best day/gold/missions). Not yet the full "Dragon Eye Book" presentation — plain list UI, no dedicated art/theming pass |
 | 19: Memorial & Cemetery | ~30% | **Basic viewer shipped (2026-08-18)** — same `codex_menu.gd` renders `codex.dat.fallen_heroes` (name/class/Tarot card/hire+death day/missions completed) with `PortraitSocket` portraits, verified live against real save data. Not yet a dedicated memorial wall / cemetery scene — this is a list, not the eventual set-piece |
@@ -358,12 +368,12 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 | 22: Legacy Transition | 0% | No LegacyTransition class |
 | 23: City Hub Buildings | 0% | No church, apothecary, alley |
 | 24: Audio & Ambient | ~15% | `SfxManager` autoload (pooled SFX on the SFX bus) + coin-payment SFX live; Master/Music/SFX bus layout from Epic 2.2. No music beds / ambient loops yet |
-| 25: Demo Art Pipeline & Demo Cast | ~47% | Stories 25.14 (villager and patron body kit), 25.15 (the Cat), 25.10 (Den Fa, the Architect) and 25.13 (the Bartender and the Quest Dealer) done after review; Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door), 25.4 (the Hourglass Pillar), 25.5 (the Hearth and firewood), 25.6 (the round bar and drinks service), 25.7 (the guild desk and mission board), 25.9 (the class roster: Healer and Ranger bodies), 25.8 (Guild Tavern exterior + map miniature), 25.29 (exterior ground, forest and village; added 2026-09-25) and 25.30 (the anime character pipeline and the Quest Dealer) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. 15 of 32 stories built. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`); **the anime cast added 2026-09-26** (`sprint-change-proposal-2026-09-26.md`). 32 stories — Tier 1 (25.1–25.25 + 25.30–25.32) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art, and the anime cast (25.30 the anime character pipeline + the Quest Dealer, 25.31 the human cast, 25.32 Den Fa and the Cat; sprint-change-proposal-2026-09-26). Tier 2 (25.26–25.27) is polish; stock art ships if it isn't done. 25.28 (the inked class reskins) is folded into 25.31. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
+| 25: Demo Art Pipeline & Demo Cast | 15 of 32 built (4 done, 10 in review, 25.1 in progress; 2026-10-03) | Stories 25.14 (villager and patron body kit), 25.15 (the Cat), 25.10 (Den Fa, the Architect) and 25.13 (the Bartender and the Quest Dealer) done after review; Stories 25.1 (pipeline readiness), 25.2 (D1 Prior Ruins gate asset), 25.3 (tavern room shell + front door), 25.4 (the Hourglass Pillar), 25.5 (the Hearth and firewood), 25.6 (the round bar and drinks service), 25.7 (the guild desk and mission board), 25.9 (the class roster: Healer and Ranger bodies), 25.8 (Guild Tavern exterior + map miniature), 25.29 (exterior ground, forest and village; added 2026-09-25) and 25.30 (the anime character pipeline and the Quest Dealer) in review on branch `epic-25-pipeline`; see "Epic 25 progress" below. 15 of 32 stories built. **Added 2026-09-24** (BMAD `sprint-change-proposal-2026-09-24.md`); **the anime cast added 2026-09-26** (`sprint-change-proposal-2026-09-26.md`). 32 stories — Tier 1 (25.1–25.25 + 25.30–25.32) is demo-critical: pipeline + gate asset, the tavern hall (shell, pillar, hearth, bar, desk/board, exterior), the demo cast (Healer/Ranger + one class list, Den Fa, the Elder, the Bard, Bartender + Quest Dealer, villager/patron body kit, the Cat, animations, dialogue portraits), memorial + cemetery, Codex lectern, UI skin, icons, card frames, lighting, soundscape, menu art, and the anime cast (25.30 the anime character pipeline + the Quest Dealer, 25.31 the human cast, 25.32 Den Fa and the Cat; sprint-change-proposal-2026-09-26). Tier 2 (25.26–25.27) is polish; stock art ships if it isn't done. 25.28 (the inked class reskins) is folded into 25.31. In flight already: D1 Prior Ruins `modelled`; B1/B2/B6/A1 at `concept` (see `09_ASSET_INVENTORY.md`) | |
 | 26: Full Cast | 0% | **Added 2026-09-24.** Post-demo: Onibi, Garden Manager, the King (portrait/seal/panels) + emissaries, rival musician, Legendary Wanderer, rival guilds, disturbance cast, guards/merchants/clergy, the peoples of the world, mountain elders, character states, Demon King panel art, commissioned NPC portraits |
 
 ### Epic 25 progress
 
-**Story 25.1: pipeline readiness (in review, 2026-09-24).**
+**Story 25.1: pipeline readiness (in progress since 2026-09-24: built, waiting on the Blender add-on switch).**
 - **Renderer verified: Forward+ (Vulkan).** Runtime `forward_plus`; the LookDev proof shot shows normal edges and the roughness mask working.
 - `scenes/dev/LookDev.tscn` added for Stage D quick checks. It auto-quits at 240 s so it can't autosave over your save.
 - Export folders `assets/{environment,characters}/custom/` created.
@@ -472,7 +482,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - Stage D shots all kept against the six character criteria (Raphael's verdict on the Stage D sheet, and the outline weight, pending; his verdict closes Stage D): MainTavern at zoom 12 and 8 (seated and writing, fire and re-hire through the door, AVAILABLE, BRIEFING with its bark), a portrait framing, and the zones walk. The crowd check at 24 bodies: 193 draw calls, 0.350 ms GPU and 0.368 ms CPU on an RTX 3080 (the pass is ≤ 8.3 ms); the hall budget is 200 draw calls.
 - Noted for later: the tavern's old `CoinStackMedium` prop sits on the desk where she writes (deferred); under some light angles faces fall in the toon's dark band (for 25.17/25.31).
 - Failsafe Test 19 extended (106 → 118 checks: per-role GLB rules, the anime look on the live body, import settings, the sit re-fit, the g13 fallback case); the suite is at 502/502.
-- Commits on `epic-25-pipeline` (not pushed): `33be8b3` (the pipeline scripts), `1793434` (the GLB, imports, outline and staff.json), `ae9b4b5` (the look helper, `_body()`, Test 19), `7029a76` (the slimmer quill, Stage D).
+- Commits on `epic-25-pipeline` (not pushed): `33be8b3` (the pipeline scripts), `1793434` (the GLB, imports, outline and staff.json), `ae9b4b5` (the look helper, `_body()`, Test 19), `7029a76` (the slimmer quill, Stage D), `82fc2a5` (the docs: 08 character spec, 09, 04, 02).
+- Open for Raphael: the torso/leg balance (N2-B used by default) and the outline weight (0.011 kept; 0.018 shown). Next: its code review.
 
 ---
 
@@ -537,6 +548,11 @@ A player can:
 12. Save/Load/Continue from main menu
 13. Pause → Save & Exit → Continue later
 14. Walk between tavern interior and exterior world (player only — NPCs don't cross scenes yet)
+15. Walk a dressed tavern hall (Epic 25): the Hourglass Pillar, the hearth (its fire follows the fireplace state), the round bar where patrons sit on stools, the guild desk and the mission board (one notice per open contract)
+16. Pet the Cat in her basket by the hearth (or on her stroll outside); talk to Den Fa by the fire (placeholder line until Story 10.2)
+17. Watch the Bartender work the round bar and the anime Quest Dealer write and brief at the desk (cosmetic until Epic 16; both present from day 1 in the demo profile)
+18. Walk out to the tavern's hill, down the path and over the bridge into the village, with six villagers and their barks; patrons and villagers wear the townsfolk kit
+19. Hire from six classes (Fighter, Rogue, Mage, Healer, Barbarian, Ranger)
 
 ---
 
@@ -551,7 +567,9 @@ A player can:
 4. **Class list — DECIDED 2026-09-24 (supersedes the 2026-08-18 reconcile to the GDD's 4):** demo ships 6 classes — Fighter, Rogue, Mage, Healer, Barbarian, Ranger. Story 25.9 writes that list into `classes.json`, `game_config.json`, `class_colors.json`, `flavor_lines.json` and builds the missing Healer (`Cleric.glb`) + Ranger models.
 5. **Duplicate recruit generator** in `DataManager` — consolidate with the active GameManager path.
 
-**Highest-value next work for the Kickstarter demo:**
+**Current plan (2026-10-03):** `_bmad-output/planning-artifacts/demo-roadmap-2026-10-03.md` (BMAD workspace) supersedes the list below: Phase A closes the review queue, Phase B is the dialogue box (10.2, 10.3), then a scope correct-course, the anime cast (25.31, 25.32) and the demo systems critical path (save/load, dispatch, hire UI, staff, the Bard, Codex, memorial, legacy, audio, tutorial). Of the 2026-07-11 blockers above, the load rework got its fixes on 2026-07-12 and 2026-08-18 (11.2 still open: the world isn't saved to disk), and the dispatch rework is Story 6.5.
+
+**Highest-value next work for the Kickstarter demo (2026-07-11 list, kept for history; Epic 8 items and the basic Codex viewer are done):**
 - **Codex / Memorial viewer** (Epics 18/19) — cemetery data now writes to `codex.dat` (Story 7.1) but has no in-game viewer; the Dragon Eye Book / memorial wall makes those deaths visible & meaningful.
 - **Epic 6 completion** — the map rework, save world to disk, Latest News feed.
 - **Epic 8** — bump patrons to 5, add the eavesdropping trigger, wire Dialogue Manager ambient lines.
