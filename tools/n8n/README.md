@@ -40,7 +40,7 @@ Your sticker, Odoo, and Prodigi workflows are untouched and aren't used here.
   - Bumping `"rev"` on a job regenerates it without changing the prompt.
   - Re-picking an image regenerates everything built from it. The older images stay in the gallery, below the new ones.
 - **Changing `MODEL` regenerates every job**, because the model is part of each job's identity. Only do it on purpose.
-- **Cost cap:** at most `MAX_IMAGES_PER_RUN` (30) images per run, and extra jobs wait for the next run. Check Google's
+- **Cost cap:** at most `MAX_IMAGES_PER_RUN` (15) images per run (it was 30 until 2026-10-03, when a 30-image run hit n8n's 300 s Code-task timeout after 24 images; images saved before a timeout are kept in `status.json` and not re-made), and extra jobs wait for the next run. Check Google's
   current price per image before large runs.
 - **A failed image doesn't stop the run.** It's listed in the report and retried on the next run.
   A missing API key, a broken `asset_prompts.json`, or a corrupt `status.json` stops the run with a clear error.
