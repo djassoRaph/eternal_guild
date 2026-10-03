@@ -62,6 +62,13 @@ var gold: int:
 	set(_v):
 		_read_only("gold")
 
+## Den Fa's state: "early", "mid" or "late" (Story 10.3; GameManager.den_fa_state, forward only).
+var den_fa_state: String:
+	get:
+		return GameManager.den_fa_state
+	set(_v):
+		_read_only("den_fa_state")
+
 ## The demo build's profile (game_config.json "profile").
 var is_demo: bool:
 	get:

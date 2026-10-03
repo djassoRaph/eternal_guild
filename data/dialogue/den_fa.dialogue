@@ -1,8 +1,11 @@
-# DRAFT (Story 10.2): written from narrative-design.md's First Contact brief and his voice rules. Raphael to rewrite.
-# Den Fa, by the fire. first_contact plays once a run (it marks itself seen on its first line); after it,
-# den_fa.gd picks one of the early_N openings, never the same one twice in a row (add early_4 … and he
-# uses it, no code change). Game state comes only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
-# Story 10.3 adds his Mid and Late states here.
+# DRAFT (Story 10.2; Story 10.3 added Mid/Late): written from narrative-design.md's briefs and his voice rules. Raphael to rewrite.
+# Den Fa, by the fire. first_contact plays once a run (it marks itself seen on its first line). Then his
+# state (GameManager.den_fa_state, read as bridge.den_fa_state; it moves forward with the guild's
+# reputation tier: Early, Mid at Known, Late at Trusted) picks: that state's entry title once (mid_enter,
+# late_enter: each marks itself seen on its first line), then one of its numbered openings (early_N, mid_N,
+# late_N), never the same one twice in a row (add mid_4 … and he uses it, no code change). Early asks and
+# notices; Mid acknowledges, and knows what the guild has been through; Late is certain: he states, he
+# doesn't ask. Game state comes only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
 
 ~ first_contact
 do bridge.mark_seen("den_fa_first_contact")
@@ -36,4 +39,52 @@ Den Fa: Another day, and the sand still runs.
 Den Fa: You're still here. Good.
 if bridge.day >= 5
 	Den Fa: {{bridge.day}} days. Most guilds don't last the first week.
+=> END
+
+~ mid_enter
+do bridge.mark_seen("den_fa_mid_enter")
+Den Fa: They speak of your guild at the bar now. I listen. You'd be surprised what people say near a fire.
+if bridge.deaths_this_run > 0
+	Den Fa: They speak of the ones who didn't come back, too. That's how a name is made. Partly.
+Den Fa: Sit. You've earned a little of the warmth.
+=> END
+
+~ mid_1
+Den Fa: {{bridge.adventurers_hired}} hired, this run. You choose them carefully. Or you think you do.
+- I try.
+	Den Fa: Trying is most of it. Not all.
+- What's that supposed to mean?
+	Den Fa: Exactly what it sounds like.
+=> END
+
+~ mid_2
+Den Fa: The pillar's glow changed when you came in. Don't look. It does that.
+=> END
+
+~ mid_3
+Den Fa: "{{bridge.reputation_tier}}," they call your guild now. A small word. It weighs more than it sounds.
+if bridge.deaths_this_run > 0
+	Den Fa: You paid for some of it. You know that already.
+=> END
+
+~ late_enter
+do bridge.mark_seen("den_fa_late_enter")
+Den Fa: You've stopped asking what the pillar is. Good. The question was never the right one.
+Den Fa: The guild will outlast you. That isn't a threat. It's the point.
+=> END
+
+~ late_1
+Den Fa: The sand runs the same for everyone. You've simply started to hear it.
+- I don't hear anything.
+	Den Fa: You will.
+- How long have you been here?
+	Den Fa: Long enough to know you'll ask that again.
+=> END
+
+~ late_2
+Den Fa: Day {{bridge.day}}. You're further along than most. Further than you think.
+=> END
+
+~ late_3
+Den Fa: You came in, you looked at the pillar, you sat down. Same as the first night. Not the same person.
 => END
