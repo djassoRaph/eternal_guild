@@ -1,4 +1,4 @@
-# Route AN — the anime character pipeline (Story 25.30)
+# Route AN — the anime character pipeline (Stories 25.30, 25.31)
 
 The scripts that build every anime (AN) character of the demo cast in Blender 4.5, and the ones paid artists re-run
 after the Kickstarter. The art-side files live in `F:/GAME I AM MAKING/eternal_guild_art/` (`<art>`; not under git);
@@ -11,13 +11,13 @@ Through the Blender MCP server (`mcp__blender__execute_blender_code`), one step 
 persist, so every call starts with:
 
 ```python
-import sys, importlib
+import sys
 T = r"F:\GAME I AM MAKING\shiningsun\tools\blender\anime"
 if T not in sys.path:
     sys.path.insert(0, T)
-import anime_common as C, anime_base_build as B          # ... the modules the step uses
-for m in (C, B):
-    importlib.reload(m)
+for n in [n for n in sys.modules if n.startswith("anime_")]:
+    del sys.modules[n]                                    # fresh imports: a reload order bug kept a stale anime_common
+import anime_common as C, anime_dealer as D              # ... the modules the step uses
 ```
 
 A file load (`open_mainfile`) leaves a stale context: the step after it goes in its own call. Never open a file and
@@ -34,13 +34,55 @@ export in the same call.
 | 4 | `anime_retarget.ratio_step()` | hips + root location keys scaled by the leg ratio, stamped; refuses a stamped file and a rig step 2 hasn't stretched; prints every deform bone's unscaled location offset |
 | 5 | `anime_retarget.refit_sit("Base_Body")` | the three Sit_Chair_* clips rewritten for the 0.44 m seats (KayKit's back offset kept, the height solved, the feet planted), stamped; repeatable; prints `SIT_HIPS_Y` (Test 19's `AN_SIT_HIPS_Y`) and the seat re-measured on the stored clip. In a file that already has Write / Brief it refuses unless `rebuild_ok=True`, and then step 9 runs again |
 | 6 | `anime_retarget.foot_report()` | the 76-clip foot report and the hips-height contact correction (`anime_base_foot_report.json`); stamps the rig (`anime_foot_report`) |
-| 7 | `anime_dealer.open_base_as_dealer()` | the base saved as the character's file (`<art>/blender/g13_quest_dealer_anime.blend`); refuses a base missing a stamp of steps 2, 4, 5 or 6 |
-| 8 | `anime_dealer.build()` | `Base_Body` deleted; her parts, the palette atlas, one `Dealer_Body`, the `Dealer_Quill` prop, the merge report (asserts `Rig` at the origin) |
-| 9 | `anime_anims.build_clips()` | her own clips (Walk_Bar, Write, Brief), the 25.13 IK method; drops `anime_clearcheck`'s cached clouds |
-| 10 | `anime_clearcheck.measure()`, `proof()`, `desk_report()`, `self_clips()` | her body numbers (into `staff.json`), desk and stool clearance, the self-clip checks; each leaves the rig in rest with no active action |
+| 7 | `C.open_base_as(path)` (the dealer: `anime_dealer.open_base_as_dealer(cfg)`) | the base saved as the character's file; refuses a base missing a stamp of steps 2, 4, 5 or 6, the base's own path, and an existing file unless `overwrite_ok=True` |
+| 8 | the role's `build(cfg)` (`anime_dealer.build(D.DEALER)`) | `Base_Body` deleted; its parts (`anime_kit` body parts + `anime_garments` + `anime_hair`), the palette atlas, one `<Role>_Body`, its props, the merge report (asserts `Rig` at the origin) |
+| 9 | the role's `build_clips(cfg)` (`anime_dealer.build_clips`) | its own clips through `anime_anims.build_clips(clips)` (the dealer's Walk_Bar, Write, Brief), the 25.13 IK method; drops `anime_clearcheck`'s cached clouds |
+| 10 | `anime_clearcheck.measure(cfg=)`, `proof(nums, cfg)`, `desk_report(nums, cfg)`, `proof_self_clips(cfg)`, `self_clips(cfg)` | the body numbers (into `staff.json`), desk and stool clearance, the self-clip checks, each check first shown to report on a deliberately bad pose; each leaves the rig in rest with no active action |
 | 11 | export | `export_scene.gltf(use_selection=True, export_apply=False, export_skins=True, export_animations=True, export_yup=True)` with only Rig, the body and its props selected, to a NEW file name |
 
-`anime_face.py` runs in system Python (Pillow): `python anime_face.py <out.png>` paints the face and checks it at mip 5.
+`anime_face.py` runs in system Python (Pillow): `python anime_face.py <out.png> [preset] [--overwrite]` paints a face
+preset (`dealer`, `young_f`, `adult_f`, `aged_f`, `young_m`, `adult_m`, `aged_m`; colours are overrides of `run()`)
+and checks its eyes at mip 5 (>= 40 % darker than the skin). It refuses an existing file without `--overwrite`.
+
+## A role's config (25.31)
+
+Each character is one config dict (`anime_dealer.config()` is the model): its files (`blend`, `face_png`,
+`palette_png`), `palette_mat` and `palette` (key -> hex, in atlas cell order), `body` and `props` names, and the
+`check` block that drives `anime_clearcheck`: which palette keys are hair / legs / skirt / skin / cuff, the Z bands
+(test heights: `skirt_below`, `thigh_band`, `thigh_pad`), the cuff ring (`r`, `tube`, `offset`; omit it for a body
+without cuffs and check (c) is skipped), `seat_keys` (refit_sit's seat: skin, leggings, pelvis; never a robe's hem),
+the clip lists per check, and the station geometry. `anime_dealer.DEALER` is the shipped files; `anime_dealer.SCRATCH`
+writes `<art>/blender/scratch_2531_dealer.blend` and `<art>/textures/anime/scratch/`, never a shipped file (the
+regression rebuild).
+
+## The generic kit (25.31)
+
+- `anime_kit.build_base_body(params=None, join=True)`: no arguments = the chain's joined `Base_Body` (identical:
+  4,872 tris); `build_base_body(params, join=False, prefix=, material=, face=)` returns a character's skin parts
+  `{head, neck, torso, pelvis, arm_l/r, hand_l/r, leg_l/r, foot_l/r}`. Params (`anime_kit.BODY`): `skin`,
+  `torso_girth`, `belly`, `bust`, `arm_girth`, `leg_girth`, `hand_scale`, `pelvis_girth`, segment counts, `boot_top`.
+  Burly bodies (AH-5) are girth, not a new rig.
+- `anime_garments`: elf / human ears, circlet, collar, trims, belt, skirt / robe (profile, back fullness and lift,
+  front ease, a front `slit`), trousers, mantles, cuffs, apron, tabard, cape, shawl, hood / headscarf, hats
+  (`build_hat(kind)`: straw, cap, morion, beret; each prints its top against the 2.25 cap), pack, purse, beards. Each
+  builds one skinned smooth part in the caller's material; the caller paints (`anime_atlas.paint_part`) and joins.
+  Check every hat from the game camera's height (a wide brim hides the face).
+- `anime_hair.build_preset(name, prefix, material, lod)`: `long` (the dealer's), `short`, `cropped`, `bald` (no
+  parts; a beard is a garment), `ponytail`, `bun` (grey = the palette cell).
+- `anime_anims`: `base_pose`, `arm_to`, `leg_to`, `squat`, `lean`, `turn_head`, `in_frame_of`, `make_clip`,
+  `walk_bar(hand, pole, stride)` (the dealer's elbows out; the Bartender's tucked: hand (0.15, -0.36, 0.70),
+  pole (0.30, 0.35, 0.80)), `build_clips(clips)`.
+- `anime_retarget.refit_sit(body_name, seat_verts=)` iterates the seat solve -> foot IK -> re-measure on the stored
+  clip until |error| < 0.002 (refuses beyond 0.01) and takes SIT_HIPS_Y from the post-IK clip; a clothed body passes
+  `anime_clearcheck.seat_verts(cfg)`. A role's own clips (actions `ratio_step` never stamped) block it unless
+  `rebuild_ok=True`.
+- Self-clip checks (`anime_clearcheck`): (a) hair vs the arm capsules; (b) for every thigh vertex the skirt covers at
+  rest, the ray from the upper leg's axis through it must hit the skirt at or beyond it (pokes, open misses, and
+  misses that leave downward under the hem, reported apart); (c) the hand's skin inside the cuff ring's axial span
+  stays within its inner radius, the Sit_Chair clips included. `proof_self_clips(cfg)` shows each one reporting.
+- Faces: `anime_kit.build_head` decides the face UVs per face (front faces projected, the others one skin texel at
+  their side's edge), so no face mixes projected and fallback corners (the dealer's shipped head smears eye, blush and
+  lip texels across her left cheek; 25.31 S0).
 
 **Changing a bone length or the arm adduction** means editing `anime_rig.py`'s table and rebuilding the whole chain
 from the untouched kit (steps 1a–6), then the character file (7–10). Never re-run the ratio step on a retargeted base

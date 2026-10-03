@@ -5,10 +5,12 @@
 #                  a rig anime_rig.run hasn't stretched (rig["anime_rig"]): the ratio would be 1.0 and lock the clips.
 #   refit_sit()    Sit_Chair_Down / Idle / StandUp rewritten absolutely from anime_base_kaykit_sit.json: KayKit's back
 #                  offset kept (0 -> 0.397 m, unscaled: RealisticPatron's SIT_HIP_BACK 0.40 stays true), the height
-#                  solved so the body's lowest seat vertex rests on the 0.44 m seat, the feet planted by two-bone leg IK.
-#                  Repeatable (never scales), not blocked by the stamp; prints SIT_HIPS_Y (Test 19's AN_SIT_HIPS_Y)
-#                  and the seat re-measured on the stored clip. Refuses a file that already has Write / Brief (built
-#                  from Sit_Chair_Idle by anime_anims.build_clips) unless rebuild_ok=True: then re-run build_clips.
+#                  solved so the body's lowest seat vertex rests on the 0.44 m seat, the feet planted by two-bone leg IK;
+#                  since 25.31 iterated (seat solve -> foot IK -> re-measure on the stored clip, until |error| < 0.002;
+#                  over 0.01 refuses) and measured on body vertices only (seat_verts: skin, leggings, pelvis; never a
+#                  robe's hem). Repeatable (never scales), not blocked by the stamp; prints SIT_HIPS_Y (Test 19's
+#                  AN_SIT_HIPS_Y, from the post-IK clip). Refuses a file that already has a role's own clips (actions
+#                  ratio_step never stamped) unless rebuild_ok=True: then re-run the role's build_clips.
 #   foot_report()  every clip, every frame KayKit's own foot is down (contact), the body's lowest foot within 0.03 m of
 #                  the floor; over the limit, a hips-height contact correction (smoothed); a before/after table;
 #                  the rig stamped rig["anime_foot_report"] (anime_dealer.open_base_as_dealer checks it).
@@ -138,17 +140,21 @@ def rest_pose():
     _upd()
 
 
-def seat_low(body):
+def seat_low(body, verts=None):
     """The body's lowest seat vertex (skinned, the current pose): within 0.2 m of the hips horizontally (the knees and
-    shins are ~0.38 m in front of them when seated)."""
+    shins are ~0.38 m in front of them when seated). verts: the vertex indices allowed to sit (the body's own skin,
+    leggings and pelvis; a robe's hem hangs and must never set the seat); None: every vertex (Base_Body is all skin)."""
     arm = C.rig()
     hips = arm.pose.bones["hips"].head
     dg = bpy.context.evaluated_depsgraph_get()
     ev = body.evaluated_get(dg)
     me = ev.to_mesh()
     mw = arm.matrix_world.inverted() @ body.matrix_world
+    allowed = None if verts is None else set(verts)
     low = None
     for v in me.vertices:
+        if allowed is not None and v.index not in allowed:
+            continue
         p = mw @ v.co
         if abs(p.x - hips.x) < 0.2 and abs(p.y - hips.y) < 0.2:
             low = p.z if low is None else min(low, p.z)
@@ -181,13 +187,20 @@ def _rekey(action, bones_props, frames_poses):
     arm.animation_data.action = None
 
 
-def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False):
+SEAT_TOL = 0.002            # refit_sit iterates until the stored clip's seat is this close to the seat top
+SEAT_GATE = 0.01            # ... and refuses beyond this after MAX_ITER rounds
+MAX_ITER = 10                # the error roughly halves per round (a 0.50 m seat: 0.0345 -> 0.0019 in 5)
+
+
+def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False, seat_verts=None):
     arm = C.rig()
     _assert_hips_axes(arm)
-    own = [n for n in ("Write", "Brief") if n in bpy.data.actions]
+    # a role's own clips (anime_anims.build_clips) are the actions ratio_step never stamped; some are built from the
+    # sit clips (the dealer's Write / Brief), so a re-fit under them needs the role's clips rebuilt after it
+    own = sorted(a.name for a in bpy.data.actions if "anime_leg_ratio" not in a)
     if own and not rebuild_ok:
-        raise RuntimeError("%s already built from Sit_Chair_Idle (anime_anims.build_clips): refit_sit(..., rebuild_ok=True), "
-                           "then re-run anime_anims.build_clips()" % own)
+        raise RuntimeError("%s: a role's own clips (anime_anims.build_clips) exist: refit_sit(..., rebuild_ok=True), "
+                           "then re-run the role's build_clips()" % own)
     body = bpy.data.objects[body_name]
     data = C.load_json(C.SIT_JSON)
     idle_rows = data["clips"]["Sit_Chair_Idle"]["rows"]
@@ -202,8 +215,28 @@ def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False):
     hb = arm.pose.bones["hips"]
     hb.location = (loc0[0], 0.0, loc0[2])
     _upd()
-    h_idle = seat_y - seat_low(body)
-    print("seated hips height offset %.4f (hips head at %.4f)" % (h_idle, arm.data.bones["hips"].head_local.z + h_idle))
+    h_idle = seat_y - seat_low(body, seat_verts)
+    print("seated hips height offset %.4f (hips head at %.4f), KayKit's legs" % (h_idle, arm.data.bones["hips"].head_local.z + h_idle))
+    # 2) rewrite the clips with the feet planted (the IK moves the thighs, so the seat moves): re-measure on the stored
+    # clip and correct the height until the seat is within SEAT_TOL
+    for it in range(1, MAX_ITER + 1):
+        out = _refit_clips(data, k, h_idle, seat_y)
+        pose_from(idle, 0)
+        seat_after = seat_low(body, seat_verts)
+        err = seat_y - seat_after
+        print("refit_sit round %d: hips offset %.4f -> stored clip's seat low %.4f (error %+.4f)" % (it, h_idle, seat_after, err))
+        if abs(err) < SEAT_TOL:
+            break
+        h_idle += err
+    rest_pose()
+    if abs(err) > SEAT_GATE:
+        raise RuntimeError("refit_sit: the seat is %.4f m off after %d rounds (gate %.2f): the clips are rewritten but wrong" % (err, it, SEAT_GATE))
+    return _refit_result(arm, idle, out, seat_after, seat_y, own)
+
+
+def _refit_clips(data, k, h_idle, seat_y):
+    """The three sit clips rewritten for this seated hips height (KayKit's own leg rotations, the feet planted)."""
+    arm = C.rig()
     feet_bones = ("upperleg", "lowerleg", "foot", "toes")
     out = {}
     for clip in C.SIT_CLIPS:
@@ -242,10 +275,10 @@ def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False):
         _rekey(act, chans, poses)
         act["anime_sit_refit"] = seat_y
         out[clip] = len(poses)
-    # the stored Sit_Chair_Idle (the foot IK in): its lowest seat vertex, re-measured (a print, not a gate)
-    pose_from(idle, 0)
-    seat_after = seat_low(body)
-    rest_pose()
+    return out
+
+
+def _refit_result(arm, idle, out, seat_after, seat_y, own):
     C.drop_cached_clouds()
     # the result, by FK on the rewritten curves
     cv = C.Curves(idle)
@@ -260,7 +293,7 @@ def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False):
           "hips back (armature +y) %.4f; Down ends %.4f / StandUp starts %.4f from the seat pose"
           % (out, sit_hips_y, seat_after, seat_y, h0.y, (d_end - h0).length, (u_0 - h0).length))
     if own:
-        print("refit_sit: %s were built from the old Sit_Chair_Idle: re-run anime_anims.build_clips() now" % own)
+        print("refit_sit: %s were built from the old sit clips: re-run the role's build_clips() now" % own)
     return sit_hips_y
 
 

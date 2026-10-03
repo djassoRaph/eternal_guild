@@ -293,11 +293,15 @@ TORSO = [(0.0, 0.905), (0.132, 0.91), (0.143, 0.96), (0.118, 1.07), (0.121, 1.14
 TORSO_SY = 0.72
 
 
-def torso_r(z_test):
+def torso_r(z_test, girth=1.0):
+    """The torso lathe's radius at the test's height z_test (times the body's torso girth)."""
     for (r0, z0), (r1, z1) in zip(TORSO[1:-2], TORSO[2:-1]):
         if z0 <= z_test <= z1:
-            return r0 + (r1 - r0) * (z_test - z0) / (z1 - z0)
-    return 0.12
+            return (r0 + (r1 - r0) * (z_test - z0) / (z1 - z0)) * girth
+    return 0.12 * girth
+
+
+FACE_SKIN_V = 0.02          # a face-texture row with nothing painted on it (anime_face: the chin is v 0.0, the mouth ~0.15)
 
 
 def build_head(name, material, face_uv=True, useg=36, vseg=26):
@@ -317,10 +321,16 @@ def build_head(name, material, face_uv=True, useg=36, vseg=26):
     lay = bm.loops.layers.uv.new("UVMap")
     chin = hc.z - HR.z
     for f in bm.faces:
+        c = f.calc_center_median()
+        # decided per FACE (25.31; per corner, a face straddling the cut mixed projected and fallback corners and
+        # smeared eye / blush / lip texels across her left cheek): the front faces take the face texture's projection,
+        # u = 0.5 + x / 0.5, v = (z - chin) / (crown - chin); the others one texel at that side's edge (u 0.02 / 0.98)
+        # on a row with nothing painted on it (FACE_SKIN_V), so a seam face's neighbour samples skin
+        front = face_uv and c.y < 0.03
+        fallback = (0.98 if c.x > 0 else 0.02, FACE_SKIN_V)
         for l in f.loops:
             p = l.vert.co
-            # the face texture's front projection: u = 0.5 + x / 0.5, v = (z - chin) / (crown - chin)
-            l[lay].uv = (0.5 + p.x / 0.5, (p.z - chin) / (2 * HR.z)) if (face_uv and p.y < 0.03) else (0.02, 0.02)
+            l[lay].uv = (0.5 + p.x / 0.5, (p.z - chin) / (2 * HR.z)) if front else fallback
     ob = new_obj(name, bm, material)
     skin(ob, head_w)
     return ob
@@ -334,9 +344,14 @@ def build_neck(name, material):
     return ob
 
 
-def build_torso(name, material, bust=0.0):
+def build_torso(name, material, bust=0.0, girth=1.0, belly=0.0):
+    """girth scales the radii (burly bodies, AH-5); belly pushes the front of the lower torso forward (m)."""
     bm = bmesh.new()
-    lathe(bm, [(r, Z(z)) for r, z in TORSO], segs=28, sy=TORSO_SY)
+    lathe(bm, [(r * girth, Z(z)) for r, z in TORSO], segs=28, sy=TORSO_SY)
+    if belly:
+        for v in bm.verts:
+            if v.co.y < 0:
+                v.co.y -= belly * math.exp(-((v.co.z - Z(1.05)) / 0.11) ** 2) * math.exp(-(v.co.x / 0.11) ** 2)
     if bust:
         for v in bm.verts:
             if v.co.y < 0:
@@ -353,10 +368,10 @@ def arm_pts(s):
     return sh, el, wr
 
 
-def build_arm(name, material, s, radii=None, sides=12, rings=12):
+def build_arm(name, material, s, radii=None, sides=12, rings=12, girth=1.0):
     sh, el, wr = arm_pts(s)
     pts = catmull([sh, el, wr + (wr - el).normalized() * 0.02], rings)
-    radii = radii or [0.049 - 0.009 * (i / (rings - 1)) ** 0.7 + (0.006 if i == rings - 1 else 0.0) for i in range(rings)]
+    radii = radii or [(0.049 - 0.009 * (i / (rings - 1)) ** 0.7 + (0.006 if i == rings - 1 else 0.0)) * girth for i in range(rings)]
     bm = bmesh.new()
     strand(bm, pts, radii, sides=sides)
     arm_fn = chain(["upperarm." + s, "lowerarm." + s, "wrist." + s, "hand." + s])
@@ -373,29 +388,33 @@ def build_arm(name, material, s, radii=None, sides=12, rings=12):
     return ob
 
 
-def build_hand(name, material, s, lod=1.0):
-    """The hand, built round the re-seated handslot (N6), reaching back inside the cuff."""
+def build_hand(name, material, s, lod=1.0, scale=1.0):
+    """The hand, built round the re-seated handslot (N6), reaching back inside the cuff. scale: bigger hands for burly
+    bodies (the palm stays on the slot)."""
     sh, el, wr = arm_pts(s)
     d = (wr - el).normalized()
     c = H("handslot." + s)                                  # the palm's centre (anime_rig re-seats the slot there)
     q = lambda n: max(4, int(round(n * lod)))
+    k = scale
     bm = bmesh.new()
-    ellipsoid(bm, c, 0.066, 0.042, 0.025, q(12), q(8))
-    ellipsoid(bm, wr + d * 0.055 + Vector((0, -0.036, 0.004)), 0.026, 0.014, 0.014, q(8), q(6))    # the thumb
-    ellipsoid(bm, wr + d * 0.005, 0.034, 0.030, 0.024, q(10), q(6))                                  # the wrist, into the cuff
+    ellipsoid(bm, c, 0.066 * k, 0.042 * k, 0.025 * k, q(12), q(8))
+    ellipsoid(bm, wr + d * 0.055 + Vector((0, -0.036, 0.004)) * k, 0.026 * k, 0.014 * k, 0.014 * k, q(8), q(6))    # the thumb
+    ellipsoid(bm, wr + d * 0.005, 0.034 * k, 0.030 * k, 0.024 * k, q(10), q(6))                                  # the wrist, into the cuff
     ob = new_obj(name, bm, material)
     skin(ob, chain(["wrist." + s, "hand." + s], 0.02))
     return ob
 
 
-def build_leg(name, material, s, sides=12, rings=14):
+def build_leg(name, material, s, sides=12, rings=14, girth=1.0, radii=None):
+    """A leg (or a trouser leg: anime_garments.build_trousers passes its radii). girth scales the default radii."""
     sx = 1 if s == "l" else -1
     hip, knee, ank = Vector((0.105 * sx, 0, H("upperleg." + s).z + 0.007)), T("upperleg." + s), T("lowerleg." + s)
     bm = bmesh.new()
     top = hip + (knee - hip) * 0.14
     pts = catmull([top, knee, ank], rings)
+    radii = radii or [(0.070 - 0.027 * (i / (rings - 1))) * girth for i in range(rings)]
     # a near-vertical tube takes the front as its ring axis (an up hint along the tube flips the rings: the knee pinch)
-    strand(bm, pts, [0.070 - 0.027 * (i / (rings - 1)) for i in range(rings)], sides=sides, up_of=lambda p: Vector((0, -1, 0)))
+    strand(bm, pts, radii, sides=sides, up_of=lambda p: Vector((0, -1, 0)))
     leg_fn = chain(["upperleg." + s, "lowerleg." + s, "foot." + s], 0.06)
     zb = Z(0.86)
 
@@ -431,10 +450,11 @@ def build_foot(name, material, s, boot_top=None, sides=12):
     return ob
 
 
-def build_pelvis(name, material):
+def build_pelvis(name, material, girth=1.0):
     """The hips and the tops of the thighs, closing the gap between the torso and the legs (hips-weighted)."""
     bm = bmesh.new()
-    lathe(bm, [(0.128, Z(0.93)), (0.136, Z(0.89)), (0.132, Z(0.85)), (0.112, Z(0.815)), (0.0, Z(0.80))], segs=28, sy=TORSO_SY + 0.06)
+    lathe(bm, [(r * girth, z) for r, z in [(0.128, Z(0.93)), (0.136, Z(0.89)), (0.132, Z(0.85)), (0.112, Z(0.815)), (0.0, Z(0.80))]],
+          segs=28, sy=TORSO_SY + 0.06)
     ob = new_obj(name, bm, material)
     skin(ob, lambda co: {"hips": 1.0})
     return ob
@@ -450,19 +470,55 @@ def remove(names):
                 bpy.data.meshes.remove(me)
 
 
-BASE_PARTS = ["Base_Head", "Base_Neck", "Base_Torso", "Base_Pelvis", "Base_Arm_l", "Base_Arm_r", "Base_Hand_l", "Base_Hand_r",
-              "Base_Leg_l", "Base_Leg_r", "Base_Foot_l", "Base_Foot_r"]
+# A body's params (F6; AH-5: variety from girth, not from new rigs). The defaults are Base_Body's: x 1.0 is exact, so
+# build_base_body() with no arguments yields the identical joined Base_Body (4,872 tris; 25.31 V17).
+BODY = {"skin": "F7DECF", "torso_girth": 1.0, "belly": 0.0, "bust": 0.0, "arm_girth": 1.0, "leg_girth": 1.0,
+        "hand_scale": 1.0, "pelvis_girth": 1.0, "head_seg": (36, 26), "arm_seg": (12, 12), "leg_seg": (12, 14), "hand_lod": 1.0,
+        "foot_sides": 12, "boot_top": None}
+PARTS = ("head", "neck", "torso", "pelvis", "arm_l", "arm_r", "hand_l", "hand_r", "leg_l", "leg_r", "foot_l", "foot_r")
+BASE_PARTS = ["Base_" + k[0].upper() + k[1:] for k in PARTS]       # Base_Head ... Base_Foot_r
 
 
-def build_base_body(skin_hex="F7DECF"):
-    """Base_Body: the neutral unclothed SD body, one object, one skin material (the reference body)."""
+def body_params(params=None):
+    """BODY with the caller's overrides (an unknown key refuses: a typo would silently build the default)."""
+    params = dict(params or {})
+    unknown = sorted(set(params) - set(BODY))
+    assert not unknown, "unknown body params %s (known: %s)" % (unknown, sorted(BODY))
+    out = dict(BODY)
+    out.update(params)
+    return out
+
+
+def build_base_body(params=None, join=True, prefix="Base_", material=None, face=None):
+    """The skin parts of a body from params (body_params: skin colour, torso girth and belly, bust, arm and leg girth,
+    hand scale, pelvis girth, segment counts, boots).
+    join=True (chain step 3): one object `Base_Body`, one skin material: the neutral reference body (never exported).
+    join=False: a character's parts unjoined, {part: object} for PARTS, named prefix + Head ... Foot_r, in `material`
+    (default: a skin material) with the head in `face` (face-projected UVs) when given; the caller paints them, adds
+    its garments and joins (anime_merge.join). Code review F6."""
+    p = body_params(params)
     setup()
-    remove(BASE_PARTS + ["Base_Body"])
-    m = mat("AN_BaseSkin", skin_hex)
-    objs = [build_head("Base_Head", m, face_uv=False), build_neck("Base_Neck", m), build_torso("Base_Torso", m), build_pelvis("Base_Pelvis", m),
-            build_arm("Base_Arm_l", m, "l"), build_arm("Base_Arm_r", m, "r"), build_hand("Base_Hand_l", m, "l"),
-            build_hand("Base_Hand_r", m, "r"), build_leg("Base_Leg_l", m, "l"), build_leg("Base_Leg_r", m, "r"),
-            build_foot("Base_Foot_l", m, "l"), build_foot("Base_Foot_r", m, "r")]
+    names = {k: prefix + k[0].upper() + k[1:] for k in PARTS}
+    remove(list(names.values()) + (["Base_Body"] if join else []))
+    m = material or mat("AN_BaseSkin" if join else prefix + "Skin", p["skin"])
+    hu, hv = p["head_seg"]
+    asd, ari = p["arm_seg"]
+    lsd, lri = p["leg_seg"]
+    parts = {"head": build_head(names["head"], face or m, face_uv=face is not None, useg=hu, vseg=hv),
+             "neck": build_neck(names["neck"], m),
+             "torso": build_torso(names["torso"], m, bust=p["bust"], girth=p["torso_girth"], belly=p["belly"]),
+             "pelvis": build_pelvis(names["pelvis"], m, girth=p["pelvis_girth"])}
+    for s in ("l", "r"):
+        parts["arm_" + s] = build_arm(names["arm_" + s], m, s, sides=asd, rings=ari, girth=p["arm_girth"])
+    for s in ("l", "r"):
+        parts["hand_" + s] = build_hand(names["hand_" + s], m, s, lod=p["hand_lod"], scale=p["hand_scale"])
+    for s in ("l", "r"):
+        parts["leg_" + s] = build_leg(names["leg_" + s], m, s, sides=lsd, rings=lri, girth=p["leg_girth"])
+    for s in ("l", "r"):
+        parts["foot_" + s] = build_foot(names["foot_" + s], m, s, boot_top=p["boot_top"], sides=p["foot_sides"])
+    if not join:
+        return parts
+    objs = [parts[k] for k in PARTS]
     for o in bpy.context.selected_objects:
         o.select_set(False)
     for o in objs:

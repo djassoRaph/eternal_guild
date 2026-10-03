@@ -1,10 +1,12 @@
-# anime_dealer.py - route AN (Story 25.30, catalogue G13): the silver-elf Quest Dealer on the anime base.
-#   open_base_as_dealer()  anime_base.blend saved as g13_quest_dealer_anime.blend (its own call: the context is stale
-#                          right after a file load), once the base carries every chain step's stamp (rig, ratio, sit
-#                          re-fit, foot report). Base_Body stays in the file until build()
-#   build()                Base_Body deleted by name (_drop_base_body); her parts (the approved test's design, cleaned
-#                          up), the palette atlas, one Dealer_Body
-#                          (the atlas + the face: 2 surfaces), the Dealer_Quill prop on handslot.r, the merge report
+# anime_dealer.py - route AN (Story 25.30, catalogue G13): the silver-elf Quest Dealer on the anime base. Since 25.31
+# one config (`config()`: her files, palette, body, props, clips, clearance-check keys and desk geometry) drives the
+# generic kit; DEALER is the shipped files, SCRATCH the regression rebuild's (25.31 V3: it never writes a shipped file).
+#   open_base_as_dealer(cfg)  anime_base.blend saved as cfg's .blend (C.open_base_as: the stamp checks; its own call:
+#                             the context is stale right after a file load). Base_Body stays in the file until build()
+#   build(cfg)                Base_Body deleted by name; her parts (anime_kit body parts + anime_garments, her values),
+#                             the palette atlas, one Dealer_Body (the atlas + the face: 2 surfaces), the Dealer_Quill prop
+#                             on handslot.r, the merge report
+#   build_clips(cfg)          her own clips (Walk_Bar, Write, Brief) through anime_anims
 # Her look (Raphael's silver-haired elf): long platinum hair with a centre-parted fringe showing the circlet's red gem,
 # face-framing locks and back hair to the waist; long elf ears; big teal eyes (the face texture); a high-collared plum
 # coat with gold trim, mantles, cuffs and belt; dark leggings; boots. Colours are demo-grade ("plum is okay").
@@ -12,22 +14,27 @@
 # the stool instead of swinging through it); the thigh tops start inside the pelvis; the mantles blend chest to upper
 # arm; the hands are built round the re-seated slot, reaching into the cuffs; denser skirt rings; leaner segment counts
 # for the <= 10,000-triangle budget.
+#
+# Her seat (Story 25.30, T5): hip_back 0.397 = KayKit's own seated hips offset, so her hips sit over the stool's centre
+# (the WorkPoint) and her root 0.397 m in front of it. The desk slab's back edge is then 0.093 m BEHIND her root (the
+# WorkPoint is 0.304 m behind it), its top 0.85 up; the open ledger's near edge (desk-local z -0.14, pages at x -0.33 /
+# -0.11: to her right) is 0.64 - hip_back ahead of the root, its top 0.88.
 import math
 
 import bmesh
 import bpy
+import numpy as np
 from mathutils import Vector
 
+import anime_anims as AN
 import anime_atlas as A
 import anime_common as C
+import anime_garments as G
 import anime_hair as HAIR
 import anime_kit as K
 import anime_merge as MG
 import anime_retarget as RT
 
-DEALER_BLEND = C.BLEND + "g13_quest_dealer_anime.blend"
-FACE_PNG = C.ART + "textures/anime/g13_quest_dealer_face.png"
-PALETTE_PNG = C.ART + "textures/anime/g13_quest_dealer_palette.png"
 PALETTE_MAT = "dealer_palette"               # the atlas material and image (anime_clearcheck finds her flat parts by it)
 PALETTE = {"skin": "F7DECF", "hair": "D9DBE6", "coat": "6E3159", "dark": "3A1D33", "gold": "D6A94E", "gem": "C92A3E",
            "boots": "4D3427", "feather": "F2EEE2", "shaft": "A8A092", "nib": "2B1D1F"}
@@ -35,17 +42,39 @@ LOD = 0.75
 QUILL_DIR = Vector((0.70, -0.30, 0.64))      # rest frame: up and back out of her writing fist (25.13's, measured in Write)
 QUILL_SHAFT_FACES = 7                        # the shaft strand's 5 sides + 2 caps: build() splits the UVs at this index
 QUILL_VANE_FACES = 8                         # 2 sides x 4 vane quads
+HIP_BACK = 0.397
+
+# the guild desk and her stool (Godot tavern coordinates; the 25.30 geometry table): anime_clearcheck's desk_report
+DESK_GEOMETRY = {"desk": np.array([11.600, 0.100, -4.300]), "work_point": np.array([11.600, 0.540, -5.080]), "slab_back": -4.776,
+                 "stool_box": (np.array([11.397, 0.094, -5.302]), np.array([11.803, 0.540, -4.905])),
+                 "stool_centre": np.array([11.600, 0.540, -5.1035]), "approach": np.array([11.0, 0.100, -5.50])}
 
 
-def open_base_as_dealer():
-    bpy.ops.wm.open_mainfile(filepath=C.BASE_BLEND)
-    arm = bpy.data.objects["Rig"]
-    assert "anime_rig" in arm and any("anime_leg_ratio" in a for a in bpy.data.actions), "not a finished base"
-    unfit = [n for n in C.SIT_CLIPS if "anime_sit_refit" not in bpy.data.actions[n]]
-    assert not unfit, "not a finished base: %s not re-fitted (anime_retarget.refit_sit)" % unfit
-    assert "anime_foot_report" in arm, "not a finished base: no foot report / contact correction (anime_retarget.foot_report)"
-    bpy.ops.wm.save_as_mainfile(filepath=DEALER_BLEND)
-    return bpy.data.filepath
+def config(blend=C.BLEND + "g13_quest_dealer_anime.blend", face_png=C.TEXTURES + "g13_quest_dealer_face.png",
+           palette_png=C.TEXTURES + "g13_quest_dealer_palette.png"):
+    """The dealer's config. Only the paths vary (the shipped files, or a scratch rebuild's)."""
+    return {"role": "dealer", "blend": blend, "face_png": face_png, "palette_png": palette_png,
+            "palette_mat": PALETTE_MAT, "palette": PALETTE, "body": "Dealer_Body", "props": ["Dealer_Quill"],
+            # anime_clearcheck: which palette keys are which, its Z bands (test heights) and clip lists
+            "check": {"keys": {"hair": "hair", "legs": "dark", "skirt": "coat", "skin": "skin", "cuff": "gold"},
+                      "skirt_below": 0.70, "thigh_band": (0.66, 0.95), "thigh_pad": 0.02,
+                      "hair_clips": ("Idle", "Walking_A", "Walk_Bar", "Interact", "Write", "Brief"),
+                      "thigh_clips": ("Idle", "Walking_A", "Walk_Bar", "Sit_Chair_Down", "Sit_Chair_Idle"),
+                      "cuff_clips": ("Idle", "Walking_A", "Walk_Bar", "Interact", "Write", "Brief", "Sit_Chair_Down",
+                                     "Sit_Chair_Idle", "Sit_Chair_StandUp"),
+                      "cuff": {"r": 0.043, "tube": 0.009, "offset": 0.012},     # anime_garments.build_cuff's
+                      "seat_keys": ("skin", "dark"),                            # refit_sit's seat: never the coat's hem
+                      "walk_clip": "Walk_Bar", "hall_clip": "Walking_A", "seated_clips": ("Sit_Chair_Idle", "Write", "Brief"),
+                      "geometry": DESK_GEOMETRY, "hip_back": HIP_BACK}}
+
+
+DEALER = config()
+SCRATCH = config(blend=C.BLEND + "scratch_2531_dealer.blend", face_png=C.SCRATCH_TEXTURES + "g13_quest_dealer_face.png",
+                 palette_png=C.SCRATCH_TEXTURES + "g13_quest_dealer_palette.png")
+
+
+def open_base_as_dealer(cfg=DEALER, overwrite_ok=False):
+    return C.open_base_as(cfg["blend"], overwrite_ok=overwrite_ok)
 
 
 def _drop_base_body():
@@ -53,153 +82,6 @@ def _drop_base_body():
     m = bpy.data.materials.get("AN_BaseSkin")
     if m and m.users == 0:
         bpy.data.materials.remove(m)
-
-
-# ------------------------------------------------------------------ her own pieces (heights through K.Z)
-
-def build_ears(name, mat):
-    hc = K.HC()
-    bm = bmesh.new()
-    for sx in (1, -1):
-        base = hc + Vector((0.212 * sx, 0.025, -0.025))
-        d = Vector((0.86 * sx, 0.24, 0.45)).normalized()
-        n = 9
-        pts = [base + d * (0.26 * i / (n - 1)) for i in range(n)]
-        radii = [0.058 * (1 - i / (n - 1)) ** 0.85 + 0.002 for i in range(n)]
-        K.strand(bm, pts, radii, sides=8, flat=0.28, up_of=lambda p: Vector((0, 0.25, 1)), pole_tip=True)
-    ob = K.new_obj(name, bm, mat)
-    K.skin(ob, K.head_w)
-    return ob
-
-
-def build_circlet(name, gem_name, mat):
-    Z = K.Z
-    bm = bmesh.new()
-    pts = []
-    for i in range(36):
-        th = 2 * math.pi * i / 36
-        z = Z(1.884) + 0.075 * (1 - math.cos(th)) / 2
-        x, y = K.head_radius_at(th, z, grow=0.010)
-        pts.append(Vector((x, y, z)))
-    K.loop_tube(bm, pts, 0.0065, sides=4)
-    ob = K.new_obj(name, bm, mat)
-    K.skin(ob, K.head_w)
-    bm = bmesh.new()
-    gy = K.head_radius_at(0.0, Z(1.874), grow=0.0)[1]
-    K.ellipsoid(bm, Vector((0, gy - 0.014, Z(1.874))), 0.020, 0.012, 0.026, 10, 6)
-    gem = K.new_obj(gem_name, bm, mat)
-    K.skin(gem, K.head_w)
-    return ob, gem
-
-
-def build_collar(name, trim_name, mat):
-    Z = K.Z
-    bm = bmesh.new()
-    K.lathe(bm, [(0.060, Z(1.425)), (0.068, Z(1.47)), (0.077, Z(1.52)), (0.084, Z(1.556))], segs=20, sy=0.9)
-    ob = K.new_obj(name, bm, mat)
-    K.skin(ob, K.neck_w)
-    bm = bmesh.new()
-    K.loop_tube(bm, [Vector((0.085 * math.sin(a), -0.085 * 0.9 * math.cos(a), Z(1.556))) for a in [2 * math.pi * i / 20 for i in range(20)]], 0.008, sides=4)
-    ob2 = K.new_obj(trim_name, bm, mat)
-    K.skin(ob2, K.neck_w)
-    return ob, ob2
-
-
-def build_trims(name, mat):
-    Z, tr = K.Z, K.torso_r
-    bm = bmesh.new()
-    zs = [1.43 - 0.03 * i for i in range(14)]
-    front = [Vector((0, -K.TORSO_SY * tr(z) - 0.006 - (0.02 if 1.22 < z < 1.29 else 0.0), Z(z))) for z in zs]
-    K.strand(bm, front, [0.010] * len(front), sides=4, flat=0.5, up_of=lambda p: Vector((0, -1, 0)))
-    for zb in (1.33, 1.18):
-        K.ellipsoid(bm, Vector((0, -K.TORSO_SY * tr(zb) - 0.018, Z(zb))), 0.02, 0.012, 0.016, 8, 5)
-    belt = [Vector((0.126 * math.sin(a), -0.126 * K.TORSO_SY * math.cos(a), Z(1.06))) for a in [2 * math.pi * i / 24 for i in range(24)]]
-    K.loop_tube(bm, belt, 0.013, sides=4)
-    ob = K.new_obj(name, bm, mat)
-    K.skin(ob, K.torso_w)
-    return ob
-
-
-SKIRT = [(0.123, 1.07), (0.138, 1.00), (0.185, 0.88), (0.232, 0.76), (0.262, 0.66)]
-
-
-def _skirt_shape(v, top_z, hem_z):
-    """The back half fuller (depth x1.35 at the hem) and higher (+0.08 at the hem: a coat cut longer in front), so the
-    seated back hem stays within 0.048 m of the stool's seat top (the hips-rigid back sinks with the hips)."""
-    h = K.clamp01((top_z - v.z) / (top_z - hem_z))
-    if v.y < 0:
-        v.y *= 1.0 + 0.13 * h                           # a little ease in front for the thighs' stride (T5)
-    if v.y > 0:
-        k = min(1.0, v.y / 0.12)
-        v.y *= 1.0 + 0.35 * h * k
-        v.z += 0.08 * h * k
-
-
-def skirt_w_fn(top_z, hem_z):
-    def fn(co):
-        h = K.clamp01((top_z - co.z) / (top_z - hem_z))
-        s = K.clamp01(0.5 + co.x / 0.26)
-        front = K.clamp01(0.5 - co.y / 0.2)               # the back stays with the hips (seated: behind the stool)
-        wl = 0.9 * h ** 0.35 * (0.1 + 0.9 * front)          # h^0.35: the front follows the thighs higher up (T5)
-        return {"hips": 1 - wl, "upperleg.l": wl * s, "upperleg.r": wl * (1 - s)}
-    return fn
-
-
-def build_skirt(name, trim_name, mat):
-    Z = K.Z
-    prof = []
-    for (r0, z0), (r1, z1) in zip(SKIRT[:-1], SKIRT[1:]):
-        for t in (0.0, 1 / 3, 2 / 3):                    # denser rings: the hem deforms over the thighs
-            prof.append((r0 + (r1 - r0) * t, Z(z0 + (z1 - z0) * t)))
-    prof.append((SKIRT[-1][0], Z(SKIRT[-1][1])))
-    top_z, hem_z = prof[0][1], prof[-1][1]
-    bm = bmesh.new()
-    K.lathe(bm, prof, segs=24, sy=0.84)
-    for v in bm.verts:
-        _skirt_shape(v.co, top_z, hem_z)
-    ob = K.new_obj(name, bm, mat)
-    wfn = skirt_w_fn(top_z, hem_z)
-    K.skin(ob, wfn)
-    bm = bmesh.new()
-    hem = []
-    for a in [2 * math.pi * i / 28 for i in range(28)]:
-        p = Vector((0.266 * math.sin(a), -0.266 * 0.84 * math.cos(a), hem_z + 0.002))
-        _skirt_shape(p, top_z, hem_z)
-        hem.append(p)
-    K.loop_tube(bm, hem, 0.012, sides=4)
-    ob2 = K.new_obj(trim_name, bm, mat)
-    K.skin(ob2, wfn)
-    return ob, ob2
-
-
-def build_mantle(name, trim_name, mat, s):
-    sx = 1 if s == "l" else -1
-    Z = K.Z
-    bm = bmesh.new()
-    K.lathe(bm, [(0.0, 0.085), (0.05, 0.08), (0.085, 0.058), (0.102, 0.025), (0.108, 0.0)], segs=16)
-    R = Vector((0, 0, 1)).rotation_difference(Vector((0.62 * sx, 0, 0.78)).normalized()).to_matrix()
-    c = Vector((0.205 * sx, 0.0, Z(1.345)))
-    for v in bm.verts:
-        v.co = R @ v.co + c
-    ob = K.new_obj(name, bm, mat)
-    K.skin(ob, K.shoulder_w(s))
-    bm = bmesh.new()
-    rim = [R @ Vector((0.108 * math.cos(2 * math.pi * k / 16), 0.108 * math.sin(2 * math.pi * k / 16), 0.0)) + c for k in range(16)]
-    K.loop_tube(bm, rim, 0.008, sides=4)
-    ob2 = K.new_obj(trim_name, bm, mat)
-    K.skin(ob2, K.shoulder_w(s))
-    return ob, ob2
-
-
-def build_cuff(name, mat, s):
-    sh, el, wr = K.arm_pts(s)
-    d = (wr - el).normalized()
-    u, w = K.ring_frame(d, Vector((0, 0, 1)))
-    bm = bmesh.new()
-    K.loop_tube(bm, [wr + d * 0.012 + (u * math.cos(2 * math.pi * k / 12) + w * math.sin(2 * math.pi * k / 12)) * 0.043 for k in range(12)], 0.009, sides=4)
-    ob = K.new_obj(name, bm, mat)
-    K.skin(ob, K.chain(["upperarm." + s, "lowerarm." + s, "wrist." + s, "hand." + s]))
-    return ob
 
 
 def build_quill(name, mat):
@@ -232,47 +114,46 @@ def build_quill(name, mat):
     return ob
 
 
-def build():
-    assert bpy.data.filepath.endswith("g13_quest_dealer_anime.blend"), "open_base_as_dealer() first"
+def build(cfg=DEALER):
+    assert C.is_open(cfg["blend"]), "open_base_as_dealer(cfg) first (this file is %r, the config's %r)" % (bpy.data.filepath, cfg["blend"])
     RT.rest_pose()             # build in the REST pose: a bone-parented prop placed on a posed bone keeps the pose's offset
     _drop_base_body()
     K.setup()
     old = [o.name for o in bpy.data.objects if o.type == "MESH" and o.name.startswith(("AN_", "Dealer_"))]
     K.remove(old)
-    face = K.mat("AN_Dealer_Face", PALETTE["skin"], FACE_PNG)
+    face = K.mat("AN_Dealer_Face", PALETTE["skin"], cfg["face_png"])
     # the datablock's name only: Godot names an extracted image after its PNG file, <glb>_<png> =
     # g13_quest_dealer_anime_g13_quest_dealer_face.png (and ..._palette.png)
     next(n for n in face.node_tree.nodes if n.type == "TEX_IMAGE").image.name = "dealer_face"
-    pal, cells = A.build(PALETTE_MAT, PALETTE_PNG, PALETTE)
-    q = lambda n: max(4, int(round(n * LOD)))
+    pal, cells = A.build(cfg["palette_mat"], cfg["palette_png"], cfg["palette"])
     parts = {}
 
     def add(ob, key):
         parts[ob.name] = key
         return ob
 
-    head = add(K.build_head("AN_Head", face, face_uv=True, useg=32, vseg=22), None)
-    add(build_ears("AN_Ears", pal), "skin")
+    add(K.build_head("AN_Head", face, face_uv=True, useg=32, vseg=22), None)
+    add(G.build_ears("AN_Ears", pal), "skin")
     add(K.build_neck("AN_Neck", pal), "skin")
-    col, colt = build_collar("AN_Collar", "AN_CollarTrim", pal)
+    col, colt = G.build_collar("AN_Collar", "AN_CollarTrim", pal)
     add(col, "coat")
     add(colt, "gold")
     add(K.build_torso("AN_Torso", pal, bust=0.022), "coat")
-    add(build_trims("AN_Trim", pal), "gold")
+    add(G.build_trims("AN_Trim", pal), "gold")
     add(K.build_pelvis("AN_Pelvis", pal), "dark")
-    sk, skt = build_skirt("AN_Skirt", "AN_SkirtTrim", pal)
+    sk, skt = G.build_skirt("AN_Skirt", "AN_SkirtTrim", pal)
     add(sk, "coat")
     add(skt, "gold")
     for s in ("l", "r"):
         add(K.build_arm("AN_Sleeve_" + s, pal, s, sides=10, rings=10), "coat")
-        add(build_cuff("AN_Cuff_" + s, pal, s), "gold")
+        add(G.build_cuff("AN_Cuff_" + s, pal, s), "gold")
         add(K.build_hand("AN_Hand_" + s, pal, s, lod=0.8), "skin")
-        mt, mtt = build_mantle("AN_Mantle_" + s, "AN_MantleTrim_" + s, pal, s)
+        mt, mtt = G.build_mantle("AN_Mantle_" + s, "AN_MantleTrim_" + s, pal, s)
         add(mt, "coat")
         add(mtt, "gold")
         add(K.build_leg("AN_Leg_" + s, pal, s, sides=10, rings=12), "dark")
         add(K.build_foot("AN_Boot_" + s, pal, s, boot_top=0.08, sides=10), "boots")
-    circ, gem = build_circlet("AN_Circlet", "AN_Gem", pal)
+    circ, gem = G.build_circlet("AN_Circlet", "AN_Gem", pal)
     add(circ, "gold")
     add(gem, "gem")
     for ob in HAIR.build_all("AN_", pal, lod=LOD):
@@ -289,7 +170,65 @@ def build():
         key = "feather" if poly.index >= QUILL_SHAFT_FACES else "shaft"     # the strand's 5 sides and 2 caps first, then the vane
         for li in poly.loop_indices:
             lay.data[li].uv = cells[key]
-    body = MG.join("Dealer_Body", [bpy.data.objects[n] for n in parts])
+    body = MG.join(cfg["body"], [bpy.data.objects[n] for n in parts])
     C.drop_cached_clouds()
     ok, stats = MG.check(body, props=[quill])
     return ok, stats
+
+
+# ------------------------------------------------------------------ her clips (the 25.13 method, anime_anims)
+
+def ledger(hip_back=HIP_BACK):
+    return Vector((-0.12, -(0.64 - hip_back + 0.04), 0.92))
+
+
+def pose_write(t, length=AN.SIT_IDLE_S, hip_back=HIP_BACK):
+    """Seated: the quill hand makes small strokes on the ledger's near page, lifting to pause once a loop; the left
+    hand rests on the desk; head down."""
+    AN.base_pose("Sit_Chair_Idle", t)
+    AN.lean(26.0, bone="chest")
+    k = t / length
+    pause = max(0.0, 1 - abs(k - 0.8) / 0.1)
+    AN.turn_head(pitch=14.0 - 12.0 * pause)
+    stroke = Vector((0.03 * math.sin(2 * math.pi * 6 * k), 0.012 * math.sin(2 * math.pi * 12 * k), 0.0)) * (1 - pause)
+    quill = ledger(hip_back) + stroke + Vector((0.0, 0.03, 0.09)) * pause
+    AN.arm_to("r", quill, Vector((-0.6, 0.3, 0.5)))
+    AN.arm_to("l", Vector((0.12, -(0.64 - hip_back), 0.93)), Vector((0.7, 0.3, 0.6)))      # resting, clear of the slab edge
+
+
+def pose_brief(t, length=AN.SIT_IDLE_S, hip_back=HIP_BACK):
+    """Seated, head up toward the customer side; both hands gesture above the desk top; one 'counting on fingers'
+    beat ('I'll need three days')."""
+    AN.base_pose("Sit_Chair_Idle", t)
+    k = t / length
+    AN.turn_head(pitch=-4.0, yaw=6.0 * math.sin(2 * math.pi * k))
+    dy = hip_back - 0.32                                     # 25.13's targets, moved back with her deeper seat
+    open_r = Vector((-0.20, -0.20 + dy, 1.08 + 0.05 * math.sin(2 * math.pi * 2 * k)))
+    open_l = Vector((0.20, -0.18 + dy, 1.06 + 0.04 * math.sin(2 * math.pi * 2 * k + 1.3)))
+    count = max(0.0, 1 - abs(k - 0.5) / 0.18)
+    AN.arm_to("r", open_r.lerp(Vector((-0.06, -0.24 + dy, 1.16)), count), Vector((-0.6, 0.3, 1.0)))
+    AN.arm_to("l", open_l.lerp(Vector((0.06, -0.22 + dy, 1.12)), count), Vector((0.6, 0.3, 1.0)))
+
+
+# Walk_Bar: elbows OUT to the sides (25.30 T5: pointing back, they went into her back hair)
+CLIPS = [("Walk_Bar", AN.WALKING_A_S, AN.walk_bar(hand=(0.12, -0.26, 1.00), pole=(0.55, 0.05, 1.10)), True),
+         ("Write", AN.SIT_IDLE_S, pose_write, True), ("Brief", AN.SIT_IDLE_S, pose_brief, True)]
+
+
+def build_clips(cfg=DEALER, names=None):
+    assert C.is_open(cfg["blend"]), "build_clips: open the dealer's file (%r) first" % cfg["blend"]
+    return AN.build_clips(CLIPS, names)
+
+
+def write_reach(hip_back=HIP_BACK):
+    """The quill hand's (handslot.r) worst distance to the ledger target over Write."""
+    arm = C.rig()
+    act = bpy.data.actions["Write"]
+    worst = 0.0
+    for f in C.frames(act):
+        m = C.fk(arm, C.Curves(act), f, ["handslot.r"])
+        k = f / (AN.SIT_IDLE_S * AN.FPS)
+        pause = max(0.0, 1 - abs(k - 0.8) / 0.1)
+        if pause == 0.0:
+            worst = max(worst, (m["handslot.r"].translation - ledger(hip_back)).length)
+    return worst

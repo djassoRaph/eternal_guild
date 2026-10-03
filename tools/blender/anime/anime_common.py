@@ -23,10 +23,39 @@ GAME_CLIPS = ("Idle", "Walking_A", "Running_A", "Cheer", "Interact")   # FT CAST
 SEAT_Y = 0.44                                           # every seat in the game: bar stools, the desk stool
 DESK_TOP = 0.85                                         # the guild desk's top, root-local when seated
 KAYKIT_SIT_BACK = 0.397                                 # KayKit's Sit_Chair_Idle hips, back from the root (armature +Y)
+TEXTURES = ART + "textures/anime/"
+SCRATCH_TEXTURES = TEXTURES + "scratch/"                # regression rebuilds write here, never over a shipped PNG (25.31 V3)
 
 
 def rig():
     return bpy.data.objects["Rig"]
+
+
+def norm_path(p):
+    return os.path.normcase(os.path.normpath(os.path.abspath(p)))
+
+
+def is_open(path):
+    """The open .blend is `path` (case and slash insensitive)."""
+    return bool(bpy.data.filepath) and norm_path(bpy.data.filepath) == norm_path(path)
+
+
+def open_base_as(role_blend_path, overwrite_ok=False):
+    """Chain step 7 for any role: anime_base.blend saved as the role's own .blend, once the base carries every chain
+    step's stamp (rig, ratio, sit re-fit, foot report). A file load: the next step goes in its own call. Refuses the
+    base's own path, and an existing file unless overwrite_ok (N5: a rebuild over a shipped file is a decision)."""
+    assert norm_path(role_blend_path) != norm_path(BASE_BLEND), "open_base_as: the base itself is not a role file"
+    assert overwrite_ok or not os.path.exists(role_blend_path), \
+        "open_base_as: %s exists (pass overwrite_ok=True to rebuild it)" % role_blend_path
+    bpy.ops.wm.open_mainfile(filepath=BASE_BLEND)
+    arm = bpy.data.objects["Rig"]
+    assert "anime_rig" in arm and any("anime_leg_ratio" in a for a in bpy.data.actions), "not a finished base"
+    unfit = [n for n in SIT_CLIPS if "anime_sit_refit" not in bpy.data.actions[n]]
+    assert not unfit, "not a finished base: %s not re-fitted (anime_retarget.refit_sit)" % unfit
+    assert "anime_foot_report" in arm, "not a finished base: no foot report / contact correction (anime_retarget.foot_report)"
+    os.makedirs(os.path.dirname(role_blend_path), exist_ok=True)
+    bpy.ops.wm.save_as_mainfile(filepath=role_blend_path)
+    return bpy.data.filepath
 
 
 def to_godot(p):

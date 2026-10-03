@@ -1,12 +1,9 @@
-# anime_anims.py - route AN (Story 25.30): a role's own clips on the anime rig, the 25.13 method (staff_anims.py):
-# each clip starts from a retargeted KayKit clip's pose at the matching time and changes only what the work needs
-# (a torso lean, hands placed on real targets by two-bone arm IK). Targets are in the character's REST frame
-# (Blender: front -Y, up Z, her left +X, root at the origin). The Quest Dealer's three: Walk_Bar, Write, Brief.
-#
-# Her seat (Story 25.30, T5): hip_back 0.397 = KayKit's own seated hips offset, so her hips sit over the stool's centre
-# (the WorkPoint) and her root 0.397 m in front of it. The desk slab's back edge is then 0.093 m BEHIND her root (the
-# WorkPoint is 0.304 m behind it), its top 0.85 up; the open ledger's near edge (desk-local z -0.14, pages at x -0.33 /
-# -0.11: to her right) is 0.64 - hip_back ahead of the root, its top 0.88.
+# anime_anims.py - route AN (Stories 25.30, 25.31): a role's own clips on the anime rig, the 25.13 method
+# (pipeline_ref/25_13/staff_anims.py): each clip starts from a retargeted KayKit clip's pose at the matching time and
+# changes only what the work needs (a torso lean, a squat with the feet kept, hands placed on real targets by two-bone
+# arm IK). Targets are in the character's REST frame (Blender: front -Y, up Z, the character's left +X, root at the
+# origin). Generic: the role's clip list is its own config (anime_dealer.CLIPS: Walk_Bar, Write, Brief), built with
+# build_clips(clips). N9: actions are file-global, so one role per .blend.
 import math
 
 import bpy
@@ -16,14 +13,13 @@ import anime_common as C
 import anime_retarget as RT
 
 FPS = 24
-HIP_BACK = 0.397
 ARM = {"l": ("upperarm.l", "lowerarm.l", "handslot.l"), "r": ("upperarm.r", "lowerarm.r", "handslot.r")}
+LEG = {"l": ("upperleg.l", "lowerleg.l", "foot.l"), "r": ("upperleg.r", "lowerleg.r", "foot.r")}
 LEG_BONES = ["upperleg.l", "lowerleg.l", "foot.l", "toes.l", "upperleg.r", "lowerleg.r", "foot.r", "toes.r"]
-BAR_STRIDE = 0.45          # Walk_Bar's legs: 45% of Walking_A's swing (the shuffle near the desk)
-
-
-def ledger(hip_back=HIP_BACK):
-    return Vector((-0.12, -(0.64 - hip_back + 0.04), 0.92))
+BAR_STRIDE = 0.45          # Walk_Bar's legs: 45% of Walking_A's swing (the shuffle near the desk / along the bar)
+WALKING_A_S = 25.6 / FPS
+IDLE_S = 25.6 / FPS
+SIT_IDLE_S = 86.4 / FPS
 
 
 def _act(name):
@@ -41,6 +37,11 @@ def arm_to(side, target, pole):
     RT.two_bone(u, l, h, target, pole)
 
 
+def leg_to(side, foot_target, pole):
+    u, l, f = LEG[side]
+    RT.two_bone(u, l, f, foot_target, pole)
+
+
 def lean(deg, bone="spine"):
     RT.rotate_about(bone, Matrix.Rotation(math.radians(deg), 3, "X"))
 
@@ -52,7 +53,16 @@ def turn_head(pitch=0.0, yaw=0.0):
         RT.rotate_about("head", Matrix.Rotation(math.radians(yaw), 3, "Z"))
 
 
+def squat(drop, feet=None):
+    """Lower the hips by drop, keeping the feet where they are (two-bone leg IK, knees forward)."""
+    feet = feet or {s: RT.pm(LEG[s][2]).translation.copy() for s in ("l", "r")}
+    RT.set_pm("hips", Matrix.Translation(Vector((0, 0, -drop))) @ RT.pm("hips"))
+    for s in ("l", "r"):
+        leg_to(s, feet[s], RT.pm(LEG[s][1]).translation + Vector((0, -0.6, 0.1)))
+
+
 def in_frame_of(bone, rest_point):
+    """A rest-frame point carried along with a bone's current pose (so hands ride the torso's bob)."""
     arm = C.rig()
     L = arm.data.bones[bone].matrix_local
     return RT.pm(bone) @ (L.inverted() @ Vector(rest_point))
@@ -104,65 +114,35 @@ def make_clip(name, length_s, pose_at, loop=True, step=1):
     return act
 
 
-WALKING_A_S = 25.6 / FPS
-SIT_IDLE_S = 86.4 / FPS
+def walk_bar(hand=(0.12, -0.26, 1.00), pole=(0.55, 0.05, 1.10), stride=BAR_STRIDE, swing=0.02):
+    """A pose function for Walk_Bar: Walking_A's torso with its legs' swing cut to `stride` (blended toward Idle, the
+    hips' bob with it: the feet stay down), both hands held in front of the belly at `hand` (chest-carried rest point,
+    x mirrored), elbows toward `pole`, riding the chest's bob. The dealer's defaults: elbows OUT to the sides (clear
+    of her back hair); the Bartender's (25.13): hand (0.15, -0.36, 0.70), pole (0.30, 0.35, 0.80), elbows TUCKED."""
+    def pose(t):
+        base_pose("Idle", t)
+        arm = C.rig()
+        idle = {b: arm.pose.bones[b].rotation_quaternion.copy() for b in LEG_BONES}
+        idle_h = arm.pose.bones["hips"].location.copy()
+        base_pose("Walking_A", t)
+        for b in LEG_BONES:
+            pb = arm.pose.bones[b]
+            pb.rotation_quaternion = idle[b].slerp(pb.rotation_quaternion, stride)
+        hb = arm.pose.bones["hips"]
+        hb.location = idle_h.lerp(hb.location, stride)
+        RT._upd()
+        sw = swing * math.sin(2 * math.pi * t / WALKING_A_S)
+        for s, sx in (("l", 1), ("r", -1)):
+            tgt = in_frame_of("chest", (hand[0] * sx, hand[1], hand[2] + sw * sx))
+            pl = in_frame_of("chest", (pole[0] * sx, pole[1], pole[2]))
+            arm_to(s, tgt, pl)
+    return pose
 
 
-def pose_walk_bar(t):
-    """Walking_A's torso with its legs' swing cut to BAR_STRIDE (blended toward Idle), both hands held in front of the
-    belly, elbows tucked, riding the chest's bob: her arms stay off the desk top."""
-    base_pose("Idle", t)
-    arm = C.rig()
-    idle = {b: arm.pose.bones[b].rotation_quaternion.copy() for b in LEG_BONES}
-    idle_h = arm.pose.bones["hips"].location.copy()
-    base_pose("Walking_A", t)
-    for b in LEG_BONES:
-        pb = arm.pose.bones[b]
-        pb.rotation_quaternion = idle[b].slerp(pb.rotation_quaternion, BAR_STRIDE)
-    hb = arm.pose.bones["hips"]
-    hb.location = idle_h.lerp(hb.location, BAR_STRIDE)       # the bob shrinks with the stride (the feet stay down)
-    RT._upd()
-    sw = 0.02 * math.sin(2 * math.pi * t / WALKING_A_S)
-    for s, sx in (("l", 1), ("r", -1)):
-        tgt = in_frame_of("chest", (0.12 * sx, -0.26, 1.00 + sw * sx))
-        pole = in_frame_of("chest", (0.55 * sx, 0.05, 1.10))      # elbows out to the sides: clear of the back hair
-        arm_to(s, tgt, pole)
-
-
-def pose_write(t, length=SIT_IDLE_S, hip_back=HIP_BACK):
-    """Seated: the quill hand makes small strokes on the ledger's near page, lifting to pause once a loop; the left
-    hand rests on the desk; head down."""
-    base_pose("Sit_Chair_Idle", t)
-    lean(26.0, bone="chest")
-    k = t / length
-    pause = max(0.0, 1 - abs(k - 0.8) / 0.1)
-    turn_head(pitch=14.0 - 12.0 * pause)
-    stroke = Vector((0.03 * math.sin(2 * math.pi * 6 * k), 0.012 * math.sin(2 * math.pi * 12 * k), 0.0)) * (1 - pause)
-    quill = ledger(hip_back) + stroke + Vector((0.0, 0.03, 0.09)) * pause
-    arm_to("r", quill, Vector((-0.6, 0.3, 0.5)))
-    arm_to("l", Vector((0.12, -(0.64 - hip_back), 0.93)), Vector((0.7, 0.3, 0.6)))      # resting, clear of the slab edge
-
-
-def pose_brief(t, length=SIT_IDLE_S, hip_back=HIP_BACK):
-    """Seated, head up toward the customer side; both hands gesture above the desk top; one 'counting on fingers'
-    beat ('I'll need three days')."""
-    base_pose("Sit_Chair_Idle", t)
-    k = t / length
-    turn_head(pitch=-4.0, yaw=6.0 * math.sin(2 * math.pi * k))
-    dy = hip_back - 0.32                                     # 25.13's targets, moved back with her deeper seat
-    open_r = Vector((-0.20, -0.20 + dy, 1.08 + 0.05 * math.sin(2 * math.pi * 2 * k)))
-    open_l = Vector((0.20, -0.18 + dy, 1.06 + 0.04 * math.sin(2 * math.pi * 2 * k + 1.3)))
-    count = max(0.0, 1 - abs(k - 0.5) / 0.18)
-    arm_to("r", open_r.lerp(Vector((-0.06, -0.24 + dy, 1.16)), count), Vector((-0.6, 0.3, 1.0)))
-    arm_to("l", open_l.lerp(Vector((0.06, -0.22 + dy, 1.12)), count), Vector((0.6, 0.3, 1.0)))
-
-
-CLIPS = [("Walk_Bar", WALKING_A_S, pose_walk_bar, True), ("Write", SIT_IDLE_S, pose_write, True), ("Brief", SIT_IDLE_S, pose_brief, True)]
-
-
-def build_clips(names=None):
+def build_clips(clips, names=None):
+    """clips: the role's [(name, length_s, pose_at(t), loop)], in build order; names: a subset to (re)build."""
     out = []
-    for name, length, fn, loop in CLIPS:
+    for name, length, fn, loop in clips:
         if names and name not in names:
             continue
         act = make_clip(name, length, fn, loop=loop, step=2 if length > 2.5 else 1)
@@ -170,17 +150,3 @@ def build_clips(names=None):
     RT.rest_pose()
     C.drop_cached_clouds()          # anime_clearcheck's clouds of the old clips
     return out
-
-
-def write_reach(hip_back=HIP_BACK):
-    """The quill hand's (handslot.r) worst distance to the ledger target over Write, and the quill's nib height."""
-    arm = C.rig()
-    act = _act("Write")
-    worst = 0.0
-    for f in C.frames(act):
-        m = C.fk(arm, C.Curves(act), f, ["handslot.r"])
-        k = f / (SIT_IDLE_S * FPS)
-        pause = max(0.0, 1 - abs(k - 0.8) / 0.1)
-        if pause == 0.0:
-            worst = max(worst, (m["handslot.r"].translation - ledger(hip_back)).length)
-    return worst
