@@ -573,6 +573,39 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
     autopilot, `set_work_state`, fire and re-hire.
 - **Stage D:** the character variant in §6.5 (six pass criteria and the crowd check).
 
+### Character concepts (Story 25.31, n8n `stage: "character"`)
+
+Concepts first (AH-2): Raphael paints a turnaround sheet per character with `tools/n8n/`, picks one per character
+in the gallery (`picked/<job id>.png`), and the Blender build follows the pick (a look guide, not a blueprint).
+The 14 jobs mirror this section. Each job: `stage: "character"`, 16:9, 3 variants; refs (relative to the art
+folder) `refs/anime_dealer_turnaround.png` (the shipped Quest Dealer, front/side/back, Idle pose) and
+`anime_test/anime_test_report.jpg` (the approved anime test), plus the character's own reference from Raphael's
+`documentation/artwork/use to inspire/` copied to `refs/` with a name. They sit first in the job list, in slice
+order (S1, then S2 the townsfolk, then S3 the classes): the 30-image cap takes the first ten jobs in run 1.
+
+Each prompt is the shared opening, then the character's line, then the palette rules:
+
+> Character turnaround sheet of ONE character shown three times side by side: front view, right side view, back view. Full body, standing upright, arms relaxed about 35 degrees away from the body, orthographic, plain light-grey background, no text, no labels, no frames. Use the attached turnaround only for the proportions, the rendering and the three-view layout, NOT for its design, colours, hair or ears: 3D anime SD proportions (about 3.5 heads tall, a big head, a slim body, big expressive anime eyes), the look of a 1980s-90s fantasy anime (Record of Lodoss War), cel shading in two tones with dark ink outlines, flat colours, chunky simple shapes that still read from a high game camera. A human, round human ears.
+
+> Palette rules for the whole cast: no green anywhere[, except …]; no cream or off-white clothing[, except …]; no teal-blue (that is another character's colour). Hands empty unless a prop is named.
+
+| Job | Extra ref | The character's line | Palette exceptions |
+|---|---|---|---|
+| `C_G1_player` | `refs/raphael_lodoss_parn_cloak.png` | The player: ONE man, a weathered retired adventurer given a second chance, an old soldier in his forties: tired kind eyes, a short scruffy beard and short dark hair touched with grey, a few scars. A long travel coat or a cape in weathered brown or dusty slate grey-blue (never green), a plain linen shirt, a leather jerkin and belt, dark trousers, practical worn boots. No weapon drawn; a sword may hang at the hip. Humble, practical, lived-in. | none |
+| `C_G12_bartender` | `refs/raphael_pixel_tavern_barkeep.jpg` | The tavern's Bartender: a burly, broad-shouldered barkeep with a belly, bare-headed (bald or very short cropped hair) and a full grey beard, thick forearms. A wine-red shirt with the sleeves rolled up to the elbows (no cuffs), a knee-length dark brown leather apron, dark trousers, sturdy boots, a small off-white bar cloth tucked in his belt. Dry wit, never stops moving. Chunky readable shapes, no weapons. | except his small bar cloth |
+| `C_G19_farmer` | none | A farmer (townsfolk): a middle-aged man with a full brown beard, a wide straw hat whose brim still lets the face show from above, a loose undyed linen shirt, brown trousers held by a rope belt, straw-coloured and earthy brown tones, worn boots. Hands free. | none |
+| `C_G19_local` | none | A local (townsfolk): a town man in his thirties, clean-shaven or stubble, a soft cloth cap with a short peak, a blue-grey tunic over a brown shirt, brown trousers, a belt, simple shoes. Ordinary and friendly. Hands free. | none |
+| `C_G19_traveller` | none | A traveller (townsfolk): a road-worn wanderer (a man or a woman) in a dusty brown and grey hooded travel cloak with the hood up, a bedroll strapped across the top of a small backpack, a scarf, worn boots, a water skin at the belt. Dusty brown and grey only (NOT green). Hands free. | none |
+| `C_G19_guard` | none | A town guard (townsfolk): a sturdy man in grey mail with a steel morion helmet (a crested comb on top and a brim that sweeps up at the front and back, his face fully visible: NOT a wide flat brim), a deep crimson livery tabard with a gold hem over the mail, a belt, steel-capped boots. Alert, proud. Hands free (no spear). | none |
+| `C_G19_merchant` | none | A merchant (townsfolk): a well-fed man with a trimmed beard, a floppy beret worn at a slant with a small feather, a deep violet-purple coat with gold trim (a cooler purple than plum), a fat coin purse at his belt, rings, good boots. Shrewd and cheerful. Hands free. | none |
+| `C_G19_old_woman` | none | An old woman (townsfolk): a small elderly woman with grey hair in a bun, a headscarf, a draped shawl in muted lavender (NOT cream), a long brown dress, a wooden cane in her right hand. Kind, a little hunched. | none |
+| `C_G2_fighter` | `refs/raphael_anime_adventurer_party.jpg` | The Fighter adventurer: a young man, disciplined but questioning, in practical plate-and-mail armour with a brick-red surcoat and trims, a longsword at the hip and a round shield on the back, no helmet (or one with the face fully open), short hair. | none |
+| `C_G3_rogue` | `refs/raphael_anime_adventurer_party.jpg` | The Rogue adventurer: a young woman, talented but reckless, a red ponytail, light dark-brown leathers with a short hooded cowl down on her shoulders, two daggers at her belt, a small green scarf as her only touch of green, soft boots. Quick and cocky. | except the Rogue's small green scarf |
+| `C_G4_mage` | `refs/raphael_lodoss_cloaked_mage.jpg` | The Mage adventurer: a young man, book-smart, in long mid-blue robes with darker blue trim, a LOW floppy wide hat that does not stand tall (or a hood), a leather book satchel, a wooden staff in his right hand, cloth shoes. Studious, a little nervous. | none |
+| `C_G5_healer` | `refs/raphael_anime_adventurer_party.jpg` | The Healer adventurer: a young woman in cream-white robes with a soft healer's hood, a tabard with a green cross, a satchel at her hip, warm gold trims, a wooden staff in her right hand topped with a GLOWING green crystal. Calm and kind. | except the Healer's green cross and glowing green crystal; except the Healer's robes |
+| `C_G6_barbarian` | `refs/raphael_anime_adventurer_party.jpg` | The Barbarian adventurer: a burly, broad man with bare muscular arms, a wild beard and long hair, fur on the shoulders, burnt-orange cloth and dark leather, a big axe on his back, heavy boots. All fury, no control. | none |
+| `C_G7_ranger` | `refs/raphael_lodoss_elf_archer_card.jpg` | The Ranger adventurer: a young woman (human, round ears) in forest green and brown leather, a hooded cape, a longbow in her LEFT hand, a quiver of red-fletched arrows on her back, bracers, soft boots. Watchful and calm. | except the Ranger's forest green |
+
 ---
 
 ## 2. The pipeline
