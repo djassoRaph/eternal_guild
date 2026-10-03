@@ -3,10 +3,11 @@
 #
 # A regular by the tavern fire: at the demo start he sits on the hearth's bench (the Hearth's SitPoint)
 # and stays there (decision J8). Stand beside him and "Press E - Talk to Den Fa" opens the dialogue box
-# with his conversation (data/dialogue/den_fa.dialogue, Story 10.2): first contact once a run, then one
-# of his early openings. Story 10.3 adds his Mid/Late states (talked(state) is its hook). stand(),
-# walk_route(), point_at() and return_to_seat() are there for Epic 10's beats (the walk to the bar, the
-# point at the pillar).
+# with his conversation (data/dialogue/den_fa.dialogue, Story 10.2): first contact once a run, then, by
+# his state (Story 10.3: early, mid or late, GameManager.den_fa_state, moved forward by the guild's
+# reputation), that state's entry title once and then its openings, never the same one twice in a row.
+# talked(state) says which state he spoke in. stand(), walk_route(), point_at() and return_to_seat() are
+# there for Epic 10's beats (the walk to the bar, the point at the pillar).
 # No autoload, not a patron, no physics body (the bench collider must not push him): a hand-placed
 # scene with one small script (J7), driven by an AnimationTree state machine built here.
 #
@@ -21,6 +22,7 @@ signal talked(state: String)
 const PROMPT := "Press E - Talk to Den Fa"
 const Runner := preload("res://scripts/dialogue/dialogue_runner.gd")
 const FIRST_CONTACT_FLAG := "den_fa_first_contact"   # set by the file's first_contact title (bridge.mark_seen)
+const FLAG_PREFIX := "den_fa_"    # a state's entry title <state>_enter is seen once den_fa_<state>_enter is set
 const DEN_FA_HIP_BACK := 0.55     # his root (feet) stands this far in front of the seat marker ...
 const SEAT_SIDE := 0.48           # ... and this far to his right (the room side): he stands up clear of the chimney
 const SEAT_HEIGHT := 0.45         # the bench top above his feet
@@ -35,7 +37,8 @@ const STATES := ["Sit", "SitDown", "StandUp", "Idle", "Walk", "Point"]
 @export var seat_path: NodePath
 @export var bar_route: PackedVector3Array
 @export var pillar_target: NodePath
-## His conversation (Story 10.2). Titles: first_contact, early_1 … early_N.
+## His conversation (Story 10.2, 10.3). Titles: first_contact; per state (early, mid, late) an optional
+## <state>_enter and the openings <state>_1 … <state>_N.
 @export_file("*.dialogue") var dialogue_path := "res://data/dialogue/den_fa.dialogue"
 
 @onready var _anim: AnimationPlayer = $AnimationPlayer
@@ -49,7 +52,8 @@ var _prompt_ui: Node = null
 var _prompt_label: Label3D = null
 var _prompt_shown := false
 var _cooldown := 0.0
-var _last_early := -1             # the early opening he used last (index), never repeated next time
+var _last_opening := {}           # state -> the opening (index) he used last in it, never repeated next time
+var _warned_states := {}          # states whose titles are missing (he falls back to early): warned once each
 var _box: Node = null             # his open conversation, if any (closed when he stands up or walks off)
 var _warned_no_titles := false    # his file has nothing to say: warned once
 var _route := PackedVector3Array()
@@ -326,12 +330,13 @@ func can_talk() -> bool:
 	return true
 
 
-## Open his conversation in the dialogue box. talked("early") is Story 10.3's hook, emitted when a line is
-## really shown (a conversation that ends before its first line isn't one). His cooldown runs from the
-## moment the box closes; if it can't open (a broken file, a missing title: the runner warns) he says
-## nothing and E works again after the cooldown.
+## Open his conversation in the dialogue box. talked(state) is emitted when a line is really shown (a
+## conversation that ends before its first line isn't one), with the state he spoke in. His cooldown runs
+## from the moment the box closes; if it can't open (a broken file, a missing title: the runner warns) he
+## says nothing and E works again after the cooldown.
 func talk() -> void:
 	_cooldown = COOLDOWN
+	var state := _state()
 	var resource := Runner.load_dialogue(dialogue_path)
 	var title := _pick_title(resource) if resource != null else ""
 	var box = Runner.open(self, resource, title) if title != "" else null
@@ -339,36 +344,58 @@ func talk() -> void:
 		return
 	_box = box
 	box.closed.connect(_on_conversation_closed)
-	box.first_line.connect(_on_conversation_shown.bind(title), CONNECT_ONE_SHOT)
+	box.first_line.connect(_on_conversation_shown.bind(title, state), CONNECT_ONE_SHOT)
 
 
-## The title to play: first_contact until it is seen this run (if the file has one), then one of the
-## file's early_N openings (whatever numbers it has, so new openings need no code), never the same one
-## twice in a row. "" (and one warning) when the file has neither.
+## His state (Story 10.3): "early", "mid" or "late", read through the dialogue bridge (GameManager's).
+func _state() -> String:
+	var state := str(Runner.new_bridge().den_fa_state)
+	return state if state in ["early", "mid", "late"] else "early"
+
+
+## The title to play (Story 10.3, AC 4): first_contact until it is seen this run (if the file has one); then
+## his state's entry title <state>_enter until it is seen; then one of the state's openings <state>_N
+## (whatever numbers the file has, so new openings need no code), never the same one twice in a row, the
+## memory kept per state. A state with no titles falls back to the early openings (one warning); "" (and
+## one warning) when the file has nothing at all.
 func _pick_title(resource: Resource = null) -> String:
 	if resource == null:
 		resource = Runner.load_dialogue(dialogue_path)
 	if resource == null:
 		return ""
-	var titles = resource.get("titles")
-	if not Runner.new_bridge().seen(FIRST_CONTACT_FLAG) and titles is Dictionary and (titles as Dictionary).has("first_contact"):
+	var titles: Dictionary = resource.get("titles") if resource.get("titles") is Dictionary else {}
+	var bridge = Runner.new_bridge()
+	if not bridge.seen(FIRST_CONTACT_FLAG) and titles.has("first_contact"):
 		return "first_contact"
-	var early := Runner.numbered_titles(resource, "early_")
-	if early.is_empty():
+	var state := _state()
+	var entry := "%s_enter" % state
+	if titles.has(entry) and not bridge.seen(FLAG_PREFIX + entry):
+		return entry
+	var openings := Runner.numbered_titles(resource, state + "_")
+	if openings.is_empty() and state != "early":
+		if not _warned_states.has(state):
+			_warned_states[state] = true
+			push_warning("[DenFa] fallback: %s has no %s_N titles: he uses his early openings" % [dialogue_path, state])
+		state = "early"
+		openings = Runner.numbered_titles(resource, "early_")
+	if openings.is_empty():
 		if not _warned_no_titles:
 			_warned_no_titles = true
 			push_warning("[DenFa] refuse: %s has no first_contact or early_N title: he has nothing to say" % dialogue_path)
 		return ""
-	_last_early = pick_line(early.size(), _last_early, randf())
-	return early[_last_early]
+	var i := pick_line(openings.size(), int(_last_opening.get(state, -1)), randf())
+	_last_opening[state] = i
+	return openings[i]
 
 
-## A line of his conversation is on screen: he has talked. First contact counts as seen from here, even if
-## the file's own mark_seen line is missing (it would replay every time).
-func _on_conversation_shown(title: String) -> void:
+## A line of his conversation is on screen: he has talked (in `state`). First contact and a state's entry
+## count as seen from here, even if the file's own mark_seen line is missing (they would replay every time).
+func _on_conversation_shown(title: String, state: String) -> void:
 	if title == "first_contact":
 		Runner.new_bridge().mark_seen(FIRST_CONTACT_FLAG)
-	talked.emit("early")
+	elif title.ends_with("_enter"):
+		Runner.new_bridge().mark_seen(FLAG_PREFIX + title)
+	talked.emit(state)
 
 
 func _on_conversation_closed() -> void:

@@ -4927,9 +4927,19 @@ func _check_den_fa_walks(gm, res) -> void:
 					first_marked = true
 				if w.menus == 0:
 					break   # no replies in this title: one walk is all of it
-	var menus_total := 0
-	for line in (res.lines as Dictionary).values():
-		if str(line.get("type", "")) == "response":
+	var menus_total := 0                  # the replies in these titles (Story 10.3's Mid/Late titles are Test 21's)
+	var first_title_line := 1 << 30
+	var after_titles := 1 << 30
+	for t in (res.titles as Dictionary).keys():
+		var at := int(res.titles[t])
+		if DEN_FA_TITLES.has(t):
+			first_title_line = mini(first_title_line, at)
+	for t in (res.titles as Dictionary).keys():
+		var at := int(res.titles[t])
+		if not DEN_FA_TITLES.has(t) and at > first_title_line:
+			after_titles = mini(after_titles, at)
+	for id in (res.lines as Dictionary).keys():
+		if str(res.lines[id].get("type", "")) == "response" and str(id).is_valid_int() and int(id) > first_title_line and int(id) < after_titles:
 			menus_total += 1
 	check(why.is_empty() and walks >= 24, "%d walks: every title ends in every state and reply; gated lines only where allowed %s" % [walks, why.slice(0, 4)])
 	check(first_marked and replies_seen.size() == menus_total and menus_total >= 5,
@@ -5285,6 +5295,7 @@ func _check_den_fa_box(gm) -> void:
 	var boxes := func() -> Array:
 		return get_nodes_in_group("dialogue_open")
 
+	gm.den_fa_state = "early"          # Story 10.3: these checks are his Early conversation (restored with the snapshot)
 	gm.dialogue_flags = {"den_fa_first_contact": true}
 	var picks := []
 	for i in 12:
@@ -5671,8 +5682,184 @@ func _check_den_fa_state_save(gm, th: Dictionary) -> void:
 		% [saved.get("den_fa_state") if saved is Dictionary else "?", round_trip, old_high, old_low, kept_late, unknown_low, unknown_mid])
 
 
-## Placeholder until T2-T4 (filled below).
-func _check_den_fa_state_talk(_gm, _th: Dictionary) -> void:
+## The bridge's den_fa_state (AC 3); den_fa.dialogue's Mid and Late titles: compiled, lint-clean, in his voice,
+## walked in their state through every reply, entries marking themselves seen (AC 3); his title picking per
+## state (AC 4).
+func _check_den_fa_state_talk(gm, _th: Dictionary) -> void:
+	var runner = load(RUNNER_SCRIPT) if ResourceLoader.exists(RUNNER_SCRIPT) else null
+	var bs = load(BRIDGE_SCRIPT) if ResourceLoader.exists(BRIDGE_SCRIPT) else null
+	var dmgr = root.get_node_or_null("DialogueManager")
+	if runner == null or not bs is GDScript or dmgr == null:
+		check(false, "Test 21 needs the runner, the bridge and the DialogueManager autoload")
+		return
+	var b = runner.new_bridge()
+	gm.den_fa_state = "mid"
+	var read_mid = b.get("den_fa_state")
+	b.set("den_fa_state", "late")
+	var names := []
+	for pr in (bs as GDScript).get_script_property_list():
+		names.append(pr.name)
+	for mt in (bs as GDScript).get_script_method_list():
+		names.append(mt.name)
+	check(read_mid == "mid" and gm.den_fa_state == "mid" and b.get("den_fa_state") == "mid" and names.has("den_fa_state")
+		and _dialogue_lint("if bridge.den_fa_state == \"mid\"\n\tDen Fa: Hm.\n", names).is_empty(),
+		"the bridge reads den_fa_state live, can't write it, and the lint knows the name")
+
+	var text := FileAccess.get_file_as_string(DEN_FA_DIALOGUE)
+	var compiled = DMCompiler.compile_string(text, DEN_FA_DIALOGUE)
+	var titles: Dictionary = compiled.titles if compiled.errors.is_empty() else {}
+	var resource: Resource = runner.compile_text(text, DEN_FA_DIALOGUE)
+	var mid_n: Array = runner.numbered_titles(resource, "mid_") if resource != null else []
+	var late_n: Array = runner.numbered_titles(resource, "late_") if resource != null else []
+	var sections := {}                    # title -> its text
+	for part in ("\n" + text).split("\n~ "):
+		var head := part.get_slice("\n", 0).strip_edges()
+		if head != "" and not head.begins_with("#"):
+			sections[head] = part
+	var den_lines := func(t: String) -> Array:
+		return Array(str(sections.get(t, "")).split("\n")).filter(func(l): return l.strip_edges().begins_with("Den Fa:"))
+	var late_asks := []
+	for t in ["late_enter"] + late_n:
+		for l in den_lines.call(t):
+			if l.contains("?"):
+				late_asks.append(l.strip_edges())
+	var mid_refs := {}
+	for t in ["mid_enter"] + mid_n:
+		for m in RegEx.create_from_string("bridge\\.(\\w+)").search_all(str(sections.get(t, ""))):
+			mid_refs[m.get_string(1)] = true
+	check(compiled.errors.is_empty() and titles.has("mid_enter") and titles.has("late_enter") and mid_n.size() >= 2 and late_n.size() >= 2
+		and text.begins_with("# DRAFT") and text.get_slice("\n", 0).contains("10.3"),
+		"den_fa.dialogue: compiles; mid_enter, late_enter, %d mid and %d late openings (≥ 2 each); still marked DRAFT, now naming Story 10.3" % [mid_n.size(), late_n.size()])
+	mid_refs.erase("mark_seen")          # the entry's own flag isn't noticing the guild
+	check(late_asks.is_empty() and mid_refs.size() >= 2 and not mid_refs.has("den_fa_state"),
+		"his voice: Late states things, he never asks (%s); Mid notices the guild through the bridge (%s)" % [late_asks, mid_refs.keys()])
+
+	var why := []
+	var menus := {"mid": 0, "late": 0}
+	var replies_seen := {}
+	var replies_total := 0
+	var entries_marked := []
+	for state in ["mid", "late"]:
+		var list: Array = [state + "_enter"] + (mid_n if state == "mid" else late_n)
+		for title in list:
+			replies_total += Array(str(sections.get(title, "")).split("\n")).filter(func(l): return l.strip_edges().begins_with("- ")).size()
+			for pick in 3:
+				gm.den_fa_state = state
+				gm.dialogue_flags = {"den_fa_first_contact": true}
+				gm.deaths_this_run = pick % 2
+				var w: Dictionary = await _walk_dialogue(dmgr, resource, title, pick, runner.new_bridge())
+				if not w.ended or w.texts.is_empty():
+					why.append("%s: no end or no line" % title)
+				if title.ends_with("_enter") and gm.dialogue_flags.get("den_fa_" + title) == true and pick == 0:
+					entries_marked.append(title)
+				if pick == 0:
+					menus[state] += w.menus
+				for r in w.replies:
+					replies_seen["%s:%s" % [title, r]] = true
+				if w.menus == 0:
+					break
+	check(why.is_empty() and entries_marked == ["mid_enter", "late_enter"] and menus.mid >= 1 and menus.late >= 1 and replies_seen.size() == replies_total,
+		"every Mid and Late title walked to its end in its state, every reply taken (%d of %d); a flavour-reply menu in each state %s; the entries mark themselves seen %s %s"
+		% [replies_seen.size(), replies_total, menus, entries_marked, why.slice(0, 3)])
+	await _check_den_fa_picking(gm, runner, resource, mid_n, late_n)
+
+
+## His title per state (AC 4): first contact, then the state's entry once, then its openings without repeats
+## (memory per state); talked(state); a state with no titles falls back to early_N with one warning.
+func _check_den_fa_picking(gm, runner, resource: Resource, mid_n: Array, late_n: Array) -> void:
+	var world := Node3D.new()
+	world.name = "T21World"
+	root.add_child(world)
+	current_scene = world
+	var marker := Marker3D.new()
+	world.add_child(marker)
+	marker.transform = _hearth_sit_point_world()
+	var den = (load(DEN_FA_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(den)
+	for i in 3:
+		await process_frame
+	den.sit_at(marker)
+	var early_n: Array = runner.numbered_titles(resource, "early_")
+	var order := []
+	gm.dialogue_flags = {}
+	for state in ["early", "mid", "late"]:
+		gm.den_fa_state = state
+		order.append(den._pick_title(resource))
+	gm.dialogue_flags = {"den_fa_first_contact": true}
+	for state in ["mid", "late"]:
+		gm.den_fa_state = state
+		order.append(den._pick_title(resource))
+		order.append(den._pick_title(resource))   # not seen yet: the entry again
+	check(order == ["first_contact", "first_contact", "first_contact", "mid_enter", "mid_enter", "late_enter", "late_enter"],
+		"the order: first contact in any state until it is seen, then the state's entry until it is seen (%s)" % [order])
+	var runs := {}
+	gm.dialogue_flags = {"den_fa_first_contact": true, "den_fa_mid_enter": true, "den_fa_late_enter": true}
+	for state in ["early", "mid", "late"]:
+		gm.den_fa_state = state
+		var picks := []
+		for i in 50:
+			picks.append(den._pick_title(resource))
+		var repeats := 0
+		for i in range(1, picks.size()):
+			if picks[i] == picks[i - 1]:
+				repeats += 1
+		var pool: Array = {"early": early_n, "mid": mid_n, "late": late_n}[state]
+		var distinct := {}
+		for t in picks:
+			distinct[t] = true
+		runs[state] = [repeats, picks.all(func(t): return pool.has(t)), distinct.size() == pool.size()]
+	check(runs.values().all(func(r): return r == [0, true, true]),
+		"50 picks per state: only that state's openings, all of them, never the same one twice in a row ([repeats, in pool, all used]: %s)" % [runs])
+	var after_early := {}
+	for trial in 40:
+		gm.den_fa_state = "early"
+		for i in 20:
+			if den._pick_title(resource) == early_n[0]:
+				break
+		gm.den_fa_state = "mid"
+		after_early[den._pick_title(resource)] = true
+	check(after_early.has(mid_n[0]) and after_early.size() == mid_n.size(),
+		"the no-repeat memory is per state: right after %s, Mid can open with %s (%s)" % [early_n[0], mid_n[0], after_early.keys()])
+
+	var said := []
+	den.talked.connect(func(st): said.append(st))
+	var titles_opened := []
+	gm.dialogue_flags = {"den_fa_first_contact": true}
+	gm.den_fa_state = "mid"
+	for i in 2:
+		den.talk()
+		var t0 := Time.get_ticks_msec()
+		while said.size() <= i and Time.get_ticks_msec() - t0 < 2000:
+			await process_frame
+		var open: Array = get_nodes_in_group("dialogue_open")
+		titles_opened.append(str(open[0].start_from_title) if open.size() == 1 else "none")
+		for bx in open:
+			bx.close("test")
+		await process_frame
+	gm.den_fa_state = "late"
+	gm.dialogue_flags["den_fa_late_enter"] = true
+	den.talk()
+	var t1 := Time.get_ticks_msec()
+	while said.size() < 3 and Time.get_ticks_msec() - t1 < 2000:
+		await process_frame
+	var late_open: Array = get_nodes_in_group("dialogue_open")
+	titles_opened.append(str(late_open[0].start_from_title) if late_open.size() == 1 else "none")
+	for bx in late_open:
+		bx.close("test")
+	await process_frame
+	check(titles_opened.size() == 3 and titles_opened[0] == "mid_enter" and mid_n.has(titles_opened[1]) and late_n.has(titles_opened[2])
+		and said == ["mid", "mid", "late"] and gm.dialogue_flags.get("den_fa_mid_enter") == true,
+		"talking: Mid's entry plays once (it marks itself seen), then a Mid opening; in Late a Late opening; talked(state) says the state (%s, %s)" % [titles_opened, said])
+
+	var thin: Resource = runner.compile_text("~ first_contact\nDen Fa: Hi.\n=> END\n\n~ early_1\nDen Fa: One.\n=> END\n\n~ early_2\nDen Fa: Two.\n=> END\n", "t21_thin")
+	gm.den_fa_state = "late"
+	gm.dialogue_flags = {"den_fa_first_contact": true}
+	var thin_picks := [den._pick_title(thin), den._pick_title(thin), den._pick_title(thin)]
+	var warned = den.get("_warned_states")
+	check(thin_picks.all(func(t): return t in ["early_1", "early_2"]) and thin_picks[0] != thin_picks[1] and warned is Dictionary and warned.get("late") == true and warned.size() == 1,
+		"a file with no titles for his state falls back to the early openings, warned once (%s, %s)" % [thin_picks, warned])
+	current_scene = null
+	world.queue_free()
 	await process_frame
 
 
