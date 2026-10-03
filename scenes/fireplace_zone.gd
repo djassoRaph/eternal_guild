@@ -74,8 +74,9 @@ func _ready():
 	if _hearth == null:
 		push_warning("[Fireplace] no node in group 'hearth': the fire has no visuals")
 
-	# Initialize visuals
-	_update_fire_visuals(GameManager.get_fireplace_fuel())
+	# Take the fire from GameManager's fuel (a re-entered hall or a loaded save keeps burning and
+	# decaying; it used to start DORMANT at quality 0 and show a frozen fire). Review 2026-10-03.
+	sync_from_fuel(GameManager.get_fireplace_fuel())
 	
 	print("Fireplace interaction zone ready - Minigame system active")
 
@@ -292,16 +293,27 @@ func _process_fire_decay(delta):
 
 	_apply_fire_state()
 
+## The burning state for a fuel level above 0 (the bands hearth.gd fire_look() also uses).
+static func burning_state_for(fuel: float) -> FireplaceState:
+	if fuel > FUEL_HIGH_FLOOR:
+		return FireplaceState.BURNING_HIGH
+	elif fuel > FUEL_LOW_FLOOR:
+		return FireplaceState.BURNING_LOW
+	return FireplaceState.DYING
+
+## Set the fire from a fuel level (0..100): DORMANT when out, else the band's burning state.
+## Used on _ready with GameManager's fuel; the minigame and the decay keep driving it from there.
+func sync_from_fuel(fuel: float) -> void:
+	fire_quality = clampf(fuel, 0.0, 100.0)
+	cooldown_remaining = 0.0
+	_last_pushed_fuel = int(round(fire_quality))
+	current_state = FireplaceState.DORMANT if fire_quality <= 0.0 else burning_state_for(fire_quality)
+	_update_fire_visuals(fire_quality)
+
 func _apply_fire_state():
 	"""Derive the burning state from the current fuel band (logging each crossing) and
 	push the value to the HUD only when the whole-number % changes — smooth, not 60x/s."""
-	var new_state := current_state
-	if fire_quality > FUEL_HIGH_FLOOR:
-		new_state = FireplaceState.BURNING_HIGH
-	elif fire_quality > FUEL_LOW_FLOOR:
-		new_state = FireplaceState.BURNING_LOW
-	else:
-		new_state = FireplaceState.DYING
+	var new_state := burning_state_for(fire_quality)
 
 	if new_state != current_state:
 		current_state = new_state

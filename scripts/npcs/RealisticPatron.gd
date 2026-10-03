@@ -433,13 +433,18 @@ func _hold_tankard(full: bool) -> void:
 		_stand_tankard_upright(mug)
 	_tankard = att
 
-func _stand_tankard_upright(mug: Node3D) -> void:
+func _stand_tankard_upright(mug, frames_left := 2) -> void:
 	"""The hand bone is tilted in the sit pose; once the attachment has followed the bone, turn the
-	tankard upright in the patron's own frame (it then rides the hand with that offset)."""
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if is_instance_valid(mug) and patron_body_mesh:
-		mug.global_basis = Basis(patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * TANKARD_HELD_SCALE)
+	tankard upright in the patron's own frame (it then rides the hand with that offset).
+	Waits through one-shot process_frame connections, not awaits: a patron freed or taken out of the
+	tree meanwhile just drops out (the awaits used to call get_tree() on a null tree)."""
+	if not is_inside_tree():
+		return
+	if frames_left > 0:
+		get_tree().process_frame.connect(_stand_tankard_upright.bind(mug, frames_left - 1), CONNECT_ONE_SHOT)
+		return
+	if is_instance_valid(mug) and (mug as Node3D).is_inside_tree() and patron_body_mesh:
+		(mug as Node3D).global_basis = Basis(patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * TANKARD_HELD_SCALE)
 
 func _on_tankard_empty() -> void:
 	if current_state == PatronState.DRINKING:

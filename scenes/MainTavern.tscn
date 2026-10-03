@@ -1,4 +1,4 @@
-[gd_scene load_steps=116 format=3 uid="uid://c27e75reyl3re"]
+[gd_scene load_steps=117 format=3 uid="uid://c27e75reyl3re"]
 
 [ext_resource type="Script" uid="uid://c1rafdi8kg21d" path="res://scripts/game/main_tavern.gd" id="1_0nrlt"]
 [ext_resource type="PackedScene" uid="uid://dbomj4nofjjcc" path="res://assets/environment/furniture/bench.glb" id="1_m4lj6"]
@@ -66,9 +66,10 @@
 [ext_resource type="PackedScene" path="res://scenes/game/QuestDealer.tscn" id="s2513_dealer"]
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
-vertices = PackedVector3Array(1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, -4.15, 0.417485, -18.5553, 14.1, 0.417485, -15.5553, 14.1, 0.417485, -18.5553, -3.4, 0.417485, -6.80526, -4.15, 0.417485, -6.55526, -4.15, 0.417485, -5.55526, -2.9, 0.417485, -5.55526, -2.65, 0.417485, -5.05526, 4.85, 0.417485, -5.80526, 4.1, 0.417485, -7.05526, -4.15, 0.417485, -11.0553, -3.4, 0.417485, -10.8053, 1.1, 0.417485, -13.5553, 4.1, 0.417485, -9.30526, 5.85, 0.417485, -11.5553, 5.85, 0.417485, -13.5553, 7.6, 0.417485, -11.3053, 7.6, 0.417485, -10.0553, 8.35, 0.417485, -11.8053, 7.1, 0.417485, -11.8053, 13.1, 0.417485, -5.30526, 13.35, 0.417485, -4.30526, 14.1, 0.417485, -4.30526, 11.35, 0.417485, -7.05526, 10.1, 0.417485, -5.30526, 11.1, 0.417485, -5.30526, 11.35, 0.417485, -4.80526, 14.1, 0.417485, -13.5553, 10.35, 0.417485, -11.0553, 11.35, 0.417485, -9.55526, 7.35, 5.16749, -8.55526, 7.35, 5.16749, -7.80526, 8.1, 5.16749, -7.80526, 8.1, 5.16749, -8.55526, 13.1, 0.417485, -3.30526, 14.1, 0.417485, 3.69474, 10.1, 0.417485, -3.30526, 9.85, 0.417485, -5.05526, 8.85, 0.417485, -4.55526, 6.6, 0.417485, -4.55526, -2.9, 0.417485, -0.555258, -4.15, 0.417485, -0.555258, -4.15, 0.417485, 3.69474, -2.4, 0.417485, -1.05526, -4.15, 1.41749, -1.55526, -3.4, 1.41749, -1.55526, -3.4, 1.41749, -4.05526, -4.15, 1.41749, -4.30526, -4.65, 0.167485, 8.19474, 14.6, 0.167485, 8.19474, 14.35, 0.167485, 5.19474, -4.65, 0.167485, 5.44474)
-polygons = [PackedInt32Array(2, 1, 0), PackedInt32Array(0, 4, 3), PackedInt32Array(3, 5, 0), PackedInt32Array(0, 5, 2), PackedInt32Array(2, 7, 1), PackedInt32Array(1, 7, 6), PackedInt32Array(9, 8, 10), PackedInt32Array(10, 8, 11), PackedInt32Array(14, 13, 12), PackedInt32Array(12, 11, 8), PackedInt32Array(15, 3, 16), PackedInt32Array(16, 3, 4), PackedInt32Array(16, 4, 17), PackedInt32Array(19, 18, 20), PackedInt32Array(20, 18, 17), PackedInt32Array(8, 16, 12), PackedInt32Array(12, 16, 17), PackedInt32Array(12, 17, 18), PackedInt32Array(12, 18, 14), PackedInt32Array(23, 22, 21), PackedInt32Array(21, 24, 23), PackedInt32Array(23, 24, 20), PackedInt32Array(25, 27, 26), PackedInt32Array(30, 29, 28), PackedInt32Array(31, 30, 25), PackedInt32Array(25, 30, 28), PackedInt32Array(24, 19, 20), PackedInt32Array(34, 33, 32), PackedInt32Array(25, 34, 27), PackedInt32Array(27, 34, 32), PackedInt32Array(25, 28, 34), PackedInt32Array(23, 20, 33), PackedInt32Array(33, 20, 32), PackedInt32Array(38, 37, 35), PackedInt32Array(35, 37, 36), PackedInt32Array(26, 27, 39), PackedInt32Array(39, 27, 40), PackedInt32Array(43, 42, 41), PackedInt32Array(44, 43, 41), PackedInt32Array(47, 46, 45), PackedInt32Array(45, 48, 47), PackedInt32Array(47, 48, 44), PackedInt32Array(47, 44, 41), PackedInt32Array(47, 41, 40), PackedInt32Array(13, 44, 12), PackedInt32Array(12, 44, 48), PackedInt32Array(41, 39, 40), PackedInt32Array(50, 49, 51), PackedInt32Array(51, 49, 52), PackedInt32Array(56, 55, 53), PackedInt32Array(53, 55, 54)]
+vertices = PackedVector3Array(1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, -4.15, 0.417485, -18.5553, 14.1, 0.417485, -15.5553, 14.1, 0.417485, -18.5553, -3.4, 0.417485, -6.80526, -4.15, 0.417485, -6.55526, -4.15, 0.417485, -5.55526, -2.9, 0.417485, -5.55526, -2.65, 0.417485, -5.05526, 4.85, 0.417485, -5.80526, 4.1, 0.417485, -7.05526, -4.15, 0.417485, -11.0553, -3.4, 0.417485, -10.8053, 1.1, 0.417485, -13.5553, 4.1, 0.417485, -9.30526, 5.85, 0.417485, -11.5553, 5.85, 0.417485, -13.5553, 7.6, 0.417485, -11.3053, 7.6, 0.417485, -10.0553, 8.35, 0.417485, -11.8053, 7.1, 0.417485, -11.8053, 13.1, 0.417485, -5.30526, 13.35, 0.417485, -4.30526, 14.1, 0.417485, -4.30526, 11.35, 0.417485, -7.05526, 10.1, 0.417485, -5.30526, 11.1, 0.417485, -5.30526, 11.35, 0.417485, -4.80526, 14.1, 0.417485, -13.5553, 10.35, 0.417485, -11.0553, 11.35, 0.417485, -9.55526, 13.1, 0.417485, -3.30526, 14.1, 0.417485, 3.69474, 8.85, 0.417485, 3.69474, 9.1, 0.417485, 4.44474, 10.1, 0.417485, 4.44474, 10.35, 0.417485, 3.69474, 10.1, 0.417485, -3.30526, 8.85, 0.417485, -4.55526, 6.6, 0.417485, -4.55526, 9.85, 0.417485, -5.05526, -2.4, 0.417485, -1.05526, -2.9, 0.417485, -0.555258, -4.15, 0.417485, -0.555258, -4.15, 0.417485, 3.69474, 8.85, 0.167485, 5.19474, 10.35, 0.167485, 5.19474, -4.4, 0.167485, 5.19474, -4.65, 0.167485, 8.19474, 14.6, 0.167485, 8.19474, 14.35, 0.167485, 5.19474)
+polygons = [PackedInt32Array(2, 1, 0), PackedInt32Array(0, 4, 3), PackedInt32Array(3, 5, 0), PackedInt32Array(0, 5, 2), PackedInt32Array(2, 7, 1), PackedInt32Array(1, 7, 6), PackedInt32Array(9, 8, 10), PackedInt32Array(10, 8, 11), PackedInt32Array(14, 13, 12), PackedInt32Array(12, 11, 8), PackedInt32Array(15, 3, 16), PackedInt32Array(16, 3, 4), PackedInt32Array(16, 4, 17), PackedInt32Array(19, 18, 20), PackedInt32Array(20, 18, 17), PackedInt32Array(8, 16, 12), PackedInt32Array(12, 16, 17), PackedInt32Array(12, 17, 18), PackedInt32Array(12, 18, 14), PackedInt32Array(23, 22, 21), PackedInt32Array(21, 24, 23), PackedInt32Array(23, 24, 20), PackedInt32Array(25, 27, 26), PackedInt32Array(30, 29, 28), PackedInt32Array(31, 30, 25), PackedInt32Array(25, 30, 28), PackedInt32Array(24, 19, 20), PackedInt32Array(34, 33, 32), PackedInt32Array(25, 34, 27), PackedInt32Array(27, 34, 32), PackedInt32Array(25, 28, 34), PackedInt32Array(23, 20, 33), PackedInt32Array(33, 20, 32), PackedInt32Array(26, 27, 35), PackedInt32Array(35, 27, 36), PackedInt32Array(39, 38, 37), PackedInt32Array(39, 37, 40), PackedInt32Array(40, 37, 41), PackedInt32Array(41, 37, 42), PackedInt32Array(42, 37, 43), PackedInt32Array(42, 44, 41), PackedInt32Array(45, 12, 13), PackedInt32Array(48, 47, 46), PackedInt32Array(46, 45, 48), PackedInt32Array(48, 45, 13), PackedInt32Array(48, 13, 43), PackedInt32Array(48, 43, 37), PackedInt32Array(41, 35, 40), PackedInt32Array(40, 35, 36), PackedInt32Array(39, 50, 38), PackedInt32Array(38, 50, 49), PackedInt32Array(51, 49, 52), PackedInt32Array(52, 49, 53), PackedInt32Array(53, 50, 54), PackedInt32Array(49, 50, 53)]
 geometry_parsed_geometry_type = 1
+region_min_size = 8.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kr071"]
 albedo_color = Color(0.529412, 0.392157, 0.254902, 1)
@@ -122,6 +123,9 @@ size = Vector3(0.3, 4, 2.58)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_s253_door_trigger"]
 size = Vector3(3, 2.5, 4)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_s253_door_threshold"]
+points = PackedVector3Array(-1.2, 0.100175, 0, -1.2, -0.332313, 1.2, -1.2, -0.332313, 0, 1.2, 0.100175, 0, 1.2, -0.332313, 1.2, 1.2, -0.332313, 0)
 
 [sub_resource type="Environment" id="Environment_kr071"]
 ambient_light_color = Color(0.4, 0.5, 0.7, 1)
@@ -1186,6 +1190,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.99, 2, -17.88)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls/CornerColliderEast"]
 shape = SubResource("BoxShape3D_s253_CornerColliderEast")
+
+[node name="DoorThreshold" type="StaticBody3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0, 4)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell/NearWalls/DoorThreshold"]
+shape = SubResource("ConvexPolygonShape3D_s253_door_threshold")
 
 [node name="Partition" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Architecture/Shell"]
 

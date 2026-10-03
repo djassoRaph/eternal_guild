@@ -3,7 +3,10 @@ extends Node
 
 const SAVE_FILE = "user://eternal_guild_save.json"
 const CODEX_FILE = "user://codex.dat"
-const CURRENT_SCHEMA_VERSION = 1
+const CURRENT_SCHEMA_VERSION = 2
+# Story 25.9 replaced the Cleric with the Healer (one class list, six demo classes): old saves and
+# codex entries are renamed on load (v1 -> v2), so they get the Healer's body, lines and bonus.
+const RENAMED_CLASSES := {"Cleric": "Healer"}
 
 var autosave_timer: Timer
 var save_in_progress: bool = false
@@ -140,6 +143,10 @@ func _load_codex():
 		if codex_data.is_empty():
 			codex_data = _default_codex()
 		print("[SaveSystem] Codex loaded: ", codex_data.keys().size(), " keys")
+		# In memory only: the codex file is rewritten with the next record, not on load.
+		var renamed := rename_classes(codex_data)
+		if renamed > 0:
+			print("[SaveSystem] Migrated codex: %d retired class record(s) renamed (Cleric -> Healer)" % renamed)
 	else:
 		codex_data = _default_codex()
 		_save_codex()
@@ -236,7 +243,31 @@ func _migrate_save_data(data: Dictionary) -> Dictionary:
 		data["schema_version"] = 1
 		print("[SaveSystem] v0 -> v1: added schema_version")
 
+	if version < 2:
+		var renamed := rename_classes(data)
+		data["schema_version"] = 2
+		print("[SaveSystem] v1 -> v2: %d Cleric record(s) renamed to Healer" % renamed)
+
 	return data
+
+
+## Renames retired classes (RENAMED_CLASSES) in every "class" / "adventurer_class" value found anywhere
+## in `data` (roster, recruits, mission entries and parties, reports, codex heroes). Returns the count.
+static func rename_classes(data) -> int:
+	var n := 0
+	if data is Dictionary:
+		for key in data:
+			var v = data[key]
+			if (key == "class" or key == "adventurer_class") and v is String and RENAMED_CLASSES.has(v):
+				data[key] = RENAMED_CLASSES[v]
+				n += 1
+			elif v is Dictionary or v is Array:
+				n += rename_classes(v)
+	elif data is Array:
+		for v in data:
+			if v is Dictionary or v is Array:
+				n += rename_classes(v)
+	return n
 
 
 # === ATOMIC FILE I/O ===

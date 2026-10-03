@@ -94,16 +94,25 @@ func can_spawn_patron() -> bool:
 	
 	return true
 
+## How far behind a seat's sit root (away from what the seat faces) the patron is sent: the root of a
+## bar stool lies inside the counter's navmesh margin, so the nav target is out where the mesh is and
+## the sit-down slide covers the rest (review 2026-10-03).
+const SEAT_APPROACH_BACK := 0.3
+
 ## Seats from scene markers first, then each fallback spot unless it is within 0.8 m of a scene seat.
 ## With no scene seats this is exactly the old table list.
 static func build_seats(seat_transforms: Array, fallback_positions: Array) -> Array:
 	var out := []
 	for t in seat_transforms:
-		out.append({"approach": RealisticPatron.seat_root(t), "sit": t})
+		var f: Vector3 = (t as Transform3D).basis.z
+		f.y = 0.0
+		var app: Vector3 = RealisticPatron.seat_root(t) - f.normalized() * SEAT_APPROACH_BACK
+		out.append({"approach": app, "sit": t})
 	for p in fallback_positions:
 		var near := false
 		for s in out:
-			if s.sit != null and Vector2(s.approach.x - p.x, s.approach.z - p.z).length() < 0.8:
+			var r: Vector3 = RealisticPatron.seat_root(s.sit) if s.sit != null else s.approach
+			if s.sit != null and Vector2(r.x - p.x, r.z - p.z).length() < 0.8:
 				near = true
 				break
 		if not near:
@@ -122,6 +131,8 @@ const SEAT_ELBOW_ROOM := 1.6  # KayKit patrons are wide: neighbours on adjacent 
 
 ## A free seat picked at random (roll in 0..1), preferring seats with elbow room from every
 ## occupied one; only when the hall is that full does anyone take a seat next to someone.
+## Elbow room is kept between seat markers (the stools, measured at their sit roots) only: the
+## table spots share a table, so they never crowd each other or push patrons to the bar.
 static func pick_seat(seat_list: Array, occupied: Array, roll: float) -> int:
 	var free := []
 	var roomy := []
@@ -131,7 +142,8 @@ static func pick_seat(seat_list: Array, occupied: Array, roll: float) -> int:
 		free.append(i)
 		var crowded := false
 		for j in occupied:
-			if j >= 0 and j < seat_list.size() and seat_list[i].approach.distance_to(seat_list[j].approach) < SEAT_ELBOW_ROOM:
+			if j >= 0 and j < seat_list.size() and seat_list[i].sit != null and seat_list[j].sit != null \
+					and RealisticPatron.seat_root(seat_list[i].sit).distance_to(RealisticPatron.seat_root(seat_list[j].sit)) < SEAT_ELBOW_ROOM:
 				crowded = true
 				break
 		if not crowded:

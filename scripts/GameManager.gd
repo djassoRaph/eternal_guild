@@ -713,10 +713,20 @@ func generate_daily_recruits(count: int = -1):
 	# Notify listeners → bridges to AdventurerBus.recruitment_pool_changed (Epic 4.1)
 	recruitment_pool_changed.emit()
 
+const DEFAULT_ADVENTURER_CLASSES := ["Fighter", "Rogue", "Mage", "Healer"]
+
+## game_config.json › adventurer_classes, checked: a non-empty list of class names, else the defaults
+## (an empty or malformed list used to crash the hire pool with a modulo by zero). Story 25.9 review.
+static func valid_class_list(raw) -> Array:
+	if raw is Array and not raw.is_empty() and raw.all(func(c): return c is String and c != ""):
+		return raw
+	push_warning("[GameManager] adventurer_classes is empty or malformed (%s); using %s" % [raw, DEFAULT_ADVENTURER_CLASSES])
+	return DEFAULT_ADVENTURER_CLASSES.duplicate()
+
 func generate_fallback_recruits(count: int) -> Array:
 	"""Generate recruits when DataManager is not available"""
 	var recruits = []
-	var classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Healer"])
+	var classes = valid_class_list(DataManager.get_config("adventurer_classes", DEFAULT_ADVENTURER_CLASSES))
 	var names = DataManager.get_config("adventurer_names", ["Thara", "Bronn", "Lysa", "Gareth", "Mira", "Dain", "Vera", "Kael", "Nina", "Rex"])
 	var drinks = DataManager.get_config("drink_preferences", ["beer", "mead", "none"])
 	var tiers = DataManager.get_config("experience_tiers", ["Novice", "Seasoned", "Veteran"])
@@ -1933,6 +1943,7 @@ func refresh_available_missions():
 		available_missions.clear()
 		for mission in fallback_missions:
 			available_missions.append(mission)
+		missions_changed.emit()   # the hall's notice board recounts on this too (Story 25.7 review)
 		print("Using fallback missions")
 	WorldManager.assign_missions_to_hexes(available_missions)
 

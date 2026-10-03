@@ -18,6 +18,7 @@ var capital_definitions: Dictionary = {}
 var faction_data: Dictionary = {}
 const CAPITALS_DATA_PATH = "res://data/settlements/capitals.json"
 const FACTIONS_DATA_PATH = "res://data/config/factions.json"
+const HEX_GENERATOR_PATH = "res://scripts/world/HexMapGenerator.gd"   # owns the ruin rule (Story 25.2)
 
 
 func _ready():
@@ -52,6 +53,27 @@ func load_save_data(data: Dictionary) -> void:
 	world_map = records
 	chosen_center = data.get("chosen_center", {})
 	print("[WorldManager] Restored world: ", world_map.size(), " hexes")
+	_reserve_ruin_if_missing()
+
+
+## Saves made before Story 25.2 have no Prior Ruins hex: reserve one now with the generator's own
+## rule (HexMapGenerator.pick_ruin_hex, no RNG draw). The seed isn't saved, so the pick key is the
+## record count, and the same save always gets the same hex.
+func _reserve_ruin_if_missing() -> void:
+	if world_map.is_empty() or world_map.any(func(r): return r.get("is_ruin", false)):
+		return
+	var gen_script = load(HEX_GENERATOR_PATH)
+	var center := _center_coord()
+	for rec in world_map:
+		if rec.get("is_center", false):
+			center = _coord_of(rec)
+			break
+	var pick: Dictionary = gen_script.pick_ruin_hex(world_map, center, world_map.size())
+	if pick.is_empty():
+		push_warning("[WorldManager] ruin: this save has no free land hex next to the tavern — none reserved.")
+		return
+	gen_script.mark_ruin(pick)
+	print("[WorldManager] Reserved ruin: %s at %s (the save predates Story 25.2)" % [pick.get("id", "?"), str(pick.get("coord"))])
 
 
 ## Can this hex hold a generic mission? Not the tavern, a settlement, a locked hex, the sea,

@@ -14,27 +14,47 @@ const OUTLINE := preload("res://assets/characters/materials/anime_outline.tres")
 const TOON_BAND := 0.12            # the approved anime test's value (> 0: the edge shader and Test 19's roughness rule)
 
 static var _toon := {}             # source material -> its toon copy
+const TOON_META := &"anime_toon"   # set on every toon copy: how apply() knows a material is toned already
 
 
-## Tone every surface of `model` (its MeshInstance3Ds, props included). Returns the number of surfaces toned.
+## Tone every surface of `model` (its MeshInstance3Ds, props included). Returns the number of materials toned.
+## What a surface draws is toned: a material_override (it covers every surface), else the surface override, else
+## the imported material. Only our own toon copies count as toned (review 2026-10-03: any override used to).
 static func apply(model: Node) -> int:
 	if model == null:
 		return 0
 	var toned := 0
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		var mesh: Mesh = (mi as MeshInstance3D).mesh
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var mesh: Mesh = mi.mesh
 		if mesh == null:
 			continue
+		var whole := mi.material_override
+		if whole != null:
+			if is_toon(whole):
+				continue
+			if whole is StandardMaterial3D:
+				mi.material_override = _toon_of(whole as StandardMaterial3D, str(mi.name))
+				toned += 1
+			else:
+				push_warning("[Staff] anime look: %s's material_override is not a StandardMaterial3D; left as is" % mi.name)
+			continue
 		for s in mesh.get_surface_count():
-			if (mi as MeshInstance3D).get_surface_override_material(s) != null:
+			var cur := mi.get_surface_override_material(s)
+			if is_toon(cur):
 				continue                   # toned already
-			var src := mesh.surface_get_material(s)
+			var src := cur if cur != null else mesh.surface_get_material(s)
 			if not src is StandardMaterial3D:
 				push_warning("[Staff] anime look: %s surface %d is not a StandardMaterial3D; left as imported" % [mi.name, s])
 				continue
-			(mi as MeshInstance3D).set_surface_override_material(s, _toon_of(src as StandardMaterial3D, str(mi.name)))
+			mi.set_surface_override_material(s, _toon_of(src as StandardMaterial3D, str(mi.name)))
 			toned += 1
 	return toned
+
+
+## A toon copy made by apply().
+static func is_toon(m: Material) -> bool:
+	return m != null and m.has_meta(TOON_META)
 
 
 static func _toon_of(src: StandardMaterial3D, owner_name: String) -> StandardMaterial3D:
@@ -46,7 +66,10 @@ static func _toon_of(src: StandardMaterial3D, owner_name: String) -> StandardMat
 	toon.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	toon.metallic = 0.0
 	toon.metallic_specular = 0.0
+	toon.metallic_texture = null       # the maps would bring the metal and the band back per texel
 	toon.roughness = TOON_BAND
+	toon.roughness_texture = null
+	toon.set_meta(TOON_META, true)
 	if toon.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
 		toon.next_pass = OUTLINE
 	else:

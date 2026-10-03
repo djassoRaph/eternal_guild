@@ -41,6 +41,7 @@ func _ready() -> void:
 	add_child(_close_timer)
 	_trigger.body_entered.connect(_on_body_entered)
 	_trigger.body_exited.connect(_on_body_exited)
+	set_process(false)   # runs only while a bodiless walker holds the door (see _process)
 
 
 func _on_body_entered(body: Node3D) -> void:
@@ -57,7 +58,7 @@ func _on_body_exited(body: Node3D) -> void:
 		return
 	_prune_holders()
 	if _bodies.is_empty() and _holders.is_empty():
-		_close_timer.start(close_delay)
+		_arm_close()
 
 
 ## Hold the door open for a walker without a body (it stays open while any holder or body is there).
@@ -66,6 +67,7 @@ func hold_open(holder: Object) -> void:
 		return
 	_holders[holder.get_instance_id()] = true
 	_close_timer.stop()
+	set_process(true)
 	if not _is_open:
 		_swing(true)
 
@@ -76,13 +78,37 @@ func release_hold(holder: Object) -> void:
 		return
 	_prune_holders()
 	if _bodies.is_empty() and _holders.is_empty():
-		_close_timer.start(close_delay)
+		_arm_close()
 
 
 func _prune_holders() -> void:
 	for id in _holders.keys():
 		if not is_instance_id_valid(id):
 			_holders.erase(id)
+
+
+## A holder freed without release_hold (a staff NPC freed mid-walk) must not hold the door forever:
+## while any holder is registered, check each frame whether they are all gone.
+func _process(_delta: float) -> void:
+	if _holders.is_empty():
+		set_process(false)
+		return
+	var before := _holders.size()
+	_prune_holders()
+	if _holders.size() < before and _holders.is_empty():
+		set_process(false)
+		if _bodies.is_empty():
+			_arm_close()
+
+
+## Close close_delay after the last body and holder have gone; at once when close_delay <= 0
+## (Timer.start(0) would wait the timer's default 1 s instead).
+func _arm_close() -> void:
+	if close_delay <= 0.0:
+		_close_timer.stop()
+		_on_close_timer_timeout()
+	else:
+		_close_timer.start(close_delay)
 
 
 func _on_close_timer_timeout() -> void:

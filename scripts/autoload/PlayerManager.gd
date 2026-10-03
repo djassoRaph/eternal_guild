@@ -174,7 +174,17 @@ func _handle_new_scene(scene_root: Node) -> void:
 	if has_pending_spawn:
 		spawn_pos = pending_spawn_position
 		has_pending_spawn = false
-		print("Using pending spawn: ", spawn_pos)
+		# A save from an older layout (ExteriorWorld before Story 25.29) can hold a spot outside
+		# the walls or off the terrain: use the scene's own spawn point instead.
+		var why := spawn_reject_reason(scene_root, spawn_pos)
+		var fallback_sp: Node3D = _find_spawn_point(scene_root) if why != "" else null
+		if fallback_sp:
+			print("[PlayerManager] Spawn rejected: %s is %s; using %s at %s" % [spawn_pos, why, fallback_sp.name, fallback_sp.global_position])
+			spawn_pos = fallback_sp.global_position
+		else:
+			if why != "":
+				push_warning("[PlayerManager] Spawn: %s is %s and the scene has no spawn point; keeping it." % [spawn_pos, why])
+			print("Using pending spawn: ", spawn_pos)
 	else:
 		var sp = _find_spawn_point(scene_root)
 		if sp:
@@ -239,6 +249,56 @@ func _find_spawn_point(root: Node) -> Node3D:
 		if sp and sp is Node3D:
 			return sp
 	return null
+
+
+## Why `pos` (a world position) can't be used as a spawn in this scene, or "" if it can. Reads the
+## scene's own geometry: the "Bounds" walls (box colliders round the play area) and the "Terrain"
+## meshes. A scene without them accepts any position. Static so the failsafe suite can call it.
+static func spawn_reject_reason(scene_root: Node, pos: Vector3) -> String:
+	var bounds := scene_root.get_node_or_null("Bounds")
+	if bounds:
+		var walls: Array[AABB] = []
+		for c in bounds.get_children():
+			if c is CollisionShape3D and c.shape is BoxShape3D:
+				var size: Vector3 = c.shape.size
+				walls.append(_to_root(scene_root, c) * AABB(-size * 0.5, size))
+		if not walls.is_empty():
+			var outer: AABB = walls[0]
+			for w in walls:
+				outer = outer.merge(w)
+			if not _xz_inside(outer, pos) or walls.any(func(w): return _xz_inside(w, pos)):
+				return "outside the play-area walls"
+	var terrain := scene_root.get_node_or_null("Terrain")
+	if terrain:
+		var ground := AABB()
+		var found := false
+		for mi in terrain.find_children("*", "MeshInstance3D", true, false):
+			var box: AABB = _to_root(scene_root, mi) * (mi as MeshInstance3D).get_aabb()
+			ground = box if not found else ground.merge(box)
+			found = true
+		if found:
+			if not _xz_inside(ground, pos):
+				return "off the terrain"
+			if pos.y < ground.position.y:
+				return "under the terrain"
+	return ""
+
+
+static func _xz_inside(box: AABB, p: Vector3) -> bool:
+	return p.x >= box.position.x and p.x <= box.end.x and p.z >= box.position.z and p.z <= box.end.z
+
+
+## `n`'s transform relative to the world the scene root sits in; works before the scene is in the tree.
+static func _to_root(root: Node, n: Node) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var cur := n
+	while cur != null and cur != root:
+		if cur is Node3D:
+			t = (cur as Node3D).transform * t
+		cur = cur.get_parent()
+	if root is Node3D:
+		t = (root as Node3D).transform * t
+	return t
 
 
 func _find_player_in_scene(root: Node) -> CharacterBody3D:

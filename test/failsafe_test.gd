@@ -31,6 +31,16 @@ const SHELL_NEW_COLLIDERS := {
 	"Shell/FarWalls/CornerCollider/CollisionShape3D": [[-5.15, -4.85], [0.0, 4.0], [-19.17, -16.66]],
 	"Shell/NearWalls/CornerColliderEast/CollisionShape3D": [[14.84, 15.14], [0.0, 4.0], [-19.17, -16.59]],
 }
+# Review 2026-10-03 (Story 25.3): the hall floor collider ends at z 4.43 (top y 0.10) and the porch's starts at
+# z 4.72, 0.43 m lower (top y -0.33): too high a step for the bake's 0.25 m climb, so the navmesh had no doorway.
+# DoorThreshold is an invisible wedge under the doorway (between GapColliderWest and GapColliderEast) whose top
+# runs from the hall floor's top down to the porch's.
+const DOOR_THRESHOLD := "Shell/NearWalls/DoorThreshold/CollisionShape3D"
+const DOORWAY_X := [8.4, 10.8]                 # the gap between GapColliderWest and GapColliderEast
+const HALL_FLOOR_TOP := 0.100175               # the Floor collider's top
+const PORCH_FLOOR_TOP := -0.332313             # the FloorEntrance collider's top
+const HALL_NAV_POINT := Vector3(9.6, 0.42, 2.0)    # in the hall, 2.5 m inside the front door
+const PORCH_NAV_POINT := Vector3(9.6, 0.17, 6.5)   # on the porch, 2 m outside it
 # Story 25.8: the Guild Tavern outside (A1), its hex miniature (A2) and the home marker (C9).
 const A1_PATH := "res://assets/environment/custom/a1_guild_tavern.gltf"
 const A2_PATH := "res://assets/environment/custom/a2_guild_tavern_mini.gltf"
@@ -38,12 +48,14 @@ const C9_PATH := "res://assets/environment/custom/c9_home_marker.gltf"
 const OLD_TAVERN_PATH := "res://assets/environment/hexagons/blue/building_tavern_blue.gltf"
 const EXTERIOR_SCENE_PATH := "res://scenes/world/ExteriorWorld.tscn"
 const EXIT_ZONE_SCRIPT_PATH := "res://scripts/world/exit_zone_interior.gd"
+const ENTRANCE_ZONE_SCRIPT_PATH := "res://scripts/world/entrance_zone_exterior.gd"
 const EDGE_SHADER_PATH := "res://assets/shaders/edge_detection.gdshader"
 const PLAYER_RADIUS := 0.5   # Player.tscn CapsuleShape3D radius
 # Story 25.29: the exterior terrain (hill, path, stream), bridge, village and forest.
 const TERRAIN_PATH := "res://assets/environment/custom/a6_exterior_terrain.gltf"
 const BRIDGE_PATH := "res://assets/environment/custom/a6_bridge.gltf"
 const HEIGHTFIELD_FIXTURE := "res://test/fixtures/exterior_heightfield.json"
+const PLAYER_MANAGER_PATH := "res://scripts/autoload/PlayerManager.gd"
 const SEATED_GROUPS := ["Village/", "Yard/", "Forest/", "Scatter/", "Props/"]
 const SEATED_ROOT_NODES := ["GuildTavern", "barrel2", "candle_thin_lit_obj", "candle_thin_lit_obj (1)"]
 # Story 25.4: the Hourglass Pillar (B6) at the centre of the round bar, with reveal stages.
@@ -198,21 +210,42 @@ func _initialize() -> void:
 	test_staff()
 	await test_staff_tavern()
 	await test_staff_runtime()
+	await test_front_door_edges()
+	await test_doorway_path()
+	print("[Test 10] The pillar's glow_energy at runtime")
+	_check_pillar_glow_setter()
+	print("
+[Test 11] The hearth before its _ready")
+	_check_hearth_early_calls()
+	print("")
+	await test_fire_resume()
+	await test_tankard_upright()
+	await test_notice_board_live()
+	await test_staff_review_fixes()
 
+	_finish()
+
+
+## Prints the summary and quits with exit code 1 on any failure (or a watchdog abort), so a script
+## or CI run can't read a red suite as green.
+func _finish(aborted := false) -> void:
 	print("\n====================================")
 	print("PASSED: %d  |  FAILED: %d" % [_pass_count, _fail_count])
-	if _fail_count > 0:
+	if aborted:
+		print("*** ABORTED BY THE WATCHDOG: the counts above are partial ***")
+	elif _fail_count > 0:
 		print("*** SOME TESTS FAILED ***")
 	else:
 		print("All tests passed.")
 	print("====================================\n")
-	quit()
+	quit(1 if aborted or _fail_count > 0 else 0)
 
 
 func _process(delta: float) -> bool:
 	_elapsed += delta
 	if _elapsed > WATCHDOG_SECONDS:
 		print("*** WATCHDOG: suite did not finish within %d s — aborting ***" % int(WATCHDOG_SECONDS))
+		_finish(true)
 		return true
 	return false
 
@@ -455,6 +488,7 @@ func test_ruin_reservation() -> void:
 	var has_eligible: bool = wm_script.get_script_method_list().any(func(m): return m.name == "is_mission_eligible")
 	check(has_eligible, "WorldManager.is_mission_eligible() exists")
 
+	var centre: Vector2i = gen_script.get_script_constant_map().get("CENTER_COORD", Vector2i.ZERO)
 	for seed_value in [1, 12345, 987654]:
 		var gen = gen_script.new()
 		var recs := _generate_world(gen, seed_value)
@@ -462,7 +496,7 @@ func test_ruin_reservation() -> void:
 		check(ruins.size() == 1, "seed %d: exactly one ruin hex (got %d)" % [seed_value, ruins.size()])
 		if ruins.size() == 1:
 			var ruin: Dictionary = ruins[0]
-			check(gen._hex_distance(ruin.coord, Vector2i.ZERO) == 1 and ruin.biome != "sea" and not ruin.is_zone,
+			check(gen._hex_distance(ruin.coord, centre) == 1 and ruin.biome != "sea" and not ruin.is_zone,
 				"seed %d: ruin %s is a land hex next to the tavern (biome %s)" % [seed_value, ruin.id, ruin.biome])
 			check(ruin.topper_paths == [RUIN_TOPPER_PATH] and ruin.get("ruin_discovered", true) == false,
 				"seed %d: ruin uses the D1 topper and starts undiscovered" % seed_value)
@@ -475,8 +509,8 @@ func test_ruin_reservation() -> void:
 				for r in recs:
 					if sea_hex == null and r.biome == "sea":
 						sea_hex = r
-					if land_neighbour == null and not r.get("is_ruin", false) and not r.is_center \
-							and r.biome != "sea" and gen._hex_distance(r.coord, Vector2i.ZERO) == 1:
+					if land_neighbour == null and not r.get("is_ruin", false) and not r.is_center and not r.is_zone \
+							and r.biome != "sea" and gen._hex_distance(r.coord, centre) == 1:
 						land_neighbour = r
 				check(not wm_script.is_mission_eligible(ruin), "seed %d: ruin hex is not mission-eligible" % seed_value)
 				check(land_neighbour == null or wm_script.is_mission_eligible(land_neighbour),
@@ -485,7 +519,64 @@ func test_ruin_reservation() -> void:
 		if seed_value == 12345:
 			_check_worldgen_drift(recs)
 		gen.free()
+	_check_ruin_save_load(gen_script, wm_script, centre)
 	print("")
+
+
+# Review 2026-10-03: the ruin keys survive a save (through JSON, as SaveSystem writes it), and a save
+# made before Story 25.2 gets its ruin on load by the generator's own rule (no RNG draw), skipping
+# zones, the centre, locked hexes and hexes with an active mission.
+func _check_ruin_save_load(gen_script, wm_script, centre: Vector2i) -> void:
+	var has_rule: bool = gen_script.get_script_method_list().any(func(m): return m.name == "pick_ruin_hex")
+	check(has_rule, "HexMapGenerator.pick_ruin_hex() exists (one ruin rule for generation and old saves)")
+	var gen = gen_script.new()
+	var recs := _generate_world(gen, 12345)
+	gen.free()
+	var centre_recs := recs.filter(func(r): return r.is_center)
+	var ruin_recs := recs.filter(func(r): return r.get("is_ruin", false))
+	if centre_recs.size() != 1 or ruin_recs.size() != 1:
+		check(false, "seed 12345 world has one centre and one ruin for the save checks")
+		return
+	var wm = wm_script.new()
+	wm.set_generated_world(recs, centre_recs[0])
+	var wm2 = wm_script.new()
+	wm2.load_save_data(JSON.parse_string(JSON.stringify(wm.get_save_data())))
+	var back: Array = wm2.world_map.filter(func(r): return r.get("is_ruin", false))
+	check(back.size() == 1 and back[0].id == ruin_recs[0].id and back[0].get("ruin_discovered", true) == false
+		and back[0].topper_paths == [RUIN_TOPPER_PATH],
+		"save/load round-trip keeps the ruin hex, ruin_discovered = false and the D1 topper %s" % [back.map(func(r): return r.id)])
+
+	# A save from before 25.2: no ruin keys. Block every land hex next to the tavern but one
+	# (one with an active mission, the rest locked); the reserved ruin must be the free one.
+	var old: Dictionary = JSON.parse_string(JSON.stringify(wm.get_save_data()))
+	var land: Array = []
+	for r in old.world_map:
+		r.erase("is_ruin")
+		r.erase("ruin_discovered")
+		if r.id == ruin_recs[0].id:
+			r.topper_paths = []
+		var c := Vector2i(int(r.coord[0]), int(r.coord[1]))
+		if gen_script._hex_distance(c, centre) == 1 and not r.is_zone \
+				and r.biome in ["grass", "forest", "mountain", "coast"]:
+			land.append(r)
+	check(land.size() >= 3, "seed 12345: %d land hexes next to the tavern (the old-save check needs 3+)" % land.size())
+	if land.size() >= 3:
+		var free_id: String = land[-1].id
+		land[0]["active_mission"] = {"name": "Old Contract"}
+		for i in range(1, land.size() - 1):
+			land[i]["locked"] = true
+		var picks := []
+		for i in 2:
+			var wm3 = wm_script.new()
+			wm3.load_save_data(JSON.parse_string(JSON.stringify(old)))
+			var got: Array = wm3.world_map.filter(func(r): return r.get("is_ruin", false))
+			picks.append(got.map(func(r): return [r.id, r.get("ruin_discovered", true), r.topper_paths]))
+			wm3.free()
+		check(picks[0] == [[free_id, false, [RUIN_TOPPER_PATH]]],
+			"old save: one ruin reserved on load, on the free land hex %s (not locked, no mission): %s" % [free_id, picks[0]])
+		check(picks[0] == picks[1], "old save: the reserved ruin is deterministic (same hex on every load)")
+	wm.free()
+	wm2.free()
 
 
 func _generate_world(gen: Node, seed_value: int) -> Array:
@@ -537,7 +628,10 @@ func test_tavern_shell() -> void:
 		check(false, "tavern collider fixture readable")
 		print("")
 		return
-	var expected: Dictionary = fixture.get("colliders", {})
+	var expected = fixture.get("colliders", {})
+	check(expected is Dictionary and expected.size() == 7, "collider fixture lists the seven original colliders (%d)" % [expected.size() if expected is Dictionary else -1])
+	if not expected is Dictionary:
+		expected = {}
 	for name in expected:
 		var key: String = ARCH_PATH + name + "/StaticBody3D/CollisionShape3D"
 		check(aabbs.has(key) and _aabb_close(aabbs[key], expected[name]),
@@ -546,6 +640,120 @@ func test_tavern_shell() -> void:
 		var key: String = ARCH_PATH + rel
 		check(aabbs.has(key) and _aabb_close(aabbs[key], SHELL_NEW_COLLIDERS[rel]),
 			"new shell collider in place: %s %s" % [rel.get_slice("/", 2), aabbs.get(key, "MISSING")])
+
+	# Review 2026-10-03: the doorway joins the hall and the porch on the navmesh.
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var nav := _tavern_navmesh()
+	var th = tav.get(ARCH_PATH + DOOR_THRESHOLD)
+	var body = tav.get((ARCH_PATH + DOOR_THRESHOLD).get_base_dir())
+	var pts := PackedVector3Array()
+	if th != null and th.props.get("shape") is ConvexPolygonShape3D:
+		for q in (th.props.shape as ConvexPolygonShape3D).points:
+			pts.append((th.world as Transform3D) * q)
+	var lo := Vector3(INF, INF, INF)
+	var hi := Vector3(-INF, -INF, -INF)
+	for q in pts:
+		lo = lo.min(q)
+		hi = hi.max(q)
+	var layer: int = int(body.props.get("collision_layer", 1)) if body != null else 0
+	check(pts.size() >= 6 and body != null and body.type == "StaticBody3D"
+		and absf(lo.x - DOORWAY_X[0]) < 0.01 and absf(hi.x - DOORWAY_X[1]) < 0.01
+		and absf(hi.y - HALL_FLOOR_TOP) < 0.005 and absf(lo.y - PORCH_FLOOR_TOP) < 0.005
+		and lo.z < 4.43 and hi.z > 4.72 and nav != null and (layer & nav.geometry_collision_mask) != 0,
+		"DoorThreshold: a static wedge across the doorway x %s, from the hall floor's top (y %.2f) to the porch's (y %.2f), z %.2f..%.2f, on a layer the bake reads (%d)"
+			% [DOORWAY_X, hi.y, lo.y, lo.z, hi.z, layer])
+	check(not tav.keys().any(func(k): return str(k).begins_with(ARCH_PATH + "Shell/NearWalls/DoorThreshold/") and tav[k].type == "MeshInstance3D"),
+		"DoorThreshold draws nothing (collider only)")
+	if nav == null:
+		check(false, "MainTavern's TavernNavigation has a navigation mesh")
+		print("")
+		return
+	var door_polys := _nav_polys_at(nav, DOOR_CENTER.x, DOOR_CENTER.z).filter(func(i): return _nav_poly_top(nav, i) < 1.0)
+	check(not door_polys.is_empty(), "navmesh: the doorway (%.1f, %.2f) is on the mesh at floor height" % [DOOR_CENTER.x, DOOR_CENTER.z])
+	var comp := _nav_components(nav)
+	var hall_polys := _nav_polys_at(nav, HALL_NAV_POINT.x, HALL_NAV_POINT.z)
+	var porch_polys := _nav_polys_at(nav, PORCH_NAV_POINT.x, PORCH_NAV_POINT.z)
+	var hall_piece: int = comp[hall_polys[0]] if hall_polys.size() == 1 else -2
+	check(hall_piece >= 0 and porch_polys.size() == 1 and not door_polys.is_empty()
+		and comp[porch_polys[0]] == hall_piece and comp[door_polys[0]] == hall_piece,
+		"navmesh: the hall %s and the porch %s connect through the doorway (shared polygon edges)" % [HALL_NAV_POINT, PORCH_NAV_POINT])
+	var cut_off := 0
+	for i in comp.size():
+		if comp[i] != hall_piece:
+			cut_off += 1
+	check(hall_piece >= 0 and cut_off == 0, "navmesh: every polygon connects to the hall, no islands (%d of %d cut off)" % [cut_off, comp.size()])
+	print("")
+
+
+## Test 7, runtime part (review 2026-10-03): a NavigationServer3D map holding MainTavern's baked mesh finds a
+## path porch -> hall and hall -> porch, through the front doorway (it crosses the wall line between the gap colliders).
+func test_doorway_path() -> void:
+	print("[Test 7] Doorway: NavigationServer3D paths porch -> hall -> porch")
+	var nav := _tavern_navmesh()
+	if nav == null:
+		check(false, "MainTavern's TavernNavigation has a navigation mesh")
+		print("")
+		return
+	var map := NavigationServer3D.map_create()
+	NavigationServer3D.map_set_cell_size(map, nav.cell_size)
+	NavigationServer3D.map_set_cell_height(map, nav.cell_height)
+	NavigationServer3D.map_set_active(map, true)
+	var region := NavigationServer3D.region_create()
+	NavigationServer3D.region_set_map(region, map)
+	NavigationServer3D.region_set_navigation_mesh(region, nav)
+	for i in 30:
+		if NavigationServer3D.map_get_iteration_id(map) > 0:
+			break
+		await process_frame
+	check(NavigationServer3D.map_get_iteration_id(map) > 0, "the navigation map synced")
+	for leg in [[PORCH_NAV_POINT, HALL_NAV_POINT, "porch -> hall"], [HALL_NAV_POINT, PORCH_NAV_POINT, "hall -> porch"]]:
+		var from: Vector3 = leg[0]
+		var to: Vector3 = leg[1]
+		var path := NavigationServer3D.map_get_path(map, from, to, true)
+		var cross := INF
+		for i in range(1, path.size()):
+			var a := path[i - 1]
+			var b := path[i]
+			if (a.z - DOOR_CENTER.z) * (b.z - DOOR_CENTER.z) <= 0.0 and a.z != b.z:
+				cross = lerpf(a.x, b.x, (DOOR_CENTER.z - a.z) / (b.z - a.z))
+		var ends_ok := path.size() >= 2 and Vector2(path[0].x - from.x, path[0].z - from.z).length() < 0.3 \
+			and Vector2(path[-1].x - to.x, path[-1].z - to.z).length() < 0.3
+		check(ends_ok and cross > DOORWAY_X[0] and cross < DOORWAY_X[1],
+			"%s: a path from start to goal, through the doorway (crosses z %.2f at x %.2f; %d points)" % [leg[2], DOOR_CENTER.z, cross, path.size()])
+	NavigationServer3D.free_rid(region)
+	NavigationServer3D.free_rid(map)
+	print("")
+
+
+## Test 7, runtime part (review 2026-10-03; runs at the end, it needs frames): close_delay 0 closes at
+## once (Timer.start(0) used to fall back to the timer's 1 s wait_time), and a walker without a body
+## freed while holding the door (no release_hold, no body ever in the trigger) no longer holds it forever.
+func test_front_door_edges() -> void:
+	print("[Test 7] Front door edges: close_delay 0, a holder freed without letting go")
+	var world := Node3D.new()
+	root.add_child(world)
+	var door := _make_door()
+	world.add_child(door)
+	door.global_position = DOOR_CENTER + Vector3(0, -50, 0)   # out of every other test's way
+	await process_frame
+	var holder := Node.new()
+	door.close_delay = 0.0
+	door.hold_open(holder)
+	var t0 := Time.get_ticks_msec()
+	door.release_hold(holder)
+	while door._is_open and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	var took := Time.get_ticks_msec() - t0
+	check(not door._is_open and took < 300, "close_delay 0: the door closes at once on the last release (%d ms)" % took)
+	door.close_delay = 0.2
+	door.hold_open(holder)
+	holder.free()
+	t0 = Time.get_ticks_msec()
+	while door._is_open and Time.get_ticks_msec() - t0 < 3000:
+		await process_frame
+	check(not door._is_open, "a holder freed without release_hold lets the door close (%d ms)" % (Time.get_ticks_msec() - t0))
+	world.queue_free()
+	await process_frame
 	print("")
 
 
@@ -653,8 +861,12 @@ func test_tavern_exterior() -> void:
 	for k in tavern:
 		if str(k).ends_with("Interactive/ExitArea"):
 			spawn = tavern[k].props.get("exterior_spawn_position")
-	if spawn == null:
+	if spawn == null and ResourceLoader.exists(EXIT_ZONE_SCRIPT_PATH):
 		spawn = load(EXIT_ZONE_SCRIPT_PATH).get_property_default_value("exterior_spawn_position")
+	check(spawn is Vector3, "the tavern's ExitArea has an exterior spawn position (%s)" % [spawn])
+	if not spawn is Vector3:
+		print("")
+		return
 	var s2 := Vector2(spawn.x, spawn.z)
 	var d2 := Vector2(door.x, door.z)
 	check(s2.distance_to(d2) <= 3.0, "arrival spawn %s lands within 3 m of A1's door %s" % [spawn, door])
@@ -676,10 +888,36 @@ func test_tavern_exterior() -> void:
 	# transparent Label3D must draw after it or it vanishes (seen in-scene, 2026-09-25).
 	check(label != null and int(label.props.get("render_priority", 0)) > 0 and label.props.get("no_depth_test", false),
 		"'Press E' label draws after the ink quad and through the wall")
+	_check_entrance_prompt_toggle()
 	var has_edge := ext.keys().any(func(k): return str(k).begins_with("Camera3D/") and \
 		_is_edge_material(ext[k].props.get("surface_material_override/0")))
 	check(has_edge, "exterior camera has the ink-outline quad (D2)")
 	print("")
+
+
+## Review 2026-10-03: the door's "Press E" label draws through walls and trees, so it may only show
+## while the player stands in the entrance zone (the zone script syncs it; nothing enters the tree).
+func _check_entrance_prompt_toggle() -> void:
+	var zone := Area3D.new()
+	zone.set_script(load(ENTRANCE_ZONE_SCRIPT_PATH))
+	var label := Label3D.new()
+	label.name = "InteractionPrompt"
+	zone.add_child(label)
+	var has_sync: bool = zone.has_method("_sync_prompt")
+	check(has_sync, "entrance_zone_exterior.gd has _sync_prompt() (the label follows the zone)")
+	if has_sync:
+		var player := Node3D.new()
+		player.name = "Player"
+		var seen := []
+		zone._sync_prompt()   # what _ready does
+		seen.append(label.visible)
+		zone._on_body_entered(player)
+		seen.append(label.visible)
+		zone._on_body_exited(player)
+		seen.append(label.visible)
+		check(seen == [false, true, false], "'Press E' label: hidden at start, shown in the zone, hidden on leaving %s" % [seen])
+		player.free()
+	zone.free()
 
 
 ## Every node of a scene file via SceneState (nothing instanced):
@@ -741,10 +979,28 @@ func test_exterior_world() -> void:
 	var trees_bad := []
 	var tree_count := 0
 	var buildings := []
+	# Keep-out footprints, world [[x0, x1], [z0, z1]] (review 2026-10-03; was a 2.5 m radius round each
+	# building's origin): the village colliders, the Guild Tavern's (A1) collision proxies, the farm plots.
+	var keep_out: Array = []
+	var boxes := _scene_box_collider_aabbs(EXTERIOR_SCENE_PATH)
+	for k in boxes:
+		if str(k).begins_with("Village/") and str(k).contains("/Body/"):
+			keep_out.append([boxes[k][0], boxes[k][2]])
+	var village_boxes := keep_out.size()
 	for k in ext:
 		var key := str(k)
 		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
 			buildings.append((ext[k].world as Transform3D).origin)
+		if ext[k].instance == A1_PATH:
+			keep_out.append_array(_convex_rects(A1_PATH, ext[k].world))
+		if key.begins_with("Props/FarmingPlot") and ext[k].props.get("mesh") is Mesh:
+			var plot: AABB = (ext[k].world as Transform3D) * (ext[k].props.mesh as Mesh).get_aabb()
+			keep_out.append([[plot.position.x, plot.end.x], [plot.position.z, plot.end.z]])
+	check(village_boxes >= 7 and keep_out.size() >= village_boxes + 3 + 2,
+		"keep-out footprints: %d village colliders, A1's proxies and the 2 farm plots (%d in all)" % [village_boxes, keep_out.size()])
+	var stream_ok: bool = hf.get("stream") is Array and hf.stream.size() >= 2
+	check(stream_ok, "heightfield fixture has a stream centre line")
+	var square: Array = hf.get("square", [])
 	for k in ext:
 		var key := str(k)
 		var n: Dictionary = ext[k]
@@ -755,25 +1011,153 @@ func test_exterior_world() -> void:
 		var o: Vector3 = (n.world as Transform3D).origin
 		var ground := _hf_height(hf, o.x, o.z)
 		seated += 1
-		# Floating is the bug (shadows detach); a little sinking is fine, and near the hill's creases
-		# the bilinear fixture sits a touch above the true ground.
-		if o.y - ground > 0.15 or ground - o.y > 0.35:
+		# Floating is the bug (shadows detach); a little sinking is fine (the forest sits 0.05 in), but no
+		# more than the AC's 0.12: three trees at the slope foot were 0.13-0.19 under (review 2026-10-03).
+		if o.y - ground > 0.15 or ground - o.y > 0.12:
 			floating.append("%s y=%.2f ground=%.2f" % [key, o.y, ground])
 		if key.begins_with("Forest/"):
 			tree_count += 1
-			var on_path := _dist_to_polyline(Vector2(o.x, o.z), hf.path) < float(hf.path_half) + 0.3
-			var in_stream := absf(o.x - _hf_stream_x(hf, o.z)) < float(hf.stream_half) + 0.3
-			var in_building: bool = buildings.any(func(b): return Vector2(b.x, b.z).distance_to(Vector2(o.x, o.z)) < 2.5)
-			if on_path or in_stream or in_building:
+			var o2 := Vector2(o.x, o.z)
+			var on_path := _dist_to_polyline(o2, hf.path) < float(hf.path_half) + 0.3
+			var in_stream := stream_ok and absf(o.x - _hf_stream_x(hf, o.z)) < float(hf.stream_half) + 0.3
+			var in_footprint: bool = keep_out.any(func(b): return _circle_hits_rect(o2, 0.5, b))
+			var in_square: bool = square.size() == 3 and o2.distance_to(Vector2(square[0], square[1])) < float(square[2])
+			if on_path or in_stream or in_footprint or in_square:
 				trees_bad.append(key)
 	check(seated >= 50 and floating.is_empty(),
-		"%d placed nodes sit on the terrain (≤ 0.15 m above, ≤ 0.35 m sunk); off: %s" % [seated, floating.slice(0, 4)])
+		"%d placed nodes sit on the terrain (≤ 0.15 m above, ≤ 0.12 m sunk); off: %s" % [seated, floating.slice(0, 4)])
 	check(tree_count >= 100, "the forest has %d trees and rocks" % tree_count)
-	check(trees_bad.is_empty(), "no tree or rock on the path, stream or a building: %s" % [trees_bad.slice(0, 4)])
+	check(trees_bad.is_empty(), "no tree or rock on the path, stream, square, a building, the tavern or a farm plot: %s" % [trees_bad.slice(0, 4)])
 	check(buildings.size() >= 7, "the village has %d buildings" % buildings.size())
-	var bounds := ext.keys().filter(func(k): return str(k).begins_with("Bounds/") and ext[k].props.get("shape") is BoxShape3D)
-	check(ext.has("Bounds") and bounds.size() >= 4, "play-area bounds: %d walls" % bounds.size())
+	# The walls must close the play rectangle (fixture "play": x0, x1, z0, z1) on all four sides and stand
+	# taller than the player, not merely exist (review 2026-10-03).
+	var play: Array = hf.get("play", [])
+	var walls: Array = []
+	for k in boxes:
+		if str(k).begins_with("Bounds/"):
+			walls.append(boxes[k])
+	var open_sides := []
+	if play.size() == 4:
+		var sides := {"west": [Vector2(play[0], play[2]), Vector2(play[0], play[3])],
+			"east": [Vector2(play[1], play[2]), Vector2(play[1], play[3])],
+			"north": [Vector2(play[0], play[2]), Vector2(play[1], play[2])],
+			"south": [Vector2(play[0], play[3]), Vector2(play[1], play[3])]}
+		for side in sides:
+			var closed := false
+			for w in walls:
+				var covers := float(w[1][1]) >= 2.0
+				for p in sides[side]:
+					covers = covers and p.x >= float(w[0][0]) - 0.1 and p.x <= float(w[0][1]) + 0.1 \
+						and p.y >= float(w[2][0]) - 0.1 and p.y <= float(w[2][1]) + 0.1
+				closed = closed or covers
+			if not closed:
+				open_sides.append(side)
+	check(play.size() == 4 and walls.size() >= 4 and open_sides.is_empty(),
+		"play-area bounds: %d walls close the play rectangle %s; open sides: %s" % [walls.size(), play, open_sides])
+	# Review 2026-10-03: the KayKit trees, rocks and props import no collision (no -col / -colonly nodes), so the
+	# player walked through them. Every one he can reach (its footprint within his radius of the play rectangle)
+	# carries its own StaticBody3D, and none of those bodies reaches into the path.
+	var needs := 0
+	var bodiless := []
+	var on_path := []
+	var own_col := {}
+	for k in ext:
+		var key := str(k)
+		var parent := key.get_base_dir()
+		if not parent in ["Forest", "Village/Street", "Yard", "Scatter"] or ext[k].instance == "":
+			continue
+		var inst: String = ext[k].instance
+		if not own_col.has(inst):
+			own_col[inst] = _scene_nodes(inst).values().any(func(n): return n.props.get("shape") is Shape3D)
+		if own_col[inst]:
+			continue
+		var xf: Transform3D = ext[k].world
+		var foot := _instance_footprint(inst, xf)
+		if play.size() != 4 or not _circle_hits_rect(Vector2(xf.origin.x, xf.origin.z), foot + PLAYER_RADIUS, [[play[0], play[1]], [play[2], play[3]]]):
+			continue
+		needs += 1
+		var shape_key := key + "/Body/CollisionShape3D"
+		if not (ext.has(shape_key) and ext[shape_key].props.get("shape") is Shape3D):
+			bodiless.append(key)
+			continue
+		var c: Vector3 = (ext[shape_key].world as Transform3D).origin
+		var sh: Shape3D = ext[shape_key].props.shape
+		var r := 0.0
+		if sh is CylinderShape3D:
+			r = (sh as CylinderShape3D).radius
+		elif sh is BoxShape3D:
+			r = Vector2((sh as BoxShape3D).size.x, (sh as BoxShape3D).size.z).length() * 0.5
+		r *= (ext[shape_key].world as Transform3D).basis.get_scale().x
+		if _dist_to_polyline(Vector2(c.x, c.z), hf.path) < float(hf.path_half) + r:
+			on_path.append(key)
+	check(needs >= 50 and bodiless.is_empty(), "%d reachable trees, rocks and props have a collider (none: %s)" % [needs, bodiless.slice(0, 4)])
+	check(on_path.is_empty(), "no new collider reaches into the path %s" % [on_path.slice(0, 4)])
+	_check_exterior_spawn_fallback(play)
 	print("")
+
+
+## The flat radius of an instanced scene's meshes (their AABB corners) about the instance origin, placed by `xf`.
+static func _instance_footprint(scene_path: String, xf: Transform3D) -> float:
+	var r := 0.0
+	var nodes := _scene_nodes(scene_path)
+	for k in nodes:
+		var mesh = nodes[k].props.get("mesh")
+		if not mesh is Mesh:
+			continue
+		var box: AABB = (nodes[k].world as Transform3D) * (mesh as Mesh).get_aabb()
+		for cx in [box.position.x, box.end.x]:
+			for cz in [box.position.z, box.end.z]:
+				var w: Vector3 = xf.basis * Vector3(cx, 0, cz)
+				r = maxf(r, Vector2(w.x, w.z).length())
+	return r
+
+
+## World [[x0, x1], [z0, z1]] of every convex collision proxy in a scene file, placed by `xf`.
+static func _convex_rects(scene_path: String, xf: Transform3D) -> Array:
+	var out: Array = []
+	var nodes := _scene_nodes(scene_path)
+	for k in nodes:
+		var shape = nodes[k].props.get("shape")
+		if shape is ConvexPolygonShape3D:
+			var lo := Vector3(INF, INF, INF)
+			var hi := Vector3(-INF, -INF, -INF)
+			for pt in (shape as ConvexPolygonShape3D).points:
+				var w: Vector3 = xf * ((nodes[k].world as Transform3D) * pt)
+				lo = lo.min(w)
+				hi = hi.max(w)
+			out.append([[lo.x, hi.x], [lo.z, hi.z]])
+	return out
+
+
+## Review 2026-10-03: an exterior save from before 25.29's re-layout can hold a position outside the
+## new walls or off the terrain; PlayerManager must refuse it (and use PlayerSpawnPoint), and must
+## accept the spawn point and ordinary spots inside the play area.
+func _check_exterior_spawn_fallback(play: Array) -> void:
+	var pm = load(PLAYER_MANAGER_PATH)
+	var has_fn: bool = pm != null and pm.get_script_method_list().any(func(m): return m.name == "spawn_reject_reason")
+	check(has_fn, "PlayerManager.spawn_reject_reason() exists (old exterior saves fall back to PlayerSpawnPoint)")
+	if not has_fn or play.size() != 4:
+		return
+	var world: Node = (load(EXTERIOR_SCENE_PATH) as PackedScene).instantiate()
+	var sp := world.get_node_or_null("PlayerSpawnPoint") as Node3D
+	var mid_z := (float(play[2]) + float(play[3])) * 0.5
+	var bad := {
+		"beyond the west wall": Vector3(float(play[0]) - 6.0, 1.0, mid_z),
+		"inside the east wall": Vector3(float(play[1]) + 1.0, 1.0, mid_z),
+		"far off the map": Vector3(500.0, 1.0, 500.0),
+		"under the terrain": Vector3(sp.position.x, -60.0, sp.position.z) if sp else Vector3(0, -60, 0),
+	}
+	var good := {"PlayerSpawnPoint": sp.position if sp else Vector3.INF, "the village square": Vector3(17.5, -2.0, 8.0)}
+	var wrong := []
+	for label in bad:
+		if pm.spawn_reject_reason(world, bad[label]) == "":
+			wrong.append("accepted " + label)
+	for label in good:
+		var why: String = pm.spawn_reject_reason(world, good[label])
+		if why != "":
+			wrong.append("refused %s (%s)" % [label, why])
+	check(sp != null and wrong.is_empty(), "saved exterior positions: outside the walls / off or under the terrain refused, the spawn point and the square accepted %s" % [wrong])
+	world.free()
 
 
 # --- Test 10: The Hourglass Pillar (Story 25.4) ---
@@ -813,7 +1197,14 @@ func test_hourglass_pillar() -> void:
 			"out-of-range stages clamp to 0 and 4")
 	var cfg = _read_json(GAME_CONFIG_PATH)
 	var demo_stage = cfg.get("pillar_reveal_stage") if cfg is Dictionary else null
-	check(demo_stage != null and int(demo_stage) >= 0 and int(demo_stage) <= 4, "game_config pillar_reveal_stage = %s" % [demo_stage])
+	check((demo_stage is float or demo_stage is int) and int(demo_stage) >= 0 and int(demo_stage) <= 4,
+		"game_config pillar_reveal_stage = %s (a number 0..4)" % [demo_stage])
+	# Review 2026-10-03: a missing or non-numeric config value must not break _ready or silently show stage 0.
+	var has_parse: bool = script != null and script.get_script_method_list().any(func(m): return m.name == "stage_from_config")
+	check(has_parse, "hourglass_pillar.gd has stage_from_config()")
+	if has_parse:
+		var got := [null, "two", true, 2.0, 3, -5, 9.7].map(func(v): return script.stage_from_config(v))
+		check(got == [4, 4, 4, 2, 3, 0, 4], "config stage: null / text / bool -> 4 (the full pillar), numbers clamp %s" % [got])
 
 	var tav := _scene_nodes(TAVERN_SCENE_PATH)
 	var hits := tav.keys().filter(func(k): return tav[k].instance == PILLAR_SCENE_PATH)
@@ -826,12 +1217,32 @@ func test_hourglass_pillar() -> void:
 	for k in tav:
 		if str(k).ends_with("TavernNavigation"):
 			nav = tav[k].props.get("navigation_mesh")
+	# AC 6, literally: no polygon at ANY height covers the pillar centre (review 2026-10-03: the bake used to leave
+	# an unreachable island on the pillar's top at y 5.17; region_min_size 8 now drops cut-off bits like it).
 	# The on-mesh point is 4.3 m out: since Story 25.6 the round bar's counter covers r 2.4..3.1.
-	check(nav is NavigationMesh and not _nav_contains(nav, PILLAR_RING_CENTRE.x, PILLAR_RING_CENTRE.z)
+	check(nav is NavigationMesh and _nav_polys_at(nav, PILLAR_RING_CENTRE.x, PILLAR_RING_CENTRE.z).is_empty()
 		and _nav_contains(nav, PILLAR_RING_CENTRE.x + 4.3, PILLAR_RING_CENTRE.z),
-		"navmesh routes around the pillar (floor level: centre off, 4.3 m away on)")
+		"navmesh routes around the pillar (no polygon covers the centre at any height; 4.3 m away is on)")
 	print("")
 
+
+## Review 2026-10-03 (AC 3): glow_energy scales the emissive materials at runtime, so assigning the
+## property (an AnimationPlayer, the day-phase lighting) must do what set_glow_energy() does.
+## Called after the autoload frame: during _initialize() the root is not in the tree and _ready would not run.
+func _check_pillar_glow_setter() -> void:
+	if not ResourceLoader.exists(PILLAR_SCENE_PATH):
+		return
+	var p: Node3D = (load(PILLAR_SCENE_PATH) as PackedScene).instantiate()
+	p.reveal_stage_override = 4   # no config read
+	root.add_child(p)
+	var glow: Array = p._glow
+	p.glow_energy = 2.5
+	var scaled := glow.size() >= 3 and glow.all(func(pair): return is_equal_approx(
+		(pair[0] as StandardMaterial3D).emission_energy_multiplier, float(pair[1]) * 2.5))
+	p.glow_energy = -1.0
+	var floored: bool = p.glow_energy == 0.0 and glow.all(func(pair): return (pair[0] as StandardMaterial3D).emission_energy_multiplier == 0.0)
+	check(scaled and floored, "pillar: setting glow_energy scales its %d emissive materials (2.5x), negatives floor at 0" % glow.size())
+	p.free()
 
 
 # --- Test 11: The Hearth and firewood (Story 25.5) ---
@@ -866,8 +1277,12 @@ func test_hearth() -> void:
 	check(has_look, "hearth.gd has fire_look()")
 	if has_look:
 		var zc: Dictionary = (load(FIRE_ZONE_SCRIPT_PATH) as Script).get_script_constant_map()
-		var hi := float(zc.get("FUEL_HIGH_FLOOR", 50.0))
-		var lo := float(zc.get("FUEL_LOW_FLOOR", 20.0))
+		# The zone's own floors, never a fallback copy of the hearth's numbers (review 2026-10-03).
+		var floors_ok: bool = (zc.get("FUEL_HIGH_FLOOR") is float or zc.get("FUEL_HIGH_FLOOR") is int) \
+			and (zc.get("FUEL_LOW_FLOOR") is float or zc.get("FUEL_LOW_FLOOR") is int)
+		check(floors_ok, "fireplace_zone.gd defines FUEL_HIGH_FLOOR and FUEL_LOW_FLOOR")
+		var hi := float(zc.get("FUEL_HIGH_FLOOR", NAN))
+		var lo := float(zc.get("FUEL_LOW_FLOOR", NAN))
 		var bands := [[0.0, "out"], [0.5, "dying"], [lo, "dying"], [lo + 0.5, "low"], [hi, "low"], [hi + 0.5, "high"], [100.0, "high"]]
 		for b in bands:
 			check(hs.fire_look(b[0]).band == b[1], "fuel %.1f reads %s (zone floors %d / %d)" % [b[0], b[1], hi, lo])
@@ -931,6 +1346,77 @@ func test_hearth() -> void:
 		"the Tend Fire zone %s covers a reachable spot in front of the apron" % [zone_box])
 	check(nav is NavigationMesh and not _nav_contains(nav, HEARTH_BLOCKED.x, HEARTH_BLOCKED.y),
 		"navmesh routes round the hearth's chimney body (%s is off the mesh)" % [HEARTH_BLOCKED])
+	_check_fire_zone_bands()
+	print("")
+
+
+## Review 2026-10-03: the zone may push to the hearth before the hearth's _ready (node order), and a
+## flash asked for while the light is hidden must not fire later. Called after the autoload frame (see above).
+func _check_hearth_early_calls() -> void:
+	if not ResourceLoader.exists(HEARTH_SCENE_PATH):
+		return
+	var h: Node3D = (load(HEARTH_SCENE_PATH) as PackedScene).instantiate()
+	h.set_fire_level(70.0)        # before _ready: nothing is wired yet
+	h.set_placed_logs(2)
+	h.set_stock(3)
+	h.play_ignition()
+	root.add_child(h)             # _ready applies what was pushed
+	var light := h.get_node("FireLight") as OmniLight3D
+	check(h.fuel == 70.0 and light.visible and h._look.get("band") == "high" and h.placed_logs == 2,
+		"hearth: a fuel push before its _ready is applied when it readies (fuel %.0f, band %s)" % [h.fuel, h._look.get("band")])
+	h.set_fire_level(0.0)
+	h.play_ignition()
+	h._process(1.0)               # hidden light: the flash still fades
+	var faded: bool = h._flash == 0.0
+	h.set_fire_level(70.0)
+	check(faded, "hearth: an ignition flash fades while the light is hidden (no stale flash when it relights)")
+	h.free()
+
+
+## Review 2026-10-03: the zone's fire state comes from a fuel level with the state machine's own bands,
+## so a re-entered scene or a loaded save starts burning (and decaying) instead of DORMANT.
+func _check_fire_zone_bands() -> void:
+	var zs := load(FIRE_ZONE_SCRIPT_PATH) as Script
+	var has_sync: bool = zs.get_script_method_list().any(func(m): return m.name == "sync_from_fuel")
+	check(has_sync, "fireplace_zone.gd has sync_from_fuel()")
+	if not has_sync:
+		return
+	var st: Dictionary = zs.get_script_constant_map().get("FireplaceState", {})
+	var z := Area3D.new()
+	z.set_script(zs)
+	var got := []
+	for f in [80.0, 35.0, 10.0, 0.0]:
+		z.sync_from_fuel(f)
+		got.append([z.current_state, z.fire_quality])
+	z.free()
+	var want := [[st.get("BURNING_HIGH"), 80.0], [st.get("BURNING_LOW"), 35.0], [st.get("DYING"), 10.0], [st.get("DORMANT"), 0.0]]
+	check(got == want, "fire zone from fuel 80 / 35 / 10 / 0: high, low, dying, dormant %s" % [got])
+
+
+## Test 11, runtime part (review 2026-10-03; needs GameManager): a fire zone that enters the tree while
+## GameManager has fuel (a re-entered hall, a loaded save) shows it and burns it down.
+func test_fire_resume() -> void:
+	print("[Test 11] The fire resumes from GameManager's fuel")
+	var gm = root.get_node_or_null("GameManager")
+	if gm == null:
+		check(false, "GameManager autoload present")
+		return
+	var old_fuel: float = gm.get_fireplace_fuel()
+	gm.set_fireplace_fuel(65.0)
+	var z := Area3D.new()
+	z.set_script(load(FIRE_ZONE_SCRIPT_PATH))
+	root.add_child(z)
+	var st: Dictionary = (z.get_script() as Script).get_script_constant_map().get("FireplaceState", {})
+	var state_at_ready = z.current_state
+	var q0: float = z.fire_quality
+	for i in 5:
+		await process_frame
+	var q1: float = z.fire_quality
+	check(state_at_ready == st.get("BURNING_HIGH") and q0 == 65.0, "the zone starts BURNING_HIGH at GameManager's 65 (state %s, fuel %.1f)" % [state_at_ready, q0])
+	check(q1 < q0 and q1 > 60.0, "and the fire decays from there (%.3f -> %.3f)" % [q0, q1])
+	z.queue_free()
+	await process_frame
+	gm.set_fireplace_fuel(old_fuel)
 	print("")
 
 
@@ -1030,16 +1516,27 @@ func test_round_bar() -> void:
 		check(only_tables.size() == 2 and only_tables.all(func(s): return s.sit == null) and only_tables[0].approach == far,
 			"build_seats with no scene seats is the old table list")
 		var mixed: Array = sp.build_seats([seat_t], [far, near])
-		check(mixed.size() == 2 and mixed[0].sit is Transform3D and mixed[0].approach.distance_to(root) < 0.01 and mixed[1].approach == far,
-			"build_seats: scene seats first, table spots kept unless within 0.8 m of a seat")
+		# The nav target sits SEAT_APPROACH_BACK behind the sit root (away from the bar), where the navmesh
+		# is: the root itself is inside the counter's agent margin (review 2026-10-03). The patron walks
+		# to the approach and slides onto the root when he sits.
+		var back := float(sp.get_script_constant_map().get("SEAT_APPROACH_BACK", 0.0))
+		var want_app := root - Vector3(0, 0, 1) * back
+		check(back >= 0.25 and mixed.size() == 2 and mixed[0].sit is Transform3D and mixed[0].approach.distance_to(want_app) < 0.01
+			and mixed[1].approach == far,
+			"build_seats: scene seats first (approach %.2f m behind the sit root), table spots kept unless within 0.8 m of a seat" % back)
 		# Elbow room (found in the 2026-09-25 playtest: neighbours on adjacent stools look crowded).
 		var row := []
+		var tables := []
 		for i in 4:
-			row.append({"approach": Vector3(1.2 * i, 0, 0), "sit": null})
+			row.append({"approach": Vector3(1.2 * i, 0, -0.3), "sit": Transform3D(Basis.IDENTITY, Vector3(1.2 * i, 0.54, 0))})
+			tables.append({"approach": Vector3(1.2 * i, 0, 0), "sit": null})
 		var has_pick: bool = sp.get_script_method_list().any(func(m): return m.name == "pick_seat")
-		check(has_pick and sp.pick_seat(row, [0], 0.0) != 1 and sp.pick_seat(row, [0], 0.99) != 1
-			and [1, 3].has(sp.pick_seat(row, [0, 2], 0.0)) and sp.pick_seat(row, [0, 1, 2, 3], 0.5) == -1,
-			"pick_seat keeps elbow room from seated patrons, and packs in only when the bar is full")
+		var picks: Array = [sp.pick_seat(row, [0], 0.0), sp.pick_seat(row, [0], 0.99), sp.pick_seat(row, [0, 2], 0.0),
+			sp.pick_seat(row, [0, 1, 2, 3], 0.5)] if has_pick else []
+		check(has_pick and picks[0] == 2 and picks[1] == 3 and picks[2] in [1, 3] and picks[3] == -1,
+			"pick_seat keeps elbow room between stools (next to 0: 2 or 3, never 1, never the taken seat), packs in only when full %s" % [picks])
+		var tpick: Array = [sp.pick_seat(tables, [0], 0.0), sp.pick_seat(tables, [0, 1, 2], 0.0)] if has_pick else []
+		check(has_pick and tpick == [1, 3], "table spots share a table: no elbow room between them %s" % [tpick])
 	var tank_ok: bool = rp != null and ResourceLoader.exists(str(rp.get_script_constant_map().get("TANKARD_FULL", ""))) \
 		and ResourceLoader.exists(str(rp.get_script_constant_map().get("TANKARD_EMPTY", "")))
 	check(tank_ok, "RealisticPatron's tankard props point at the H1 files")
@@ -1064,14 +1561,56 @@ func test_round_bar() -> void:
 		var off := []
 		for k in stools:
 			var seat_w: Transform3D = t_bar * (rb[k].world as Transform3D) * seat_local
-			var a: Vector3 = rp.seat_root(seat_w) if has_api else seat_w.origin
-			var out := Vector3(a.x - c.x, 0, a.z - c.z).normalized()
-			var p := a + out * 0.3
+			# The point the patron is actually sent to (build_seats' approach), not a nudged copy of it.
+			var p: Vector3 = sp.build_seats([seat_w], [])[0].approach if has_api else seat_w.origin
 			if not _nav_contains(nav, p.x, p.z):
 				off.append("(%.2f, %.2f)" % [p.x, p.z])
-		check(stools.size() == 12 and off.is_empty(), "navmesh: every stool's approach is reachable (off: %s)" % [off])
+		check(stools.size() == 12 and off.is_empty(), "navmesh: every stool's approach (the nav target) is on the mesh (off: %s)" % [off])
 	else:
 		check(false, "navmesh checks need the bar in MainTavern")
+	print("")
+
+
+## Test 12, runtime part (review 2026-10-03; needs frames): the held tankard turns upright a couple of
+## frames after it is attached, and a patron that leaves the tree meanwhile is simply skipped (the
+## old coroutine called get_tree() after its awaits and hit a null tree).
+func test_tankard_upright() -> void:
+	print("[Test 12] The held tankard: upright after two frames, safe when the patron leaves the tree")
+	var world := Node3D.new()
+	root.add_child(world)
+	var p = (load("res://scenes/npcs/RealisticPatron.tscn") as PackedScene).instantiate()
+	p.set_physics_process(false)
+	world.add_child(p)
+	p.set_physics_process(false)
+	await process_frame
+	if p.animation_player:
+		p.animation_player.pause()   # hold the hand still, so the turned tankard can be compared exactly
+	p._hold_tankard(true)
+	var slot = p._tankard
+	var mug: Node3D = slot.get_child(0) if slot and slot.get_child_count() > 0 else null
+	var local0: Basis = mug.transform.basis if mug else Basis()
+	await process_frame
+	var turned_early: bool = mug != null and not mug.transform.basis.is_equal_approx(local0)
+	for i in 2:
+		await process_frame
+	var want: Basis = Basis(p.patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * float(p.TANKARD_HELD_SCALE)) if p.patron_body_mesh else Basis()
+	var off := 0.0
+	if mug:
+		for col in 3:
+			off = maxf(off, (mug.global_basis[col] - want[col]).length())
+	check(mug != null and not turned_early and off < 0.01,
+		"the tankard stands upright in the patron's frame two frames after it is attached (off %.4f, early %s)" % [off, turned_early])
+	p._hold_tankard(false)
+	var mug2: Node3D = p._tankard.get_child(0) if p._tankard and p._tankard.get_child_count() > 0 else null
+	var before: Basis = mug2.transform.basis if mug2 else Basis()
+	world.remove_child(p)          # leaves the tree before the two frames are up
+	for i in 3:
+		await process_frame
+	check(is_instance_valid(p) and mug2 != null and mug2.transform.basis.is_equal_approx(before),
+		"a patron out of the tree is skipped (no turn, no null-tree call)")
+	p.free()
+	world.queue_free()
+	await process_frame
 	print("")
 
 
@@ -1102,8 +1641,10 @@ func test_desk_and_board() -> void:
 	check(desk.values().any(func(n): return n.props.get("shape") is ConcavePolygonShape3D), "B3 has its trimesh collider")
 	var board := _scene_nodes(BOARD_PATH) if ResourceLoader.exists(BOARD_PATH) else {}
 	var bnames := board.keys().map(func(k): return str(k).get_file())
-	var notices := bnames.filter(func(n): return str(n).begins_with("notice_"))
-	check(notices.size() == 8 and "interact_point" in bnames, "B4 has 8 separate notices and an interact_point (%d)" % notices.size())
+	# notice_board.gd finds exactly notice_01..notice_08 (review 2026-10-03: any "notice_" name used to pass).
+	var missing_notices := range(1, 9).map(func(i): return "notice_%02d" % i).filter(func(n): return not n in bnames)
+	check(missing_notices.is_empty() and "interact_point" in bnames,
+		"B4 has notice_01..notice_08 and an interact_point (missing: %s)" % [missing_notices])
 
 	var nb = load(NOTICE_SCRIPT_PATH) if ResourceLoader.exists(NOTICE_SCRIPT_PATH) else null
 	var has_fn: bool = nb != null and nb.get_script_method_list().any(func(m): return m.name == "notices_shown")
@@ -1114,6 +1655,13 @@ func test_desk_and_board() -> void:
 		var b := {"name": "Bandits"}
 		check(nb.open_contracts([a, b], []) == 2 and nb.open_contracts([a, b], [{"mission": a, "days_remaining": 2}]) == 1
 			and nb.open_contracts([], [{"mission": a}]) == 0, "open_contracts: today's pool minus the contracts already taken")
+		# Review 2026-10-03: two identical contracts, one taken, leave one open; a taken contract whose
+		# copy changed (a loaded save, an edited description) still counts as taken, once.
+		var twin := a.duplicate()
+		var edited := {"name": "Bandits", "description": "Bandits [URGENT]"}
+		var counts := [nb.open_contracts([a, twin], [{"mission": a}]), nb.open_contracts([a, twin], [{"mission": twin.duplicate()}]),
+			nb.open_contracts([a, b], [{"mission": edited}]), nb.open_contracts([a], [{"mission": a}, {"mission": a.duplicate()}])]
+		check(counts == [1, 1, 1, 0], "open_contracts: each taken contract claims one notice (twins, edited copies) %s" % [counts])
 	var gd := _scene_nodes(DESK_SCENE_PATH) if ResourceLoader.exists(DESK_SCENE_PATH) else {}
 	check(gd.has("DeskLight") and gd.DeskLight.type == "OmniLight3D"
 		and gd.values().any(func(n): return n.type == "Marker3D" and "work_point" in n.groups),
@@ -1149,6 +1697,46 @@ func test_desk_and_board() -> void:
 		check(zone.has_point(ip + Vector3(0, 1.0, 0)) and nav is NavigationMesh and _nav_contains(nav, ip.x, ip.z),
 			"the %s zone %s covers its interact point %s, which is on the navmesh" % [spec[2], zone, ip])
 	check(nav is NavigationMesh and not _nav_contains(nav, DESK_SPOT.x, DESK_SPOT.z + 0.35), "navmesh: the desk front is solid")
+	print("")
+
+
+## Test 13, runtime part (review 2026-10-03; needs the autoloads): the hall's board recounts from the
+## buses on a new day (a mission that resolves on a day without a contract refresh), on the morning
+## briefing, on load and on reset (both emit day_changed), not only when the pool is refreshed.
+func test_notice_board_live() -> void:
+	print("[Test 13] The board recounts on a new day, the briefing, load and reset")
+	var gm = root.get_node_or_null("GameManager")
+	var gbus = root.get_node_or_null("GameBus")
+	var abus = root.get_node_or_null("AdventurerBus")
+	if gm == null or gbus == null or abus == null or not ResourceLoader.exists(NOTICE_SCENE_PATH):
+		check(false, "GameManager, GameBus, AdventurerBus and GuildNoticeBoard.tscn present")
+		return
+	var saved_available: Array = gm.available_missions
+	var saved_active: Array = gm.active_missions
+	var a := {"name": "Wolves"}
+	var b := {"name": "Bandits"}
+	var c := {"name": "Rats"}
+	gm.available_missions = [a, b, c]
+	gm.active_missions = [{"mission": a, "days_remaining": 1}]
+	var board: Node3D = (load(NOTICE_SCENE_PATH) as PackedScene).instantiate()
+	root.add_child(board)
+	var seen := [board._notices.filter(func(n): return n.visible).size()]
+	gm.active_missions = []                   # the party is back on a day with no new contracts
+	gbus.day_changed.emit(int(gm.current_day))
+	await process_frame
+	seen.append(board._notices.filter(func(n): return n.visible).size())
+	gm.available_missions = [a]
+	gbus.morning_briefing_ready.emit([])
+	await process_frame
+	seen.append(board._notices.filter(func(n): return n.visible).size())
+	gm.available_missions = [a, b]
+	abus.missions_resolved.emit([])
+	await process_frame
+	seen.append(board._notices.filter(func(n): return n.visible).size())
+	check(seen == [2, 3, 1, 2], "board notices: 2 open, 3 after a day change, 1 after the briefing, 2 after a resolution %s" % [seen])
+	board.free()
+	gm.available_missions = saved_available
+	gm.active_missions = saved_active
 	print("")
 
 
@@ -1294,23 +1882,33 @@ func test_class_roster() -> void:
 			"%s: %d tris (≤ 7,000), glow rule (wrong: %s)" % [str(spec[0]).get_file(), st.tris, st.wrong])
 		var slots_ok := ok
 		var found := {}
+		var clip_n := 0
 		if ok:
 			var inst := (load(spec[0]) as PackedScene).instantiate()
-			var sk := inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+			var sks := inst.find_children("*", "Skeleton3D", true, false)
+			var sk := sks[0] as Skeleton3D if not sks.is_empty() else null   # no skeleton: fail, don't crash
+			slots_ok = sk != null
 			for prop in spec[1]:
-				var b := sk.find_bone(prop)
+				var b := sk.find_bone(prop) if sk else -1
 				var parent := sk.get_bone_name(sk.get_bone_parent(b)) if b >= 0 and sk.get_bone_parent(b) >= 0 else ""
 				found[prop] = parent
 				if parent != spec[1][prop]:
 					slots_ok = false
+			var aps := inst.find_children("*", "AnimationPlayer", true, false)
+			clip_n = (aps[0] as AnimationPlayer).get_animation_list().size() if not aps.is_empty() else 0
 			inst.free()
 		check(slots_ok, "%s props hang from their slots %s" % [str(spec[0]).get_file(), found])
+		# Review 2026-10-03: the custom bodies carry all 76 KayKit clips (AC), and the Healer's staff crystal glows.
+		check(clip_n >= 76, "%s carries all 76 KayKit clips (%d)" % [str(spec[0]).get_file(), clip_n])
+		if spec[0] == HEALER_MODEL_PATH:
+			check(st.glow >= 1, "healer.glb: the staff crystal glows (%d emissive surfaces)" % st.glow)
 	var gm = load(GAME_MANAGER_PATH) as Script
 	var has_bonus: bool = gm != null and gm.get_script_method_list().any(func(m): return m.name == "recruit_class_bonus")
 	check(has_bonus and DEMO_CLASSES.all(func(c): return not gm.recruit_class_bonus(c).is_empty())
 		and gm.recruit_class_bonus("Barbarian").get("strength", 0) == 3 and gm.recruit_class_bonus("Ranger").get("dexterity", 0) == 2
 		and gm.recruit_class_bonus("Fighter") == {"strength": 2, "endurance": 1},
 		"every class gets its recruit stat bonus (Fighter unchanged, Barbarian str +3, Ranger dex +2)")
+	_check_class_review_fixes(gm)
 	var no_portrait := DEMO_CLASSES.filter(func(c): return not ResourceLoader.exists("res://assets/portraits/%s.png" % str(c).to_lower()))
 	check(no_portrait.is_empty(), "every class has a portrait PNG (missing: %s)" % [no_portrait])
 	var allow := FileAccess.get_file_as_string(ASSET_ALLOWLIST_PATH)
@@ -1332,6 +1930,60 @@ func test_class_roster() -> void:
 		"the patron pool still seats Healers and Rangers, as a minority of travelling adventurers (%.0f%%), and every pool model exists"
 		% (100.0 * class_w / maxf(all_w, 0.001)))
 	print("")
+
+
+## Review 2026-10-03 (Story 25.9): the hire pool survives an empty or malformed class list; the
+## recruitment popup's Barbarian matches classes.json (int -1); old saves and the codex turn Cleric
+## adventurers into Healers (SaveSystem's schema migration; the codex in memory only).
+func _check_class_review_fixes(gm_script) -> void:
+	var has_valid: bool = gm_script != null and gm_script.get_script_method_list().any(func(m): return m.name == "valid_class_list")
+	check(has_valid, "GameManager.valid_class_list() exists")
+	if has_valid:
+		var good := ["Fighter", "Ranger"]
+		var bad := [[], "Fighter", [1, null], ["Fighter", ""], null]
+		var fell_back := true
+		for v in bad:
+			var got: Array = gm_script.valid_class_list(v)
+			fell_back = fell_back and not got.is_empty() and got.all(func(c): return c is String and c != "")
+		check(gm_script.valid_class_list(good) == good and fell_back,
+			"adventurer_classes: a good list is kept, an empty / non-list / malformed one falls back to the defaults")
+
+	var popup_script = load("res://scripts/ui/recruitment_popup.gd")
+	var popup = popup_script.new() if popup_script else null
+	var barbs := []
+	if popup:
+		for i in 600:
+			var a: Dictionary = popup.create_adventurer()
+			if a.get("class") == "Barbarian":
+				barbs.append(a)
+		popup.free()
+	var int_range := [barbs.map(func(a): return int(a.intelligence)).min(), barbs.map(func(a): return int(a.intelligence)).max()] if not barbs.is_empty() else []
+	check(barbs.size() >= 20 and barbs.all(func(a): return a.intelligence >= 0 and a.intelligence <= 5 and a.strength >= 4 and a.strength <= 9),
+		"recruitment popup: Barbarian int 1d6 - 1, str 1d6 + 3, as classes.json (%d Barbarians, int %s)" % [barbs.size(), int_range])
+
+	var ss = root.get_node_or_null("SaveSystem")
+	var has_rename: bool = ss != null and ss.has_method("rename_classes")
+	check(has_rename, "SaveSystem.rename_classes() exists")
+	if not has_rename:
+		return
+	var old := {"schema_version": 1, "current_day": 3, "gold": 10, "beer_stock": 5,
+		"adventurers": [{"name": "Ana", "class": "Cleric"}, {"name": "Bo", "class": "Rogue"}],
+		"daily_recruits": [{"name": "Cy", "class": "Cleric"}],
+		"active_missions": [{"adventurer": {"name": "Di", "class": "Cleric"}, "mission": {"name": "Wolves"}},
+			{"party": [{"name": "Ed", "class": "Cleric"}, {"name": "Fa", "class": "Mage"}], "is_party_mission": true}],
+		"pending_reports": [{"adventurer_class": "Cleric"}]}
+	var out: Dictionary = ss._migrate_save_data(old)
+	var flat := JSON.stringify(out)
+	check(not flat.contains("Cleric") and flat.count("\"Healer\"") == 5 and flat.contains("\"Rogue\"") and flat.contains("\"Mage\"")
+		and int(out.get("schema_version", 0)) >= 2,
+		"old save: every Cleric (roster, recruits, missions, party, reports) becomes a Healer, schema v%s" % [out.get("schema_version")])
+	var codex := {"fallen_heroes": [{"name": "Gil", "class": "Cleric"}, {"name": "Hal", "class": "Fighter"}]}
+	var n: int = ss.rename_classes(codex)
+	check(n == 1 and codex.fallen_heroes[0]["class"] == "Healer" and codex.fallen_heroes[1]["class"] == "Fighter",
+		"codex: a fallen Cleric is remembered as a Healer (%d renamed)" % n)
+	var live: Array = ss.codex_data.get("fallen_heroes", [])
+	check(not live.any(func(h): return h is Dictionary and h.get("class") == "Cleric"),
+		"the loaded codex holds no Cleric (migrated in memory on load)")
 
 
 # --- Test 16: The townsfolk body kit, patrons by origin, villagers in town (Story 25.14) ---
@@ -2207,6 +2859,20 @@ func test_staff() -> void:
 			continue
 		for v in vs.values():
 			_check_staff_glb(str(v.get("model_path", "")) if v is Dictionary else "", glb_rules[role])
+	# Review 2026-10-03: a custom fallback body (the 25.13 KayKit-rig dealer behind the anime one) is a staff body
+	# too and gets the same checks under its own rule (a stock KayKit fallback, the Bartender's Barbarian, does not).
+	var fallback_rules := {"desk_manager": [DEALER_MESH_ALLOW, "Dealer_", ["Dealer_Quill", "Dealer_Ears"],
+			STAFF_CLIPS, [], STAFF_LOOPS, STAFF_ONE_SHOTS, 7000, -1]}
+	for role in fallback_rules:
+		var fvs = roles.get(role, {}).get("variants", {}) if roles.get(role) is Dictionary else {}
+		var fbs := []
+		for v in (fvs.values() if fvs is Dictionary else []):
+			var fb := str(v.get("fallback_model_path", "")) if v is Dictionary else ""
+			if fb != "" and not fb.contains("/kaykit_adventurers/") and not fb in fbs:
+				fbs.append(fb)
+		check(not fbs.is_empty(), "staff.json: %s has a custom fallback body to check %s" % [role, fbs])
+		for fb in fbs:
+			_check_staff_glb(fb, fallback_rules[role])
 	# the anime dealer's data (Story 25.30, N4): look "anime", the KayKit g13 dealer as the fallback, every body number
 	var se = roles.get("desk_manager", {}).get("variants", {}).get("silver_elf") if roles.get("desk_manager") is Dictionary and roles.desk_manager.get("variants") is Dictionary else null
 	var se_body = se.get("body") if se is Dictionary else null
@@ -2469,12 +3135,16 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 		var nsurf: int = body_mi.mesh.get_surface_count() if body_mi and body_mi.mesh else -1
 		var tex_wrong := []
 		var tex_n := 0
+		var has_face := false
 		for s in (nsurf if nsurf > 0 else 0):
 			var mat = body_mi.mesh.surface_get_material(s)
 			var tex: Texture2D = (mat as BaseMaterial3D).albedo_texture if mat is BaseMaterial3D else null
 			if tex == null or tex.resource_path == "":
+				tex_wrong.append("surface %d: no albedo texture" % s)   # every body surface reads a texture (face or palette)
 				continue
 			tex_n += 1
+			if str(mat.resource_name).to_lower().ends_with("_face") or tex.resource_path.get_file().to_lower().contains("_face"):
+				has_face = true
 			var cf := ConfigFile.new()
 			if cf.load(tex.resource_path + ".import") != OK:
 				tex_wrong.append(tex.resource_path.get_file() + ": no .import")
@@ -2483,8 +3153,17 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 				tex_wrong.append(tex.resource_path.get_file())
 		var gcf := ConfigFile.new()
 		var lods_off: bool = gcf.load(path + ".import") == OK and not bool(gcf.get_value("params", "meshes/generate_lods", true))
-		check(body_mi != null and nsurf >= 1 and nsurf <= cap and tex_n >= 1 and tex_wrong.is_empty() and lods_off,
-			"%s: one %sBody with %d surfaces (≤ %d); its %d textures Lossless with mipmaps and Detect 3D off (wrong %s); no LODs (%s)" % [fname, prefix, nsurf, cap, tex_n, tex_wrong, lods_off])
+		# a per-mesh import override ("generate/lods": 1 = on) beats the global switch
+		var subs = gcf.get_value("params", "_subresources", {})
+		var mesh_subs = subs.get("meshes", {}) if subs is Dictionary else {}
+		for mk in (mesh_subs if mesh_subs is Dictionary else {}):
+			if mesh_subs[mk] is Dictionary and int(mesh_subs[mk].get("generate/lods", 0)) == 1:
+				lods_off = false
+		check(body_mi != null and nsurf >= 1 and nsurf <= cap and tex_n == nsurf and has_face and tex_wrong.is_empty() and lods_off,
+			"%s: one %sBody with %d surfaces (≤ %d), each textured, the face among them (%s); its %d textures Lossless with mipmaps and Detect 3D off (wrong %s); no LODs, per mesh too (%s)" % [fname, prefix, nsurf, cap, has_face, tex_n, tex_wrong, lods_off])
+		var an_st := _mesh_stats(path)
+		check(tri_budget <= AN_TRI_CAP and an_st.tris > 0 and an_st.tris <= AN_TRI_CAP,
+			"%s: %d tris under the AN hard cap (%d, props included; budget %d)" % [fname, an_st.tris, AN_TRI_CAP, tri_budget])
 	var metal := []
 	for m in inst.find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = (m as MeshInstance3D).mesh
@@ -3270,7 +3949,9 @@ func test_staff_runtime() -> void:
 	# Story 25.30: the body numbers follow the body loaded. The expected values come from staff.json read here (or the
 	# script's constants on a fallback body), never from the dealer's own accessor
 	var dconst_r: Dictionary = load(DEALER_SCRIPT).get_script_constant_map()
-	var se_r = staff_roles.get("desk_manager", {}).get("variants", {}).get("silver_elf", {}) if staff_roles.get("desk_manager") is Dictionary else {}
+	# the role's default variant (whatever staff.json names), not a pinned variant name (review 2026-10-03)
+	var dm_r = staff_roles.get("desk_manager", {})
+	var se_r = dm_r.get("variants", {}).get(str(dm_r.get("default_variant", "")), {}) if dm_r is Dictionary and dm_r.get("variants") is Dictionary else {}
 	var body_r: Dictionary = se_r.get("body", {}) if se_r is Dictionary and se_r.get("body") is Dictionary else {}
 	# the g13 fallback case: silver_elf's own spec (look anime, the full body block) with its anime file missing. The
 	# fallback body takes the script constants and no toon, and keeps its quill (only while she is seated)
@@ -3336,7 +4017,7 @@ func test_staff_runtime() -> void:
 	var on_fb: bool = q0.using_fallback
 	var want: Vector3 = want_const if on_fb else _dealer_seated_root(load(DEALER_SCRIPT), wp.global_transform, float(body_r.get("hip_back", NAN)))
 	var pull_want: float = float(dconst_r.get("STOOL_PULL", 0.52)) if on_fb else float(body_r.get("stool_pull", NAN))
-	var bubble_want: float = 1.95 if on_fb else float(body_r.get("bubble_seated", NAN))
+	var bubble_want: float = float(dconst_r.get("BUBBLE_SEATED", NAN)) if on_fb else float(body_r.get("bubble_seated", NAN))
 	var q0_ovs := _staff_overrides(q0)
 	var q0_face := Vector3(q0.global_basis.z.x, 0, q0.global_basis.z.z).normalized()
 	var q0_quill: Node3D = q0.model.find_child("Dealer_Quill", true, false) as Node3D if q0.model else null
@@ -3751,8 +4432,11 @@ func _check_sit_refit(world: Node) -> void:
 		var sks: Array = sr.model.find_children("*", "Skeleton3D", true, false)
 		sk = sks[0] as Skeleton3D if not sks.is_empty() else null
 	var ap: AnimationPlayer = sr.anim
+	var no_bones: Array = ["hips", "foot.l", "foot.r", "upperarm.l", "upperarm.r"].filter(func(b): return sk == null or sk.find_bone(b) < 0)
 	if sk == null or ap == null or sr.tree == null or not (ap.has_animation("Sit_Chair_Idle") and ap.has_animation("Sit_Chair_Down") and ap.has_animation("Sit_Chair_StandUp")):
 		why.append("no body, skeleton or sit clips")
+	elif not no_bones.is_empty():
+		why.append("bones missing %s" % [no_bones])   # a missing bone reads as the origin and would pass the feet check
 	else:
 		sr.tree.active = false
 		var to_model: Transform3D = sr.model.global_transform.affine_inverse() * sk.global_transform
@@ -3782,6 +4466,81 @@ func _check_sit_refit(world: Node) -> void:
 		ap.stop()
 	check(why.is_empty(), "the sit re-fit on her anime body: Sit_Chair_Idle's hips at %.2f and 0.40 behind the root, the feet planted, the shoulders ≥ %.2f (the desk top + 0.20), Down and StandUp meeting it (wrong: %s)" % [AN_SIT_HIPS_Y, AN_SEATED_SHOULDER_MIN, why.slice(0, 4)])
 	sr.queue_free()
+
+
+## Test 19, review fixes (2026-10-03): body numbers that would freeze or misplace her fall back to the script's
+## constants; a missing anime-look script or an unknown look leaves the body as imported (no crash); with both
+## bodies missing a stock KayKit body stands in; anime_look tones what a surface really draws.
+func test_staff_review_fixes() -> void:
+	print("[Test 19] Staff review fixes: body numbers, the look's guards, the last-resort body, anime_look overrides")
+	var data = _read_json(STAFF_DATA_PATH)
+	var dm = data.get("roles", {}).get("desk_manager", {}) if data is Dictionary else {}
+	var spec = dm.get("variants", {}).get(str(dm.get("default_variant", ""))) if dm is Dictionary and dm.get("variants") is Dictionary else null
+	if not spec is Dictionary:
+		check(false, "staff.json: the desk_manager's default variant")
+		return
+	var world := Node3D.new()
+	root.add_child(world)
+	var make := func(s: Dictionary, look_path: String):
+		var x = Node3D.new()
+		x.set_script(_staff_variant_script(STAFF_BASE_SCRIPT, s))
+		x.role = "desk_manager"
+		x.manual_tick = true
+		x.hired_at_start_override = 0
+		if look_path != "":
+			x.anime_look_path = look_path
+		world.add_child(x)
+		return x
+	var a = make.call(spec.duplicate(true), "")
+	a._spec["body"] = {"hall_speed": 0, "bar_speed": -0.5, "hip_back": INF, "stool_pull": 0.45, "seated_front": -0.276, "idle_front": "x"}
+	var got := [a._body("hall_speed", 0.82), a._body("bar_speed", 0.48), a._body("hip_back", 0.32), a._body("stool_pull", 0.52),
+		a._body("seated_front", -0.3), a._body("idle_front", 0.2)]
+	check(a.model != null and not a.using_fallback and got == [0.82, 0.48, 0.32, 0.45, -0.276, 0.2],
+		"body numbers: 0 / negative / infinite / non-numbers fall back to the script's constants, good ones (and a negative offset) stay %s" % [got])
+	var b = make.call(spec.duplicate(true), "res://missing_anime_look.gd")
+	var unknown: Dictionary = spec.duplicate(true)
+	unknown["look"] = "chibi"
+	var c = make.call(unknown, "")
+	check(b.model != null and c.model != null and _staff_overrides(b).all(func(m): return m == null) and _staff_overrides(c).all(func(m): return m == null),
+		"the anime look's script missing, or an unknown look: the body loads as imported, nothing crashes")
+	var lost: Dictionary = spec.duplicate(true)
+	lost["model_path"] = "res://missing_body_a.glb"
+	lost["fallback_model_path"] = "res://missing_body_b.glb"
+	var d = make.call(lost, "")
+	var last_resort := str(load(STAFF_BASE_SCRIPT).get_script_constant_map().get("LAST_RESORT_BODY", ""))
+	check(d.model != null and d.using_fallback and last_resort != "" and d.model.scene_file_path == last_resort,
+		"both bodies missing: a stock KayKit body stands in (%s), never an invisible dealer" % [d.model.scene_file_path if d.model else "none"])
+	world.queue_free()
+	await process_frame
+
+	var look = load(ANIME_LOOK_SCRIPT)
+	var m := Node3D.new()
+	var src := StandardMaterial3D.new()
+	src.metallic = 0.5
+	src.roughness_texture = PlaceholderTexture2D.new()
+	src.metallic_texture = PlaceholderTexture2D.new()
+	var mi1 := MeshInstance3D.new()
+	mi1.mesh = BoxMesh.new()
+	(mi1.mesh as BoxMesh).material = src
+	var hand := StandardMaterial3D.new()          # an override set by hand (not ours): it is what the surface draws
+	mi1.set_surface_override_material(0, hand)
+	var mi2 := MeshInstance3D.new()
+	mi2.mesh = BoxMesh.new()
+	var whole := StandardMaterial3D.new()
+	whole.roughness_texture = PlaceholderTexture2D.new()
+	mi2.material_override = whole                 # covers every surface: a surface override would never show
+	m.add_child(mi1)
+	m.add_child(mi2)
+	var n1: int = look.apply(m)
+	var ov1 = mi1.get_surface_override_material(0)
+	var ov2 = mi2.material_override
+	var n2: int = look.apply(m)
+	check(n1 == 2 and n2 == 0 and look.is_toon(ov1) and look.is_toon(ov2) and ov1.diffuse_mode == BaseMaterial3D.DIFFUSE_TOON
+		and ov1.roughness_texture == null and ov1.metallic_texture == null and ov2.roughness_texture == null
+		and hand.diffuse_mode != BaseMaterial3D.DIFFUSE_TOON and src.roughness_texture != null,
+		"anime_look: a hand-set override and a material_override are toned (%d, again %d), the toon drops the roughness/metal maps, sources untouched" % [n1, n2])
+	m.free()
+	print("")
 
 
 ## The override material of every surface of a loaded staff body, in order (Test 19: two anime instances share them).
@@ -4009,13 +4768,19 @@ static func _shape_radius(nodes: Dictionary, inner: bool) -> float:
 			return best
 	return -1.0
 
-## Floor-level only: a solid prop's flat top can bake into a small unreachable island above it.
-static func _nav_contains(nav: NavigationMesh, x: float, z: float, max_y := 1.0) -> bool:
+## Whether any polygon of a baked navmesh covers (x, z), at any height. Since the review of 2026-10-03 the mesh
+## has no islands on solid props (region_min_size drops them; Test 7 checks it is one connected piece), so no
+## test needs a floor-level height filter any more.
+static func _nav_contains(nav: NavigationMesh, x: float, z: float) -> bool:
+	return not _nav_polys_at(nav, x, z).is_empty()
+
+
+## The polygons of a baked navmesh whose XZ outline contains (x, z), at any height.
+static func _nav_polys_at(nav: NavigationMesh, x: float, z: float) -> Array:
 	var v := nav.get_vertices()
+	var out := []
 	for i in nav.get_polygon_count():
 		var poly := nav.get_polygon(i)
-		if v[poly[0]].y > max_y:
-			continue
 		var inside := false
 		for a in poly.size():
 			var p1 := v[poly[a]]
@@ -4023,8 +4788,68 @@ static func _nav_contains(nav: NavigationMesh, x: float, z: float, max_y := 1.0)
 			if (p1.z > z) != (p2.z > z) and x < p1.x + (z - p1.z) * (p2.x - p1.x) / (p2.z - p1.z):
 				inside = not inside
 		if inside:
-			return true
-	return false
+			out.append(i)
+	return out
+
+
+## The highest vertex of one navmesh polygon.
+static func _nav_poly_top(nav: NavigationMesh, i: int) -> float:
+	var v := nav.get_vertices()
+	var top := -INF
+	for k in nav.get_polygon(i):
+		top = maxf(top, v[k].y)
+	return top
+
+
+## A connected-piece id per polygon: polygons sharing an edge (matched by vertex position, to the mm) join.
+static func _nav_components(nav: NavigationMesh) -> PackedInt32Array:
+	var v := nav.get_vertices()
+	var n := nav.get_polygon_count()
+	var edges := {}   # "a|b" (sorted vertex keys) -> polygons
+	for i in n:
+		var poly := nav.get_polygon(i)
+		for a in poly.size():
+			var k1 := str(v[poly[a]].snapped(Vector3.ONE * 0.001))
+			var k2 := str(v[poly[(a + 1) % poly.size()]].snapped(Vector3.ONE * 0.001))
+			var key := k1 + "|" + k2 if k1 < k2 else k2 + "|" + k1
+			if not edges.has(key):
+				edges[key] = []
+			edges[key].append(i)
+	var adj := []
+	adj.resize(n)
+	for i in n:
+		adj[i] = []
+	for key in edges:
+		for a in edges[key]:
+			for b in edges[key]:
+				if a != b:
+					adj[a].append(b)
+	var comp := PackedInt32Array()
+	comp.resize(n)
+	comp.fill(-1)
+	var next := 0
+	for s in n:
+		if comp[s] != -1:
+			continue
+		var stack := [s]
+		comp[s] = next
+		while not stack.is_empty():
+			var p: int = stack.pop_back()
+			for q in adj[p]:
+				if comp[q] == -1:
+					comp[q] = next
+					stack.append(q)
+		next += 1
+	return comp
+
+
+## MainTavern's stored TavernNavigation mesh, read through SceneState (no instancing); null if missing.
+static func _tavern_navmesh() -> NavigationMesh:
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	for k in tav:
+		if str(k).ends_with("TavernNavigation"):
+			return tav[k].props.get("navigation_mesh") as NavigationMesh
+	return null
 
 
 static func _scene_has_shape(scene_path: String, shape_class: String) -> bool:
@@ -4047,7 +4872,9 @@ static func _hf_height(hf: Dictionary, x: float, z: float) -> float:
 
 
 static func _hf_stream_x(hf: Dictionary, z: float) -> float:
-	var s: Array = hf.stream
+	var s: Array = hf.get("stream", [])
+	if s.is_empty():
+		return INF   # no stream: nothing is "in" it (Test 9 checks the fixture has one)
 	for k in s.size() - 1:
 		if float(s[k][0]) <= z and z <= float(s[k + 1][0]):
 			var t := (z - float(s[k][0])) / maxf(float(s[k + 1][0]) - float(s[k][0]), 0.0001)

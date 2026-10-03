@@ -24,6 +24,7 @@ func _ready():
 	# Connect area signals
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	_sync_prompt()
 	
 	# Register with ZonePromptUI singleton
 	_register_with_prompt_ui()
@@ -55,11 +56,20 @@ func _process(_delta: float) -> void:
 func _on_body_entered(body: Node3D) -> void:
 	if _is_player(body):
 		player_in_zone = true
+		_sync_prompt()
 		print("Player at tavern entrance - Press E to enter")
 
 func _on_body_exited(body: Node3D) -> void:
 	if _is_player(body):
 		player_in_zone = false
+		_sync_prompt()
+
+## The door's floating "Press E" label draws through walls and trees (no depth test), so it shows
+## only while the player stands in the zone (review 2026-10-03).
+func _sync_prompt() -> void:
+	var label := get_node_or_null("InteractionPrompt") as Label3D
+	if label:
+		label.visible = player_in_zone and not is_transitioning
 
 func _is_player(body: Node3D) -> bool:
 	return body.name == "Player" or body.is_in_group("player")
@@ -74,6 +84,7 @@ func _enter_tavern() -> void:
 		return
 	
 	is_transitioning = true
+	_sync_prompt()
 	print("Entering tavern...")
 	print("   Path: ", interior_scene_path)
 	print("   Spawn: ", interior_spawn_position)

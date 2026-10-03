@@ -281,7 +281,7 @@ func create_recruit_applicant() -> Dictionary:
 func create_adventurer() -> Dictionary:
 	"""Create an adventurer with random stats"""
 	var adventurer_names = DataManager.get_config("adventurer_names", ["Brom", "Ezren", "Kael", "Lyra", "Nim", "Tarin", "Zara", "Garrick", "Mira", "Thorne", "Elira", "Doran", "Sylas", "Iris", "Raphio", "Aiden", "Cora", "Finn", "Runa", "Tobias"])
-	var adventurer_classes = DataManager.get_config("adventurer_classes", ["Fighter", "Rogue", "Mage", "Healer"])
+	var adventurer_classes = GameManager.valid_class_list(DataManager.get_config("adventurer_classes", GameManager.DEFAULT_ADVENTURER_CLASSES))
 	
 	var adv_name = adventurer_names[randi() % adventurer_names.size()]
 	var adv_class = adventurer_classes[randi() % adventurer_classes.size()]
@@ -307,6 +307,7 @@ func create_adventurer() -> Dictionary:
 		"Barbarian":
 			stats.strength += 3
 			stats.endurance += 2
+			stats.intelligence -= 1   # as classes.json and GameManager.recruit_class_bonus (Story 25.9 review)
 		"Ranger":
 			stats.dexterity += 2
 			stats.endurance += 1

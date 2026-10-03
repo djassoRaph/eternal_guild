@@ -17,6 +17,9 @@ signal left_tavern
 
 const STAFF_DATA := "res://data/characters/staff.json"
 const ANIME_LOOK := "res://scripts/game/anime_look.gd"      # Story 25.30: the toon look for variants whose look is "anime"
+## The last body to try when a variant's model and its fallback are both missing (a stock KayKit body, so
+## the role is never invisible). Story 25.30 review.
+const LAST_RESORT_BODY := "res://assets/characters/models/kaykit_adventurers/Mage.glb"
 const HALL_SPEED := 0.82        # Walking_A's stride on the KayKit bodies, m/s (Story 25.13 T0); a variant's body.hall_speed wins
 const BAR_SPEED := 0.48         # Walk_Bar: 45% of that stride, the shuffle for tight spots; a variant's body.bar_speed wins
 const TURN_RATE := 4.5          # rad/s for turns in place
@@ -64,6 +67,7 @@ var _route_phase := ""          # "in" / "out" while walking arrive_route, "stat
 var _state_len := {}            # state name -> its clip length (s)
 var _wanted := ""               # the state last asked for (the tree's current node lags a pending travel by a frame)
 var _spec := {}                 # the variant spec the body was loaded from (its look and body numbers; read once, at load)
+var anime_look_path := ANIME_LOOK   # the toon look's script (tests point it at a missing file)
 
 
 # ------------------------------------------------------------------ the parts a role fills in
@@ -162,19 +166,22 @@ func _variant_spec() -> Dictionary:
 func _load_model() -> void:
 	var spec := _variant_spec()
 	_spec = spec
-	var path := str(spec.get("model_path", ""))
+	# The variant's body, then its fallback, then a stock KayKit body: the role is never left invisible.
+	var path := ""
 	var scene: PackedScene = null
-	if path != "" and ResourceLoader.exists(path):
-		scene = load(path) as PackedScene
+	var tried := []
+	for p in [str(spec.get("model_path", "")), str(spec.get("fallback_model_path", "")), LAST_RESORT_BODY]:
+		if p != "" and ResourceLoader.exists(p):
+			scene = load(p) as PackedScene
+		if scene != null:
+			path = p
+			break
+		tried.append(p)
+	if not tried.is_empty() and scene != null:
+		push_warning("[Staff] fallback: %s's body %s is missing, using '%s'" % [role, tried, path])
+	using_fallback = scene != null and not tried.is_empty()
 	if scene == null:
-		var fb := str(spec.get("fallback_model_path", ""))
-		push_warning("[Staff] fallback: %s's model '%s' is missing, using '%s'" % [role, path, fb])
-		if fb != "" and ResourceLoader.exists(fb):
-			scene = load(fb) as PackedScene
-			using_fallback = true
-			path = fb
-	if scene == null:
-		push_warning("[Staff] missing: no body for %s" % role)
+		push_warning("[Staff] missing: no body for %s (tried %s)" % [role, tried])
 		return
 	var inst := scene.instantiate()
 	model = inst as Node3D
@@ -193,8 +200,15 @@ func _load_model() -> void:
 		for p in _prop_nodes():
 			if model.find_child(str(p), true, false) == null:
 				push_warning("[Staff] missing: prop %s on %s's body '%s'" % [p, role, path])
-		if str(spec.get("look", "")) == "anime":
-			load(ANIME_LOOK).apply(model)
+		var look := str(spec.get("look", ""))
+		if look == "anime":
+			var look_script = load(anime_look_path) if ResourceLoader.exists(anime_look_path) else null
+			if look_script is Script and (look_script as Script).get_script_method_list().any(func(m): return m.name == "apply"):
+				look_script.apply(model)
+			else:
+				push_warning("[Staff] missing: the anime look '%s' for %s; the body keeps its imported look" % [anime_look_path, role])
+		elif look != "":
+			push_warning("[Staff] unknown look '%s' for %s's variant; the body keeps its imported look" % [look, role])
 
 
 ## A body number from the variant's own body block (staff.json; Story 25.30, N4), converted to the type of
@@ -207,10 +221,14 @@ func _body(key: String, default: Variant) -> Variant:
 	if not (b is Dictionary and b.has(key)):
 		return default
 	var v = b[key]
-	if default is Vector3 and v is Array and v.size() == 3:
+	if default is Vector3 and v is Array and v.size() == 3 and v.all(func(c): return (c is float or c is int) and is_finite(float(c))):
 		return Vector3(float(v[0]), float(v[1]), float(v[2]))
-	if (default is float or default is int) and (v is float or v is int):
+	# A number must be finite and, where the KayKit constant is positive (speeds, distances), positive too:
+	# a 0 speed would freeze the walk. Review 2026-10-03.
+	if (default is float or default is int) and (v is float or v is int) and is_finite(float(v)) \
+			and (float(default) <= 0.0 or float(v) > 0.0):
 		return float(v)
+	push_warning("[Staff] bad body number: %s body.%s = %s; using %s" % [role, key, v, default])
 	return default
 
 

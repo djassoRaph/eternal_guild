@@ -14,8 +14,8 @@ const SEGMENTS := ["pillar_foundation", "pillar_base", "pillar_stub", "pillar_ba
 
 ## -1 = read game_config.json (pillar_reveal_stage); 0..4 = fixed (LookDev, tests).
 @export var reveal_stage_override: int = -1
-## Multiplies the pillar's emission (rune bands, hourglass).
-@export var glow_energy: float = 1.0
+## Multiplies the pillar's emission (rune bands, hourglass). Assigning it applies it at once.
+@export var glow_energy: float = 1.0: set = set_glow_energy
 
 var reveal_stage: int = MAX_STAGE
 var _segments: Dictionary = {}     # segment name -> Node3D
@@ -50,12 +50,18 @@ func _ready() -> void:
 	_make_glow_local()
 	var stage := reveal_stage_override
 	if stage < 0:
-		stage = MAX_STAGE
-		var dm := get_node_or_null("/root/DataManager")
-		if dm and dm.has_method("get_config"):
-			stage = int(dm.get_config("pillar_reveal_stage", MAX_STAGE))
+		stage = stage_from_config(DataManager.get_config("pillar_reveal_stage", MAX_STAGE))
 	set_reveal_stage(stage)
 	set_glow_energy(glow_energy)
+
+
+## game_config.json › pillar_reveal_stage as a stage: a number clamps to 0..MAX_STAGE; anything else
+## (missing, text, a bool) warns and shows the full pillar rather than silently dropping to stage 0.
+static func stage_from_config(value) -> int:
+	if (value is int or value is float) and is_finite(float(value)):
+		return clampi(int(value), 0, MAX_STAGE)
+	push_warning("[HourglassPillar] pillar_reveal_stage is %s, not a number — showing stage %d." % [value, MAX_STAGE])
+	return MAX_STAGE
 
 
 func set_reveal_stage(stage: int) -> void:
@@ -68,7 +74,7 @@ func set_reveal_stage(stage: int) -> void:
 
 
 func set_glow_energy(energy: float) -> void:
-	glow_energy = maxf(energy, 0.0)
+	glow_energy = maxf(energy, 0.0) if is_finite(energy) else 1.0
 	for pair in _glow:
 		(pair[0] as StandardMaterial3D).emission_energy_multiplier = float(pair[1]) * glow_energy
 

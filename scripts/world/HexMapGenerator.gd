@@ -184,28 +184,44 @@ func _generate_records() -> void:
 ## discovered. Picked from the seed WITHOUT drawing from _rng, so every other hex stays
 ## identical for a given seed. Runs after _resolve_visuals(); only the chosen hex's topper changes.
 func _reserve_ruin() -> void:
+	var pick := pick_ruin_hex(_records, CENTER_COORD, map_seed)
+	if pick.is_empty():
+		push_warning("[HexMapGenerator] ruin: no land hex next to the tavern — none reserved.")
+		return
+	mark_ruin(pick)
+	print("[HexMapGenerator] ruin: %s at %s biome=%s" % [pick.id, str(pick.coord), pick.biome])
+
+
+## The ruin rule, shared with WorldManager's load-time reservation for saves made before Story 25.2:
+## a land hex next to `center` (grass / forest / mountain, else coast), never a zone, the centre, a
+## locked hex or a hex holding a mission; picked with posmod(key, n), so no RNG is drawn.
+## Returns {} when no hex qualifies.
+static func pick_ruin_hex(records: Array, center: Vector2i, key: int) -> Dictionary:
 	var by_coord := {}
-	for rec in _records:
-		by_coord[rec.coord] = rec
+	for rec in records:
+		by_coord[rec.get("coord")] = rec
 	var preferred := []   # grass / forest / mountain
 	var fallback := []    # coast, only if no better land touches the tavern
-	for c in _neighbors_of(CENTER_COORD):
+	for c in _neighbors_of(center):
 		var rec = by_coord.get(c)
-		if rec == null or rec.is_zone or rec.is_center:
+		if rec == null or rec.get("is_zone", false) or rec.get("is_center", false) or rec.get("locked", false) \
+				or rec.get("active_mission") != null:
 			continue
-		if rec.biome in ["grass", "forest", "mountain"]:
+		if rec.get("biome", "") in ["grass", "forest", "mountain"]:
 			preferred.append(rec)
-		elif rec.biome == "coast":
+		elif rec.get("biome", "") == "coast":
 			fallback.append(rec)
 	var pool := preferred if not preferred.is_empty() else fallback
 	if pool.is_empty():
-		push_warning("[HexMapGenerator] ruin: no land hex next to the tavern — none reserved.")
-		return
-	var pick: Dictionary = pool[posmod(map_seed, pool.size())]
-	pick["is_ruin"] = true
-	pick["ruin_discovered"] = false
-	pick.topper_paths = [RUIN_TOPPER]
-	print("[HexMapGenerator] ruin: %s at %s biome=%s" % [pick.id, str(pick.coord), pick.biome])
+		return {}
+	return pool[posmod(key, pool.size())]
+
+
+## Turns a record into the hidden Prior Ruins hex (only its topper changes).
+static func mark_ruin(rec: Dictionary) -> void:
+	rec["is_ruin"] = true
+	rec["ruin_discovered"] = false
+	rec["topper_paths"] = [RUIN_TOPPER]
 
 
 # ── World building ────────────────────────────────────────────────────────────
@@ -360,11 +376,11 @@ func _resolve_visuals() -> void:
 
 # ── Hex math helpers ──────────────────────────────────────────────────────────
 
-func _offset_to_axial(c: Vector2i) -> Vector2i:
+static func _offset_to_axial(c: Vector2i) -> Vector2i:
 	return Vector2i(c.x - (c.y - (c.y & 1)) / 2, c.y)
 
 
-func _hex_distance(a: Vector2i, b: Vector2i) -> int:
+static func _hex_distance(a: Vector2i, b: Vector2i) -> int:
 	var aa := _offset_to_axial(a)
 	var bb := _offset_to_axial(b)
 	var dq := aa.x - bb.x
@@ -372,7 +388,7 @@ func _hex_distance(a: Vector2i, b: Vector2i) -> int:
 	return (abs(dq) + abs(dr) + abs(dq + dr)) / 2
 
 
-func _neighbors_of(coord: Vector2i) -> Array:
+static func _neighbors_of(coord: Vector2i) -> Array:
 	var deltas: Array = NEIGHBORS_ODD if (coord.y & 1) == 1 else NEIGHBORS_EVEN
 	var result := []
 	for d in deltas:

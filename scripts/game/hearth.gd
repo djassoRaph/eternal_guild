@@ -29,6 +29,7 @@ var _flash := 0.0
 var _t := 0.0
 var _scale_base: Dictionary = {}   # particles -> [scale_min, scale_max]
 var _glow: Array = []              # [local ember material, imported emission energy, imported albedo]
+var _early_fuel := false           # the zone pushed a fuel level before _ready (node order): keep it
 
 @onready var _light: OmniLight3D = $FireLight
 @onready var _flames: GPUParticles3D = $FireParticles
@@ -103,15 +104,18 @@ func _ready() -> void:
 		set_stock(0)
 	if preview_fuel >= 0.0:
 		set_fire_level(preview_fuel)
+	elif _early_fuel:
+		set_fire_level(fuel)
 	else:
 		set_fire_level(float(gm.get_fireplace_fuel()) if gm else 0.0)
 
 
 func _process(delta: float) -> void:
+	# The flash fades even while the light is hidden, so it can't fire late when the fire relights.
+	_flash = maxf(_flash - delta * 1.4, 0.0)
 	if not _light.visible:
 		return
 	_t += delta
-	_flash = maxf(_flash - delta * 1.4, 0.0)
 	var flicker := 1.0 + 0.07 * sin(_t * 11.0) + 0.04 * sin(_t * 23.7 + 1.3)
 	_light.light_energy = _light_base * flicker * (1.0 + 0.8 * _flash)
 
@@ -119,6 +123,9 @@ func _process(delta: float) -> void:
 ## Called by fireplace_zone.gd on every fuel change (0..100).
 func set_fire_level(fuel_percent: float) -> void:
 	fuel = clampf(fuel_percent, 0.0, 100.0)
+	if not is_node_ready():   # the zone can be ready first if node order changes: _ready applies it
+		_early_fuel = true
+		return
 	_look = fire_look(fuel)
 	_light_base = _look.light
 	_light.visible = _look.light > 0.0
@@ -137,11 +144,14 @@ func set_fire_level(fuel_percent: float) -> void:
 ## Logs placed so far in the open minigame (0 when it closes).
 func set_placed_logs(count: int) -> void:
 	placed_logs = clampi(count, 0, MAX_LOGS)
-	_show_logs()
+	if is_node_ready():
+		_show_logs()
 
 
 func set_stock(units: int) -> void:
 	stock = units
+	if not is_node_ready():
+		return
 	var n := store_shown(units)
 	for i in _store.get_child_count():
 		(_store.get_child(i) as Node3D).visible = i < n
@@ -150,7 +160,7 @@ func set_stock(units: int) -> void:
 ## A successful light: a flash of light and a fresh burst of flame.
 func play_ignition() -> void:
 	_flash = 1.0
-	if _flames.emitting:
+	if is_node_ready() and _flames.emitting:
 		_flames.restart()
 
 
