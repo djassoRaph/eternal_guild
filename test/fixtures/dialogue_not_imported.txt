@@ -1,0 +1,5 @@
+# Test 20 (Story 10.2): .dialogue text under a name Godot never imports, so the runner's fallback
+# (compile the text, warn once, cache) is exercised the way a fresh checkout would meet it.
+~ hello
+Fixture: Not imported, still talking.
+=> END

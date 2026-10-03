@@ -133,7 +133,6 @@ const HEARTH_INTERACT := Vector3(-2.98, 0.13, -9.30)   # the Hearth's interact_p
 const DEN_FA_PATH := "res://assets/characters/custom/g9_den_fa.glb"   # Story 25.10
 const DEN_FA_SCENE_PATH := "res://scenes/game/DenFa.tscn"
 const DEN_FA_SCRIPT_PATH := "res://scripts/game/den_fa.gd"
-const DEN_FA_LINES_PATH := "res://data/dialogue/den_fa_lines.json"
 const DEN_FA_LOOPS := ["Idle", "Sit", "Walk"]
 const DEN_FA_ONE_SHOTS := ["Point", "StandUp", "SitDown"]
 const DEN_FA_STATES := ["Sit", "SitDown", "StandUp", "Idle", "Walk", "Point"]
@@ -188,6 +187,8 @@ const BRIDGE_VALUES := ["reputation", "reputation_tier", "reputation_tier_index"
 	"deaths_this_run", "gold", "is_demo"]
 const GM_DIALOGUE_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
 	"deaths_this_run", "dialogue_flags"]
+## Test 20's inline fixture (S4): a reply whose condition fails, and a [#required] choice Esc can't skip.
+const DIALOGUE_FIXTURE := "~ start\nFixture: Pick one. [#required]\n- Allow\n\tFixture: Allowed.\n- Hidden [if false]\n\tFixture: Never.\n- Refuse\n\tFixture: Refused.\nFixture: After.\n=> END\n"
 
 var _pass_count := 0
 var _fail_count := 0
@@ -2477,14 +2478,13 @@ static func _waiting_patron_script() -> GDScript:
 # --- Test 18: Den Fa, the Architect (Story 25.10) ---
 # A tall construct on his own rig (ears, mask, four folded bone wings: Story 26.11 animates them), a
 # metallic mirror mask that keeps its ink outline, seated at the Hearth's SitPoint by his own seat
-# convention, talkable (placeholder lines until Story 10.3), a walk to the bar and a point at the
+# convention, talkable (his E opens the dialogue box: Story 10.2, Test 20), a walk to the bar and a point at the
 # pillar, two reflection probes, and one E owner near the hearth (J6: the nearest zone wins, behind a
 # gate decided once per frame so serving a patron can never also talk).
 func test_den_fa() -> void:
 	print("[Test 18] Den Fa")
 	for p in [DEN_FA_PATH, DEN_FA_SCENE_PATH, DEN_FA_SCRIPT_PATH]:
 		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
-	check(FileAccess.file_exists(DEN_FA_LINES_PATH), "exists: %s" % DEN_FA_LINES_PATH.get_file())
 	if ResourceLoader.exists(DEN_FA_PATH):
 		var inst := (load(DEN_FA_PATH) as PackedScene).instantiate()
 		var sks := inst.find_children("*", "Skeleton3D", true, false)
@@ -2566,12 +2566,6 @@ func test_den_fa() -> void:
 			if ds.pick_line(2, 0, roll) != 1:
 				pl_ok = false
 	check(pl_ok, "pick_line: none for no lines, the only one for one, never the same twice in a row")
-	var lines = _read_json(DEN_FA_LINES_PATH) if FileAccess.file_exists(DEN_FA_LINES_PATH) else null
-	var distinct := {}
-	for l in (lines.get("early", []) if lines is Dictionary else []):
-		if str(l).strip_edges() != "":
-			distinct[str(l)] = true
-	check(distinct.size() >= 2, "%d distinct early lines (≥ 2; placeholders until Story 10.3)" % distinct.size())
 
 	var sit_world := _hearth_sit_point_world()
 	var fwd := Vector3(sit_world.basis.z.x, 0, sit_world.basis.z.z).normalized()
@@ -2770,6 +2764,9 @@ func test_den_fa_e() -> void:
 	await settle.call(3)                     # the served patron is still there, no longer waiting
 	check(ui.owns_e(talk) and den.can_talk() and ui.prompt_label.visible and ui.prompt_label.text == den.PROMPT,
 		"once the patron is served (still in the room), E and the prompt are his again")
+	var gm = root.get_node_or_null("GameManager")
+	var flags_before = gm.dialogue_flags.duplicate() if gm != null and gm.get("dialogue_flags") is Dictionary else null
+	current_scene = world                    # the dialogue box opens in the current scene (Story 10.2)
 	var talks := [0]
 	den.talked.connect(func(_state): talks[0] += 1)
 	var press := InputEventAction.new()      # a real E press through the input pipeline
@@ -2784,8 +2781,16 @@ func test_den_fa_e() -> void:
 	await settle.call(2)
 	var den_bubbles: int = den.get_children().filter(func(c): return c is PatronSpeechBubble).size()
 	var cat_bubbles: int = cat.get_children().filter(func(c): return c is PatronSpeechBubble).size()
-	check(talks[0] == 1 and den_bubbles == 1 and cat_bubbles == 0,
-		"a real E press beside him: he talks once and the cat stays quiet (talked %d, bubbles %d / %d)" % [talks[0], den_bubbles, cat_bubbles])
+	var open_boxes := get_nodes_in_group("dialogue_open")
+	check(talks[0] == 1 and open_boxes.size() == 1 and den_bubbles == 0 and cat_bubbles == 0,
+		"a real E press beside him: a dialogue box, no bubble; he talks once and the cat stays quiet (talked %d, boxes %d, bubbles %d / %d)"
+		% [talks[0], open_boxes.size(), den_bubbles, cat_bubbles])
+	for b in open_boxes:
+		b.close("test")
+	await settle.call(2)
+	current_scene = null
+	if flags_before != null:
+		gm.dialogue_flags = flags_before
 	flip.free()
 	player.position = outside
 	await settle.call(6)
@@ -4575,8 +4580,19 @@ func test_dialogue() -> void:
 	var snap := {}
 	if gm != null:
 		for k in GM_DIALOGUE_FIELDS:
-			snap[k] = gm.get(k)
+			var v = gm.get(k)
+			snap[k] = v.duplicate(true) if v is Array or v is Dictionary else v
 	_check_dialogue_bridge(gm, dm)
+	_check_speakers()
+	var files := _check_dialogue_files()
+	_check_dialogue_guards()
+	var den_res = files.get("den_fa")
+	if gm != null and den_res != null:
+		await _check_den_fa_walks(gm, den_res)
+		await _check_box_layout(den_res)
+		await _check_den_fa_box(gm)
+	else:
+		check(false, "the walks and the box need GameManager and a compiled den_fa.dialogue")
 	if gm != null:
 		for k in snap:
 			gm.set(k, snap[k])
@@ -4661,6 +4677,625 @@ func _check_dialogue_bridge(gm, dm) -> void:
 	}
 	var missing := calls.keys().filter(func(k): return not calls[k])
 	check(missing.is_empty(), "GameManager wires the helpers in (missing: %s)" % [missing])
+
+
+## speakers.json and the portrait slot's fallback plate (AC 6).
+func _check_speakers() -> void:
+	var data = _read_json(SPEAKERS_PATH)
+	var sp: Dictionary = data.get("speakers", {}) if data is Dictionary and data.get("speakers") is Dictionary else {}
+	var bad := []
+	for id in ["den_fa", "quest_dealer", "bartender", "elder", "bard"]:
+		var e = sp.get(id)
+		if not e is Dictionary or str(e.get("name", "")) == "" or not Color.html_is_valid(str(e.get("colour", ""))) \
+				or str(e.get("portrait", "")) != "res://assets/characters/portraits/npc/%s.png" % id:
+			bad.append(id)
+	var others := sp.keys().filter(func(k): return not (sp[k] is Dictionary and str(sp[k].get("name", "")) != ""
+		and str(sp[k].get("portrait", "")).begins_with("res://") and Color.html_is_valid(str(sp[k].get("colour", "")))))
+	check(data is Dictionary and str(data.get("_note", "")) != "" and bad.is_empty() and others.is_empty(),
+		"speakers.json: a _note; den_fa, quest_dealer, bartender, elder and bard (and every other entry) have a name, a portrait under portraits/npc/<id>.png and a colour (wrong: %s)" % [bad + others])
+	var allow = _read_json(ASSET_ALLOWLIST_PATH)
+	var npc := (allow.get("missing_prefixes", []) as Array).filter(func(e): return str(e.get("prefix", "")) == "res://assets/characters/portraits/npc/" \
+		and str(e.get("owner", "")).contains("25.17") and str(e.get("reason", "")) != "") if allow is Dictionary else []
+	check(npc.size() == 1, "the planned NPC portraits are allowlisted once, as a prefix owned by Story 25.17 (S10)")
+	var bx = load(BOX_SCRIPT) if ResourceLoader.exists(BOX_SCRIPT) else null
+	check(bx is GDScript and (bx as GDScript).get_global_name() == "", "dialogue_box.gd exists, with no class_name (S8)")
+	if not bx is GDScript or not (bx as GDScript).get_script_method_list().any(func(m): return m.name == "portrait_texture"):
+		check(false, "dialogue_box.gd: speaker_id(), display_name(), initials() and portrait_texture()")
+		return
+	check(bx.speaker_id("Den Fa", PackedStringArray()) == "den_fa" and bx.speaker_id("The Elder", PackedStringArray(["speaker=elder"])) == "elder"
+		and bx.speaker_id("Quest Dealer", PackedStringArray(["mood=calm"])) == "quest_dealer",
+		"the speaker id: the line's character name lower-cased with spaces to _, or its [#speaker=id] tag")
+	check(bx.display_name("den_fa", "Den Fa") == str(sp.get("den_fa", {}).get("name", "?")) and bx.display_name("t20_nobody", "Nobody Here") == "Nobody Here",
+		"the name shown: speakers.json's, or the raw character name for an unknown speaker")
+	var warned_before: int = bx.warned_portraits.get("den_fa", 0)
+	var a = bx.portrait_texture("den_fa")
+	var b = bx.portrait_texture("den_fa")
+	var den_missing := not ResourceLoader.exists(str(sp.get("den_fa", {}).get("portrait", "")))
+	var plate_ok := false
+	if den_missing and a is ImageTexture:
+		var img: Image = (a as ImageTexture).get_image()
+		var c := img.get_size() / 2
+		var inside := [img.get_pixel(c.x, c.y), img.get_pixel(c.x, c.y - 30), img.get_pixel(c.x, c.y + 30), img.get_pixel(c.x - 18, c.y)]
+		var corner := img.get_pixel(12, 12)
+		var teal := Color.html(str(sp.get("den_fa", {}).get("colour", "#000000")))
+		plate_ok = img.get_size() == Vector2i(160, 160) and inside.all(func(p): return p == inside[0]) and inside[0].get_luminance() > 0.7 \
+			and corner.is_equal_approx(teal) and teal.get_luminance() < 0.35
+	check(den_missing and plate_ok and a == b and bx.warned_portraits.get("den_fa", 0) == maxi(warned_before, 1),
+		"Den Fa's portrait missing: a drawn plate (160 px, his dark teal, one pale featureless oval: the mask), cached, warned once a run")
+	var u = bx.portrait_texture("t20_nobody")
+	var u2 = bx.portrait_texture("t20_nobody")
+	check(u is ImageTexture and u == u2 and bx.warned_portraits.get("t20_nobody", 0) == 1 and bx.initials("The Quest Dealer") == "QD" and bx.initials("Den Fa") == "DF",
+		"an unknown speaker: a neutral plate, one warning; plates carry initials (QD, DF)")
+
+
+## Every .dialogue compiles headless and passes the bridge lint (C2); the settings; the old lines file is gone.
+func _check_dialogue_files() -> Dictionary:
+	var out := {}
+	var files: Array[String] = []
+	var dir := DirAccess.open(DIALOGUE_DIR)
+	if dir != null:
+		for f in dir.get_files():
+			if f.get_extension() == "dialogue":
+				files.append(DIALOGUE_DIR + f)
+	check(files.has(DEN_FA_DIALOGUE), "data/dialogue/ holds den_fa.dialogue (%s)" % [files.map(func(f): return f.get_file())])
+	var broken := []
+	for f in files:
+		var r = DMCompiler.compile_string(FileAccess.get_file_as_string(f), f)
+		if not r.errors.is_empty():
+			broken.append("%s: %d" % [f.get_file(), r.errors.size()])
+		elif f == DEN_FA_DIALOGUE:
+			out["den_fa"] = r
+	var titles: Dictionary = out["den_fa"].titles if out.has("den_fa") else {}
+	check(broken.is_empty() and DEN_FA_TITLES.all(func(t): return titles.has(t)),
+		"every .dialogue compiles headless (errors: %s); den_fa has %s (titles %s)" % [broken, DEN_FA_TITLES, titles.keys()])
+
+	var bridge_script = load(BRIDGE_SCRIPT) if ResourceLoader.exists(BRIDGE_SCRIPT) else null
+	var names := []
+	if bridge_script is GDScript:
+		for p in (bridge_script as GDScript).get_script_property_list():
+			names.append(p.name)
+		for m in (bridge_script as GDScript).get_script_method_list():
+			names.append(m.name)
+	names = names.filter(func(n): return not str(n).begins_with("_") and not str(n).ends_with(".gd"))
+	var banned := []
+	var project := FileAccess.get_file_as_string("res://project.godot")
+	var autoloads := project.substr(project.find("[autoload]"))
+	autoloads = autoloads.substr(0, autoloads.find("\n[", 2))
+	for m in RegEx.create_from_string("(?m)^(\\w+)=").search_all(autoloads):
+		banned.append(m.get_string(1))
+	for c in ProjectSettings.get_global_class_list():
+		banned.append(str(c.get("class", "")))
+	var control: Array = _dialogue_lint("if bridge.deats_this_run > 0\n\tX: {{GameManager.gold}} [if bridge.day > 1]\ndo bridge.mark_seen(\"x\")\n", names, banned)
+	var problems := []
+	for f in files:
+		for p in _dialogue_lint(FileAccess.get_file_as_string(f), names, banned):
+			problems.append("%s: %s" % [f.get_file(), p])
+	check(names.has("deaths_this_run") and names.has("mark_seen") and banned.has("GameManager") and control == ["bridge.deats_this_run", "GameManager"],
+		"the lint knows the bridge's names and the autoloads and catches a typo and an autoload (%s)" % [control])
+	check(problems.is_empty(), "lint: every bridge.x in a .dialogue is the bridge's, no autoload or class name in a condition, mutation or {{…}} (%s)" % [problems])
+	var den_text := FileAccess.get_file_as_string(DEN_FA_DIALOGUE)
+	var lower := den_text.to_lower()
+	var voice_bad := ["thee", "thou", "thy ", "bard", "beneath the mask", "under the mask"].filter(func(w): return lower.contains(w))
+	check(den_text.begins_with("# DRAFT") and voice_bad.is_empty(),
+		"den_fa.dialogue is marked DRAFT for Raphael and keeps his voice rules (no %s)" % [voice_bad])
+
+	check(FileAccess.file_exists(DEN_FA_DIALOGUE + ".import"), "den_fa.dialogue.import is there (imported, committed)")
+	var runner = load(RUNNER_SCRIPT) if ResourceLoader.exists(RUNNER_SCRIPT) else null
+	check(runner is GDScript and (runner as GDScript).get_global_name() == "", "dialogue_runner.gd exists, with no class_name (S8)")
+	var loaded = runner.load_dialogue(DEN_FA_DIALOGUE) if runner is GDScript else null
+	check(loaded is DialogueResource and DEN_FA_TITLES.all(func(t): return (loaded as DialogueResource).titles.has(t)),
+		"the runner loads den_fa.dialogue (the imported resource, or its text compiled) with every title")
+	out["runner"] = runner
+	var fallback = runner.load_dialogue("res://test/fixtures/dialogue_not_imported.txt") if runner is GDScript else null
+	var again = runner.load_dialogue("res://test/fixtures/dialogue_not_imported.txt") if runner is GDScript else null
+	check(fallback is DialogueResource and (fallback as DialogueResource).titles.has("hello") and again == fallback,
+		"a .dialogue Godot hasn't imported yet (a fresh checkout) is compiled from its text, once (AC 8)")
+	check(ProjectSettings.get_setting("dialogue_manager/editor/translations/update_pot_files_automatically", true) == false
+		and ProjectSettings.get_setting("dialogue_manager/runtime/advanced/ignore_missing_state_values", false) == false,
+		"project.godot: the POT auto-update is off, missing state values stay errors")
+	var den_src := FileAccess.get_file_as_string(DEN_FA_SCRIPT_PATH)
+	check(not FileAccess.file_exists("res://data/dialogue/den_fa_lines.json") and not den_src.contains("den_fa_lines") and not den_src.contains("PatronSpeechBubble")
+		and not den_src.contains("LINES_PATH"), "the placeholder lines file is retired: gone, and Den Fa no longer says lines in a bubble")
+	return out
+
+
+## Problems in one .dialogue text: bridge.<name> that the bridge doesn't have, and banned names (autoloads,
+## global classes) used in a condition, mutation or {{…}}.
+static func _dialogue_lint(text: String, bridge_names: Array, banned: Array) -> Array:
+	var exprs := []
+	var inline_if := RegEx.create_from_string("\\[if ([^\\]]*)\\]")
+	var inline_do := RegEx.create_from_string("\\[(?:do!?|set) ([^\\]]*)\\]")
+	var braces := RegEx.create_from_string("\\{\\{(.*?)\\}\\}")
+	for raw in text.split("\n"):
+		var l := raw.strip_edges()
+		if l == "" or l.begins_with("#"):
+			continue
+		for kw in ["if ", "elif ", "while ", "match ", "when ", "do ", "do! ", "set "]:
+			if l.begins_with(kw):
+				exprs.append(l.substr(kw.length()))
+		for re in [inline_if, inline_do, braces]:
+			for m in (re as RegEx).search_all(l):
+				exprs.append(m.get_string(1))
+	var member := RegEx.create_from_string("bridge\\.(\\w+)")
+	var word := RegEx.create_from_string("[A-Za-z_]\\w*")
+	var problems := []
+	for e in exprs:
+		var bare := RegEx.create_from_string("\"[^\"]*\"").sub(e, "\"\"", true)   # names inside strings don't count
+		for m in member.search_all(bare):
+			if not bridge_names.has(m.get_string(1)):
+				problems.append("bridge.%s" % m.get_string(1))
+		for m in word.search_all(bare):
+			if banned.has(m.get_string()) and not problems.has(m.get_string()):
+				problems.append(m.get_string())
+	return problems
+
+
+## Each Den Fa title walked to its end with the bridge in three states, every reply in turn (AC 5, AC 9).
+func _check_den_fa_walks(gm, res) -> void:
+	var dmgr = root.get_node_or_null("DialogueManager")
+	var runner = load(RUNNER_SCRIPT) if ResourceLoader.exists(RUNNER_SCRIPT) else null
+	if res == null or dmgr == null or runner == null:
+		check(false, "the Den Fa walks: den_fa.dialogue compiled, the DialogueManager autoload, the runner")
+		return
+	var resource = runner.compile_text(FileAccess.get_file_as_string(DEN_FA_DIALOGUE), DEN_FA_DIALOGUE)
+	var gated := {"first_contact": "lost someone already", "early_1": "saying your guild's name", "early_3": "9 days."}
+	var states := [
+		["fresh run", 0, 0, 1, {}],
+		["a death, Trusted, day 9", 1, 50, 9, {}],
+		["flags already seen", 0, 0, 1, {"den_fa_first_contact": true}],
+	]
+	var why := []
+	var walks := 0
+	var replies_seen := {}
+	var first_marked := false
+	for st in states:
+		for title in DEN_FA_TITLES:
+			for pick in 3:
+				gm.deaths_this_run = st[1]
+				gm.tavern_reputation = st[2]
+				gm.current_day = st[3]
+				gm.dialogue_flags = (st[4] as Dictionary).duplicate()
+				var w: Dictionary = await _walk_dialogue(dmgr, resource, title, pick, runner.new_bridge())
+				walks += 1
+				if not w.ended:
+					why.append("%s/%s/%d: no end" % [st[0], title, pick])
+				for r in w.replies:
+					replies_seen["%s:%s" % [title, r]] = true
+				var joined := "\n".join(w.texts)
+				if gated.has(title):
+					var want: bool = st[0] == "a death, Trusted, day 9"
+					if joined.contains(gated[title]) != want:
+						why.append("%s/%s: gated line '%s' %s" % [st[0], title, gated[title], "missing" if want else "shown"])
+				if title == "first_contact" and st[0] == "fresh run" and gm.dialogue_flags.get("den_fa_first_contact") == true:
+					first_marked = true
+				if w.menus == 0:
+					break   # no replies in this title: one walk is all of it
+	var menus_total := 0
+	for line in (res.lines as Dictionary).values():
+		if str(line.get("type", "")) == "response":
+			menus_total += 1
+	check(why.is_empty() and walks >= 24, "%d walks: every title ends in every state and reply; gated lines only where allowed %s" % [walks, why.slice(0, 4)])
+	check(first_marked and replies_seen.size() == menus_total and menus_total >= 5,
+		"first contact marks itself seen; every reply was picked (%d of %d)" % [replies_seen.size(), menus_total])
+	var fc_text := FileAccess.get_file_as_string(DEN_FA_DIALOGUE)
+	var fc_at := fc_text.find("\n~ first_contact\n")
+	var fc := fc_text.substr(fc_at, fc_text.find("\n~ early_1\n") - fc_at) if fc_at >= 0 else ""
+	var fc_replies := 0
+	for l in fc.split("\n"):
+		if l.begins_with("- "):
+			fc_replies += 1
+	var early_titles: int = runner.count_numbered(resource, "early_")
+	check(fc.contains("do bridge.mark_seen(\"den_fa_first_contact\")") and fc.find("do bridge.mark_seen") < fc.find("Den Fa:") and fc_replies >= 2 and early_titles >= 3,
+		"first contact marks itself seen on its first line (S5) and offers %d flavour replies; %d early openings (≥ 3)" % [fc_replies, early_titles])
+
+
+## One walk of a title: always the reply at `pick` (or the last); the texts said, replies picked, menus met.
+func _walk_dialogue(dmgr, resource, title: String, pick: int, bridge) -> Dictionary:
+	var states := [{"bridge": bridge}]
+	var texts := []
+	var replies := []
+	var menus := 0
+	var line = await dmgr.get_next_dialogue_line(resource, title, states)
+	var steps := 0
+	while line != null and steps < 40:
+		steps += 1
+		texts.append(line.text)
+		if line.responses.size() > 0:
+			menus += 1
+			var allowed: Array = line.responses.filter(func(r): return r.is_allowed)
+			var r = allowed[mini(pick, allowed.size() - 1)]
+			replies.append(r.text)
+			line = await dmgr.get_next_dialogue_line(resource, r.next_id, states)
+		else:
+			line = await dmgr.get_next_dialogue_line(resource, line.next_id, states)
+	return {"texts": texts, "replies": replies, "menus": menus, "ended": line == null}
+
+
+## The box on its own, in a 1920×1080 viewport: layer, process mode, the voice player, the house style,
+## the layout with a 6-reply menu and a line 30 % longer than the longest authored line (AC 2, AC 7).
+func _check_box_layout(den_res) -> void:
+	var runner = load(RUNNER_SCRIPT) if ResourceLoader.exists(RUNNER_SCRIPT) else null
+	var scene = load(BOX_SCENE) if ResourceLoader.exists(BOX_SCENE) else null
+	if not scene is PackedScene or runner == null or den_res == null:
+		check(false, "DialogueBox.tscn loads")
+		return
+	var longest := ""
+	for line in (den_res.lines as Dictionary).values():
+		if str(line.get("type", "")) == "dialogue" and str(line.get("text", "")).length() > longest.length():
+			longest = str(line.text)
+	var long_text := longest
+	while long_text.length() < int(ceil(longest.length() * 1.3)):
+		long_text += " and more"
+	var fixture: Resource = runner.compile_text("~ long\nDen Fa: %s\n- Reply one\n- Reply two\n- Reply three\n- Reply four\n- Reply five\n- Reply six\n=> END\n" % long_text, "t20_layout")
+	var vp := SubViewport.new()
+	vp.size = Vector2i(1920, 1080)
+	vp.disable_3d = true
+	root.add_child(vp)
+	var box = (scene as PackedScene).instantiate()
+	vp.add_child(box)
+	var sfx: AudioStreamPlayer = box.get_node_or_null("%AudioStreamPlayer")
+	check(box.layer == 110 and box.process_mode == Node.PROCESS_MODE_ALWAYS and sfx != null and sfx.bus == &"SFX" and sfx.stream == null and not sfx.autoplay,
+		"the box: CanvasLayer 110 (over the prompt UI's 100, under Settings/Codex), runs while paused, a silent voice player on SFX (layer %d)" % box.layer)
+	var theme: Theme = box.balloon.theme if box.get("balloon") != null else null
+	var panel = theme.get_stylebox("panel", "PanelContainer") if theme != null else null
+	check(panel is StyleBoxFlat and (panel as StyleBoxFlat).bg_color.is_equal_approx(Color(0.12, 0.11, 0.10)) and (panel as StyleBoxFlat).border_color.is_equal_approx(Color(0.8, 0.65, 0.3, 0.6))
+		and (panel as StyleBoxFlat).border_width_top == 2 and (panel as StyleBoxFlat).corner_radius_top_left == 8
+		and theme.get_color("default_color", "DialogueSpeaker").is_equal_approx(Color(0.9, 0.75, 0.4)) and box.character_label.theme_type_variation == &"DialogueSpeaker"
+		and not FileAccess.get_file_as_string(BOX_SCRIPT).contains("add_theme_"),
+		"the house panel style (the morning briefing's), all in the box's one Theme: no colour code in the script")
+	box.start(fixture, "long", [{"bridge": runner.new_bridge()}])
+	var t0 := Time.get_ticks_msec()
+	while not box.responses_menu.visible and Time.get_ticks_msec() - t0 < 3000:
+		if box.dialogue_label.is_typing:
+			box.dialogue_label.skip_typing()
+		await process_frame
+	await process_frame
+	await process_frame
+	var screen := Rect2(Vector2.ZERO, Vector2(vp.size))
+	var band: Rect2 = (box.get_node("%Band") as Control).get_global_rect()
+	var label: Rect2 = box.dialogue_label.get_global_rect()
+	var items: Array = box.responses_menu.get_menu_items()
+	var why := []
+	if not screen.encloses(band):
+		why.append("band %s off screen" % band)
+	if band.size.x < 0.6 * screen.size.x:
+		why.append("band %.0f px wide" % band.size.x)
+	if band.position.y < screen.size.y * 0.3 or band.end.y < screen.size.y - 100:
+		why.append("band not at the bottom %s" % band)
+	if not band.encloses(label) or box.dialogue_label.get_content_height() > label.size.y + 1:
+		why.append("text clipped or outside (%d > %.0f)" % [box.dialogue_label.get_content_height(), label.size.y])
+	if items.size() != 6 or not items.all(func(i): return band.encloses((i as Control).get_global_rect())):
+		why.append("%d replies, some outside the band" % items.size())
+	var portrait_rect: Rect2 = box.portrait.get_global_rect()
+	if box.portrait.texture == null or portrait_rect.size.x < 150 or portrait_rect.end.x > label.position.x or not band.encloses(portrait_rect):
+		why.append("portrait slot %s" % portrait_rect)
+	if box.character_label.text != "Den Fa":
+		why.append("name '%s'" % box.character_label.text)
+	check(why.is_empty(), "layout at 1920×1080: a bottom band (%.0f px wide), portrait left of the text, a %d-char line (1.3× the longest) and 6 replies inside it %s"
+		% [band.size.x, long_text.length(), why])
+	var focused := box.get_viewport().gui_get_focus_owner()
+	check(not items.is_empty() and focused == items[0], "the first reply has the focus")
+	box.close("test")
+	var plain = (scene as PackedScene).instantiate()   # a line with no replies: the continue arrow once it is typed
+	vp.add_child(plain)
+	plain.start(runner.compile_text("~ plain\nDen Fa: Short.\n=> END\n", "t20_plain"), "plain", [{"bridge": runner.new_bridge()}])
+	await process_frame
+	await process_frame
+	var arrow_while_typing: bool = plain.progress.visible
+	plain.dialogue_label.skip_typing()
+	await process_frame
+	check(not arrow_while_typing and plain.progress.visible and not plain.responses_menu.visible, "the continue arrow shows once a line without replies has typed out")
+	plain.close("test")
+	vp.queue_free()
+	await process_frame
+
+
+## Every other E (and Esc) reader stands down while a box is open (AC 3; the box takes the keys first, these
+## are the second guard) and the player's polled jump skips the frame a box closed (S2).
+func _check_dialogue_guards() -> void:
+	var read := func(path: String) -> String:
+		return FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var bodies := {
+		"ZonePromptUI._gate_open": _func_body(read.call("res://scripts/game/ZonePromptUI.gd"), "_gate_open"),
+		"den_fa.can_talk": _func_body(read.call(DEN_FA_SCRIPT_PATH), "can_talk"),
+		"the_cat.can_be_petted": _func_body(read.call(CAT_SCRIPT_PATH), "can_be_petted"),
+		"zone_interactions._input": _func_body(read.call("res://scripts/game/zone_interactions.gd"), "_input"),
+		"exit_zone_interior._unhandled_input": _func_body(read.call(EXIT_ZONE_SCRIPT_PATH), "_unhandled_input"),
+		"main_tavern._input": _func_body(read.call("res://scripts/game/main_tavern.gd"), "_input"),
+		"player._unhandled_input (the ui_accept serve)": _func_body(read.call("res://scripts/player/player.gd"), "_unhandled_input"),
+	}
+	var missing := bodies.keys().filter(func(k): return not str(bodies[k]).contains("dialogue_open"))
+	var pl: String = read.call("res://scripts/player/player.gd")
+	var jump_ok := _func_body(pl, "_jump_blocked").contains("blocks_player") and _func_body(pl, "_jump_blocked").contains("just_closed()") \
+		and _func_body(pl, "_physics_process").contains("_jump_blocked()")
+	check(missing.is_empty() and jump_ok, "while a box is open every other E/Esc reader stands down, and the player's jump skips a box's closing frame (missing: %s, jump %s)" % [missing, jump_ok])
+
+
+## E on Den Fa in a small tavern-like world (the 3D world inside a SubViewportContainer, as MainTavern):
+## one box opens; while it is open no E/Enter/Space/Esc/jump reaches the scene root or the 3D world (two
+## spies), no zone owns E, the prompt is hidden, the real player can't move or jump; replies by keyboard;
+## Esc ends it; the closing key does nothing else; failures leave nothing open (AC 1, 3, 8; S11).
+func _check_den_fa_box(gm) -> void:
+	var runner = load(RUNNER_SCRIPT) if ResourceLoader.exists(RUNNER_SCRIPT) else null
+	if runner == null or not ResourceLoader.exists(BOX_SCENE) or not ResourceLoader.exists(PLAYER_SCENE):
+		check(false, "the Den Fa box world: the runner, DialogueBox.tscn and Player.tscn")
+		return
+	var world := Node3D.new()
+	world.name = "T20World"
+	root.add_child(world)
+	current_scene = world
+	var root_spy := Node.new()            # first child: where main_tavern._input (Esc, B, F9, F10) sits in the order
+	root_spy.name = "RootSpy"
+	root_spy.set_script(_input_spy_script())
+	world.add_child(root_spy)
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	world.add_child(ui)
+	var svc := SubViewportContainer.new()
+	svc.size = Vector2(320, 180)
+	world.add_child(svc)
+	var sv := SubViewport.new()
+	sv.size = Vector2i(320, 180)
+	svc.add_child(sv)
+	var ground := StaticBody3D.new()
+	var gshape := CollisionShape3D.new()
+	gshape.shape = BoxShape3D.new()
+	(gshape.shape as BoxShape3D).size = Vector3(30, 1, 30)
+	ground.add_child(gshape)
+	ground.position = Vector3(0, -0.4, -6)  # top at y 0.1, the tavern floor
+	sv.add_child(ground)
+	var fire := Area3D.new()
+	var fire_shape := CollisionShape3D.new()
+	fire_shape.shape = BoxShape3D.new()
+	(fire_shape.shape as BoxShape3D).size = Vector3(2.7, 2.2, 2.8)
+	fire_shape.position = Vector3(0, 1.1, 0)
+	fire.add_child(fire_shape)
+	fire.position = Vector3(-3.55, 0, -9.3)
+	sv.add_child(fire)
+	ui.register_zone(fire, "Press E - Tend Fire", FIRE_ANCHOR)
+	var cat = (load(CAT_SCENE_PATH) as PackedScene).instantiate()
+	sv.add_child(cat)
+	cat.position = CAT_WORLD
+	var marker := Marker3D.new()
+	sv.add_child(marker)
+	marker.transform = _hearth_sit_point_world()
+	var den = (load(DEN_FA_SCENE_PATH) as PackedScene).instantiate()
+	sv.add_child(den)
+	var player = (load(PLAYER_SCENE) as PackedScene).instantiate()
+	sv.add_child(player)
+	player.global_position = Vector3(-3.4, 0.95, -4.0)
+	var world_spy := Node.new()           # in the 3D world: where Den Fa, the cat, the fire, the bar and ExitArea read keys
+	world_spy.name = "WorldSpy"
+	world_spy.set_script(_input_spy_script())
+	sv.add_child(world_spy)
+	var settle := func(frames: int) -> void:
+		for i in frames:
+			await physics_frame
+		await process_frame
+	await settle.call(40)
+	if not den.has_method("_pick_title") or den.get("dialogue_path") == null:
+		check(false, "den_fa.gd: dialogue_path and _pick_title()")
+		current_scene = null
+		world.queue_free()
+		await process_frame
+		return
+	den.sit_at(marker)
+	await settle.call(4)
+	var talk: Area3D = den.get_node("TalkZone")
+	var zones := {"fire": fire, "cat": cat._zone, "den_fa": talk}
+	var owners := func() -> Array:
+		return zones.keys().filter(func(k): return ui.owns_e(zones[k]))
+	var boxes := func() -> Array:
+		return get_nodes_in_group("dialogue_open")
+
+	gm.dialogue_flags = {"den_fa_first_contact": true}
+	var picks := []
+	for i in 12:
+		picks.append(den._pick_title())
+	var repeats := 0
+	for i in range(1, picks.size()):
+		if picks[i] == picks[i - 1]:
+			repeats += 1
+	var distinct := {}
+	for p in picks:
+		distinct[p] = true
+	gm.dialogue_flags = {}
+	var fresh: String = den._pick_title()
+	check(fresh == "first_contact" and repeats == 0 and distinct.size() == 3 and picks.all(func(p): return ["early_1", "early_2", "early_3"].has(p)),
+		"his title: first contact until it is seen, then early_1…3, never the same opening twice in a row (%s)" % [picks.slice(0, 6)])
+
+	await _press("ui_cancel")             # with no box open the spies do see keys
+	var control_ok: bool = root_spy.count("ui_cancel") > 0 and world_spy.count("ui_cancel") > 0
+	root_spy.seen.clear()
+	world_spy.seen.clear()
+	player.global_position = Vector3(-3.4, 0.95, -7.9)
+	await settle.call(10)
+	check(control_ok and owners.call() == ["den_fa"] and ui.prompt_label.visible and ui.prompt_label.text == den.PROMPT and player.is_on_floor(),
+		"beside Den Fa, on the floor: E and the prompt are his; the spies see keys while no box is open")
+	var talks := [0]
+	den.talked.connect(func(_s): talks[0] += 1)
+	gm.deaths_this_run = 0
+	await _press("interact")
+	var open_now: Array = boxes.call()
+	var box = open_now[0] if open_now.size() == 1 else null
+	var bubbles: int = den.get_children().filter(func(c): return c is PatronSpeechBubble).size()
+	check(box != null and box.start_from_title == "first_contact" and box.get_parent() == world and talks[0] == 1 and bubbles == 0,
+		"a real E beside him opens one box (first contact, in the current scene), talked once, no speech bubble (%d boxes)" % open_now.size())
+	if box == null:
+		_close_test_world(world)
+		await process_frame
+		return
+	root_spy.seen.clear()                 # the opening press reached the world (that is how he heard it); from here on nothing may
+	world_spy.seen.clear()
+	await settle.call(2)
+	check(not ui.prompt_label.visible and owners.call().is_empty() and not den.can_talk() and not cat.can_be_petted()
+		and gm.dialogue_flags.get("den_fa_first_contact") == true,
+		"while it is open: the prompt is hidden, no zone owns E (fire, cat, Den Fa); first contact is already marked seen")
+	var p0: Vector3 = player.global_position
+	Input.action_press("move_forward")
+	Input.action_press("jump")
+	await settle.call(8)
+	Input.action_release("move_forward")
+	Input.action_release("jump")
+	var moved := Vector2(player.global_position.x - p0.x, player.global_position.z - p0.z).length()
+	var rose: float = player.global_position.y - p0.y
+	await _press("interact")              # a second E: finishes the typing, never a second box or talk
+	check(moved < 0.01 and rose < 0.02 and boxes.call().size() == 1 and talks[0] == 1,
+		"the player can't move (%.3f m) or jump (%.3f m); a second E opens nothing and doesn't talk again" % [moved, rose])
+	var t0 := Time.get_ticks_msec()
+	while is_instance_valid(box) and not box.responses_menu.visible and Time.get_ticks_msec() - t0 < 4000:
+		await _press("interact")
+	var items: Array = box.responses_menu.get_menu_items() if is_instance_valid(box) else []
+	var focus_first = root.gui_get_focus_owner()
+	await _press("ui_down")
+	var focus_second = root.gui_get_focus_owner()
+	await _press("interact")
+	await settle.call(2)
+	var said: String = box.dialogue_line.text if is_instance_valid(box) and box.dialogue_line != null else ""
+	check(items.size() == 3 and focus_first == items[0] and focus_second == items[1] and said.contains("pillar"),
+		"three flavour replies, the first focused; ↓ then E picks the second ('%s')" % said)
+	var closes := [0]
+	if is_instance_valid(box):
+		box.closed.connect(func(): closes[0] += 1)
+	await _press("ui_cancel")
+	if is_instance_valid(box) and not box.is_closed():
+		await _press("ui_cancel")
+	var gone_now: bool = boxes.call().is_empty()
+	await settle.call(1)
+	check(closes[0] == 1 and gone_now, "Esc finishes the typing, then ends the conversation (closed once)")
+	check(root_spy.total() == 0 and world_spy.total() == 0,
+		"while it was open, no E, Enter, Space, Esc or jump reached the scene root (pause menu, debug keys) or the 3D world (%s / %s)" % [root_spy.seen, world_spy.seen])
+	check(ui.prompt_label.visible and ui.prompt_label.text == den.PROMPT and owners.call() == ["den_fa"] and talks[0] == 1 and boxes.call().is_empty() and den._cooldown > 2.0,
+		"once it closes: the prompt and E are his again a frame later, nothing reopened, his cooldown starts at the close (%.1f s)" % den._cooldown)
+
+	den._cooldown = 0.0                   # an early conversation, advanced with Space: Space is ui_accept AND jump
+	await _press("interact")
+	var box2 = boxes.call()[0] if boxes.call().size() == 1 else null
+	var title2: String = str(box2.start_from_title) if box2 != null else ""
+	root_spy.seen.clear()
+	world_spy.seen.clear()
+	var y0: float = player.global_position.y
+	var ys := []
+	t0 = Time.get_ticks_msec()
+	while is_instance_valid(box2) and not box2.is_closed() and Time.get_ticks_msec() - t0 < 6000:
+		await _press_key(KEY_SPACE)
+		ys.append(player.global_position.y)
+	for i in 12:
+		await physics_frame
+		ys.append(player.global_position.y)
+	var top: float = ys.max() if not ys.is_empty() else INF
+	check(title2.begins_with("early_") and boxes.call().is_empty() and talks[0] == 2 and top - y0 < 0.02,
+		"again, after first contact: an early opening (%s); Space advances it to the end and the closing Space doesn't jump (rose %.3f m, talked %d)" % [title2, top - y0, talks[0]])
+	check(root_spy.total() == 0 and world_spy.total() == 0, "Space never reached the world either (%s / %s)" % [root_spy.seen, world_spy.seen])
+
+	var fx: Resource = runner.compile_text(DIALOGUE_FIXTURE, "t20_fixture")
+	var fbox = runner.open(den, fx, "start") if fx != null else null
+	var second = runner.open(den, fx, "start") if fx != null else null
+	t0 = Time.get_ticks_msec()
+	while is_instance_valid(fbox) and not fbox.responses_menu.visible and Time.get_ticks_msec() - t0 < 3000:
+		if fbox.dialogue_label.is_typing:
+			fbox.dialogue_label.skip_typing()
+		await process_frame
+	var fitems: Array = fbox.responses_menu.get_menu_items() if is_instance_valid(fbox) else []
+	var texts: Array = fitems.map(func(i): return i.text)
+	await _press("ui_cancel")
+	var held: bool = is_instance_valid(fbox) and not fbox.is_closed()
+	check(fbox != null and second == null and boxes.call().size() == 1 and texts == ["Allow", "Refuse"] and held,
+		"the fixture: a reply whose condition fails is hidden %s; Esc does nothing on a [#required] choice; a second open is refused" % [texts])
+	await _press("interact")
+	await settle.call(2)
+	var after: String = fbox.dialogue_line.text if is_instance_valid(fbox) and fbox.dialogue_line != null else ""
+	await _press("ui_cancel")
+	if is_instance_valid(fbox) and not fbox.is_closed():
+		await _press("ui_cancel")
+	check(after == "Allowed." and boxes.call().is_empty(), "E confirms the focused choice ('%s'); on an ordinary line Esc ends it" % after)
+
+	var missing = runner.start(den, "res://data/dialogue/t20_missing.dialogue", "x")
+	var no_title = runner.start(den, DEN_FA_DIALOGUE, "t20_no_such_title")
+	var bad = runner.compile_text("~ x\nX: hi\n- a\n\tX: [if \n=> nowhere\n", "t20_bad")
+	var empty_res: Resource = runner.compile_text("~ nothing\n=> END\n", "t20_empty")
+	var ebox = runner.open(den, empty_res, "nothing") if empty_res != null else null
+	await settle.call(3)
+	den._cooldown = 0.0
+	den.dialogue_path = "res://data/dialogue/t20_missing.dialogue"
+	await _press("interact")
+	var failed_cool: float = den._cooldown
+	var failed_boxes: int = boxes.call().size()
+	den.dialogue_path = DEN_FA_DIALOGUE
+	den._cooldown = 0.0
+	await _press("interact")
+	var reopened: int = boxes.call().size()
+	root.get_node("GameBus").game_over_triggered.emit("t20 test")
+	await settle.call(2)
+	var p1: Vector3 = player.global_position
+	Input.action_press("move_forward")
+	await settle.call(8)
+	Input.action_release("move_forward")
+	var walked := Vector2(player.global_position.x - p1.x, player.global_position.z - p1.z).length()
+	check(missing == null and no_title == null and bad == null and empty_res != null and (ebox == null or not is_instance_valid(ebox) or ebox.is_closed())
+		and failed_boxes == 0 and failed_cool > 2.0 and reopened == 1 and boxes.call().is_empty() and walked > 0.05,
+		"a missing file, a missing title, a file that won't compile, a title with nothing to say: nothing stays open; Den Fa's E works again after his cooldown; Game Over closes the box; the player walks (%.2f m)" % walked)
+	_close_test_world(world)
+	await process_frame
+
+
+func _close_test_world(world: Node) -> void:
+	for b in get_nodes_in_group("dialogue_open"):
+		b.close("test")
+	current_scene = null
+	world.queue_free()
+
+
+## Press and release an action through the real input pipeline (Input.parse_input_event).
+func _press(action: String) -> void:
+	var down := InputEventAction.new()
+	down.action = action
+	down.pressed = true
+	Input.parse_input_event(down)
+	await process_frame
+	await process_frame
+	var up := InputEventAction.new()
+	up.action = action
+	up.pressed = false
+	Input.parse_input_event(up)
+	await process_frame
+
+
+## Press and release a physical key (Space is both ui_accept and jump).
+func _press_key(key: Key) -> void:
+	for pressed in [true, false]:
+		var ev := InputEventKey.new()
+		ev.keycode = key
+		ev.physical_keycode = key
+		ev.pressed = pressed
+		Input.parse_input_event(ev)
+		await process_frame
+		await process_frame
+
+
+## A node that counts presses (and echoes) of the dialogue box's keys (interact, ui_accept, ui_cancel, jump)
+## reaching it. Releases don't count: the release of the key that closed a box arrives after it is gone.
+static func _input_spy_script() -> GDScript:
+	var gs := GDScript.new()
+	gs.source_code = """extends Node
+var seen := {}
+func _note(e: InputEvent, where: String) -> void:
+	for a in ["interact", "ui_accept", "ui_cancel", "jump"]:
+		if e.is_action(a) and e.is_pressed():
+			seen[where + ":" + a] = int(seen.get(where + ":" + a, 0)) + 1
+func _input(e: InputEvent) -> void:
+	_note(e, "input")
+func _unhandled_input(e: InputEvent) -> void:
+	_note(e, "unhandled")
+func count(a: String) -> int:
+	return int(seen.get("input:" + a, 0)) + int(seen.get("unhandled:" + a, 0))
+func total() -> int:
+	var n := 0
+	for k in seen:
+		n += int(seen[k])
+	return n
+"""
+	gs.reload()
+	return gs
 
 
 ## The text of one top-level function (from its `func` line to the next top-level func), "" if absent.
