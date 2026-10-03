@@ -4,6 +4,11 @@ extends Node
 
 signal reputation_changed(new_value: int)
 
+# Den Fa's state (Story 10.3): "early" -> "mid" -> "late", forward only. GameManager owns it
+# (den_fa_state, moved by adjust_reputation() at game_config.json's den_fa_state_tiers) and emits this on
+# each move; Den Fa reads the state when talked to.
+signal den_fa_state_changed(old_state: String, new_state: String)
+
 # Staff (Story 16.1's contract, declared by Story 25.13 so the Bartender and the Quest Dealer can react).
 # Story 16.2's hire and 16.5's leaving emit them; role is "bartender" or "desk_manager".
 signal staff_hired(staff_id: String, role: String)

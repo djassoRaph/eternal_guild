@@ -186,7 +186,11 @@ const DEN_FA_TITLES := ["first_contact", "early_1", "early_2", "early_3"]
 const BRIDGE_VALUES := ["reputation", "reputation_tier", "reputation_tier_index", "day", "roster_size", "adventurers_hired",
 	"deaths_this_run", "gold", "is_demo"]
 const GM_DIALOGUE_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
-	"deaths_this_run", "dialogue_flags", "game_over_active"]
+	"deaths_this_run", "dialogue_flags", "game_over_active", "den_fa_state"]
+## Test 21 (Story 10.3): the GameManager fields it sets, restored at its end.
+const GM_DEN_FA_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
+	"deaths_this_run", "dialogue_flags", "game_over_active", "den_fa_state", "_den_fa_tier_warnings"]
+const DEN_FA_STATE_ORDER := ["early", "mid", "late"]
 ## Keys the box takes besides interact/ui_accept/ui_cancel/jump (review patch: Tab toggles the roster).
 const BOX_ACTIONS_EXTRA := ["ui_focus_next", "ui_focus_prev"]
 ## Test 20's fixture files for Den Fa's E path: a file that doesn't compile, and one whose first contact says nothing.
@@ -243,6 +247,7 @@ func _initialize() -> void:
 	await test_notice_board_live()
 	await test_staff_review_fixes()
 	await test_dialogue()
+	await test_den_fa_states()
 
 	_finish()
 
@@ -5530,6 +5535,144 @@ func _check_den_fa_box(gm) -> void:
 	var walked := Vector2(player.global_position.x - p1.x, player.global_position.z - p1.z).length()
 	check(boxes.call().is_empty() and walked > 0.05, "Game Over closes the box; the player walks (%.2f m)" % walked)
 	_close_test_world(world)
+	await process_frame
+
+
+# --- Test 21: Den Fa's states (Story 10.3) ---
+# GameManager holds Den Fa's state (early -> mid -> late), moved forward only, by adjust_reputation() across the
+# reputation tiers named in game_config.json's den_fa_state_tiers (Known, Trusted), saved with the run's dialogue
+# data and re-evaluated on load; GuildBus says when it moves. His conversation picks first contact, then the
+# state's entry title once, then its openings without repeats. Never calls hire_adventurer,
+# handle_adventurer_death or load_save_data; every GameManager field it sets is restored.
+func test_den_fa_states() -> void:
+	print("[Test 21] Den Fa's states")
+	var gm = root.get_node_or_null("GameManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	if gm == null or dm == null or gb == null or not gm.has_method("den_fa_state_for") or not gm.has_method("den_fa_tier_indexes"):
+		check(false, "GameManager.den_fa_state_for() / den_fa_tier_indexes() and the GuildBus, DataManager autoloads")
+		return
+	var snap := {}
+	for k in GM_DEN_FA_FIELDS:
+		var v = gm.get(k)
+		snap[k] = v.duplicate(true) if v is Array or v is Dictionary else v
+	_check_den_fa_state_table(gm)
+	var th := _check_den_fa_tier_config(gm, dm)
+	_check_den_fa_reputation(gm, gb, th)
+	_check_den_fa_state_save(gm, th)
+	await _check_den_fa_state_talk(gm, th)
+	for k in snap:
+		gm.set(k, snap[k])
+	print("")
+
+
+## den_fa_state_for(current, tier_index, mid_index, late_index): every (current, tier) pair; never backwards (DS-2).
+func _check_den_fa_state_table(gm) -> void:
+	var bad := []
+	for cur in DEN_FA_STATE_ORDER + ["bogus", ""]:
+		for tier in range(0, 5):
+			var want_rank := 2 if tier >= 2 else (1 if tier >= 1 else 0)
+			var want: String = DEN_FA_STATE_ORDER[maxi(DEN_FA_STATE_ORDER.find(cur), want_rank)]
+			var got: String = gm.den_fa_state_for(cur, tier, 1, 2)
+			if got != want:
+				bad.append("%s@%d=%s" % [cur, tier, got])
+	var equal := [gm.den_fa_state_for("early", 0, 1, 1), gm.den_fa_state_for("early", 1, 1, 1), gm.den_fa_state_for("mid", 4, 1, 1),
+		gm.den_fa_state_for("late", 0, 1, 1)]
+	check(bad.is_empty() and equal == ["early", "late", "late", "late"],
+		"den_fa_state_for: early/mid/late by the tier reached, never backwards from mid or late, an unknown state counts as early; mid == late jumps straight to late (wrong: %s, equal %s)" % [bad, equal])
+
+
+## The shipped config and the pure resolver (injected tier lists): unknown names, inverted or equal tiers fall
+## back to Known/Trusted with a warning; the GameManager wrapper warns once. Returns the thresholds {mid, late}.
+func _check_den_fa_tier_config(gm, dm) -> Dictionary:
+	var cfg = dm.get_config("den_fa_state_tiers")
+	check(cfg is Dictionary and cfg.get("mid") == "Known" and cfg.get("late") == "Trusted" and str(cfg.get("_comment", "")) != "",
+		"game_config.json: den_fa_state_tiers {mid: Known, late: Trusted} with a _comment (DS-1)")
+	var tiers: Array = gm.reputation_tier_list(dm.get_config("reputation_tiers", []))
+	var ok: Dictionary = gm.den_fa_tier_indexes({"mid": "Known", "late": "Trusted"}, tiers)
+	var custom: Dictionary = gm.den_fa_tier_indexes({"mid": "Trusted", "late": "Honored"}, tiers)
+	var bad_cfgs := {"unknown": {"mid": "Famous", "late": "Trusted"}, "inverted": {"mid": "Trusted", "late": "Known"},
+		"equal": {"mid": "Known", "late": "Known"}, "missing": null, "late unknown": {"mid": "Known"}}
+	var wrong := []
+	for k in bad_cfgs:
+		var r: Dictionary = gm.den_fa_tier_indexes(bad_cfgs[k], tiers)
+		if r.get("mid") != 1 or r.get("late") != 2 or not str(r.get("warning", "")).begins_with("[GameManager]"):
+			wrong.append("%s %s" % [k, r])
+	var odd_tiers: Array = gm.reputation_tier_list([{"threshold": 10, "label": "A"}, {"threshold": 20, "label": "B"}])
+	var odd: Dictionary = gm.den_fa_tier_indexes({"mid": "X", "late": "Y"}, odd_tiers)
+	check(ok.get("mid") == 1 and ok.get("late") == 2 and ok.get("warning") == "" and custom.get("mid") == 2 and custom.get("late") == 4
+		and custom.get("warning") == "" and wrong.is_empty() and int(odd.get("late", 0)) > int(odd.get("mid", 0)) and str(odd.get("warning", "")) != "",
+		"the resolver: tier names to indexes; an unknown name, inverted or equal tiers, no config: Known/Trusted and a [GameManager] warning, never a crash (wrong: %s; odd tiers %s)" % [wrong, odd])
+	gm._den_fa_tier_warnings = 0
+	gm._den_fa_tiers_from({"mid": "Famous"}, dm.get_config("reputation_tiers", []))
+	gm._den_fa_tiers_from({"mid": "Famous"}, dm.get_config("reputation_tiers", []))
+	check(gm._den_fa_tier_warnings == 1, "a bad den_fa_state_tiers warns once a run, not on every reputation change (%d)" % gm._den_fa_tier_warnings)
+	gm._den_fa_tier_warnings = 0
+	return {"mid": int(tiers[ok.mid].get("threshold", 25)), "late": int(tiers[ok.late].get("threshold", 50))}
+
+
+## adjust_reputation() moves him Early -> Mid -> Late at the configured thresholds, one den_fa_state_changed per
+## transition (a spy on GuildBus); a drop never moves him back; one big jump is one transition.
+func _check_den_fa_reputation(gm, gb, th: Dictionary) -> void:
+	var sig_ok: bool = gb.has_signal("den_fa_state_changed") and gb.get_signal_list().any(func(sg): return sg.name == "den_fa_state_changed" and sg.args.size() == 2)
+	check(sig_ok, "GuildBus.den_fa_state_changed(old_state, new_state) exists")
+	if not sig_ok:
+		return
+	var events := []
+	var spy := func(a, b): events.append([a, b])
+	gb.den_fa_state_changed.connect(spy)
+	gm.tavern_reputation = 0
+	gm.den_fa_state = "early"
+	var m: int = th.mid
+	var l: int = th.late
+	var trail := []
+	for d in [m - 1, 1, l - m - 1, 1, -l, 1000, -5000]:
+		gm.adjust_reputation(d)
+		trail.append("%d:%s" % [gm.tavern_reputation, gm.den_fa_state])
+	var want := ["%d:early" % (m - 1), "%d:mid" % m, "%d:mid" % (l - 1), "%d:late" % l, "0:late", "1000:late", "0:late"]
+	var steps := events.duplicate()
+	events.clear()
+	gm.tavern_reputation = 0
+	gm.den_fa_state = "early"
+	gm.adjust_reputation(l + 5)
+	var jump := events.duplicate()
+	gb.den_fa_state_changed.disconnect(spy)
+	check(trail == want and steps == [["early", "mid"], ["mid", "late"]] and jump == [["early", "late"]],
+		"adjust_reputation: Early -> Mid at %d, Mid -> Late at %d, one signal per transition, a drop never moves him back, one jump is one transition (%s; %s; %s)" % [m, l, trail, steps, jump])
+
+
+## den_fa_state saves with the run's dialogue data, loads (old saves: re-evaluated; unknown: early + warning; never
+## backwards from the saved state) and resets for a New Game.
+func _check_den_fa_state_save(gm, th: Dictionary) -> void:
+	gm.tavern_reputation = th.mid
+	gm.den_fa_state = "mid"
+	var saved = JSON.parse_string(JSON.stringify(gm._dialogue_save_data()))
+	gm._reset_dialogue_state()
+	var reset_state: String = gm.den_fa_state
+	gm._load_dialogue_data(saved if saved is Dictionary else {})
+	var round_trip: String = gm.den_fa_state
+	gm.tavern_reputation = th.late
+	gm._load_dialogue_data({})
+	var old_high: String = gm.den_fa_state
+	gm.tavern_reputation = 0
+	gm._load_dialogue_data({})
+	var old_low: String = gm.den_fa_state
+	gm._load_dialogue_data({"den_fa_state": "late"})
+	var kept_late: String = gm.den_fa_state
+	gm._load_dialogue_data({"den_fa_state": "sideways"})
+	var unknown_low: String = gm.den_fa_state
+	gm.tavern_reputation = th.mid
+	gm._load_dialogue_data({"den_fa_state": 7})
+	var unknown_mid: String = gm.den_fa_state
+	gm._reset_dialogue_state()
+	check(saved is Dictionary and saved.get("den_fa_state") == "mid" and reset_state == "early" and round_trip == "mid" and old_high == "late"
+		and old_low == "early" and kept_late == "late" and unknown_low == "early" and unknown_mid == "mid" and gm.den_fa_state == "early",
+		"den_fa_state: saved (%s), reset to early, loaded back (Continue keeps %s); an old save is re-evaluated (%s / %s); a saved late stays late at 0 reputation (%s); an unknown value loads as early, then re-evaluated (%s / %s)"
+		% [saved.get("den_fa_state") if saved is Dictionary else "?", round_trip, old_high, old_low, kept_late, unknown_low, unknown_mid])
+
+
+## Placeholder until T2-T4 (filled below).
+func _check_den_fa_state_talk(_gm, _th: Dictionary) -> void:
 	await process_frame
 
 

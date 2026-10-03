@@ -38,6 +38,12 @@
 
 	"rumour_mission_chance": 0.2,
 
+	"den_fa_state_tiers": {
+		"_comment": "Story 10.3: the reputation tier (a reputation_tiers label) at which Den Fa moves to his Mid and Late states. Forward only. An unknown label, or late at or below mid, falls back to Known / Trusted with a warning.",
+		"mid": "Known",
+		"late": "Trusted"
+	},
+
 	"profile": "demo",
 	"demo_start_staff": ["bartender", "desk_manager"],
 
