@@ -10,6 +10,9 @@ uniform float lineAlpha = 0.7;
 uniform bool useLighting = true;
 uniform float lineHighlight = 0.2;
 uniform float lineShadow = 0.55;
+// Line width in viewport pixels (Story 25.17): the neighbours are sampled this far away. 1 everywhere in the
+// game; the portrait studio widens it so the ink reads when a 512 px portrait is shown at 160 px.
+uniform float linePixels = 1.0;
 
 varying vec2 screenUV;
 varying float lineMask;
@@ -44,7 +47,7 @@ void vertex(){
 }
 
 void fragment() {
-	vec2 texelSize = 1.0 / VIEWPORT_SIZE.xy;
+	vec2 texelSize = linePixels / VIEWPORT_SIZE.xy;
 	screenUV = SCREEN_UV;
 
 	// UV offsets

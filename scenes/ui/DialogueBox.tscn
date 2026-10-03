@@ -206,6 +206,7 @@ theme_type_variation = &"DialoguePortraitFrame"
 
 [node name="Portrait" type="TextureRect" parent="Balloon/Band/Margin/Row/PortraitFrame"]
 unique_name_in_owner = true
+texture_filter = 4
 custom_minimum_size = Vector2(160, 160)
 layout_mode = 2
 mouse_filter = 2

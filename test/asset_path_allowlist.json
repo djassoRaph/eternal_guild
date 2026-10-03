@@ -1,17 +1,23 @@
 {
 	"schema_version": 1,
 	"_comment": "Known gaps for failsafe Test 5 (asset-path integrity). Every entry needs a reason and an owner. Exact paths and invalid-JSON entries are stale-guarded: the test FAILS once they are fixed, so the fixing story must remove its entry.",
-	"missing_paths": [],
+	"missing_paths": [
+		{
+			"path": "res://assets/characters/portraits/npc/elder.png",
+			"reason": "The Elder's dialogue portrait (data/dialogue/speakers.json): the Elder has no body yet, so the dialogue box draws the plate. Story 25.11 renders it with the portrait studio (scenes/dev/PortraitStudio.tscn, Story 25.17) and removes this entry.",
+			"owner": "Story 25.11"
+		},
+		{
+			"path": "res://assets/characters/portraits/npc/bard.png",
+			"reason": "The Bard's dialogue portrait (data/dialogue/speakers.json): the Bard has no body yet, so the dialogue box draws the plate. Story 25.12 renders it with the portrait studio (scenes/dev/PortraitStudio.tscn, Story 25.17) and removes this entry.",
+			"owner": "Story 25.12"
+		}
+	],
 	"missing_prefixes": [
 		{
 			"prefix": "res://assets/characters/portraits/tarot/",
 			"reason": "Tarot art unfunded; demo uses class silhouettes (decision D-1, 2026-09-24)",
 			"owner": "Epic 17 / Story 26.13 / commission"
-		},
-		{
-			"prefix": "res://assets/characters/portraits/npc/",
-			"reason": "Dialogue portraits for the talking cast (data/dialogue/speakers.json, Story 10.2); until they exist the dialogue box draws a plate. Remove this entry once all five (den_fa, quest_dealer, bartender, elder, bard) exist.",
-			"owner": "Story 25.17"
 		}
 	],
 	"known_invalid_json": []

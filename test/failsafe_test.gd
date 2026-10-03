@@ -182,7 +182,13 @@ const RUNNER_SCRIPT := "res://scripts/dialogue/dialogue_runner.gd"
 const BOX_SCENE := "res://scenes/ui/DialogueBox.tscn"
 const BOX_SCRIPT := "res://scripts/ui/dialogue_box.gd"
 const PLAYER_SCENE := "res://scenes/player/Player.tscn"
-const DEN_FA_TITLES := ["first_contact", "early_1", "early_2", "early_3"]
+const PORTRAIT_DIR := "res://assets/characters/portraits/npc/"          # Story 25.17
+const PORTRAIT_STUDIO_SCENE := "res://scenes/dev/PortraitStudio.tscn"
+const PORTRAIT_STUDIO_SCRIPT := "res://scripts/dev/portrait_studio.gd"
+const PORTRAITS_RENDERED := ["den_fa", "quest_dealer", "bartender"]      # DP-2: the cast with a body
+const PORTRAITS_PLANNED := {"elder": "Story 25.11", "bard": "Story 25.12"}   # no body yet: plate, path allowlisted
+const PORTRAIT_SIZE := 512
+const DEN_FA_TITLES :=["first_contact", "early_1", "early_2", "early_3"]
 const BRIDGE_VALUES := ["reputation", "reputation_tier", "reputation_tier_index", "day", "roster_size", "adventurers_hired",
 	"deaths_this_run", "gold", "is_demo"]
 const GM_DIALOGUE_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
@@ -248,6 +254,7 @@ func _initialize() -> void:
 	await test_staff_review_fixes()
 	await test_dialogue()
 	await test_den_fa_states()
+	test_dialogue_portraits()
 
 	_finish()
 
@@ -4724,10 +4731,7 @@ func _check_speakers() -> void:
 		and str(sp[k].get("portrait", "")).begins_with("res://") and Color.html_is_valid(str(sp[k].get("colour", "")))))
 	check(data is Dictionary and str(data.get("_note", "")) != "" and bad.is_empty() and others.is_empty(),
 		"speakers.json: a _note; den_fa, quest_dealer, bartender, elder and bard (and every other entry) have a name, a portrait under portraits/npc/<id>.png and a colour (wrong: %s)" % [bad + others])
-	var allow = _read_json(ASSET_ALLOWLIST_PATH)
-	var npc := (allow.get("missing_prefixes", []) as Array).filter(func(e): return str(e.get("prefix", "")) == "res://assets/characters/portraits/npc/" \
-		and str(e.get("owner", "")).contains("25.17") and str(e.get("reason", "")) != "") if allow is Dictionary else []
-	check(npc.size() == 1, "the planned NPC portraits are allowlisted once, as a prefix owned by Story 25.17 (S10)")
+	# Story 25.17 replaced the folder-wide allowlist prefix with per-path entries: Test 22 checks them.
 	var bx = load(BOX_SCRIPT) if ResourceLoader.exists(BOX_SCRIPT) else null
 	check(bx is GDScript and (bx as GDScript).get_global_name() == "", "dialogue_box.gd exists, with no class_name (S8)")
 	if not bx is GDScript or not (bx as GDScript).get_script_method_list().any(func(m): return m.name == "portrait_texture"):
@@ -4738,21 +4742,30 @@ func _check_speakers() -> void:
 		"the speaker id: the line's character name lower-cased with spaces to _, or its [#speaker=id] tag")
 	check(bx.display_name("den_fa", "Den Fa") == str(sp.get("den_fa", {}).get("name", "?")) and bx.display_name("t20_nobody", "Nobody Here") == "Nobody Here",
 		"the name shown: speakers.json's, or the raw character name for an unknown speaker")
-	var warned_before: int = bx.warned_portraits.get("den_fa", 0)
-	var a = bx.portrait_texture("den_fa")
-	var b = bx.portrait_texture("den_fa")
-	var den_missing := not ResourceLoader.exists(str(sp.get("den_fa", {}).get("portrait", "")))
+	# Den Fa's mask plate (his portrait exists since Story 25.17, so the plate is drawn directly): his dark teal,
+	# one pale featureless oval.
+	var teal := Color.html(str(sp.get("den_fa", {}).get("colour", "#000000")))
+	var mask_plate = bx._draw_plate(teal, true)
 	var plate_ok := false
-	if den_missing and a is ImageTexture:
-		var img: Image = (a as ImageTexture).get_image()
+	if mask_plate is ImageTexture:
+		var img: Image = (mask_plate as ImageTexture).get_image()
 		var c := img.get_size() / 2
 		var inside := [img.get_pixel(c.x, c.y), img.get_pixel(c.x, c.y - 30), img.get_pixel(c.x, c.y + 30), img.get_pixel(c.x - 18, c.y)]
 		var corner := img.get_pixel(12, 12)
-		var teal := Color.html(str(sp.get("den_fa", {}).get("colour", "#000000")))
 		plate_ok = img.get_size() == Vector2i(160, 160) and inside.all(func(p): return p == inside[0]) and inside[0].get_luminance() > 0.7 \
 			and corner.is_equal_approx(teal) and teal.get_luminance() < 0.35
-	check(den_missing and plate_ok and a == b and bx.warned_portraits.get("den_fa", 0) == maxi(warned_before, 1),
-		"Den Fa's portrait missing: a drawn plate (160 px, his dark teal, one pale featureless oval: the mask), cached, warned once a run")
+	check(plate_ok, "the mask plate: 160 px, Den Fa's dark teal, one pale featureless oval (the mask)")
+	# A speaker whose portrait is still missing (the Elder or the Bard until 25.11 / 25.12): its plate, cached, warned once.
+	var missing_ids := sp.keys().filter(func(k): return not ResourceLoader.exists(str(sp[k].get("portrait", ""))) if sp[k] is Dictionary else false)
+	if not missing_ids.is_empty():
+		var mid: String = missing_ids[0]
+		var warned_before: int = bx.warned_portraits.get(mid, 0)
+		var a = bx.portrait_texture(mid)
+		var b = bx.portrait_texture(mid)
+		var col := Color.html(str(sp[mid].get("colour", "#000000")))
+		var corner_ok: bool = a is ImageTexture and (a as ImageTexture).get_image().get_pixel(12, 12).is_equal_approx(col)
+		check(corner_ok and a == b and bx.warned_portraits.get(mid, 0) == maxi(warned_before, 1),
+			"%s's portrait missing: a drawn plate in its colour, cached, warned once a run" % mid)
 	var u = bx.portrait_texture("t20_nobody")
 	var u2 = bx.portrait_texture("t20_nobody")
 	check(u is ImageTexture and u == u2 and bx.warned_portraits.get("t20_nobody", 0) == 1 and bx.initials("The Quest Dealer") == "QD" and bx.initials("Den Fa") == "DF",
@@ -6306,3 +6319,217 @@ static func _dist_to_polyline(p: Vector2, pts: Array) -> float:
 static func _is_edge_material(mat) -> bool:
 	return mat is ShaderMaterial and (mat as ShaderMaterial).shader != null \
 		and (mat as ShaderMaterial).shader.resource_path == EDGE_SHADER_PATH
+
+
+# --- Test 22: Dialogue portraits (Story 25.17) ---
+# The portrait studio (scenes/dev/PortraitStudio.tscn, a windowed run: it needs the GPU) renders each speaker's
+# portrait from speakers.json's portrait_source into assets/characters/portraits/npc/<id>.png. Headless, this
+# checks its outputs and its data, not by rendering: every portrait that exists is a 512 × 512 opaque, non-blank
+# texture imported lossless with mipmaps; every speaker has its portrait or an allowlisted path with an owner;
+# every portrait_source resolves (the body, its clip and its bone; a staff variant in staff.json); the box shows
+# the PNGs, not plates; the studio is a dev scene (no class_name, not a player_scene, quits before the autosave).
+func test_dialogue_portraits() -> void:
+	print("[Test 22] Dialogue portraits")
+	var data = _read_json(SPEAKERS_PATH)
+	var sp: Dictionary = data.get("speakers", {}) if data is Dictionary and data.get("speakers") is Dictionary else {}
+	var staff = _read_json(STAFF_DATA_PATH)
+	var allow = _read_json(ASSET_ALLOWLIST_PATH)
+	check(not sp.is_empty() and staff is Dictionary and allow is Dictionary, "speakers.json, staff.json and the allowlist load")
+	if sp.is_empty() or not staff is Dictionary or not allow is Dictionary:
+		print("")
+		return
+
+	# The allowlist: no folder-wide entry; the portraits not rendered yet are listed per path, owned by their story.
+	var exact := {}
+	for e in allow.get("missing_paths", []):
+		exact[str(e.get("path", ""))] = str(e.get("owner", "")) if str(e.get("reason", "")) != "" else ""
+	var folder := (allow.get("missing_prefixes", []) as Array).filter(func(e): return PORTRAIT_DIR.begins_with(str(e.get("prefix", "?"))) \
+		or str(e.get("prefix", "")).begins_with(PORTRAIT_DIR))
+	check(folder.is_empty(), "no allowlist prefix covers %s (the folder-wide entry is gone: %s)" % [PORTRAIT_DIR, folder])
+	var planned_bad := []
+	for id in PORTRAITS_PLANNED:
+		var e = sp.get(id)
+		var path: String = PORTRAIT_DIR + str(id) + ".png"
+		if not e is Dictionary or str(e.get("portrait", "")) != path or e.has("portrait_source") \
+				or not str(exact.get(path, "")).contains(PORTRAITS_PLANNED[id]):
+			planned_bad.append(id)
+	check(planned_bad.is_empty(), "the Elder and the Bard (no body yet): no portrait_source, their PNG allowlisted per path, owned by Story 25.11 / 25.12 (wrong: %s)" % [planned_bad])
+	var uncovered := []
+	for id in sp:
+		var path: String = str(sp[id].get("portrait", "")) if sp[id] is Dictionary else ""
+		if not _res_exists(path) and str(exact.get(path, "")) == "":
+			uncovered.append(id)
+	check(uncovered.is_empty(), "every speaker has its portrait file or an allowlisted path with an owner (neither: %s)" % [uncovered])
+
+	# The portraits: 512 × 512, opaque, not blank, imported per DP-5.
+	var absent := PORTRAITS_RENDERED.filter(func(id): return not _res_exists(PORTRAIT_DIR + id + ".png"))
+	check(absent.is_empty(), "den_fa.png, quest_dealer.png and bartender.png exist (missing: %s)" % [absent])
+	for id in sp:
+		var path: String = str(sp[id].get("portrait", "")) if sp[id] is Dictionary else ""
+		if _res_exists(path):
+			_check_portrait_png(id, path)
+
+	# The sources: each resolves to a body that has the clip and the bone; the camera numbers are sane.
+	var studio = load(PORTRAIT_STUDIO_SCRIPT) if ResourceLoader.exists(PORTRAIT_STUDIO_SCRIPT) else null
+	var studio_ok: bool = studio is GDScript and (studio as GDScript).get_global_name() == "" \
+		and (studio as GDScript).get_script_method_list().any(func(m): return m.name == "resolve_source") \
+		and (studio as GDScript).get_script_method_list().any(func(m): return m.name == "source_error")
+	check(studio_ok, "portrait_studio.gd exists, with no class_name, and resolve_source() / source_error()")
+	var unsourced := PORTRAITS_RENDERED.filter(func(id): return not (sp.get(id) is Dictionary and sp[id].get("portrait_source") is Dictionary))
+	check(unsourced.is_empty(), "den_fa, quest_dealer and bartender have a portrait_source (missing: %s)" % [unsourced])
+	var qd_src = sp.get("quest_dealer", {}).get("portrait_source", {}) if sp.get("quest_dealer") is Dictionary else {}
+	var elf: Dictionary = staff.get("roles", {}).get("desk_manager", {}).get("variants", {}).get("silver_elf", {})
+	check(qd_src is Dictionary and str(qd_src.get("staff_variant", "")) == "desk_manager/silver_elf" and not qd_src.has("model") and not elf.is_empty(),
+		"the Quest Dealer's source follows staff.json's desk_manager › silver_elf variant (a variant swap re-renders her)")
+	if studio_ok:
+		for id in sp:
+			if sp[id] is Dictionary and sp[id].get("portrait_source") is Dictionary:
+				_check_portrait_source(studio, id, sp[id].portrait_source, staff)
+	var note := str(data.get("_note", ""))
+	check(note.contains("PortraitStudio.tscn -- ids=") and note.contains("portrait_source") and note.contains("25.31") and note.contains("25.32"),
+		"speakers.json's _note: the portrait_source keys, the re-render command, and 25.31 / 25.32 re-render the Bartender and Den Fa")
+
+	# The box: the three resolve to their PNGs (no plate, no warning); the slot draws a 512 px portrait smoothly at 160.
+	var bx = load(BOX_SCRIPT) if ResourceLoader.exists(BOX_SCRIPT) else null
+	if bx is GDScript:
+		var wrong := []
+		for id in PORTRAITS_RENDERED:
+			var before: int = bx.warned_portraits.get(id, 0)
+			var tex = bx.portrait_texture(id)
+			if not (tex is CompressedTexture2D and (tex as Texture2D).resource_path == PORTRAIT_DIR + id + ".png") or bx.warned_portraits.get(id, 0) != before:
+				wrong.append(id)
+		check(wrong.is_empty(), "the dialogue box resolves Den Fa's, the Quest Dealer's and the Bartender's portraits to the PNGs, no plate, no 'missing portrait' warning (wrong: %s)" % [wrong])
+	else:
+		check(false, "dialogue_box.gd loads")
+	var filter := -1
+	var box_scene = load(BOX_SCENE) if ResourceLoader.exists(BOX_SCENE) else null
+	if box_scene is PackedScene:
+		var st: SceneState = (box_scene as PackedScene).get_state()
+		for i in st.get_node_count():
+			if st.get_node_name(i) == &"Portrait":
+				for p in st.get_node_property_count(i):
+					if st.get_node_property_name(i, p) == &"texture_filter":
+						filter = int(st.get_node_property_value(i, p))
+	check(filter == CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS,
+		"the box's Portrait slot filters linear with mipmaps (the project default is nearest: a 512 px portrait at 160 px would alias) (%d)" % filter)
+
+	# The studio is a dev scene: its root runs the studio script, isn't a player_scene, and it quits before the autosave.
+	var ps = load(PORTRAIT_STUDIO_SCENE) if ResourceLoader.exists(PORTRAIT_STUDIO_SCENE) else null
+	var root_script = null
+	var groups := PackedStringArray()
+	if ps is PackedScene:
+		var st: SceneState = (ps as PackedScene).get_state()
+		groups = st.get_node_groups(0)
+		for p in st.get_node_property_count(0):
+			if st.get_node_property_name(0, p) == &"script":
+				root_script = st.get_node_property_value(0, p)
+	# Its render path is the game's: the edge shader with the game's parameters (only linePixels widened, and its
+	# default stays 1 so the game draws as before), exactly one DirectionalLight (the edge pass multiplies by each).
+	var shader_src := FileAccess.get_file_as_string(EDGE_SHADER_PATH)
+	var game_scenes_wide := ["res://scenes/MainTavern.tscn", "res://scenes/world/ExteriorWorld.tscn", "res://scenes/HexMapTest.tscn",
+		"res://scenes/dev/LookDev.tscn"].filter(func(p): return FileAccess.get_file_as_string(p).contains("linePixels"))
+	var edge_ok := false
+	var directional := -1
+	if ps is PackedScene:
+		var inst: Node = (ps as PackedScene).instantiate()
+		var quad := inst.get_node_or_null("SubViewportContainer/Studio/Camera3D/EdgeQuad") as MeshInstance3D
+		var mat: ShaderMaterial = quad.get_surface_override_material(0) as ShaderMaterial if quad != null else null
+		edge_ok = mat != null and _is_edge_material(mat) and is_equal_approx(float(mat.get_shader_parameter("lightIntensity")), 1.25) \
+			and is_equal_approx(float(mat.get_shader_parameter("lineAlpha")), 0.7) and bool(mat.get_shader_parameter("useLighting")) \
+			and float(mat.get_shader_parameter("linePixels")) >= 1.0
+		directional = inst.find_children("*", "DirectionalLight3D", true, false).size()
+		inst.free()
+	check(shader_src.contains("uniform float linePixels = 1.0;") and game_scenes_wide.is_empty() and edge_ok and directional == 1,
+		"the studio draws through the game's edge shader and parameters (linePixels widened there only; the game's scenes keep the default 1) with exactly one DirectionalLight (%d)" % directional)
+	var guard: float = float((studio as GDScript).get_script_constant_map().get("AUTO_QUIT_SECONDS", 999.0)) if studio is GDScript else 999.0
+	check(ps is PackedScene and root_script is GDScript and (root_script as GDScript).resource_path == PORTRAIT_STUDIO_SCRIPT
+		and not "player_scene" in groups and guard <= 60.0,
+		"PortraitStudio.tscn: its root runs portrait_studio.gd, not in player_scene (PlayerManager stands down), hard quit at %.0f s (≤ 60, long before the 300 s autosave)" % guard)
+	print("")
+
+
+## One portrait file (Test 22, AC 6): a 512 × 512 Texture2D, opaque, not blank (luminance spread and many colours),
+## imported lossless with mipmaps and detect_3d off (DP-5).
+func _check_portrait_png(id: String, path: String) -> void:
+	var tex = load(path)
+	var img: Image = (tex as Texture2D).get_image() if tex is Texture2D else null
+	var why := []
+	if img == null:
+		why.append("not a Texture2D")
+	else:
+		if img.get_size() != Vector2i(PORTRAIT_SIZE, PORTRAIT_SIZE):
+			why.append("size %s" % img.get_size())
+		if not img.has_mipmaps():
+			why.append("no mipmaps")
+		if img.is_compressed():
+			why.append("VRAM-compressed")
+		else:
+			var lum := PackedFloat32Array()
+			var colours := {}
+			var opaque := true
+			for y in range(0, img.get_height(), 8):
+				for x in range(0, img.get_width(), 8):
+					var c := img.get_pixel(x, y)
+					lum.append(c.get_luminance())
+					colours[c.to_html(false)] = true
+					opaque = opaque and c.a > 0.999
+			var mean := 0.0
+			for v in lum:
+				mean += v
+			mean /= maxf(lum.size(), 1)
+			var variance := 0.0
+			for v in lum:
+				variance += (v - mean) * (v - mean)
+			variance /= maxf(lum.size(), 1)
+			if variance < 0.003 or colours.size() < 200:
+				why.append("blank-ish (luminance variance %.4f, %d colours)" % [variance, colours.size()])
+			if not opaque:
+				why.append("not opaque")
+	var cfg := ConfigFile.new()
+	if cfg.load(path + ".import") != OK:
+		why.append("no .import")
+	elif int(cfg.get_value("params", "compress/mode", -1)) != 0 or not bool(cfg.get_value("params", "mipmaps/generate", false)) \
+			or int(cfg.get_value("params", "detect_3d/compress_to", -1)) != 0:
+		why.append("import params %s/%s/%s" % [cfg.get_value("params", "compress/mode", "?"), cfg.get_value("params", "mipmaps/generate", "?"),
+			cfg.get_value("params", "detect_3d/compress_to", "?")])
+	check(why.is_empty(), "%s's portrait: 512 × 512, opaque, not blank, lossless with mipmaps, detect_3d off %s" % [id, why])
+
+
+## One speaker's portrait_source (Test 22, AC 6): the studio's own resolver and an independent read agree, the body
+## loads and has the clip and the bone, the camera numbers are in range.
+func _check_portrait_source(studio: GDScript, id: String, src: Dictionary, staff: Dictionary) -> void:
+	var r: Dictionary = studio.resolve_source(src, staff)
+	var spec_error: String = studio.source_error(src)
+	var want_path := ""
+	var want_look := str(src.get("look", ""))
+	if src.has("staff_variant"):
+		var parts := str(src.staff_variant).split("/")
+		var v = staff.get("roles", {}).get(parts[0], {}).get("variants", {}).get(parts[1] if parts.size() == 2 else "", null)
+		want_path = str(v.get("model_path", "")) if v is Dictionary else ""
+		want_look = str(v.get("look", "")) if v is Dictionary else ""
+	else:
+		want_path = str(src.get("model", ""))
+	var why := []
+	if want_path == "" or not _res_exists(want_path):
+		why.append("no body (%s)" % want_path)
+	if str(r.get("error", "")) != "" or str(r.get("path", "")) != want_path or str(r.get("look", "")) != want_look:
+		why.append("resolver says %s" % [r])
+	if spec_error != "":
+		why.append(spec_error)
+	if why.is_empty():
+		var body = load(want_path)
+		var inst: Node = (body as PackedScene).instantiate() if body is PackedScene else null
+		if inst == null:
+			why.append("doesn't instantiate")
+		else:
+			var players := inst.find_children("*", "AnimationPlayer", true, false)
+			var skels := inst.find_children("*", "Skeleton3D", true, false)
+			if players.is_empty() or not (players[0] as AnimationPlayer).has_animation(str(src.get("clip", ""))):
+				why.append("no clip %s" % src.get("clip", ""))
+			elif float(src.get("time", 0.0)) > (players[0] as AnimationPlayer).get_animation(str(src.clip)).length:
+				why.append("time past the clip's end")
+			if skels.is_empty() or (skels[0] as Skeleton3D).find_bone(str(src.get("bone", "head"))) < 0:
+				why.append("no bone %s" % src.get("bone", "head"))
+			inst.free()
+	check(why.is_empty(), "%s's portrait_source resolves: %s, look '%s', clip %s, bone %s, camera in range %s" % [
+		id, want_path.get_file(), want_look, src.get("clip", "?"), src.get("bone", "head"), why])

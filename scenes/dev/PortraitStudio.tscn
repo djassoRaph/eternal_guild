@@ -1,0 +1,133 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/dev/portrait_studio.gd" id="1_studio"]
+[ext_resource type="Shader" uid="uid://dluc7tau70k3i" path="res://assets/shaders/edge_detection.gdshader" id="2_edge"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_mirror"]
+sky_top_color = Color(0.03, 0.025, 0.025, 1)
+sky_horizon_color = Color(1, 0.72, 0.42, 1)
+sky_curve = 0.1
+ground_bottom_color = Color(0.02, 0.015, 0.015, 1)
+ground_horizon_color = Color(0.3, 0.18, 0.1, 1)
+ground_curve = 0.07
+sun_angle_max = 8.0
+sun_curve = 0.05
+
+[sub_resource type="Sky" id="Sky_mirror"]
+sky_material = SubResource("SkyMaterial_mirror")
+
+[sub_resource type="Environment" id="Environment_portrait"]
+background_mode = 2
+sky = SubResource("Sky_mirror")
+ambient_light_source = 2
+ambient_light_color = Color(0.3, 0.3, 0.3, 1)
+reflected_light_source = 2
+
+[sub_resource type="Gradient" id="Gradient_backdrop"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(0.6, 0.38, 0.19, 1, 0.33, 0.19, 0.1, 1, 0.13, 0.075, 0.05, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_backdrop"]
+gradient = SubResource("Gradient_backdrop")
+width = 256
+height = 256
+fill = 1
+fill_from = Vector2(0.5, 0.4)
+fill_to = Vector2(1.05, 1.05)
+
+[sub_resource type="StandardMaterial3D" id="Material_backdrop"]
+shading_mode = 0
+albedo_texture = SubResource("GradientTexture2D_backdrop")
+disable_receive_shadows = true
+
+[sub_resource type="QuadMesh" id="QuadMesh_backdrop"]
+size = Vector2(4, 4)
+
+[sub_resource type="QuadMesh" id="QuadMesh_edge"]
+flip_faces = true
+size = Vector2(2, 2)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_edge"]
+render_priority = 0
+shader = ExtResource("2_edge")
+shader_parameter/lightIntensity = 1.25
+shader_parameter/lineAlpha = 0.7
+shader_parameter/useLighting = true
+shader_parameter/lineHighlight = 0.2
+shader_parameter/lineShadow = 0.55
+shader_parameter/linePixels = 4.0
+
+[node name="PortraitStudio" type="Node3D"]
+script = ExtResource("1_studio")
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+offset_right = 512.0
+offset_bottom = 512.0
+mouse_filter = 2
+
+[node name="Studio" type="SubViewport" parent="SubViewportContainer"]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(512, 512)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+environment = SubResource("Environment_portrait")
+
+[node name="InkLight" type="DirectionalLight3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+light_color = Color(1, 0.8, 0.55, 1)
+light_energy = 0.6
+
+[node name="KeyLight" type="OmniLight3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+light_color = Color(1, 0.9, 0.78, 1)
+light_energy = 1.0
+omni_range = 6.0
+omni_attenuation = 0.0
+
+[node name="FillLight" type="OmniLight3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+light_color = Color(0.6, 0.75, 1, 1)
+light_energy = 0.5
+omni_range = 6.0
+omni_attenuation = 0.0
+
+[node name="RimLight" type="OmniLight3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+light_color = Color(1, 0.72, 0.42, 1)
+light_energy = 1.2
+omni_range = 6.0
+omni_attenuation = 0.0
+
+[node name="Subject" type="Node3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 3)
+fov = 24.0
+
+[node name="EdgeQuad" type="MeshInstance3D" parent="SubViewportContainer/Studio/Camera3D"]
+unique_name_in_owner = true
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_edge")
+surface_material_override/0 = SubResource("ShaderMaterial_edge")
+
+[node name="Backdrop" type="MeshInstance3D" parent="SubViewportContainer/Studio/Camera3D"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
+cast_shadow = 0
+mesh = SubResource("QuadMesh_backdrop")
+surface_material_override/0 = SubResource("Material_backdrop")
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+
+[node name="Info" type="Label" parent="Overlay"]
+unique_name_in_owner = true
+offset_left = 530.0
+offset_top = 8.0
+offset_right = 1400.0
+offset_bottom = 34.0
+text = "PortraitStudio"

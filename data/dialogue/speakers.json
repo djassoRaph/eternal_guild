@@ -1,21 +1,42 @@
 {
-	"_note": "Story 10.2: who speaks in a .dialogue file. A line's speaker id is its character name lower-cased with spaces as _ (\"Den Fa\" -> den_fa), or a [#speaker=id] tag on the line (the Elder's lines say [#speaker=elder]). name: shown in the dialogue box. portrait: the dialogue portrait Story 25.17 paints (res://assets/characters/portraits/npc/<id>.png); while it is missing the box draws a plate in colour with the speaker's initials, or, for plate \"mask\", Den Fa's mirror mask (a pale featureless oval, never a face). quest_dealer is the staff role desk_manager in data/characters/staff.json. Add a speaker here before writing their first line.",
+	"_note": "Story 10.2: who speaks in a .dialogue file. A line's speaker id is its character name lower-cased with spaces as _ (\"Den Fa\" -> den_fa), or a [#speaker=id] tag on the line (the Elder's lines say [#speaker=elder]). name: shown in the dialogue box. portrait: the dialogue portrait (res://assets/characters/portraits/npc/<id>.png); while it is missing the box draws a plate in colour with the speaker's initials, or, for plate \"mask\", Den Fa's mirror mask (a pale featureless oval, never a face). quest_dealer is the staff role desk_manager in data/characters/staff.json. Add a speaker here before writing their first line. Story 25.17: portrait_source says how the portrait studio renders the portrait: model (a body scene path, drawn with its imported look, or with look \"anime\" anime_look.gd's toon look) or staff_variant (\"<role>/<variant>\" in staff.json: that variant's model_path and look, so a variant swap re-renders the right body); clip and time (seconds): the still frame of the pose; bone: the skeleton bone the camera aims at (default head); camera: eye_offset [x, y, z] metres from that bone to the eye line's centre (the mask's centre for Den Fa), in the body's own frame (x its left, y up, z forward); head_height: crown to chin in metres (one framing rule for everyone: the frame is 2.6 head heights tall, the eyes 43% from the top); yaw_deg: the camera swings round the face (negative: to the body's right, so the face turns to the viewer's right, toward the box's text); pitch_deg: the camera above the eyes, looking down; fov: vertical degrees. Re-render with one command (a windowed run, it needs the GPU; then import the new PNGs headless): Godot --path . res://scenes/dev/PortraitStudio.tscn -- ids=den_fa,quest_dealer,bartender (no ids: every speaker with a portrait_source). Story 25.31 (the anime Bartender) and Story 25.32 (Den Fa's redesign) must re-render bartender and den_fa once their new bodies land; 25.11 and 25.12 add the Elder's and the Bard's portrait_source and render them.",
 	"speakers": {
 		"den_fa": {
 			"name": "Den Fa",
 			"portrait": "res://assets/characters/portraits/npc/den_fa.png",
 			"colour": "#1b4a4c",
-			"plate": "mask"
+			"plate": "mask",
+			"portrait_source": {
+				"model": "res://assets/characters/custom/g9_den_fa.glb",
+				"clip": "Idle",
+				"time": 0.0,
+				"bone": "d_mask",
+				"camera": {"eye_offset": [0.0, 0.0, 0.0], "head_height": 0.38,"yaw_deg": -30.0, "pitch_deg": 6.0, "fov": 24.0}
+			}
 		},
 		"quest_dealer": {
 			"name": "The Quest Dealer",
 			"portrait": "res://assets/characters/portraits/npc/quest_dealer.png",
-			"colour": "#4a5470"
+			"colour": "#4a5470",
+			"portrait_source": {
+				"staff_variant": "desk_manager/silver_elf",
+				"clip": "Idle",
+				"time": 0.0,
+				"bone": "head",
+				"camera": {"eye_offset": [0.0, 0.25, 0.1], "head_height": 0.55, "yaw_deg": -30.0, "pitch_deg": 6.0, "fov": 24.0}
+			}
 		},
 		"bartender": {
 			"name": "The Bartender",
 			"portrait": "res://assets/characters/portraits/npc/bartender.png",
-			"colour": "#6b4228"
+			"colour": "#6b4228",
+			"portrait_source": {
+				"model": "res://assets/characters/custom/g12_bartender.glb",
+				"clip": "Idle",
+				"time": 0.0,
+				"bone": "head",
+				"camera": {"eye_offset": [0.0, 0.35, 0.2], "head_height": 0.9, "yaw_deg": -30.0, "pitch_deg": 6.0, "fov": 24.0}
+			}
 		},
 		"elder": {
 			"name": "The Elder",
