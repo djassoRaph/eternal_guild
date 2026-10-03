@@ -36,7 +36,7 @@ commit. Status values:
 | Model files in `assets/` | 187 |
 | …actually used by the game | **106** (89 before Story 25.29) |
 | …on disk but unused (don't remake these unless the game starts using them) | 81 (98 before Story 25.29) |
-| 2D portraits in use | 11 images |
+| 2D portraits in use | 11 images (+ 3 P9 dialogue portraits rendered in engine, Story 25.17) |
 | Planned assets from the design docs | see §7 |
 
 *(Corrected 2026-09-24, Story 25.1: `Chair 3.obj` ×3 and `Chair 5.obj` ×2 are placed in MainTavern
@@ -285,6 +285,8 @@ the player's `Rogue`).
 |---|---|---|---|
 | Class portraits | `assets/portraits/` (13 images: barbarian ×2, drow-girl, fighter-girl, fighter, healer ×2, mage ×2, ranger, rogue ×2, unnamed; every demo class has a PNG since Story 25.9) | loaded by class name in `scripts/ui/portrait_socket.gd` (`res://assets/portraits/<class>.png`) | `stock` |
 | UI images | `assets/ui/` (3 images) | | `stock` |
+| P9 dialogue portraits: Den Fa, the Quest Dealer, the Bartender | `assets/characters/portraits/npc/{den_fa,quest_dealer,bartender}.png` (512 × 512) | in-engine renders by the portrait studio (Story 25.17), shown by the dialogue box via `data/dialogue/speakers.json`; re-render the Bartender after 25.31 and Den Fa after 25.32 | `in game` |
+| P9 dialogue portraits: the Elder, the Bard | `assets/characters/portraits/npc/{elder,bard}.png` (allowlisted per path) | no body yet: the box draws their plates; Story 25.11 (the Elder) and Story 25.12 (the Bard) render them with the studio | `planned` |
 | K1–K3 key art | `<art>/picked/` | inked, picked 2026-09-24 | `concept` (done as key art) |
 
 ---
