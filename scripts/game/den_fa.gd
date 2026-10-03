@@ -2,10 +2,11 @@
 # face: a mirror mask, featureless."
 #
 # A regular by the tavern fire: at the demo start he sits on the hearth's bench (the Hearth's SitPoint)
-# and stays there (decision J8). Stand beside him and "Press E - Talk to Den Fa" gives a short line in a
-# speech bubble: placeholders from data/dialogue/den_fa_lines.json until Story 10.3 swaps the bubble
-# for his Dialogue Manager states (talked(state) is the hook). stand(), walk_route(), point_at() and
-# return_to_seat() are there for Epic 10's beats (the walk to the bar, the point at the pillar).
+# and stays there (decision J8). Stand beside him and "Press E - Talk to Den Fa" opens the dialogue box
+# with his conversation (data/dialogue/den_fa.dialogue, Story 10.2): first contact once a run, then one
+# of his early openings. Story 10.3 adds his Mid/Late states (talked(state) is its hook). stand(),
+# walk_route(), point_at() and return_to_seat() are there for Epic 10's beats (the walk to the bar, the
+# point at the pillar).
 # No autoload, not a patron, no physics body (the bench collider must not push him): a hand-placed
 # scene with one small script (J7), driven by an AnimationTree state machine built here.
 #
@@ -18,7 +19,8 @@ extends Node3D
 signal talked(state: String)
 
 const PROMPT := "Press E - Talk to Den Fa"
-const LINES_PATH := "res://data/dialogue/den_fa_lines.json"
+const Runner := preload("res://scripts/dialogue/dialogue_runner.gd")
+const FIRST_CONTACT_FLAG := "den_fa_first_contact"   # set by the file's first_contact title (bridge.mark_seen)
 const DEN_FA_HIP_BACK := 0.55     # his root (feet) stands this far in front of the seat marker ...
 const SEAT_SIDE := 0.48           # ... and this far to his right (the room side): he stands up clear of the chimney
 const SEAT_HEIGHT := 0.45         # the bench top above his feet
@@ -27,13 +29,14 @@ const TURN_SECONDS := 0.6
 const COOLDOWN := 3.0
 const MASK_SEATED := Vector3(0.145, 1.782, -0.288)   # mask centre from his root (x his left, z forward), Sit
 const MASK_STANDING := Vector3(-0.01, 2.39, 0.172)   # ... Idle (measured on the rig in Blender)
-const BUBBLE_SEATED := 2.35       # speech-bubble height above his root
-const BUBBLE_STANDING := 3.05
+const BUBBLE_SEATED := 2.35       # height above his root where the fallback prompt label floats (seated)
 const STATES := ["Sit", "SitDown", "StandUp", "Idle", "Walk", "Point"]
 
 @export var seat_path: NodePath
 @export var bar_route: PackedVector3Array
 @export var pillar_target: NodePath
+## His conversation (Story 10.2). Titles: first_contact, early_1 … early_N.
+@export_file("*.dialogue") var dialogue_path := "res://data/dialogue/den_fa.dialogue"
 
 @onready var _anim: AnimationPlayer = $AnimationPlayer
 @onready var _talk: Area3D = $TalkZone
@@ -46,8 +49,7 @@ var _prompt_ui: Node = null
 var _prompt_label: Label3D = null
 var _prompt_shown := false
 var _cooldown := 0.0
-var _lines: Array = []
-var _last_line := -1
+var _last_early := -1             # the early opening he used last (index), never repeated next time
 var _route := PackedVector3Array()
 var _route_i := 0
 var _walking := false
@@ -85,7 +87,6 @@ static func pick_line(count: int, last: int, roll: float) -> int:
 func _ready() -> void:
 	_talk.body_entered.connect(_on_body_entered)
 	_talk.body_exited.connect(_on_body_exited)
-	_load_lines()
 	_build_tree()
 	var seat: Node3D = get_node_or_null(seat_path) as Node3D if not seat_path.is_empty() else null
 	if seat:
@@ -145,18 +146,6 @@ static func _link(sm: AnimationNodeStateMachine, a: String, b: String, at_end: b
 		t.switch_mode = AnimationNodeStateMachineTransition.SWITCH_MODE_AT_END
 		t.advance_mode = AnimationNodeStateMachineTransition.ADVANCE_MODE_AUTO
 	sm.add_transition(a, b, t)
-
-
-func _load_lines() -> void:
-	_lines = []
-	if FileAccess.file_exists(LINES_PATH):
-		var data = JSON.parse_string(FileAccess.get_file_as_string(LINES_PATH))
-		if data is Dictionary and data.get("early") is Array:
-			for l in data.early:
-				if str(l).strip_edges() != "":
-					_lines.append(str(l))
-	if _lines.is_empty():
-		push_warning("[DenFa] no early lines in %s: talking to him shows nothing" % LINES_PATH)
 
 
 # ------------------------------------------------------------------ seat, walk, point
@@ -305,7 +294,7 @@ func _step(delta: float) -> void:
 	global_rotation = Vector3(0.0, lerp_angle(global_rotation.y, yaw, minf(1.0, 10.0 * delta)), 0.0)
 
 
-# ------------------------------------------------------------------ talking (placeholder until Story 10.3)
+# ------------------------------------------------------------------ talking (Story 10.2: the dialogue box; 10.3 adds his states)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and not event.is_echo() and _cooldown <= 0.0 and can_talk():
@@ -316,6 +305,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## The player is beside him (seated) and E is his: the prompt UI's owner, and his own live checks agree.
 func can_talk() -> bool:
 	if not _seated or _player == null or not is_instance_valid(_player) or not is_inside_tree() or get_tree().paused:
+		return false
+	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():   # a conversation is open (his or anyone's)
 		return false
 	if _prompt_ui != null and is_instance_valid(_prompt_ui) and not _prompt_ui.owns_e(_talk):
 		return false
@@ -331,24 +322,34 @@ func can_talk() -> bool:
 	return true
 
 
+## Open his conversation in the dialogue box. talked("early") is Story 10.3's hook. His cooldown runs from
+## the moment the box closes; if it can't open (a broken file, a missing title: the runner warns) he
+## says nothing and E works again after the cooldown.
 func talk() -> void:
 	_cooldown = COOLDOWN
-	if _lines.is_empty():
-		push_warning("[DenFa] nothing to say: %s has no early lines" % LINES_PATH)
+	var resource := Runner.load_dialogue(dialogue_path)
+	var box = Runner.open(self, resource, _pick_title(resource)) if resource != null else null
+	if box == null:
 		return
-	_last_line = pick_line(_lines.size(), _last_line, randf())
-	_say(_lines[_last_line])
+	box.closed.connect(_on_conversation_closed)
 	talked.emit("early")
 
 
-func _say(text: String) -> void:
-	for c in get_children():          # one line at a time: a new one replaces the last
-		if c is PatronSpeechBubble:
-			c.queue_free()
-	var bubble := PatronSpeechBubble.new()
-	add_child(bubble)
-	bubble.position.y = (BUBBLE_SEATED if _seated else BUBBLE_STANDING) - PatronSpeechBubble.HEAD_HEIGHT
-	bubble.say(text, 3.5)
+## The title to play: first_contact until it is seen this run, then early_1 … early_N (as many as the
+## file has, so new openings need no code), never the same one twice in a row.
+func _pick_title(resource: Resource = null) -> String:
+	var bridge = Runner.new_bridge()
+	if not bridge.seen(FIRST_CONTACT_FLAG):
+		return "first_contact"
+	if resource == null:
+		resource = Runner.load_dialogue(dialogue_path)
+	var count := Runner.count_numbered(resource, "early_") if resource != null else 0
+	_last_early = pick_line(count, _last_early, randf())
+	return "early_%d" % (_last_early + 1)
+
+
+func _on_conversation_closed() -> void:
+	_cooldown = COOLDOWN
 
 
 func _on_body_entered(body: Node3D) -> void:

@@ -1,0 +1,39 @@
+# DRAFT (Story 10.2): written from narrative-design.md's First Contact brief and his voice rules. Raphael to rewrite.
+# Den Fa, by the fire. first_contact plays once a run (it marks itself seen on its first line); after it,
+# den_fa.gd picks one of the early_N openings, never the same one twice in a row (add early_4 … and he
+# uses it, no code change). Game state comes only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
+# Story 10.3 adds his Mid and Late states here.
+
+~ first_contact
+do bridge.mark_seen("den_fa_first_contact")
+Den Fa: You keep looking at it. Most people stop, after a while.
+- It's hard not to.
+	Den Fa: No. It isn't.
+- Looking at what?
+	Den Fa: The pillar. You knew which.
+- (Say nothing.)
+	Den Fa: That's an answer too.
+Den Fa: Sit, if you like. The fire has room for two.
+if bridge.deaths_this_run > 0
+	Den Fa: You've lost someone already. The fire is a good place not to talk about it.
+=> END
+
+~ early_1
+Den Fa: Old stone remembers. Better than we do.
+if bridge.reputation_tier_index >= 1
+	Den Fa: They've started saying your guild's name at the bar. Not loudly. Yet.
+=> END
+
+~ early_2
+Den Fa: Another day, and the sand still runs.
+- Does it ever stop?
+	Den Fa: Everything stops. That isn't the interesting part.
+- I hadn't noticed.
+	Den Fa: You had.
+=> END
+
+~ early_3
+Den Fa: You're still here. Good.
+if bridge.day >= 5
+	Den Fa: {{bridge.day}} days. Most guilds don't last the first week.
+=> END

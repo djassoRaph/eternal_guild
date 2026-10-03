@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://s7cw6s3rgggu"
+path="res://.godot/imported/den_fa.dialogue-8a87777f66fca8ca81d57aab76f6f7de.tres"
+
+[deps]
+
+source_file="res://data/dialogue/den_fa.dialogue"
+dest_files=["res://.godot/imported/den_fa.dialogue-8a87777f66fca8ca81d57aab76f6f7de.tres"]
+
+[params]
+
+defaults=true
