@@ -175,11 +175,25 @@ const AN_BODY_SURFACES := 3            # surfaces on <Role>_Body (props counted 
 const AN_TRI_BUDGET := 10000           # min(10000, ceil(9,459 measured x 1.15 / 500) x 500) = the cap (T3); the same number as 08
 const AN_SIT_HIPS_Y := 0.450           # the re-fitted Sit_Chair_Idle hips height (model-local): T2's SIT_HIPS_Y (Base_Body; her seat within 0.03)
 const AN_SEATED_SHOULDER_MIN := 1.05   # seated upperarm heads, root-local: the desk top 0.85 + 0.20 (N2)
+const DIALOGUE_DIR := "res://data/dialogue/"                       # Story 10.2
+const DEN_FA_DIALOGUE := "res://data/dialogue/den_fa.dialogue"
+const SPEAKERS_PATH := "res://data/dialogue/speakers.json"
+const BRIDGE_SCRIPT := "res://scripts/dialogue/dialogue_bridge.gd"
+const RUNNER_SCRIPT := "res://scripts/dialogue/dialogue_runner.gd"
+const BOX_SCENE := "res://scenes/ui/DialogueBox.tscn"
+const BOX_SCRIPT := "res://scripts/ui/dialogue_box.gd"
+const PLAYER_SCENE := "res://scenes/player/Player.tscn"
+const DEN_FA_TITLES := ["first_contact", "early_1", "early_2", "early_3"]
+const BRIDGE_VALUES := ["reputation", "reputation_tier", "reputation_tier_index", "day", "roster_size", "adventurers_hired",
+	"deaths_this_run", "gold", "is_demo"]
+const GM_DIALOGUE_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
+	"deaths_this_run", "dialogue_flags"]
 
 var _pass_count := 0
 var _fail_count := 0
 var _elapsed := 0.0
 var _t19_ms := 0          # Test 19's start (Time.get_ticks_msec), printed with its real time at the end (AC 8)
+var _t20_ms := 0          # Test 20's start, printed with its real time (Story 10.2 AC 9: ≤ 10 s)
 
 
 func _initialize() -> void:
@@ -222,6 +236,7 @@ func _initialize() -> void:
 	await test_tankard_upright()
 	await test_notice_board_live()
 	await test_staff_review_fixes()
+	await test_dialogue()
 
 	_finish()
 
@@ -4541,6 +4556,120 @@ func test_staff_review_fixes() -> void:
 		"anime_look: a hand-set override and a material_override are toned (%d, again %d), the toon drops the roughness/metal maps, sources untouched" % [n1, n2])
 	m.free()
 	print("")
+
+
+# --- Test 20: Dialogue (Story 10.2) ---
+# Dialogue Manager conversations in one reusable DialogueBox. Den Fa is the first talker: his E opens
+# den_fa.dialogue (first contact once a run, then three early openings). .dialogue files read the game
+# only through a thin bridge (counters, reputation, flags) and are linted against it; speakers.json
+# maps a line's speaker to a name and a portrait, with a drawn plate while 25.17's portraits are
+# missing. The box reads E/Enter/Space/Esc first (_input) so none of them reaches the 3D world, the
+# pause menu or a zone while it is open. Never calls hire_adventurer, handle_adventurer_death or
+# load_save_data (C5: they spend gold, write the codex, reload the world); GameManager fields a check
+# sets are restored.
+func test_dialogue() -> void:
+	print("[Test 20] Dialogue")
+	_t20_ms = Time.get_ticks_msec()
+	var gm = root.get_node_or_null("GameManager")
+	var dm = root.get_node_or_null("DataManager")
+	var snap := {}
+	if gm != null:
+		for k in GM_DIALOGUE_FIELDS:
+			snap[k] = gm.get(k)
+	_check_dialogue_bridge(gm, dm)
+	if gm != null:
+		for k in snap:
+			gm.set(k, snap[k])
+	print("  [Test 20] %.1f s of real time (≤ 10 s)" % ((Time.get_ticks_msec() - _t20_ms) / 1000.0))
+	print("")
+
+
+## The bridge reads GameManager live; the two run counters and the flags save, load and reset (AC 4).
+func _check_dialogue_bridge(gm, dm) -> void:
+	var bs = load(BRIDGE_SCRIPT) if ResourceLoader.exists(BRIDGE_SCRIPT) else null
+	check(bs is GDScript and (bs as GDScript).get_global_name() == "", "dialogue_bridge.gd exists, with no class_name (S8)")
+	if not bs is GDScript or gm == null or dm == null or not gm.has_method("_count_hire") or not gm.has_method("_dialogue_save_data"):
+		check(false, "the bridge and GameManager's dialogue helpers (_count_hire, _count_death, _dialogue_save_data, _load_dialogue_data, _reset_dialogue_state)")
+		return
+	var b = (bs as GDScript).new()
+	var expect := func() -> Dictionary:
+		var tiers: Array = dm.get_config("reputation_tiers", [])
+		var idx := 0
+		for i in tiers.size():
+			if gm.tavern_reputation >= int(tiers[i].get("threshold", 0)):
+				idx = i
+		return {"reputation": gm.tavern_reputation, "reputation_tier": str(gm.get_reputation_tier().get("label", "")),
+			"reputation_tier_index": idx, "day": gm.current_day, "roster_size": gm.adventurers.size(),
+			"adventurers_hired": gm.adventurers_hired_this_run, "deaths_this_run": gm.deaths_this_run, "gold": gm.gold,
+			"is_demo": str(dm.get_config("profile", "full")) == "demo"}
+	var wrong := func() -> Array:
+		var want: Dictionary = expect.call()
+		return BRIDGE_VALUES.filter(func(k): return typeof(b.get(k)) != typeof(want[k]) or b.get(k) != want[k])
+	gm.tavern_reputation = 0
+	gm.current_day = 1
+	gm.gold = 120
+	gm.adventurers = [{"name": "A"}, {"name": "B"}]
+	gm.adventurers_hired_this_run = 0
+	gm.deaths_this_run = 0
+	gm.dialogue_flags = {}
+	var fresh: Array = wrong.call()
+	check(fresh.is_empty() and b.reputation_tier == "Unknown" and b.reputation_tier_index == 0 and b.roster_size == 2 and b.adventurers_hired == 0,
+		"the bridge on a fresh run: every value matches GameManager (wrong: %s)" % [fresh])
+	gm._count_hire()
+	gm.adventurers.append({"name": "C"})
+	var after_hire: Array = wrong.call()
+	gm._count_death()
+	var after_death: Array = wrong.call()
+	gm.tavern_reputation = 25
+	var known: Array = [b.reputation_tier, b.reputation_tier_index]
+	gm.tavern_reputation = 210
+	var honored: Array = [b.reputation_tier, b.reputation_tier_index]
+	var after_rep: Array = wrong.call()
+	gm.current_day += 1
+	var after_day: Array = wrong.call()
+	check(after_hire.is_empty() and after_death.is_empty() and after_rep.is_empty() and after_day.is_empty()
+		and b.adventurers_hired == 1 and b.deaths_this_run == 1 and b.day == 2 and known == ["Known", 1] and honored == ["Honored", 4],
+		"after a hire, a death, reputation changes and a day: the bridge reads them live (tiers %s, %s)" % [known, honored])
+	b.set("day", 99)
+	b.set("deaths_this_run", 7)
+	check(gm.current_day == 2 and gm.deaths_this_run == 1 and b.day == 2, "the bridge's values are read-only: a .dialogue can't write GameManager")
+	var unseen: bool = b.seen("t20_flag")
+	b.mark_seen("t20_flag")
+	check(not unseen and b.seen("t20_flag") and gm.dialogue_flags.get("t20_flag") == true and not b.seen("t20_other"),
+		"mark_seen / seen: a conversation flag, kept in GameManager.dialogue_flags")
+
+	var saved = JSON.parse_string(JSON.stringify(gm._dialogue_save_data()))   # as the save file stores it
+	gm._reset_dialogue_state()
+	var reset_ok: bool = gm.adventurers_hired_this_run == 0 and gm.deaths_this_run == 0 and gm.dialogue_flags.is_empty()
+	gm._load_dialogue_data(saved if saved is Dictionary else {})
+	check(reset_ok and gm.adventurers_hired_this_run == 1 and gm.deaths_this_run == 1 and typeof(gm.deaths_this_run) == TYPE_INT
+		and typeof(gm.adventurers_hired_this_run) == TYPE_INT and gm.dialogue_flags.get("t20_flag") == true,
+		"the counters and flags reset, then survive a save → JSON → load round trip as ints (%s)" % [saved])
+	gm._load_dialogue_data({"gold": 5})
+	var old_ok: bool = gm.adventurers_hired_this_run == 0 and gm.deaths_this_run == 0 and gm.dialogue_flags is Dictionary and gm.dialogue_flags.is_empty()
+	gm._load_dialogue_data({"dialogue_flags": "junk", "deaths_this_run": 3.0})
+	check(old_ok and gm.dialogue_flags is Dictionary and gm.dialogue_flags.is_empty() and gm.deaths_this_run == 3,
+		"an old save without the keys loads 0 / 0 / no flags; a bad flags entry loads as none")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_PATH)
+	var hire := _func_body(src, "hire_adventurer")
+	var calls := {
+		"hire_adventurer → _count_hire() after the roster append": hire.find("_count_hire()") > hire.find("adventurers.append(new_adventurer)") and hire.find("adventurers.append(new_adventurer)") > 0,
+		"handle_adventurer_death → _count_death()": _func_body(src, "handle_adventurer_death").contains("_count_death()"),
+		"get_save_data → _dialogue_save_data()": _func_body(src, "get_save_data").contains("_dialogue_save_data()"),
+		"load_save_data → _load_dialogue_data(data)": _func_body(src, "load_save_data").contains("_load_dialogue_data(data)"),
+		"reset_game_state → _reset_dialogue_state()": _func_body(src, "reset_game_state").contains("_reset_dialogue_state()"),
+	}
+	var missing := calls.keys().filter(func(k): return not calls[k])
+	check(missing.is_empty(), "GameManager wires the helpers in (missing: %s)" % [missing])
+
+
+## The text of one top-level function (from its `func` line to the next top-level func), "" if absent.
+static func _func_body(src: String, fname: String) -> String:
+	var a := src.find("\nfunc %s(" % fname)
+	if a < 0:
+		return ""
+	var b := src.find("\nfunc ", a + 1)
+	return src.substr(a, (b - a) if b > 0 else -1)
 
 
 ## The override material of every surface of a loaded staff body, in order (Test 19: two anime instances share them).

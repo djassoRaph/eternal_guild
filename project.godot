@@ -36,6 +36,10 @@ SettingsManager="*res://scripts/autoload/settings_manager.gd"
 NotificationManager="*res://scripts/autoload/notification_manager.gd"
 SfxManager="*res://scripts/autoload/sfx_manager.gd"
 
+[dialogue_manager]
+
+editor/translations/update_pot_files_automatically=false
+
 [display]
 
 window/size/viewport_width=1920

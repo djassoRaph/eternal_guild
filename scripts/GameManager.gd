@@ -55,6 +55,11 @@ var active_missions: Array = []       # Missions currently in progress with coun
 var pending_reports: Array = []       # Resolved mission results waiting to be shown in morning briefing
 var has_pending_briefing: bool = false # Flag for morning briefing UI to check
 
+# === Dialogue state (Story 10.2): what conversations may notice this run, read through dialogue_bridge.gd ===
+var adventurers_hired_this_run: int = 0
+var deaths_this_run: int = 0
+var dialogue_flags: Dictionary = {}    # conversation flag id -> true (e.g. "den_fa_first_contact"), saved per run
+
 
 
 # Tier unlock conditions
@@ -1049,6 +1054,7 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	if hired_card != "" and not hired_tarot_cards.has(hired_card):
 		hired_tarot_cards.append(hired_card)  # never re-offer this card this run (Epic 4.1)
 	remove_hired_recruit(recruit)  # Remove from available pool
+	_count_hire()
 	adventurer_roster_changed.emit()
 	on_adventurer_hired(new_adventurer)
 
@@ -1164,6 +1170,7 @@ func get_save_data() -> Dictionary:
 		# Live patrons (restored at their exact positions/state on load)
 		"patrons_active": _gather_patrons_save(),
 	}
+	data.merge(_dialogue_save_data())  # run counters + conversation flags (Story 10.2)
 
 	print("   Saved: ", data.keys().size(), " fields")
 	print("   Day: ", data.current_day, ", Gold: ", data.gold)
@@ -1221,6 +1228,9 @@ func load_save_data(data: Dictionary):
 	# Tax grace period
 	tax_grace_days = int(data.get("tax_grace_days", 0))
 
+	# Run counters + conversation flags (Story 10.2; older saves have none)
+	_load_dialogue_data(data)
+
 	# World map (restore hex grid so mission board works after load)
 	var world_data = data.get("world_data", {})
 	if not world_data.is_empty():
@@ -1256,6 +1266,34 @@ func load_save_data(data: Dictionary):
 	print("   Firewood: ", firewood_stock)
 	print("   Fuel: ", fireplace_fuel, "%")
 	
+# === Dialogue state (Story 10.2) ===
+# Small helpers so the failsafe suite can test the counters without hiring, killing or loading (they
+# spend gold, write the codex and reload the world).
+
+func _count_hire() -> void:
+	adventurers_hired_this_run += 1
+
+func _count_death() -> void:
+	deaths_this_run += 1
+
+func _dialogue_save_data() -> Dictionary:
+	return {
+		"adventurers_hired_this_run": adventurers_hired_this_run,
+		"deaths_this_run": deaths_this_run,
+		"dialogue_flags": dialogue_flags.duplicate(),
+	}
+
+func _load_dialogue_data(data: Dictionary) -> void:
+	adventurers_hired_this_run = int(data.get("adventurers_hired_this_run", 0))
+	deaths_this_run = int(data.get("deaths_this_run", 0))
+	var flags = data.get("dialogue_flags", {})
+	dialogue_flags = flags.duplicate() if flags is Dictionary else {}
+
+func _reset_dialogue_state() -> void:
+	adventurers_hired_this_run = 0
+	deaths_this_run = 0
+	dialogue_flags = {}
+
 func get_patron_recruitment_pool() -> Array:
 	"""Get current patron recruitment candidates"""
 	return patron_recruitment_pool
@@ -1324,6 +1362,7 @@ func reset_game_state():
 	taxes_paid_count = 0
 	tax_grace_days = 0
 	mission_tier_unlocked = 1
+	_reset_dialogue_state()  # run counters + conversation flags (Story 10.2)
 	
 	# Game state
 	game_over_active = false
@@ -1847,6 +1886,7 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 
 	# Remove from adventurer roster
 	adventurers.erase(adventurer)
+	_count_death()
 	adventurer_roster_changed.emit()
 	on_adventurer_died(adventurer)
 
