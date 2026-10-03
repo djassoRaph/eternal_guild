@@ -5,12 +5,14 @@
 #   var box = Runner.start(self, "res://data/dialogue/den_fa.dialogue", "first_contact")
 #   if box: box.closed.connect(...)
 #
-# start() loads the .dialogue (the imported resource; a file not imported yet is compiled from its text
-# with a warning, so a fresh checkout still talks), checks the title, refuses while a box or another
-# player-blocking screen is open, instances scenes/ui/DialogueBox.tscn into the current scene (after
-# the SubViewportContainer, so the box reads keys before the 3D world) and starts it with the game-state
-# bridge as {"bridge": DialogueBridge}. Any failure returns null with one [Dialogue] warning or error and
-# leaves nothing open. We don't use DialogueManager.show_dialogue_balloon: it adds the balloon deferred
+# start() loads the .dialogue (the imported resource, which is all an exported build has; a file not
+# imported yet is compiled from its text with a warning, so a fresh checkout still talks), checks the
+# title, refuses while a box or another player-blocking screen or mission board is open, the tree is
+# paused or it is Game Over, instances scenes/ui/DialogueBox.tscn into the current scene (after the
+# SubViewportContainer, so the box reads keys before the 3D world) and starts it, deferred, with the
+# game-state bridge as {"bridge": DialogueBridge}: the caller connects `closed` / `first_line` before
+# anything can happen. Any failure returns null with one [Dialogue] warning or error and leaves nothing
+# open. We don't use DialogueManager.show_dialogue_balloon: it adds the balloon deferred
 # to get_current_scene(), which in a --script test is the last /root child.
 extends RefCounted
 
@@ -43,10 +45,14 @@ static func open(speaker: Node, resource: Resource, title: String) -> Node:
 	if is_open() or not tree.get_nodes_in_group("dialogue_open").is_empty():
 		push_warning("[Dialogue] refuse: a conversation is already open (%s ~ %s)" % [speaker.name, title])
 		return null
-	for n in tree.get_nodes_in_group("blocks_player"):
-		if n.get("visible"):
-			push_warning("[Dialogue] refuse: %s is open (%s ~ %s)" % [n.name, speaker.name, title])
-			return null
+	if tree.paused or GameManager.game_over_active:
+		push_warning("[Dialogue] refuse: the game is %s (%s ~ %s)" % ["over" if GameManager.game_over_active else "paused", speaker.name, title])
+		return null
+	for group in ["blocks_player", "mission_board"]:
+		for n in tree.get_nodes_in_group(group):
+			if n.get("visible"):
+				push_warning("[Dialogue] refuse: %s is open (%s ~ %s)" % [n.name, speaker.name, title])
+				return null
 	var titles = resource.get("titles") if resource != null else null
 	if not titles is Dictionary or not (titles as Dictionary).has(title):
 		push_warning("[Dialogue] refuse: no title '%s' in %s" % [title, _name_of(resource)])
@@ -61,13 +67,14 @@ static func open(speaker: Node, resource: Resource, title: String) -> Node:
 	host.add_child(box)
 	_box = box
 	print("[Dialogue] open: %s ~ %s (%s)" % [_name_of(resource), title, speaker.name])
-	box.start(resource, title, [{"bridge": new_bridge()}])
+	box.begin()   # open now (groups: the blockers stand down this frame); the first line comes after the caller connected
+	box.start.call_deferred(resource, title, [{"bridge": new_bridge()}])
 	return box
 
 
-## Whether a box is open (alive, in the tree, not closing).
+## Whether a box is open (alive, in the tree, not closed: a closed box can linger until Dialogue Manager returns).
 static func is_open() -> bool:
-	return _box != null and is_instance_valid(_box) and _box.is_inside_tree() and not _box.is_queued_for_deletion()
+	return _box != null and is_instance_valid(_box) and _box.is_inside_tree() and not _box.is_queued_for_deletion() and not _box.is_closed()
 
 
 ## A fresh game-state bridge (dialogue_bridge.gd), the `bridge` a .dialogue file reads.
@@ -86,16 +93,16 @@ static func just_closed() -> bool:
 	return closed_physics_frame >= 0 and Engine.get_physics_frames() - closed_physics_frame <= 1
 
 
-## The DialogueResource at `path`: the imported one, else compiled from the file's text (cached), else
-## null with one error (missing file, compile errors).
+## The DialogueResource at `path`: the imported one (an exported build packs only that, not the .dialogue
+## text), else compiled from the file's text (cached), else null with one error (missing file, compile errors).
 static func load_dialogue(path: String) -> Resource:
-	if not FileAccess.file_exists(path):
-		push_error("[Dialogue] load: %s does not exist" % path)
-		return null
 	if ResourceLoader.exists(path):
 		var res = load(path)
 		if res is DialogueResource:
 			return res
+	if not FileAccess.file_exists(path):
+		push_error("[Dialogue] load: %s does not exist" % path)
+		return null
 	if _compiled.has(path):
 		return _compiled[path]
 	var compiled := compile_text(FileAccess.get_file_as_string(path), path)
@@ -126,13 +133,24 @@ static func compile_text(text: String, path := "") -> Resource:
 	return res
 
 
-## How many numbered titles `<prefix>1`, `<prefix>2`, … a resource has in a row (early_1 … early_3: 3).
-static func count_numbered(resource: Resource, prefix: String) -> int:
+## The numbered titles `<prefix>N` (N ≥ 1) a resource has, in number order, gaps and all (early_1, early_2,
+## early_4): new variants need no code.
+static func numbered_titles(resource: Resource, prefix: String) -> Array[String]:
 	var titles = resource.get("titles") if resource != null else null
-	var n := 0
-	while titles is Dictionary and (titles as Dictionary).has("%s%d" % [prefix, n + 1]):
-		n += 1
-	return n
+	var found: Array[String] = []
+	if titles is Dictionary:
+		for t in (titles as Dictionary).keys():
+			var s := str(t)
+			var n := s.substr(prefix.length())
+			if s.begins_with(prefix) and n.is_valid_int() and int(n) >= 1:
+				found.append(s)
+	found.sort_custom(func(a: String, b: String): return int(a.substr(prefix.length())) < int(b.substr(prefix.length())))
+	return found
+
+
+## How many numbered titles `<prefix>N` a resource has (early_1 … early_3: 3).
+static func count_numbered(resource: Resource, prefix: String) -> int:
+	return numbered_titles(resource, prefix).size()
 
 
 static func _name_of(resource: Resource) -> String:

@@ -50,6 +50,8 @@ var _prompt_label: Label3D = null
 var _prompt_shown := false
 var _cooldown := 0.0
 var _last_early := -1             # the early opening he used last (index), never repeated next time
+var _box: Node = null             # his open conversation, if any (closed when he stands up or walks off)
+var _warned_no_titles := false    # his file has nothing to say: warned once
 var _route := PackedVector3Array()
 var _route_i := 0
 var _walking := false
@@ -172,6 +174,7 @@ func sit_at(marker: Node3D, snap := true) -> void:
 
 
 func stand() -> void:
+	_end_conversation("he stands up")
 	if not _seated:
 		return
 	_seated = false
@@ -182,6 +185,7 @@ func stand() -> void:
 
 ## Walk a polyline (world points). Waits until he stands idle (standing up first if seated).
 func walk_route(points: PackedVector3Array, on_done := Callable()) -> void:
+	_end_conversation("he walks off")
 	if points.is_empty():
 		if on_done.is_valid():
 			on_done.call()
@@ -322,34 +326,61 @@ func can_talk() -> bool:
 	return true
 
 
-## Open his conversation in the dialogue box. talked("early") is Story 10.3's hook. His cooldown runs from
-## the moment the box closes; if it can't open (a broken file, a missing title: the runner warns) he
-## says nothing and E works again after the cooldown.
+## Open his conversation in the dialogue box. talked("early") is Story 10.3's hook, emitted when a line is
+## really shown (a conversation that ends before its first line isn't one). His cooldown runs from the
+## moment the box closes; if it can't open (a broken file, a missing title: the runner warns) he says
+## nothing and E works again after the cooldown.
 func talk() -> void:
 	_cooldown = COOLDOWN
 	var resource := Runner.load_dialogue(dialogue_path)
-	var box = Runner.open(self, resource, _pick_title(resource)) if resource != null else null
+	var title := _pick_title(resource) if resource != null else ""
+	var box = Runner.open(self, resource, title) if title != "" else null
 	if box == null:
 		return
+	_box = box
 	box.closed.connect(_on_conversation_closed)
-	talked.emit("early")
+	box.first_line.connect(_on_conversation_shown.bind(title), CONNECT_ONE_SHOT)
 
 
-## The title to play: first_contact until it is seen this run, then early_1 … early_N (as many as the
-## file has, so new openings need no code), never the same one twice in a row.
+## The title to play: first_contact until it is seen this run (if the file has one), then one of the
+## file's early_N openings (whatever numbers it has, so new openings need no code), never the same one
+## twice in a row. "" (and one warning) when the file has neither.
 func _pick_title(resource: Resource = null) -> String:
-	var bridge = Runner.new_bridge()
-	if not bridge.seen(FIRST_CONTACT_FLAG):
-		return "first_contact"
 	if resource == null:
 		resource = Runner.load_dialogue(dialogue_path)
-	var count := Runner.count_numbered(resource, "early_") if resource != null else 0
-	_last_early = pick_line(count, _last_early, randf())
-	return "early_%d" % (_last_early + 1)
+	if resource == null:
+		return ""
+	var titles = resource.get("titles")
+	if not Runner.new_bridge().seen(FIRST_CONTACT_FLAG) and titles is Dictionary and (titles as Dictionary).has("first_contact"):
+		return "first_contact"
+	var early := Runner.numbered_titles(resource, "early_")
+	if early.is_empty():
+		if not _warned_no_titles:
+			_warned_no_titles = true
+			push_warning("[DenFa] refuse: %s has no first_contact or early_N title: he has nothing to say" % dialogue_path)
+		return ""
+	_last_early = pick_line(early.size(), _last_early, randf())
+	return early[_last_early]
+
+
+## A line of his conversation is on screen: he has talked. First contact counts as seen from here, even if
+## the file's own mark_seen line is missing (it would replay every time).
+func _on_conversation_shown(title: String) -> void:
+	if title == "first_contact":
+		Runner.new_bridge().mark_seen(FIRST_CONTACT_FLAG)
+	talked.emit("early")
 
 
 func _on_conversation_closed() -> void:
 	_cooldown = COOLDOWN
+	_box = null
+
+
+## Close his open conversation (he stands up or walks off: Epic 10's beats), releasing the player.
+func _end_conversation(reason: String) -> void:
+	if _box != null and is_instance_valid(_box) and not _box.is_closed():
+		_box.close(reason)
+	_box = null
 
 
 func _on_body_entered(body: Node3D) -> void:

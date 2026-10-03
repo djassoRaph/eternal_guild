@@ -151,13 +151,35 @@ func is_staff_hired(role: String) -> bool:
 
 func get_reputation_tier() -> Dictionary:
 	"""Highest reputation_tiers entry (data/config/game_config.json) the guild currently qualifies
-	for. Tiers must be sorted ascending by threshold. Never empty — falls back to the base tier."""
-	var tiers: Array = DataManager.get_config("reputation_tiers", [])
-	var current := {"threshold": 0, "label": "Unknown", "tip_bonus": 0.0, "recruit_stat_bonus": 0}
-	for t in tiers:
-		if tavern_reputation >= int(t.get("threshold", 0)):
-			current = t
-	return current
+	for. Never empty — falls back to the base tier. Same list and index as get_reputation_tier_index()."""
+	var tiers := reputation_tier_list(DataManager.get_config("reputation_tiers", []))
+	return tiers[reputation_tier_index_for(tavern_reputation, tiers)]
+
+## The current tier's index in reputation_tier_list() (0 = Unknown … 4 = Honored with today's config); the
+## dialogue bridge's reputation_tier_index (Story 10.2 review: label and index come from one list).
+func get_reputation_tier_index() -> int:
+	return reputation_tier_index_for(tavern_reputation, reputation_tier_list(DataManager.get_config("reputation_tiers", [])))
+
+## The config's reputation tiers sorted by threshold, with the base tier (0, "Unknown") first when the
+## config has no entry at threshold 0 or below. Never empty.
+static func reputation_tier_list(raw) -> Array:
+	var tiers := []
+	if raw is Array:
+		for t in raw:
+			if t is Dictionary:
+				tiers.append(t)
+	tiers.sort_custom(func(a, b): return int(a.get("threshold", 0)) < int(b.get("threshold", 0)))
+	if tiers.is_empty() or int(tiers[0].get("threshold", 0)) > 0:
+		tiers.push_front({"threshold": 0, "label": "Unknown", "tip_bonus": 0.0, "recruit_stat_bonus": 0})
+	return tiers
+
+## The index of the highest tier in `tiers` (a reputation_tier_list) that `reputation` reaches.
+static func reputation_tier_index_for(reputation: int, tiers: Array) -> int:
+	var index := 0
+	for i in tiers.size():
+		if reputation >= int(tiers[i].get("threshold", 0)):
+			index = i
+	return index
 
 func get_gold() -> int:
 	"""Get current gold amount"""
@@ -1284,10 +1306,19 @@ func _dialogue_save_data() -> Dictionary:
 	}
 
 func _load_dialogue_data(data: Dictionary) -> void:
-	adventurers_hired_this_run = int(data.get("adventurers_hired_this_run", 0))
-	deaths_this_run = int(data.get("deaths_this_run", 0))
+	adventurers_hired_this_run = _save_count(data.get("adventurers_hired_this_run", 0))
+	deaths_this_run = _save_count(data.get("deaths_this_run", 0))
 	var flags = data.get("dialogue_flags", {})
 	dialogue_flags = flags.duplicate() if flags is Dictionary else {}
+
+## A saved counter, parsed defensively: null, junk or a negative number load as 0 (int(null) would abort
+## load_save_data half-way).
+static func _save_count(v) -> int:
+	if v is int or v is float:
+		return maxi(0, int(v))
+	if v is String and (v as String).is_valid_float():
+		return maxi(0, int(float(v)))
+	return 0
 
 func _reset_dialogue_state() -> void:
 	adventurers_hired_this_run = 0

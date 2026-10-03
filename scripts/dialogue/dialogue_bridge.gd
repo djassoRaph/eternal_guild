@@ -23,16 +23,10 @@ var reputation_tier: String:
 	set(_v):
 		_read_only("reputation_tier")
 
-## The current tier's index in game_config.json's reputation_tiers: 0 = Unknown … 4 = Honored.
+## The current tier's index (0 = Unknown … 4 = Honored): GameManager's, from the same sorted list as the label.
 var reputation_tier_index: int:
 	get:
-		var tiers = DataManager.get_config("reputation_tiers", [])
-		var index := 0
-		if tiers is Array:
-			for i in tiers.size():
-				if tiers[i] is Dictionary and GameManager.tavern_reputation >= int(tiers[i].get("threshold", 0)):
-					index = i
-		return index
+		return GameManager.get_reputation_tier_index()
 	set(_v):
 		_read_only("reputation_tier_index")
 
