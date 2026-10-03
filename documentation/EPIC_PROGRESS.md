@@ -1,5 +1,5 @@
 # Eternal Guild — Epic Progress Tracker
-Updated: 2026-10-03 (Story 10.2 built, in review: the dialogue box, Den Fa first; progress snapshot refreshed; BMAD `sprint-status.yaml` created and seeded from this file; demo roadmap written; Epic 25 through Story 25.30) · 2026-09-24 (Epics 25–26 added — Demo Art Pipeline & Full Cast; Epic 16 demo-Partial; Story 4.2 unparked; 6-class list decided) · 2026-08-20 (mission-count display cap fixed + animation-hang regression fixed + duplicate recruit names fixed + roster portrait clipping partially fixed, on top of 2026-08-18's Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
+Updated: 2026-10-03 (Story 10.3 built, in review: Den Fa's Early/Mid/Late states; Story 10.2 done after its code review: the dialogue box, Den Fa first; progress snapshot refreshed; BMAD `sprint-status.yaml` created and seeded from this file; demo roadmap written; Epic 25 through Story 25.30) · 2026-09-24 (Epics 25–26 added — Demo Art Pipeline & Full Cast; Epic 16 demo-Partial; Story 4.2 unparked; 6-class list decided) · 2026-08-20 (mission-count display cap fixed + animation-hang regression fixed + duplicate recruit names fixed + roster portrait clipping partially fixed, on top of 2026-08-18's Codex/Memorial viewer + Latest News feed + reputation effects + rumour-driven missions + save-overwrite fix + class-list reconciliation + patron FSM granularity + real patron animations + loot & equipment). Earlier epics last verified 2026-06-21 — re-verify against source before relying on them.
 
 Cross-references `epics.md` against working code in `shiningsun/`.
 
@@ -7,10 +7,10 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 **Story totals (BMAD `sprint-status.yaml`):** 171 stories in 26 epics — 52 done, 10 in review, 14 in progress, 95 backlog.
 **Done:** Epic 1 · Epic 3 · Epic 7 · Epic 8.
 **In progress:** Epic 2 (3/4) · Epic 4 (3/5) · Epic 6 (4/6) · Epic 11 (2/4) · Epic 12 (4/5) · Epic 13 (2/4) · Epic 14 (3/6) · Epic 16 (art + seam from 25.13; FSMs not started) · Epic 17 (deck data) · Epic 18 (basic Codex overlay) · Epic 19 (fallen-hero data + list) · **Epic 25 (4/32 done, 10 in review, 25.1 in progress)**.
-**Started 2026-10-03:** Epic 10 (Story 10.2, the dialogue box, in review).
+**Started 2026-10-03:** Epic 10 (Story 10.2, the dialogue box, done; Story 10.3, Den Fa's Early/Mid/Late states, in review).
 **Not started:** Epics 5, 9, 15, 20, 21, 22, 23, 24 (SfxManager only), 26.
 **Recent (2026-09-24 → 09-27):** the whole Epic 25 track so far — the tavern hall (shell, door, Hourglass Pillar, hearth, round bar, desk and board), the exterior (tavern, hill, path, bridge, village, forest), the six-class roster, the villager/patron kit, the Cat, Den Fa, the Bartender and the Quest Dealer; then the anime correct course (2026-09-26) and Story 25.30, the anime pipeline with the Quest Dealer as its first body (failsafe suite 502/502). Details under "Epic 25 progress" below.
-**Next (see `_bmad-output/planning-artifacts/demo-roadmap-2026-10-03.md` in the BMAD workspace):** close the review queue (25.30 first), Story 10.2 (the dialogue box: walk up, press E, portrait, text and choices — Den Fa first; built 2026-10-03, in review), then 10.3, a scope correct-course (Farmland, City Hub and the legacy transition: the Kickstarter plan and the epics disagree), then 25.31 (the anime human cast) and the demo systems critical path.
+**Next (see `_bmad-output/planning-artifacts/demo-roadmap-2026-10-03.md` in the BMAD workspace):** close the review queue (25.30 first), Story 10.2 (the dialogue box: walk up, press E, portrait, text and choices — Den Fa first; done 2026-10-03), 10.3 (Den Fa's Early/Mid/Late states; built 2026-10-03, in review), then a scope correct-course (Farmland, City Hub and the legacy transition: the Kickstarter plan and the epics disagree), then 25.31 (the anime human cast) and the demo systems critical path.
 **Tracking:** story statuses now live in the BMAD workspace's `_bmad-output/implementation-artifacts/sprint-status.yaml` (what the BMAD workflows read); this file stays the detailed per-feature log. Update both when a story changes status.
 
 ## Earlier snapshot (2026-08-20)
@@ -278,16 +278,19 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 10: Narrative Systems & Story Beats
-**Status: ~15% — Story 10.2 (the dialogue box, Den Fa first) built 2026-10-03, in review; next up: 10.3 (Den Fa's Early/Mid/Late states).**
+**Status: ~20% — Story 10.2 (the dialogue box, Den Fa first) done 2026-10-03; Story 10.3 (Den Fa's Early/Mid/Late states) built 2026-10-03, in review.**
 - [x] Dialogue Manager plugin installed and active
 - [x] Den Fa has a body and a seat by the hearth (Story 25.10)
-- [x] **Story 10.2 — the dialogue box (built 2026-10-03, in review).** Walk up to Den Fa, press E: a box at the bottom of the screen shows his portrait (a drawn plate with his mirror mask until 25.17 paints the real one), his name, the line typing out and your replies (keyboard or mouse). The world keeps running; the player stands still; E, Enter, Space and Esc belong to the box until it closes (Esc ends a conversation, never the pause menu).
+- [x] **Story 10.2 — the dialogue box (done 2026-10-03, after its code review).** Walk up to Den Fa, press E: a box at the bottom of the screen shows his portrait (a drawn plate with his mirror mask until 25.17 paints the real one), his name, the line typing out and your replies (keyboard or mouse). The world keeps running; the player stands still; E, Enter, Space and Esc belong to the box until it closes (Esc ends a conversation, never the pause menu).
   - His conversation is `data/dialogue/den_fa.dialogue` (a DRAFT for Raphael to rewrite): first contact once a run, then one of three early openings, never the same twice in a row. Lines notice deaths this run, the reputation tier and the day.
   - `.dialogue` files read the game through `scripts/dialogue/dialogue_bridge.gd` only (reputation, tier, day, roster, hires and deaths this run, gold, demo, and saved conversation flags). GameManager now counts hires and deaths per run (saved).
   - `data/dialogue/speakers.json` names each speaker and their portrait path (Den Fa, the Quest Dealer, the Bartender, the Elder, the Bard).
   - Replaces 25.10's placeholder bubble (`den_fa_lines.json` retired). Failsafe Test 20 added, Test 18 updated.
-- [ ] The other key conversations arrive with their speakers: Den Fa's Mid/Late states (10.3), the Pillar Invitation, Final Missive and Beat 7 (10.1 panels / 10.4), the Bartender's Read and the Quest Dealer's Setup (Epic 16), the Elder (25.11), the Bard (9.1–9.5), the Legendary Wanderer (10.6), the Recruitment Offer (Epic 4's hire UI, 4.2); the Ambient Patron and the Villager's Voice stay bubbles (8.4, 25.14); the Discord has no words (26.11)
-- [ ] No narrative panel system, no Den Fa state machine, no Hidden Threshold, no Kingdom Chronicle
+  - Code review patches (2026-10-03): exported builds load the imported conversation; a line whose replies are all hidden plays as an ordinary line; a stalled conversation closes itself (a 10 s progress watchdog); a screen over the box (a popup, a mission board, pause) gets the keys; Tab and the debug keys stand down while a box is open; Den Fa standing up or walking off closes his conversation.
+- [x] **Story 10.3 — Den Fa's states (built 2026-10-03, in review).** As the guild's reputation grows he moves from Early to Mid (at the Known tier) and Late (Trusted), never back; the tiers are `den_fa_state_tiers` in `game_config.json`. Each state has an entry conversation he plays once (`mid_enter`, `late_enter`) and its own openings, never the same twice in a row. Mid acknowledges and notices hires, deaths and the guild's name; Late states things and never asks. His Mid and Late lines are a DRAFT for Raphael to rewrite.
+  - `GameManager.den_fa_state` (saved with the run, re-checked on load, reset by New Game), moved in `adjust_reputation()`; `GuildBus.den_fa_state_changed(old, new)`; `bridge.den_fa_state` for `.dialogue` files. Failsafe Test 21 added.
+- [ ] The other key conversations arrive with their speakers: the Pillar Invitation, Final Missive and Beat 7 (10.1 panels / 10.4), the Bartender's Read and the Quest Dealer's Setup (Epic 16), the Elder (25.11), the Bard (9.1–9.5), the Legendary Wanderer (10.6), the Recruitment Offer (Epic 4's hire UI, 4.2); the Ambient Patron and the Villager's Voice stay bubbles (8.4, 25.14); the Discord has no words (26.11)
+- [ ] No narrative panel system, no Hidden Threshold, no Kingdom Chronicle
 
 ---
 
@@ -469,7 +472,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 **Story 25.10: Den Fa, the Architect (done, 2026-09-25).**
 - Den Fa (G9) on his own rig: taller than the whole chibi cast (2.91 m to the ear tips; Raphael: "make him taller than all the chibi cast"), sylphlike, bat ears, four ivory bone wings folded like a cloak, a deep teal-blue Mages-Guild coat and a featureless mirror mask. Ear, mask and wing bones are ready for Story 26.11.
 - At the demo start he sits on the hearth's bench and stays there; his head turns to the room so the mask catches the camera. MainTavern's first reflection probes make the mask reflect the hall and the fire.
-- "Press E - Talk to Den Fa": a placeholder line in a speech bubble (`den_fa_lines.json`), replaced on 2026-10-03 by Story 10.2's dialogue box and `data/dialogue/den_fa.dialogue`. Walk to the bar, point at the pillar and return to the seat are ready for Epic 10's beats.
+- "Press E - Talk to Den Fa": a placeholder line in a speech bubble (`den_fa_lines.json`), replaced on 2026-10-03 by Story 10.2's dialogue box and `data/dialogue/den_fa.dialogue`; since Story 10.3 his conversation follows his state (Early, Mid at Known, Late at Trusted reputation). Walk to the bar, point at the pillar and return to the seat are ready for Epic 10's beats (they close an open conversation first).
 - One E owner: beside the hearth the fire, the cat and Den Fa sit within 2.5 m, so the prompt UI now gives E and the prompt to the nearest zone (and to a waiting patron first); the tavern keeps one prompt manager.
 - Failsafe Test 18 added; the suite is at 377/377.
 
@@ -556,7 +559,7 @@ A player can:
 13. Pause → Save & Exit → Continue later
 14. Walk between tavern interior and exterior world (player only — NPCs don't cross scenes yet)
 15. Walk a dressed tavern hall (Epic 25): the Hourglass Pillar, the hearth (its fire follows the fireplace state), the round bar where patrons sit on stools, the guild desk and the mission board (one notice per open contract)
-16. Pet the Cat in her basket by the hearth (or on her stroll outside); talk to Den Fa by the fire (his first contact in the dialogue box, Story 10.2; a DRAFT script)
+16. Pet the Cat in her basket by the hearth (or on her stroll outside); talk to Den Fa by the fire (his first contact in the dialogue box, Story 10.2; as the guild's reputation grows, his Mid and Late conversations, Story 10.3; a DRAFT script)
 17. Watch the Bartender work the round bar and the anime Quest Dealer write and brief at the desk (cosmetic until Epic 16; both present from day 1 in the demo profile)
 18. Walk out to the tavern's hill, down the path and over the bridge into the village, with six villagers and their barks; patrons and villagers wear the townsfolk kit
 19. Hire from six classes (Fighter, Rogue, Mage, Healer, Barbarian, Ranger)
