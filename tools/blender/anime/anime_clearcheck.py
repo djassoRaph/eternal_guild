@@ -7,14 +7,19 @@
 #                  root; the max depth per clip; seated <= 0.048 m)
 #   self_clips()   hair vs the arms, thighs vs the skirt, hands vs the cuffs
 #   proof()        each check first shown to report a hit (a deliberately bad placement)
+# Each entry point leaves the rig in rest with no active action (the export must not depend on which ran last). The
+# clouds are cached per (clip, frame): anime_anims.build_clips, anime_retarget.refit_sit and anime_dealer.build drop
+# the cache (C.drop_cached_clouds).
 import math
 
 import bpy
 import numpy as np
-from mathutils import Vector
+from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
+import anime_atlas as A
 import anime_common as C
+import anime_dealer as D
 
 DESK = np.array([11.600, 0.100, -4.300])
 WORK_POINT = np.array([11.600, 0.540, -5.080])
@@ -23,21 +28,32 @@ STOOL_BOX = (np.array([11.397, 0.094, -5.302]), np.array([11.803, 0.540, -4.905]
 STOOL_CENTRE = np.array([11.600, 0.540, -5.1035])
 APPROACH = np.array([11.0, 0.100, -5.50])
 BODY = "Dealer_Body"
-PALETTE_KEYS = ["skin", "hair", "coat", "dark", "gold", "gem", "boots", "feather", "shaft", "nib"]
+PALETTE_KEYS = list(D.PALETTE)               # the atlas's cell order (anime_atlas.build fills cells in dict order)
 _cache = {}
+
+
+def clear_cache():
+    _cache.clear()
 
 
 def cell_uv(key):
     i = PALETTE_KEYS.index(key)
-    return ((i % 4 + 0.5) / 4, (i // 4 + 0.5) / 4)
+    return ((i % A.GRID + 0.5) / A.GRID, (i // A.GRID + 0.5) / A.GRID)
 
 
 def verts_of(key):
+    """The vertices of her flat parts painted `key`: palette-material faces whose UVs sit on that cell's centre (a
+    face-material polygon is never counted, whatever its UV)."""
     me = bpy.data.objects[BODY].data
+    pal = [i for i, m in enumerate(me.materials) if m is not None and m.name == D.PALETTE_MAT]
+    if len(pal) != 1:
+        raise RuntimeError("verts_of(%s): %s has %d '%s' material slots, not 1" % (key, BODY, len(pal), D.PALETTE_MAT))
     lay = me.uv_layers[0].data
     u0, v0 = cell_uv(key)
     out = set()
     for p in me.polygons:
+        if p.material_index != pal[0]:
+            continue
         u, v = lay[p.loop_indices[0]].uv
         if abs(u - u0) < 1e-3 and abs(v - v0) < 1e-3:
             out.update(p.vertices)
@@ -51,6 +67,15 @@ def _pose(clip, frame):
         for pb in arm.pose.bones:
             pb.matrix_basis.identity()
     bpy.context.scene.frame_set(int(math.floor(frame)), subframe=frame - math.floor(frame))
+    bpy.context.view_layer.update()
+
+
+def _rest():
+    """The rig back in rest, no active action."""
+    arm = C.rig()
+    arm.animation_data.action = None
+    for pb in arm.pose.bones:
+        pb.matrix_basis = Matrix.Identity(4)
     bpy.context.view_layer.update()
 
 
@@ -119,8 +144,11 @@ def frames_of(clip, step):
 
 # ------------------------------------------------------------------ her numbers
 
-def band(pts, y0=0.78, y1=0.95):
-    return pts[(pts[:, 1] >= y0) & (pts[:, 1] <= y1)]
+def band(pts, y0=0.78, y1=0.95, what="?"):
+    out = pts[(pts[:, 1] >= y0) & (pts[:, 1] <= y1)]
+    if not len(out):
+        raise RuntimeError("no point of %s in the %.2f-%.2f m band at %s" % (BODY, y0, y1, what))
+    return out
 
 
 def ground_speed(clip):
@@ -133,6 +161,8 @@ def ground_speed(clip):
     fr = frames_of(clip, 1)
     speeds = []
     for s in ("l", "r"):
+        if not pts[s]:
+            raise RuntimeError("ground_speed(%s): no sole points on %s's .%s foot" % (clip, BODY, s))
         bones = sorted({b for b, _ in pts[s]})
         track = []
         for f in fr:
@@ -153,13 +183,25 @@ def ground_speed(clip):
         run = max(runs, key=len) if runs else []
         if len(run) >= 3:
             speeds.append(abs(run[-1][2] - run[0][2]) / ((run[-1][0] - run[0][0]) / 24.0))
-    return sum(speeds) / len(speeds) if speeds else float("nan")
+    if not speeds:
+        raise RuntimeError("ground_speed(%s): no stance run (>= 3 frames with a sole <= 0.012 m) on either foot" % clip)
+    return sum(speeds) / len(speeds)
 
 
 def measure(hip_back=0.397):
-    idle_front = max(float(np.max(band(cloud("Idle", f))[:, 2])) for f in frames_of("Idle", 2))
-    walk_half = max(float(np.max(np.abs(band(cloud("Walk_Bar", f))[:, 0]))) for f in frames_of("Walk_Bar", 1))
-    seated_front = max(float(np.max(band(cloud("Sit_Chair_Idle", f))[:, 2])) for f in frames_of("Sit_Chair_Idle", 8))
+    try:
+        return _measure(hip_back)
+    finally:
+        _rest()
+
+
+def _measure(hip_back):
+    def front(clip, f):
+        return float(np.max(band(cloud(clip, f), what="%s frame %s" % (clip, f))[:, 2]))
+
+    idle_front = max(front("Idle", f) for f in frames_of("Idle", 2))
+    walk_half = max(float(np.max(np.abs(band(cloud("Walk_Bar", f), what="Walk_Bar frame %s" % f)[:, 0]))) for f in frames_of("Walk_Bar", 1))
+    seated_front = max(front("Sit_Chair_Idle", f) for f in frames_of("Sit_Chair_Idle", 8))
     seated_top = max(float(np.max(cloud(c, f)[:, 1])) for c in ("Sit_Chair_Idle", "Write", "Brief") for f in frames_of(c, 8))
     seated_z = WORK_POINT[2] + hip_back
     pull = max(0.45, math.ceil((seated_z - SLAB_BACK + max(idle_front, walk_half) + 0.02) * 100) / 100)
@@ -173,6 +215,13 @@ def measure(hip_back=0.397):
 # ------------------------------------------------------------------ the desk and the stool
 
 def desk_report(nums):
+    try:
+        return _desk_report(nums)
+    finally:
+        _rest()
+
+
+def _desk_report(nums):
     hb, pull = nums["hip_back"], nums["stool_pull"]
     seated = np.array([11.600, 0.100, WORK_POINT[2] + hb])
     standing = seated - np.array([0.0, 0.0, pull])
@@ -225,6 +274,13 @@ def desk_report(nums):
 
 def proof(nums):
     """A deliberately bad placement must report hits (else a zero proves nothing)."""
+    try:
+        return _proof(nums)
+    finally:
+        _rest()
+
+
+def _proof(nums):
     seated = np.array([11.600, 0.100, WORK_POINT[2] + nums["hip_back"] + 0.45])      # 0.45 m too far in: into the desk
     h = desk_hits(place(cloud("Write", 0), seated, 0.0))
     s = stool_depth(place(cloud("Sit_Chair_Idle", 0), np.array([11.600, 0.100, -5.08]), 0.0), -5.08)
@@ -281,20 +337,33 @@ def _skirt_island(me, coat, below):
     return out
 
 
+def _need(sel, what):
+    if len(sel) == 0:
+        raise RuntimeError("self_clips: no %s on %s (an empty selection proves nothing)" % (what, BODY))
+    return sel
+
+
 def self_clips():
+    try:
+        return _self_clips()
+    finally:
+        _rest()
+
+
+def _self_clips():
     arm = C.rig()
     me = bpy.data.objects[BODY].data
     rest = np.array([v.co[:] for v in me.vertices])
-    hair = np.array(sorted(verts_of("hair")))
-    dark = np.array(sorted(verts_of("dark")))
-    coat = verts_of("coat")
-    skin = np.array(sorted(verts_of("skin")))
-    gold = np.array(sorted(verts_of("gold")))
+    hair = _need(np.array(sorted(verts_of("hair"))), "hair vertices")
+    dark = _need(np.array(sorted(verts_of("dark"))), "dark (leggings) vertices")
+    coat = _need(verts_of("coat"), "coat vertices")
+    skin = _need(np.array(sorted(verts_of("skin"))), "skin vertices")
+    gold = _need(np.array(sorted(verts_of("gold"))), "gold vertices")
     from anime_kit import Z, setup
     setup(arm)
     belt_z, hem_z = Z(1.07), Z(0.66) - 0.01
-    skirt_polys = _skirt_island(me, coat, Z(0.70))
-    covered = dark[(rest[dark][:, 2] > Z(0.66) + 0.02) & (rest[dark][:, 2] < Z(0.95))]
+    skirt_polys = _need(_skirt_island(me, coat, Z(0.70)), "skirt faces (a coat island reaching below the thighs' top)")
+    covered = _need(dark[(rest[dark][:, 2] > Z(0.66) + 0.02) & (rest[dark][:, 2] < Z(0.95))], "thigh vertices under the skirt")
     arm_r = {"upperarm": 0.06, "lowerarm": 0.055, "hand": 0.06}
     rep = {"hair_vs_arms": {}, "thighs_vs_skirt": {}, "hands_vs_cuffs": {}}
     for clip in ("Idle", "Walking_A", "Walk_Bar", "Interact", "Write", "Brief"):
@@ -341,11 +410,11 @@ def self_clips():
         for f in frames_of(clip, 2):
             co, _ = _eval_co(clip, f)
             for s, sx in (("l", 1), ("r", -1)):
-                hv = co[hand_v[np.sign(rest[hand_v][:, 0]) == sx]]
-                cv = co[cuff_v[np.sign(rest[cuff_v][:, 0]) == sx]]
+                at = "at %s frame %s" % (clip, f)
+                hv = co[_need(hand_v[np.sign(rest[hand_v][:, 0]) == sx], "hand.%s vertices %s" % (s, at))]
+                cv = co[_need(cuff_v[np.sign(rest[cuff_v][:, 0]) == sx], "cuff.%s vertices %s" % (s, at))]
                 gap = min(float(np.min(np.linalg.norm(hv - c, axis=1))) for c in cv)
                 worst = max(worst, gap)
         rep["hands_vs_cuffs"][clip] = round(worst, 4)
-    arm.animation_data.action = None
     print("self-clips: %s" % rep)
     return rep

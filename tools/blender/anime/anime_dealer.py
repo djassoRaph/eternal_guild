@@ -1,7 +1,9 @@
 # anime_dealer.py - route AN (Story 25.30, catalogue G13): the silver-elf Quest Dealer on the anime base.
 #   open_base_as_dealer()  anime_base.blend saved as g13_quest_dealer_anime.blend (its own call: the context is stale
-#                          right after a file load), Base_Body deleted by name
-#   build()                her parts (the approved test's design, cleaned up), the palette atlas, one Dealer_Body
+#                          right after a file load), once the base carries every chain step's stamp (rig, ratio, sit
+#                          re-fit, foot report). Base_Body stays in the file until build()
+#   build()                Base_Body deleted by name (_drop_base_body); her parts (the approved test's design, cleaned
+#                          up), the palette atlas, one Dealer_Body
 #                          (the atlas + the face: 2 surfaces), the Dealer_Quill prop on handslot.r, the merge report
 # Her look (Raphael's silver-haired elf): long platinum hair with a centre-parted fringe showing the circlet's red gem,
 # face-framing locks and back hair to the waist; long elf ears; big teal eyes (the face texture); a high-collared plum
@@ -26,16 +28,22 @@ import anime_retarget as RT
 DEALER_BLEND = C.BLEND + "g13_quest_dealer_anime.blend"
 FACE_PNG = C.ART + "textures/anime/g13_quest_dealer_face.png"
 PALETTE_PNG = C.ART + "textures/anime/g13_quest_dealer_palette.png"
+PALETTE_MAT = "dealer_palette"               # the atlas material and image (anime_clearcheck finds her flat parts by it)
 PALETTE = {"skin": "F7DECF", "hair": "D9DBE6", "coat": "6E3159", "dark": "3A1D33", "gold": "D6A94E", "gem": "C92A3E",
            "boots": "4D3427", "feather": "F2EEE2", "shaft": "A8A092", "nib": "2B1D1F"}
 LOD = 0.75
 QUILL_DIR = Vector((0.70, -0.30, 0.64))      # rest frame: up and back out of her writing fist (25.13's, measured in Write)
+QUILL_SHAFT_FACES = 7                        # the shaft strand's 5 sides + 2 caps: build() splits the UVs at this index
+QUILL_VANE_FACES = 8                         # 2 sides x 4 vane quads
 
 
 def open_base_as_dealer():
     bpy.ops.wm.open_mainfile(filepath=C.BASE_BLEND)
     arm = bpy.data.objects["Rig"]
     assert "anime_rig" in arm and any("anime_leg_ratio" in a for a in bpy.data.actions), "not a finished base"
+    unfit = [n for n in C.SIT_CLIPS if "anime_sit_refit" not in bpy.data.actions[n]]
+    assert not unfit, "not a finished base: %s not re-fitted (anime_retarget.refit_sit)" % unfit
+    assert "anime_foot_report" in arm, "not a finished base: no foot report / contact correction (anime_retarget.foot_report)"
     bpy.ops.wm.save_as_mainfile(filepath=DEALER_BLEND)
     return bpy.data.filepath
 
@@ -199,6 +207,8 @@ def build_quill(name, mat):
     BoneAttachment3D), rising up and back out of her fist while she writes."""
     bm = bmesh.new()
     K.strand(bm, [Vector((0, 0, -0.06)), Vector((0, 0, 0.26))], [0.011, 0.011], sides=5)
+    n_shaft = len(bm.faces)
+    assert n_shaft == QUILL_SHAFT_FACES, "the shaft has %d faces, not %d: anime_kit.strand changed (fix build()'s UV split)" % (n_shaft, QUILL_SHAFT_FACES)
     vane = [(0.05, 0.0), (0.10, 0.020), (0.18, 0.026), (0.24, 0.016), (0.28, 0.0)]   # slim: a wider vane read as a blob at zoom 8
     for sx in (1, -1):
         prev = None
@@ -230,8 +240,10 @@ def build():
     old = [o.name for o in bpy.data.objects if o.type == "MESH" and o.name.startswith(("AN_", "Dealer_"))]
     K.remove(old)
     face = K.mat("AN_Dealer_Face", PALETTE["skin"], FACE_PNG)
-    next(n for n in face.node_tree.nodes if n.type == "TEX_IMAGE").image.name = "dealer_face"   # -> <glb>_dealer_face.png in Godot
-    pal, cells = A.build("dealer_palette", PALETTE_PNG, PALETTE)
+    # the datablock's name only: Godot names an extracted image after its PNG file, <glb>_<png> =
+    # g13_quest_dealer_anime_g13_quest_dealer_face.png (and ..._palette.png)
+    next(n for n in face.node_tree.nodes if n.type == "TEX_IMAGE").image.name = "dealer_face"
+    pal, cells = A.build(PALETTE_MAT, PALETTE_PNG, PALETTE)
     q = lambda n: max(4, int(round(n * LOD)))
     parts = {}
 
@@ -271,10 +283,13 @@ def build():
     quill = build_quill("Dealer_Quill", pal)
     # the quill: its shaft and nib in the shaft cell, its vane (the flat faces) in the feather cell
     lay = quill.data.uv_layers[0]
+    n_quill = QUILL_SHAFT_FACES + QUILL_VANE_FACES
+    assert len(quill.data.polygons) == n_quill, "the quill has %d faces, not %d: fix the UV split below" % (len(quill.data.polygons), n_quill)
     for poly in quill.data.polygons:
-        key = "feather" if poly.index >= 7 else "shaft"     # the strand's 5 sides and 2 caps first, then the vane
+        key = "feather" if poly.index >= QUILL_SHAFT_FACES else "shaft"     # the strand's 5 sides and 2 caps first, then the vane
         for li in poly.loop_indices:
             lay.data[li].uv = cells[key]
     body = MG.join("Dealer_Body", [bpy.data.objects[n] for n in parts])
+    C.drop_cached_clouds()
     ok, stats = MG.check(body, props=[quill])
     return ok, stats

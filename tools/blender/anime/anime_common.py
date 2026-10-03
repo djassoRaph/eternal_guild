@@ -5,6 +5,7 @@
 import json
 import math
 import os
+import sys
 
 import bpy
 from mathutils import Matrix, Quaternion, Vector
@@ -40,6 +41,14 @@ def save_json(path, data):
 def load_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def drop_cached_clouds():
+    """anime_clearcheck caches a point cloud per (clip, frame): anything that rewrites a clip or the body calls this
+    (the live module, if it is loaded; a reload starts it empty anyway)."""
+    cc = sys.modules.get("anime_clearcheck")
+    if cc is not None:
+        cc.clear_cache()
 
 
 # ------------------------------------------------------------------ forward kinematics from an action's curves

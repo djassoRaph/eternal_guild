@@ -1,13 +1,17 @@
 # anime_retarget.py - route AN step 4 (Story 25.30): the 76 KayKit clips on the stretched rig.
 #   ratio_step()   the hips and root location keys scaled by the leg ratio (anime thigh + shin over KayKit's, read from
 #                  rig["kaykit_thigh"/"kaykit_shin"]); every other deform bone's location curve reported, left as is;
-#                  each action stamped act["anime_leg_ratio"]. Refuses a stamped file: it is never run twice.
+#                  each action stamped act["anime_leg_ratio"]. Refuses a stamped file: it is never run twice; refuses
+#                  a rig anime_rig.run hasn't stretched (rig["anime_rig"]): the ratio would be 1.0 and lock the clips.
 #   refit_sit()    Sit_Chair_Down / Idle / StandUp rewritten absolutely from anime_base_kaykit_sit.json: KayKit's back
 #                  offset kept (0 -> 0.397 m, unscaled: RealisticPatron's SIT_HIP_BACK 0.40 stays true), the height
 #                  solved so the body's lowest seat vertex rests on the 0.44 m seat, the feet planted by two-bone leg IK.
-#                  Repeatable (never scales), not blocked by the stamp; prints SIT_HIPS_Y (Test 19's AN_SIT_HIPS_Y).
+#                  Repeatable (never scales), not blocked by the stamp; prints SIT_HIPS_Y (Test 19's AN_SIT_HIPS_Y)
+#                  and the seat re-measured on the stored clip. Refuses a file that already has Write / Brief (built
+#                  from Sit_Chair_Idle by anime_anims.build_clips) unless rebuild_ok=True: then re-run build_clips.
 #   foot_report()  every clip, every frame KayKit's own foot is down (contact), the body's lowest foot within 0.03 m of
-#                  the floor; over the limit, a hips-height contact correction (smoothed); a before/after table.
+#                  the floor; over the limit, a hips-height contact correction (smoothed); a before/after table;
+#                  the rig stamped rig["anime_foot_report"] (anime_dealer.open_base_as_dealer checks it).
 #   seated_room()  the upperarm heads in Sit_Chair_Idle (frame 0 and mid), root-local: >= 1.05 (the desk top + 0.20).
 # Frames: armature +Z up, -Y front. The hips bone's local Y is armature +Z and its local Z is armature -Y (asserted),
 # so hips location[1] is the height and location[2] the front (+) / back (-).
@@ -22,7 +26,6 @@ LOOP_CLIPS = {"Idle", "Walking_A", "Walking_B", "Walking_C", "Walking_Backwards"
               "Running_Strafe_Right", "Sit_Chair_Idle", "Sit_Floor_Idle", "Lie_Idle", "Blocking", "2H_Melee_Idle", "Unarmed_Idle",
               "Spellcasting", "1H_Ranged_Aiming", "2H_Ranged_Aiming", "Jump_Idle", "1H_Ranged_Shooting", "2H_Ranged_Shooting", "2H_Melee_Attack_Spinning"}
 SKIP_REPORT = ("root", "hips")
-INERT = ("IK", "control-", "handIK", "elbowIK", "kneeIK", "heelIK")
 LIMIT = 0.03
 CONTACT = 0.01
 
@@ -41,6 +44,7 @@ def leg_ratio(arm=None):
 
 def ratio_step():
     arm = C.rig()
+    assert "anime_rig" in arm, "the rig isn't stretched: run anime_rig.run() first (else the ratio is 1.0 and the clips lock unscaled)"
     _assert_hips_axes(arm)
     stamped = [a.name for a in bpy.data.actions if "anime_leg_ratio" in a]
     assert not stamped, "already retargeted (%d stamped actions): rebuild the chain from the kit" % len(stamped)
@@ -56,14 +60,17 @@ def ratio_step():
                 f.update()
             elif f.data_path.endswith(".location"):
                 bone = f.data_path.split('"')[1]
-                if bone not in SKIP_REPORT and not any(t in bone for t in INERT):
+                b = arm.data.bones.get(bone)
+                if bone not in SKIP_REPORT and b is not None and b.use_deform:
                     peak = max(abs(kp.co[1]) for kp in f.keyframe_points) if len(f.keyframe_points) else 0.0
                     if peak > report.get(bone, (0.0, ""))[0]:
                         report[bone] = (peak, act.name)
         act["anime_leg_ratio"] = k
     rows = sorted(report.items(), key=lambda kv: -kv[1][0])
     print("leg ratio %.4f; hips + root location keys scaled in %d actions" % (k, len(bpy.data.actions)))
-    print("other deform-bone location offsets (left unscaled): " + ", ".join("%s %.3f (%s)" % (b, p, a) for b, (p, a) in rows[:10]))
+    print("other deform-bone location offsets (left unscaled), %d bones:" % len(rows))
+    for b, (p, a) in rows:
+        print("  %-12s %.3f (%s)" % (b, p, a))
     return k, rows
 
 
@@ -140,12 +147,14 @@ def seat_low(body):
     ev = body.evaluated_get(dg)
     me = ev.to_mesh()
     mw = arm.matrix_world.inverted() @ body.matrix_world
-    low = 1e9
+    low = None
     for v in me.vertices:
         p = mw @ v.co
         if abs(p.x - hips.x) < 0.2 and abs(p.y - hips.y) < 0.2:
-            low = min(low, p.z)
+            low = p.z if low is None else min(low, p.z)
     ev.to_mesh_clear()
+    if low is None:
+        raise RuntimeError("seat_low: no vertex of %s within 0.2 m of the hips (wrong body, or not skinned to Rig?)" % body.name)
     return low
 
 
@@ -172,9 +181,13 @@ def _rekey(action, bones_props, frames_poses):
     arm.animation_data.action = None
 
 
-def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y):
+def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False):
     arm = C.rig()
     _assert_hips_axes(arm)
+    own = [n for n in ("Write", "Brief") if n in bpy.data.actions]
+    if own and not rebuild_ok:
+        raise RuntimeError("%s already built from Sit_Chair_Idle (anime_anims.build_clips): refit_sit(..., rebuild_ok=True), "
+                           "then re-run anime_anims.build_clips()" % own)
     body = bpy.data.objects[body_name]
     data = C.load_json(C.SIT_JSON)
     idle_rows = data["clips"]["Sit_Chair_Idle"]["rows"]
@@ -229,7 +242,11 @@ def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y):
         _rekey(act, chans, poses)
         act["anime_sit_refit"] = seat_y
         out[clip] = len(poses)
+    # the stored Sit_Chair_Idle (the foot IK in): its lowest seat vertex, re-measured (a print, not a gate)
+    pose_from(idle, 0)
+    seat_after = seat_low(body)
     rest_pose()
+    C.drop_cached_clouds()
     # the result, by FK on the rewritten curves
     cv = C.Curves(idle)
     m = C.fk(arm, cv, 0, ["hips", "upperarm.l", "upperarm.r", "foot.l"])
@@ -239,8 +256,11 @@ def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y):
     h0 = m["hips"].translation
     d_end = C.fk(arm, C.Curves(dn), dn.frame_range[1], ["hips"])["hips"].translation
     u_0 = C.fk(arm, C.Curves(up), 0, ["hips"])["hips"].translation
-    print("refit_sit: %s keys; SIT_HIPS_Y %.4f (Godot model-local y); hips back (armature +y) %.4f; Down ends %.4f / StandUp starts %.4f from the seat pose"
-          % (out, sit_hips_y, h0.y, (d_end - h0).length, (u_0 - h0).length))
+    print("refit_sit: %s keys; SIT_HIPS_Y %.4f (Godot model-local y); seat low re-measured on the stored clip %.4f (seat %.2f); "
+          "hips back (armature +y) %.4f; Down ends %.4f / StandUp starts %.4f from the seat pose"
+          % (out, sit_hips_y, seat_after, seat_y, h0.y, (d_end - h0).length, (u_0 - h0).length))
+    if own:
+        print("refit_sit: %s were built from the old Sit_Chair_Idle: re-run anime_anims.build_clips() now" % own)
     return sit_hips_y
 
 
@@ -270,6 +290,7 @@ def foot_report(body_name="Base_Body", correct=True):
         table[act.name] = (round(before, 4), round(after, 4), len(contact), len(fr))
     over = {c: v for c, v in table.items() if v[1] > LIMIT}
     game = {c: table[c] for c in C.GAME_CLIPS}
+    arm["anime_foot_report"] = LIMIT
     C.save_json(C.BLEND + "anime_base_foot_report.json", {"limit": LIMIT, "contact": CONTACT, "columns": ["before", "after", "contact frames", "frames"],
                                                          "clips": table, "over_after": over})
     print("foot report (clip: before, after, contact frames, frames): game %s" % game)

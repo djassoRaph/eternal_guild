@@ -7,7 +7,8 @@
 #   sharp_face, no custom normals, every face smooth: the outline's grow moves each exported vertex along its own
 #   normal, and glTF splits a vertex wherever its corner normals differ, opening a crack in the ink); Rig and body at
 #   scale 1 (grow_amount is in local metres); every material opaque (BSDF Alpha unlinked at 1.0) with backface
-#   culling off.
+#   culling off. Rig's matrix_world is the identity (the parts are parented without a parent inverse, and every
+#   measurement assumes the rig at the origin).
 # The report prints NORMALS / UV / WEIGHTS / TRIS / SURFACES / MATERIALS as OK / OVER.
 import bpy
 
@@ -52,6 +53,8 @@ def _deform_bones(arm):
 
 def check(body, props=(), tri_budget=TRI_BUDGET, surface_cap=SURFACE_CAP):
     arm = C.rig()
+    off = max(abs(arm.matrix_world[i][j] - (1.0 if i == j else 0.0)) for i in range(4) for j in range(4))
+    assert off < 1e-6, "Rig's matrix_world isn't the identity (off by %.2e): the parts and every measurement assume Rig at the origin" % off
     me = body.data
     rows = {}
     arms = [m for m in body.modifiers if m.type == "ARMATURE"]

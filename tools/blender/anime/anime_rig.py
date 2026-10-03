@@ -74,9 +74,12 @@ def run(adduct_deg=ADDUCT_DEG):
             n = c + s
             put(n, old[n][0] + Vector((a.x - old["lowerleg." + s][1].x, a.y - old["lowerleg." + s][1].y, dz)))
         if adduct_deg > 0.0:
-            # rigid about the upperarm head, toward the body: a rotation about the front axis (armature Y)
+            # rigid about the upperarm head, toward the body: a rotation about the front axis (armature Y). Right-handed
+            # about +Y, x' = x cos + z sin, z' = -x sin + z cos: a positive angle takes +X down, so the left arm (+X,
+            # sx 1) lowers at +adduct_deg and the right (-X, sx -1) at -adduct_deg. (Was -adduct_deg * sx, which raised
+            # both; ADDUCT_DEG is 0.0, so the shipped base never ran this branch.)
             piv = eb["upperarm." + s].head.copy()
-            R = Matrix.Rotation(math.radians(-adduct_deg * sx), 4, "Y")
+            R = Matrix.Rotation(math.radians(adduct_deg * sx), 4, "Y")
             for n in ("upperarm.", "lowerarm.", "wrist.", "hand.", "handslot.", "elbowIK.", "handIK."):
                 b = eb[n + s]
                 roll_axis = b.z_axis.copy()

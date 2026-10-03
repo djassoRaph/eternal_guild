@@ -168,6 +168,7 @@ def build_clips(names=None):
         act = make_clip(name, length, fn, loop=loop, step=2 if length > 2.5 else 1)
         out.append((name, tuple(round(v, 1) for v in act.frame_range)))
     RT.rest_pose()
+    C.drop_cached_clouds()          # anime_clearcheck's clouds of the old clips
     return out
 
 

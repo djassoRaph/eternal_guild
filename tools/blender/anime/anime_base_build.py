@@ -1,19 +1,36 @@
 # anime_base_build.py - route AN step 1 (Story 25.30): the anime base starts from the untouched townsfolk kit.
-#   1. open the kit and save it as anime_base.blend BEFORE any change (the kit file is never written)
-#   2. record what the stretch will change: KayKit's leg lengths (rig["kaykit_thigh"], rig["kaykit_shin"], read from
-#      the rig), its rest (anime_base_kaykit_rest.json), the lowest foot point of a KayKit body on every frame of every
-#      clip (anime_base_kaykit_feet.json: the foot report's contact frames) and the Sit_Chair_* hips and feet
-#      (anime_base_kaykit_sit.json: refit_sit's only source)
-#   3. strip to Rig + the 76 KayKit actions (their muted NLA tracks and fake users), by explicit list
+# Two calls (a file load leaves a stale context: the step after it goes in its own call):
+#   open_kit()  1. open the kit and save it as anime_base.blend BEFORE any change (the kit file is never written)
+#   finish()    2. record what the stretch will change: KayKit's leg lengths (rig["kaykit_thigh"], rig["kaykit_shin"],
+#                  read from the rig), its rest (anime_base_kaykit_rest.json), the lowest foot point of a KayKit body on
+#                  every frame of every clip (anime_base_kaykit_feet.json: the foot report's contact frames) and the
+#                  Sit_Chair_* hips and feet (anime_base_kaykit_sit.json: refit_sit's only source)
+#               3. strip to Rig + the 76 KayKit actions (their muted NLA tracks and fake users), deleting the kit's
+#                  objects by explicit list (KIT_OBJECTS; anything else refuses), then save
+import os
+
 import bpy
 
 import anime_common as C
 
 REF_LEGS = ("Knight_LegLeft", "Knight_LegRight")        # the KayKit body whose soles give the contact frames
 LEG_BONES = ("upperleg.l", "lowerleg.l", "foot.l", "upperleg.r", "lowerleg.r", "foot.r")
+# every object of the verified kit but Rig (Story 25.14's import: the four KayKit adventurers' parts, the townsfolk
+# accessories, the reference props and the shot camera)
+KIT_OBJECTS = tuple(p + "_" + part for p in ("Barbarian", "Knight", "Mage", "Rogue")
+                    for part in ("ArmLeft", "ArmRight", "Body", "Head", "LegLeft", "LegRight")) + (
+    "Knight_Cape", "Mage_Cape", "Rogue_Cape", "Rogue_Head_Hooded",
+    "Farmer_StrawHat", "Guard_Helmet", "Guard_Tabard", "Local_Cap", "Merchant_Hat", "Merchant_Purse",
+    "OldWoman_Cane", "OldWoman_Headscarf", "OldWoman_Shawl", "Traveller_Pack",
+    "Icosphere", "REF_blacksmith_x3", "REF_hex_grass", "REF_human_1p8m", "REF_shot_cam")
 
 
-def open_kit_as_base():
+def _is_base_file():
+    norm = lambda p: os.path.normcase(os.path.normpath(os.path.abspath(p)))
+    return bool(bpy.data.filepath) and norm(bpy.data.filepath) == norm(C.BASE_BLEND)
+
+
+def open_kit():
     bpy.ops.wm.open_mainfile(filepath=C.KIT_BLEND)
     arm = bpy.data.objects.get("Rig")
     assert arm and len(arm.data.bones) == 41 and len(bpy.data.actions) == 76, "not the verified kit (Rig, 41 bones, 76 actions)"
@@ -60,10 +77,12 @@ def record():
 
 
 def strip():
-    keep = {"Rig"}
-    doomed = [o for o in bpy.data.objects if o.name not in keep]
+    unexpected = sorted(o.name for o in bpy.data.objects if o.name != "Rig" and o.name not in KIT_OBJECTS)
+    assert not unexpected, "not the verified kit: unexpected objects %s (add them to KIT_OBJECTS only if they belong to the kit)" % unexpected
+    doomed = [bpy.data.objects[n] for n in KIT_OBJECTS if n in bpy.data.objects]
     data = [o.data for o in doomed if o.data is not None]
     names = [o.name for o in doomed]
+    print("deleting %d kit objects: %s" % (len(names), names))
     for o in doomed:
         bpy.data.objects.remove(o, do_unlink=True)
     for d in data:
@@ -83,8 +102,11 @@ def strip():
     print("stripped %d objects: %s" % (len(names), names))
 
 
-def run():
-    print("base:", open_kit_as_base())
+def finish():
+    """The call after open_kit(): record, strip, save."""
+    assert _is_base_file(), "open_kit() first, in its own call (this file is %r)" % bpy.data.filepath
+    arm = C.rig()
+    assert "kaykit_thigh" not in arm and len(bpy.data.actions) == 76, "not the fresh save-as of the kit: open_kit() again"
     record()
     strip()
     bpy.ops.wm.save_mainfile()

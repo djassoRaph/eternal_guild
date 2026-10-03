@@ -112,10 +112,12 @@ def mip_check(img, out_base, p=DEALER):
 
 
 def run(out):
-    os.makedirs(os.path.dirname(out), exist_ok=True)
+    folder = os.path.dirname(out)
+    if folder:                                       # a bare file name writes to the working folder
+        os.makedirs(folder, exist_ok=True)
     img = paint()
     img.save(out)
-    res = mip_check(img, out[:-4])
+    res = mip_check(img, os.path.splitext(out)[0])
     ok = all(v >= 0.40 for k, v in res.items() if k.startswith("mip5"))
     print("face -> %s (RGB %s); eye area darker than skin: %s; mip-5 gate (>= 40%%): %s" % (out, img.mode, res, "OK" if ok else "OVER"))
     return ok
