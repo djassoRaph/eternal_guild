@@ -169,6 +169,7 @@ const DEALER_ONE_SHOTS := ["Sit_Chair_Down", "Sit_Chair_StandUp", "Interact"]
 const DEALER_BODY_KEYS := ["hip_back", "stool_pull", "seated_front", "walk_half_at_desk", "idle_front", "bubble_seated", "hall_speed", "bar_speed"]
 const ANIME_LOOK_SCRIPT := "res://scripts/game/anime_look.gd"
 const ANIME_OUTLINE := "res://assets/characters/materials/anime_outline.tres"
+const ANIME_TOON_SHADER := "res://assets/characters/materials/anime_toon.gdshader"
 const AN_TRI_CAP := 10000              # the hard cap per AN body (whole GLB, props included)
 const AN_BODY_SURFACES := 3            # surfaces on <Role>_Body (props counted apart)
 const AN_TRI_BUDGET := 10000           # min(10000, ceil(9,459 measured x 1.15 / 500) x 500) = the cap (T3); the same number as 08
@@ -258,6 +259,7 @@ func _initialize() -> void:
 	await test_dialogue()
 	await test_den_fa_states()
 	test_dialogue_portraits()
+	test_anime_look_presets()
 
 	_finish()
 
@@ -6816,3 +6818,104 @@ func _check_portrait_source(studio: GDScript, id: String, src: Dictionary, staff
 			inst.free()
 	check(why.is_empty(), "%s's portrait_source resolves: %s, look '%s', clip %s, bone %s, camera in range %s" % [
 		id, want_path.get_file(), want_look, src.get("clip", "?"), src.get("bone", "head"), why])
+
+
+# --- Test 23: Anime look presets (2026-10-03, Raphael: "a tad darker") ---
+# anime_look.gd reads game_config.json › anime_look_preset. The default is "approved": exactly the look approved in
+# Story 25.30 (a StandardMaterial3D toon copy, TOON_BAND 0.12, the shared anime_outline.tres: grow 0.011, ink
+# (0.17, 0.09, 0.12)). An unknown name falls back to approved with a warning. The darker presets (anime_look_presets)
+# are ShaderMaterials on anime_toon.gdshader with their own outline copy; the imported materials are never edited.
+func test_anime_look_presets() -> void:
+	print("[Test 23] Anime look presets")
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var look = load(ANIME_LOOK_SCRIPT)
+	var outline = load(ANIME_OUTLINE)
+	check(cfg is Dictionary and cfg.get("anime_look_preset") == "approved" and look.reload() == "approved" and look.preset() == "approved",
+		"the default look preset is \"approved\" (game_config anime_look_preset = %s)" % [cfg.get("anime_look_preset") if cfg is Dictionary else "?"])
+	check(ResourceLoader.exists(ANIME_TOON_SHADER) and load(ANIME_TOON_SHADER) is Shader, "exists: anime_toon.gdshader")
+
+	# approved = today's materials, property by property: the Story 25.30 recipe applied to a copy of the source.
+	var src := StandardMaterial3D.new()
+	src.resource_name = "t23_src"
+	src.albedo_texture = PlaceholderTexture2D.new()
+	src.roughness = 0.85
+	src.cull_mode = BaseMaterial3D.CULL_DISABLED
+	src.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	var want := src.duplicate() as StandardMaterial3D
+	want.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	want.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	want.metallic = 0.0
+	want.metallic_specular = 0.0
+	want.metallic_texture = null
+	want.roughness = 0.12
+	want.roughness_texture = null
+	want.next_pass = outline
+	var mk := func() -> Node3D:
+		var n := Node3D.new()
+		var mi := MeshInstance3D.new()
+		mi.name = "T23Body"
+		mi.mesh = BoxMesh.new()
+		(mi.mesh as BoxMesh).material = src
+		n.add_child(mi)
+		return n
+	var m1: Node3D = mk.call()
+	var m2: Node3D = mk.call()
+	var mi1 := m1.get_child(0) as MeshInstance3D
+	var mi2 := m2.get_child(0) as MeshInstance3D
+	var n1: int = look.apply(m1)
+	var n1b: int = look.apply(m1)
+	look.apply(m2)
+	var ap = mi1.get_surface_override_material(0)
+	var diff := []
+	if ap is StandardMaterial3D:
+		for prop in want.get_property_list():
+			if prop.usage & PROPERTY_USAGE_STORAGE and ap.get(prop.name) != want.get(prop.name):
+				diff.append(prop.name)
+	else:
+		diff.append("not a StandardMaterial3D")
+	var o := outline as StandardMaterial3D
+	check(look.TOON_BAND == 0.12 and n1 == 1 and n1b == 0 and diff.is_empty() and ap.next_pass == outline
+			and mi2.get_surface_override_material(0) == ap and src.diffuse_mode != BaseMaterial3D.DIFFUSE_TOON and is_equal_approx(src.roughness, 0.85),
+		"approved: exactly today's toon (TOON_BAND 0.12, toon diffuse, no specular, no metal, the shared outline as next_pass), one copy shared, the source untouched (differs in %s)" % [diff])
+	check(o != null and is_equal_approx(o.grow_amount, 0.011) and o.albedo_color.is_equal_approx(Color(0.17, 0.09, 0.12, 1.0))
+			and o.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED and o.cull_mode == BaseMaterial3D.CULL_FRONT and o.grow,
+		"approved: the shared outline as approved (grow %.3f, ink %s)" % [o.grow_amount if o else 0.0, o.albedo_color if o else Color()])
+
+	# an unknown preset: approved, with a warning
+	look.last_warning = ""
+	var got: String = look.set_preset("chibi")
+	check(got == "approved" and look.preset() == "approved" and str(look.last_warning).contains("unknown preset 'chibi'") and look.apply(m1) == 0,
+		"an unknown preset falls back to approved with a warning (%s; %s)" % [got, look.last_warning])
+
+	# the darker presets: a shader toon per source (shared), their own outline, roughness > 0; back to approved re-tones
+	var presets: Dictionary = cfg.get("anime_look_presets", {}) if cfg is Dictionary and cfg.get("anime_look_presets") is Dictionary else {}
+	for name in ["darker_a", "darker_b"]:
+		var entry: Dictionary = presets.get(name, {}) if presets.get(name) is Dictionary else {}
+		var on: String = look.set_preset(name)
+		var k1: int = look.apply(m1)
+		var k2: int = look.apply(m2)
+		var sm = mi1.get_surface_override_material(0)
+		var ok: bool = on == name and k1 == 1 and k2 == 1 and look.apply(m1) == 0 and sm is ShaderMaterial and look.is_toon(sm)
+		ok = ok and mi2.get_surface_override_material(0) == sm and (sm as ShaderMaterial).shader == load(ANIME_TOON_SHADER)
+		ok = ok and float(sm.get_shader_parameter("ink_roughness")) > 0.0 and sm.get_shader_parameter("albedo_nearest") == src.albedo_texture
+		var np = sm.next_pass if sm is Material else null
+		ok = ok and np is StandardMaterial3D and np != outline and is_equal_approx(np.grow_amount, float(entry.get("outline_grow", -1)))
+		var p: Dictionary = look.params(name)
+		for key in ["band_threshold", "band_softness", "lit_gain", "shadow_level", "shadow_fill", "shadow_desaturate"]:
+			ok = ok and entry.has(key) and is_equal_approx(float(sm.get_shader_parameter(key)), float(entry[key])) and is_equal_approx(float(p[key]), float(entry[key]))
+		check(ok and src.diffuse_mode != BaseMaterial3D.DIFFUSE_TOON and src.next_pass == null and is_equal_approx(o.grow_amount, 0.011),
+			"%s: a shared anime_toon ShaderMaterial (its numbers from game_config, ink roughness > 0) with its own outline (grow %s), the source and the shared outline untouched" % [name, entry.get("outline_grow", "?")])
+	look.set_preset("approved")
+	check(look.apply(m1) == 1 and mi1.get_surface_override_material(0) == ap, "back to approved: the body is re-toned with the same approved copy")
+
+	# bad numbers in a preset: the approved defaults, with a warning
+	look._presets["t23_bad"] = {"lit_gain": -1, "shadow_tint": [0, 0, 0], "outline_grow": "x", "band_softness": 0.3}
+	look.last_warning = ""
+	var bad: Dictionary = look.params("t23_bad")
+	check(bad.lit_gain == 1.0 and bad.shadow_tint == Color(1, 1, 1) and is_equal_approx(bad.outline_grow, 0.011) and is_equal_approx(bad.band_softness, 0.3)
+			and is_equal_approx(look.params("t23_none").band_softness, 0.12) and str(look.last_warning) != "",
+		"a preset's bad numbers take the approved defaults, with a warning; good ones and the defaults stay")
+	look.reload()
+	m1.free()
+	m2.free()
+	print("")

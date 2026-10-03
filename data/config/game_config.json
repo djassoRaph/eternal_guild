@@ -44,6 +44,13 @@
 		"late": "Trusted"
 	},
 
+	"anime_look_preset": "approved",
+	"anime_look_presets": {
+		"_comment": "The anime cast's look (scripts/game/anime_look.gd). anime_look_preset: 'approved' (the approved anime test's look, set in code: toon StandardMaterial3D, TOON_BAND 0.12, anime_outline.tres grow 0.011 ink (0.17, 0.09, 0.12)) or one of these shader presets (assets/characters/materials/anime_toon.gdshader). An unknown name falls back to approved with a warning; a missing or bad number takes anime_look.gd's SHADER_DEFAULTS (the approved look's). band_threshold: N.L at the light band's edge (0 = approved); band_softness: half the edge's width (0.12 = approved); lit_gain: x every light on the lit side; shadow_level: x the ambient on the unlit side (0..1); shadow_fill: x every light on the unlit side, a toon shadow colour (0..1; 0 = approved, ambient only); shadow_tint: the unlit side's colour cast (RGB, each 0.05..1); shadow_desaturate: the unlit side's albedo towards grey (0..1); outline_grow / outline_ink: the ink hull's width (m) and colour.",
+		"darker_a": {"band_threshold": 0.2, "band_softness": 0.05, "lit_gain": 0.75, "shadow_level": 0.5, "shadow_fill": 0.35, "shadow_tint": [0.78, 0.72, 0.92], "shadow_desaturate": 0.1, "outline_grow": 0.013, "outline_ink": [0.12, 0.06, 0.085]},
+		"darker_b": {"band_threshold": 0.3, "band_softness": 0.04, "lit_gain": 0.6, "shadow_level": 0.35, "shadow_fill": 0.3, "shadow_tint": [0.7, 0.66, 0.9], "shadow_desaturate": 0.3, "outline_grow": 0.015, "outline_ink": [0.08, 0.04, 0.06]}
+	},
+
 	"profile": "demo",
 	"demo_start_staff": ["bartender", "desk_manager"],
 
