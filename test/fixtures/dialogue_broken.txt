@@ -1,0 +1,6 @@
+# Test 20 fixture (Story 10.2 review): a .dialogue text that doesn't compile.
+~ first_contact
+Den Fa: Hello.
+- a
+	Den Fa: [if 
+=> nowhere

@@ -1,0 +1,6 @@
+# Test 20 fixture (Story 10.2 review): Den Fa's first contact that ends before any line is shown.
+~ first_contact
+=> END
+
+~ early_1
+=> END

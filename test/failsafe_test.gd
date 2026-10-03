@@ -186,7 +186,12 @@ const DEN_FA_TITLES := ["first_contact", "early_1", "early_2", "early_3"]
 const BRIDGE_VALUES := ["reputation", "reputation_tier", "reputation_tier_index", "day", "roster_size", "adventurers_hired",
 	"deaths_this_run", "gold", "is_demo"]
 const GM_DIALOGUE_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
-	"deaths_this_run", "dialogue_flags"]
+	"deaths_this_run", "dialogue_flags", "game_over_active"]
+## Keys the box takes besides interact/ui_accept/ui_cancel/jump (review patch: Tab toggles the roster).
+const BOX_ACTIONS_EXTRA := ["ui_focus_next", "ui_focus_prev"]
+## Test 20's fixture files for Den Fa's E path: a file that doesn't compile, and one whose first contact says nothing.
+const DIALOGUE_BROKEN_FIXTURE := "res://test/fixtures/dialogue_broken.txt"
+const DIALOGUE_SILENT_FIXTURE := "res://test/fixtures/dialogue_silent_first_contact.txt"
 ## Test 20's inline fixture (S4): a reply whose condition fails, and a [#required] choice Esc can't skip.
 const DIALOGUE_FIXTURE := "~ start\nFixture: Pick one. [#required]\n- Allow\n\tFixture: Allowed.\n- Hidden [if false]\n\tFixture: Never.\n- Refuse\n\tFixture: Refused.\nFixture: After.\n=> END\n"
 
@@ -4590,13 +4595,15 @@ func test_dialogue() -> void:
 	if gm != null and den_res != null:
 		await _check_den_fa_walks(gm, den_res)
 		await _check_box_layout(den_res)
+		await _check_box_robustness()
 		await _check_den_fa_box(gm)
 	else:
 		check(false, "the walks and the box need GameManager and a compiled den_fa.dialogue")
 	if gm != null:
 		for k in snap:
 			gm.set(k, snap[k])
-	print("  [Test 20] %.1f s of real time (≤ 10 s)" % ((Time.get_ticks_msec() - _t20_ms) / 1000.0))
+	var secs := (Time.get_ticks_msec() - _t20_ms) / 1000.0
+	check(secs <= 10.0, "Test 20 runs in %.1f s of real time (AC 9: ≤ 10 s)" % secs)
 	print("")
 
 
@@ -4608,12 +4615,10 @@ func _check_dialogue_bridge(gm, dm) -> void:
 		check(false, "the bridge and GameManager's dialogue helpers (_count_hire, _count_death, _dialogue_save_data, _load_dialogue_data, _reset_dialogue_state)")
 		return
 	var b = (bs as GDScript).new()
+	var has_index: bool = gm.has_method("get_reputation_tier_index")
+	check(has_index, "GameManager.get_reputation_tier_index(): one function gives the tier index (review patch)")
 	var expect := func() -> Dictionary:
-		var tiers: Array = dm.get_config("reputation_tiers", [])
-		var idx := 0
-		for i in tiers.size():
-			if gm.tavern_reputation >= int(tiers[i].get("threshold", 0)):
-				idx = i
+		var idx: int = gm.get_reputation_tier_index() if has_index else -1
 		return {"reputation": gm.tavern_reputation, "reputation_tier": str(gm.get_reputation_tier().get("label", "")),
 			"reputation_tier_index": idx, "day": gm.current_day, "roster_size": gm.adventurers.size(),
 			"adventurers_hired": gm.adventurers_hired_this_run, "deaths_this_run": gm.deaths_this_run, "gold": gm.gold,
@@ -4666,6 +4671,27 @@ func _check_dialogue_bridge(gm, dm) -> void:
 	gm._load_dialogue_data({"dialogue_flags": "junk", "deaths_this_run": 3.0})
 	check(old_ok and gm.dialogue_flags is Dictionary and gm.dialogue_flags.is_empty() and gm.deaths_this_run == 3,
 		"an old save without the keys loads 0 / 0 / no flags; a bad flags entry loads as none")
+	gm.deaths_this_run = 5
+	gm._load_dialogue_data({"adventurers_hired_this_run": null, "deaths_this_run": "junk", "dialogue_flags": {"t20_after_null": true}})
+	check(gm.adventurers_hired_this_run == 0 and gm.deaths_this_run == 0 and gm.dialogue_flags.get("t20_after_null") == true,
+		"a present-but-null (or junk) counter loads as 0 and doesn't abort the load: the flags after it still load (review patch)")
+	if has_index and gm.has_method("reputation_tier_list"):
+		var raw := [{"threshold": 50, "label": "Trusted"}, {"threshold": 25, "label": "Known"}, {"threshold": 100, "label": "Respected"}]
+		var list: Array = gm.reputation_tier_list(raw)
+		var agree := []
+		for rep in [0, 10, 25, 49, 50, 99, 100, 500]:
+			var i: int = gm.reputation_tier_index_for(rep, list)
+			agree.append("%d:%s" % [rep, str(list[i].get("label", "?"))])
+		var keep_rep: int = gm.tavern_reputation
+		gm.tavern_reputation = 60
+		var live_ok: bool = b.reputation_tier_index == gm.get_reputation_tier_index() and b.reputation_tier == str(gm.get_reputation_tier().get("label", "")) \
+			and b.reputation_tier == "Trusted" and b.reputation_tier_index == 2
+		gm.tavern_reputation = keep_rep
+		check(agree == ["0:Unknown", "10:Unknown", "25:Known", "49:Known", "50:Trusted", "99:Trusted", "100:Respected", "500:Respected"]
+			and list.size() == 4 and live_ok,
+			"unsorted tiers with no threshold-0 entry: sorted, the base tier first, label and index from one list (%s)" % [agree])
+	else:
+		check(false, "GameManager.reputation_tier_list() / reputation_tier_index_for(): tiers sorted once, label and index agree")
 	var src := FileAccess.get_file_as_string(GAME_MANAGER_PATH)
 	var hire := _func_body(src, "hire_adventurer")
 	var calls := {
@@ -4765,14 +4791,19 @@ func _check_dialogue_files() -> Dictionary:
 		banned.append(m.get_string(1))
 	for c in ProjectSettings.get_global_class_list():
 		banned.append(str(c.get("class", "")))
-	var control: Array = _dialogue_lint("if bridge.deats_this_run > 0\n\tX: {{GameManager.gold}} [if bridge.day > 1]\ndo bridge.mark_seen(\"x\")\n", names, banned)
+	var control: Array = _dialogue_lint("if bridge.deats_this_run > 0\n\tX: {{GameManager.gold}} [if bridge.day > 1]\ndo bridge.mark_seen(\"x\")\n", names)
+	var control2: Array = _dialogue_lint("using SaveSystem\ndo advance_day()\nX: Hi {{self.locals}}. [if toggle_pause_menu()]\n- Go [if not bridge.seen(\"a\") and bridge.day >= 2]\n"
+		+ "do wait(\"ui_accept\")\ndo wait(1.5)\nset bridge.day = 3\nif true and bridge.gold > 0 or null == null\n\tX: \"GameManager\" is only a word here.\n", names)
+	control2.sort()
 	var problems := []
 	for f in files:
-		for p in _dialogue_lint(FileAccess.get_file_as_string(f), names, banned):
+		for p in _dialogue_lint(FileAccess.get_file_as_string(f), names):
 			problems.append("%s: %s" % [f.get_file(), p])
 	check(names.has("deaths_this_run") and names.has("mark_seen") and banned.has("GameManager") and control == ["bridge.deats_this_run", "GameManager"],
 		"the lint knows the bridge's names and the autoloads and catches a typo and an autoload (%s)" % [control])
-	check(problems.is_empty(), "lint: every bridge.x in a .dialogue is the bridge's, no autoload or class name in a condition, mutation or {{…}} (%s)" % [problems])
+	check(control2 == ["advance_day", "self", "toggle_pause_menu", "using SaveSystem", "wait(action)"],
+		"the lint: an expression may start only from bridge., literals and keywords: the scene's methods, self, using and wait() on an action are caught (%s)" % [control2])
+	check(problems.is_empty(), "lint: every bridge.x in a .dialogue is the bridge's, no other root name, using or wait(action) in a condition, mutation or {{…}} (%s)" % [problems])
 	var den_text := FileAccess.get_file_as_string(DEN_FA_DIALOGUE)
 	var lower := den_text.to_lower()
 	var voice_bad := ["thee", "thou", "thy ", "bard", "beneath the mask", "under the mask"].filter(func(w): return lower.contains(w))
@@ -4790,6 +4821,13 @@ func _check_dialogue_files() -> Dictionary:
 	var again = runner.load_dialogue("res://test/fixtures/dialogue_not_imported.txt") if runner is GDScript else null
 	check(fallback is DialogueResource and (fallback as DialogueResource).titles.has("hello") and again == fallback,
 		"a .dialogue Godot hasn't imported yet (a fresh checkout) is compiled from its text, once (AC 8)")
+	var exported_path := "res://data/dialogue/t20_exported.dialogue"   # an export ships the imported resource, not the source text
+	var virt: Resource = runner.compile_text("~ hello\nX: Hi.\n=> END\n", "t20_exported") if runner is GDScript else null
+	if virt != null:
+		virt.take_over_path(exported_path)
+	var exported = runner.load_dialogue(exported_path) if runner is GDScript and virt != null else null
+	check(virt != null and not FileAccess.file_exists(exported_path) and ResourceLoader.exists(exported_path) and exported == virt,
+		"an exported build (a loadable resource, no .dialogue source file) still loads: ResourceLoader first, the text only as the fallback (review patch)")
 	check(ProjectSettings.get_setting("dialogue_manager/editor/translations/update_pot_files_automatically", true) == false
 		and ProjectSettings.get_setting("dialogue_manager/runtime/advanced/ignore_missing_state_values", false) == false,
 		"project.godot: the POT auto-update is off, missing state values stay errors")
@@ -4799,10 +4837,15 @@ func _check_dialogue_files() -> Dictionary:
 	return out
 
 
-## Problems in one .dialogue text: bridge.<name> that the bridge doesn't have, and banned names (autoloads,
-## global classes) used in a condition, mutation or {{…}}.
-static func _dialogue_lint(text: String, bridge_names: Array, banned: Array) -> Array:
+## Problems in one .dialogue text. Every expression (if/elif/while/match/when/do/set lines, [if …], [do …] /
+## [set …] and {{…}}) may start only from `bridge.`, literals and keywords: a bridge.<name> the bridge doesn't
+## have, any other root name (an autoload, a class, the box itself via self, the scene's methods such as
+## advance_day() or toggle_pause_menu()), `using` and wait() on an action (the box takes the action before
+## Dialogue Manager's waiter sees it) are problems.
+static func _dialogue_lint(text: String, bridge_names: Array) -> Array:
+	const ROOTS := ["bridge", "true", "false", "null", "and", "or", "not", "in", "wait"]
 	var exprs := []
+	var problems := []
 	var inline_if := RegEx.create_from_string("\\[if ([^\\]]*)\\]")
 	var inline_do := RegEx.create_from_string("\\[(?:do!?|set) ([^\\]]*)\\]")
 	var braces := RegEx.create_from_string("\\{\\{(.*?)\\}\\}")
@@ -4810,23 +4853,32 @@ static func _dialogue_lint(text: String, bridge_names: Array, banned: Array) -> 
 		var l := raw.strip_edges()
 		if l == "" or l.begins_with("#"):
 			continue
+		if l == "using" or l.begins_with("using "):
+			problems.append(("using " + l.substr(5).strip_edges()).strip_edges())
+			continue
 		for kw in ["if ", "elif ", "while ", "match ", "when ", "do ", "do! ", "set "]:
 			if l.begins_with(kw):
 				exprs.append(l.substr(kw.length()))
 		for re in [inline_if, inline_do, braces]:
 			for m in (re as RegEx).search_all(l):
 				exprs.append(m.get_string(1))
-	var member := RegEx.create_from_string("bridge\\.(\\w+)")
+	var member := RegEx.create_from_string("bridge\\s*\\.\\s*(\\w+)")
 	var word := RegEx.create_from_string("[A-Za-z_]\\w*")
-	var problems := []
+	var wait_action := RegEx.create_from_string("\\bwait\\s*\\(\\s*[\"'\\[]")
 	for e in exprs:
-		var bare := RegEx.create_from_string("\"[^\"]*\"").sub(e, "\"\"", true)   # names inside strings don't count
+		if wait_action.search(e) != null and not problems.has("wait(action)"):
+			problems.append("wait(action)")
+		var bare := RegEx.create_from_string("\"[^\"]*\"|'[^']*'").sub(e, "\"\"", true)   # names inside strings don't count
 		for m in member.search_all(bare):
-			if not bridge_names.has(m.get_string(1)):
+			if not bridge_names.has(m.get_string(1)) and not problems.has("bridge.%s" % m.get_string(1)):
 				problems.append("bridge.%s" % m.get_string(1))
 		for m in word.search_all(bare):
-			if banned.has(m.get_string()) and not problems.has(m.get_string()):
-				problems.append(m.get_string())
+			var before := bare.substr(0, m.get_start()).strip_edges(false, true)
+			if before.ends_with(".") or (before != "" and before[before.length() - 1].is_valid_int()):
+				continue   # a member (bridge.day, x.y) or a number's suffix (1e3)
+			var w := m.get_string()
+			if not ROOTS.has(w) and not problems.has(w):
+				problems.append(w)
 	return problems
 
 
@@ -4975,6 +5027,12 @@ func _check_box_layout(den_res) -> void:
 		% [band.size.x, long_text.length(), why])
 	var focused := box.get_viewport().gui_get_focus_owner()
 	check(not items.is_empty() and focused == items[0], "the first reply has the focus")
+	var blocker = box.get_node_or_null("%MouseBlocker")
+	box.balloon.hide()                    # what a long mutation does: the balloon goes, the blocker stays
+	var blocker_ok: bool = blocker is Control and (blocker as Control).visible and (blocker as Control).mouse_filter == Control.MOUSE_FILTER_STOP \
+		and (blocker as Control).get_global_rect().encloses(screen) and blocker.get_index() < box.balloon.get_index()
+	check(blocker_ok, "a full-screen mouse blocker under the balloon stays while the balloon hides for a long mutation: clicks never reach the HUD or the world (review patch)")
+	box.balloon.show()
 	box.close("test")
 	var plain = (scene as PackedScene).instantiate()   # a line with no replies: the continue arrow once it is typed
 	vp.add_child(plain)
@@ -4988,6 +5046,130 @@ func _check_box_layout(den_res) -> void:
 	plain.close("test")
 	vp.queue_free()
 	await process_frame
+
+
+## Review patches (2026-10-03) on the box alone: a line whose replies are all hidden; the start is deferred so
+## callers connect before anything can close; Dialogue Manager stalling after the first line (the progress
+## watchdog); a box closed while next() is pending stays until it returns; a timed line closed early; a box
+## freed by its world still says `closed`.
+func _check_box_robustness() -> void:
+	var runner = load(RUNNER_SCRIPT) if ResourceLoader.exists(RUNNER_SCRIPT) else null
+	var scene = load(BOX_SCENE) if ResourceLoader.exists(BOX_SCENE) else null
+	if runner == null or not scene is PackedScene:
+		check(false, "the box robustness checks need the runner and DialogueBox.tscn")
+		return
+	var host := Node.new()
+	host.name = "T20Host"
+	root.add_child(host)
+	var new_box := func():
+		var b = (scene as PackedScene).instantiate()
+		host.add_child(b)
+		return b
+	var typed := func(b) -> void:      # wait for the current line, finishing its typing
+		var t0 := Time.get_ticks_msec()
+		while is_instance_valid(b) and not b.is_closed() and Time.get_ticks_msec() - t0 < 2000:
+			if b.dialogue_line != null and not b.dialogue_label.is_typing:
+				break
+			if b.dialogue_line != null:
+				b.dialogue_label.skip_typing()
+			await process_frame
+		await process_frame
+	var src := FileAccess.get_file_as_string(BOX_SCRIPT)
+
+	# Every reply hidden: the line is an ordinary line (no empty menu, the continue arrow; E goes on; Esc closes even on [#required]).
+	var none_res: Resource = runner.compile_text("~ none\nX: Pick. [#required]\n- A [if false]\n\tX: Never.\n- B [if false]\n\tX: Never.\nX: After.\n=> END\n", "t20_none")
+	var nb = new_box.call()
+	nb.start(none_res, "none", [{"bridge": runner.new_bridge()}])
+	await typed.call(nb)
+	var none_menu: bool = nb.responses_menu.visible or not nb.responses_menu.get_menu_items().is_empty()
+	var none_arrow: bool = nb.progress.visible
+	nb._advance()
+	await typed.call(nb)
+	var after: String = nb.dialogue_line.text if is_instance_valid(nb) and nb.dialogue_line != null else ""
+	if is_instance_valid(nb):
+		nb.close("test")
+	var nb2 = new_box.call()
+	nb2.start(none_res, "none", [{"bridge": runner.new_bridge()}])
+	await typed.call(nb2)
+	nb2._cancel()
+	var esc_closed: bool = not is_instance_valid(nb2) or nb2.is_closed()
+	check(not none_menu and none_arrow and after == "After." and esc_closed,
+		"all replies hidden: no empty menu, the continue arrow, E goes on ('%s'), Esc ends it even on a [#required] line (review patch)" % after)
+
+	# The start is deferred: an empty title still returns the box; the caller connects, then it closes once, with no line shown.
+	var empty_res: Resource = runner.compile_text("~ nothing\n=> END\n", "t20_nothing")
+	var eb = runner.open(host, empty_res, "nothing")
+	var eb_opened: bool = eb != null and eb.has_signal("first_line")   # (a freed box reads as null later)
+	var ev := {"closed": 0, "first": 0}
+	if eb != null:
+		eb.closed.connect(func(): ev.closed += 1)
+		if eb.has_signal("first_line"):
+			eb.connect("first_line", func(): ev.first += 1)
+	for i in 4:
+		await process_frame
+	check(eb_opened and ev.closed == 1 and ev.first == 0 and not runner.is_open(),
+		"a title with nothing to say: the box opens deferred, so the caller hears `closed` once, and never `first_line` (review patch; %s)" % [ev])
+
+	# Dialogue Manager stalls after the first line: the progress watchdog closes the box; it stays (out of the
+	# groups) until the pending next() returns, then frees itself; another box can open meanwhile.
+	var hang = _hang_script().new()
+	var slow_res: Resource = runner.compile_text("~ slow\nX: First.\nif t20_hang.hang()\n\tX: Never.\nX: Never either.\n=> END\n", "t20_slow")
+	var wb = new_box.call()
+	var default_timeout = wb.get("progress_timeout_ms")
+	wb.set("progress_timeout_ms", 300)
+	wb.start(slow_res, "slow", [{"bridge": runner.new_bridge(), "t20_hang": hang}])
+	await typed.call(wb)
+	var first_ok: bool = wb.dialogue_line != null and wb.dialogue_line.text == "First."
+	wb._advance()
+	await create_timer(0.6).timeout
+	var stalled_closed: bool = is_instance_valid(wb) and wb.is_closed()
+	var kept: bool = is_instance_valid(wb) and not wb.is_queued_for_deletion() and not wb.is_in_group("dialogue_open") and not wb.is_in_group("blocks_player")
+	var other = runner.open(host, runner.compile_text("~ hi\nX: Hi.\n=> END\n", "t20_hi"), "hi")
+	var other_ok: bool = other != null
+	if other != null:
+		other.close("test")
+	hang.release.emit(true)
+	for i in 3:
+		await process_frame
+	check(first_ok and default_timeout == 10000 and stalled_closed and kept and other_ok and not is_instance_valid(wb) and not src.contains("START_TIMEOUT"),
+		"Dialogue Manager stalls after a line: closed by the progress watchdog (10 s by default, %s); kept until the pending next() returns, then freed; another box can open (review patch)" % [default_timeout])
+
+	# A timed line ([next=…]) closed before its time: nothing resumes on the freed box (a timer connected to a method, no await).
+	var tb = new_box.call()
+	tb.start(runner.compile_text("~ timed\nX: Tick. [next=0.2]\nX: Tock.\n=> END\n", "t20_timed"), "timed", [{"bridge": runner.new_bridge()}])
+	await typed.call(tb)
+	tb.close("test")
+	await create_timer(0.35).timeout
+	check(not is_instance_valid(tb) and not src.contains("await get_tree().create_timer") and not src.contains("await audio_stream_player.finished"),
+		"a timed line closed early: the box is gone and no await resumes on it (the line timer and the voice end call methods) (review patch)")
+
+	# Freed by its world (a scene change) while open: talkers still hear `closed`.
+	var world := Node.new()
+	root.add_child(world)
+	var fb = (scene as PackedScene).instantiate()
+	world.add_child(fb)
+	fb.start(runner.compile_text("~ plain\nX: Plain.\n=> END\n", "t20_plain2"), "plain", [{"bridge": runner.new_bridge()}])
+	await typed.call(fb)
+	var freed := [0]
+	fb.closed.connect(func(): freed[0] += 1)
+	world.free()
+	await process_frame
+	check(freed[0] == 1 and get_nodes_in_group("dialogue_open").is_empty(), "a box freed with its world says `closed` once and leaves no group behind (review patch)")
+	host.queue_free()
+	await process_frame
+
+
+## An object for Test 20's stall fixture: hang() waits until `release` is emitted (Dialogue Manager awaits it).
+static func _hang_script() -> GDScript:
+	var gs := GDScript.new()
+	gs.source_code = """extends RefCounted
+signal release(v)
+func hang():
+	var v = await release
+	return v
+"""
+	gs.reload()
+	return gs
 
 
 ## Every other E (and Esc) reader stands down while a box is open (AC 3; the box takes the keys first, these
@@ -5004,11 +5186,22 @@ func _check_dialogue_guards() -> void:
 		"main_tavern._input": _func_body(read.call("res://scripts/game/main_tavern.gd"), "_input"),
 		"player._unhandled_input (the ui_accept serve)": _func_body(read.call("res://scripts/player/player.gd"), "_unhandled_input"),
 	}
-	var missing := bodies.keys().filter(func(k): return not str(bodies[k]).contains("dialogue_open"))
+	var missing := bodies.keys().filter(func(k): return not _code_lines(str(bodies[k])).contains("dialogue_open"))
 	var pl: String = read.call("res://scripts/player/player.gd")
-	var jump_ok := _func_body(pl, "_jump_blocked").contains("blocks_player") and _func_body(pl, "_jump_blocked").contains("just_closed()") \
-		and _func_body(pl, "_physics_process").contains("_jump_blocked()")
-	check(missing.is_empty() and jump_ok, "while a box is open every other E/Esc reader stands down, and the player's jump skips a box's closing frame (missing: %s, jump %s)" % [missing, jump_ok])
+	var jump_ok := _code_lines(_func_body(pl, "_jump_blocked")).contains("blocks_player") and _code_lines(_func_body(pl, "_jump_blocked")).contains("just_closed()") \
+		and _code_lines(_func_body(pl, "_physics_process")).contains("_jump_blocked()")
+	check(missing.is_empty() and jump_ok, "while a box is open every other E/Esc reader stands down (code, not comments), and the player's jump skips a box's closing frame (missing: %s, jump %s)" % [missing, jump_ok])
+	var mt := _code_lines(str(bodies["main_tavern._input"])).split("\n")   # the debug keys too: F10 would wipe the run's flags mid-conversation
+	var guard_at := -1
+	var f9_at := -1
+	for i in mt.size():
+		if guard_at < 0 and mt[i].contains("dialogue_open") and not mt[i].contains("ui_cancel"):
+			guard_at = i
+		if f9_at < 0 and mt[i].contains("KEY_F9"):
+			f9_at = i
+	check(guard_at >= 0 and f9_at > guard_at, "main_tavern._input stands down for every key while a box is open (B, F9, F10 too), before the debug keys (guard line %d, F9 line %d)" % [guard_at, f9_at])
+	var tab_ok := BOX_ACTIONS_EXTRA.all(func(a): return _code_lines(read.call(BOX_SCRIPT)).contains("\"%s\"" % a))
+	check(tab_ok, "the box also takes Tab / Shift+Tab (ui_focus_next/prev: the roster's toggle and the reply focus) while it is open")
 
 
 ## E on Den Fa in a small tavern-like world (the 3D world inside a SubViewportContainer, as MainTavern):
@@ -5102,6 +5295,17 @@ func _check_den_fa_box(gm) -> void:
 	var fresh: String = den._pick_title()
 	check(fresh == "first_contact" and repeats == 0 and distinct.size() == 3 and picks.all(func(p): return ["early_1", "early_2", "early_3"].has(p)),
 		"his title: first contact until it is seen, then early_1…3, never the same opening twice in a row (%s)" % [picks.slice(0, 6)])
+	var gaps: Resource = runner.compile_text("~ early_1\nDen Fa: One.\n=> END\n\n~ early_4\nDen Fa: Four.\n=> END\n", "t20_gaps")
+	var gap_picks := {}
+	for i in 24:
+		gap_picks[den._pick_title(gaps)] = true
+	var gap_titles := gap_picks.keys()
+	gap_titles.sort()
+	var nothing: Resource = runner.compile_text("~ other\nDen Fa: Hm.\n=> END\n", "t20_no_titles")
+	var none1: String = den._pick_title(nothing)
+	var none2: String = den._pick_title(nothing)
+	check(gap_titles == ["early_1", "early_4"] and none1 == "" and none2 == "" and den.get("_warned_no_titles") == true,
+		"a file without first_contact falls back to its early openings, the real ones (early_1 and early_4 across a gap: %s); none at all: no title, warned once (review patch)" % [gap_titles])
 
 	await _press("ui_cancel")             # with no box open the spies do see keys
 	var control_ok: bool = root_spy.count("ui_cancel") > 0 and world_spy.count("ui_cancel") > 0
@@ -5146,6 +5350,8 @@ func _check_den_fa_box(gm) -> void:
 		await _press("interact")
 	var items: Array = box.responses_menu.get_menu_items() if is_instance_valid(box) else []
 	var focus_first = root.gui_get_focus_owner()
+	await _press("ui_focus_next")         # Tab: the roster's toggle; under the box it neither reaches the HUD nor moves the reply focus
+	var focus_after_tab = root.gui_get_focus_owner()
 	await _press("ui_down")
 	var focus_second = root.gui_get_focus_owner()
 	await _press("interact")
@@ -5153,6 +5359,7 @@ func _check_den_fa_box(gm) -> void:
 	var said: String = box.dialogue_line.text if is_instance_valid(box) and box.dialogue_line != null else ""
 	check(items.size() == 3 and focus_first == items[0] and focus_second == items[1] and said.contains("pillar"),
 		"three flavour replies, the first focused; ↓ then E picks the second ('%s')" % said)
+	check(focus_after_tab == items[0], "Tab while the box is open: the box takes it, the reply focus stays (review patch)")
 	var closes := [0]
 	if is_instance_valid(box):
 		box.closed.connect(func(): closes[0] += 1)
@@ -5167,8 +5374,8 @@ func _check_den_fa_box(gm) -> void:
 	check(ui.prompt_label.visible and ui.prompt_label.text == den.PROMPT and owners.call() == ["den_fa"] and talks[0] == 1 and boxes.call().is_empty() and den._cooldown > 2.0,
 		"once it closes: the prompt and E are his again a frame later, nothing reopened, his cooldown starts at the close (%.1f s)" % den._cooldown)
 
-	den._cooldown = 0.0                   # an early conversation, advanced with Space: Space is ui_accept AND jump
-	await _press("interact")
+	den._process(den.COOLDOWN + 0.1)      # his cooldown runs out the way it does in play (his own _process)
+	await _press("interact")              # an early conversation, advanced with Space: Space is ui_accept AND jump
 	var box2 = boxes.call()[0] if boxes.call().size() == 1 else null
 	var title2: String = str(box2.start_from_title) if box2 != null else ""
 	root_spy.seen.clear()
@@ -5186,6 +5393,19 @@ func _check_den_fa_box(gm) -> void:
 	check(title2.begins_with("early_") and boxes.call().is_empty() and talks[0] == 2 and top - y0 < 0.02,
 		"again, after first contact: an early opening (%s); Space advances it to the end and the closing Space doesn't jump (rose %.3f m, talked %d)" % [title2, top - y0, talks[0]])
 	check(root_spy.total() == 0 and world_spy.total() == 0, "Space never reached the world either (%s / %s)" % [root_spy.seen, world_spy.seen])
+
+	den._process(den.COOLDOWN + 0.1)      # once more, ended with E: the E that closes it reaches nothing and opens nothing
+	await _press("interact")
+	var box3 = boxes.call()[0] if boxes.call().size() == 1 else null
+	var box3_opened: bool = box3 != null
+	root_spy.seen.clear()
+	world_spy.seen.clear()
+	t0 = Time.get_ticks_msec()
+	while is_instance_valid(box3) and not box3.is_closed() and Time.get_ticks_msec() - t0 < 6000:
+		await _press("interact")
+	await settle.call(3)
+	check(box3_opened and boxes.call().is_empty() and talks[0] == 3 and root_spy.total() == 0 and world_spy.total() == 0 and den._cooldown > den.COOLDOWN - 0.5,
+		"E to the end of a conversation: the closing E reaches neither the scene root nor the world, nothing reopens, his cooldown restarts (talked %d; %s / %s)" % [talks[0], root_spy.seen, world_spy.seen])
 
 	var fx: Resource = runner.compile_text(DIALOGUE_FIXTURE, "t20_fixture")
 	var fbox = runner.open(den, fx, "start") if fx != null else null
@@ -5209,21 +5429,98 @@ func _check_den_fa_box(gm) -> void:
 		await _press("ui_cancel")
 	check(after == "Allowed." and boxes.call().is_empty(), "E confirms the focused choice ('%s'); on an ordinary line Esc ends it" % after)
 
+	# A screen over the conversation (review patch): the box lets the keys through while the tree is paused or
+	# another player-blocking screen / mission board is up; nothing opens over such a screen, while paused or at Game Over.
+	var two: Resource = runner.compile_text("~ c\nX: One.\nX: Two.\n=> END\n", "t20_cover")
+	var cb = runner.open(den, two, "c")
+	var cb_opened: bool = cb != null
+	t0 = Time.get_ticks_msec()
+	while is_instance_valid(cb) and (cb.dialogue_line == null or cb.dialogue_label.is_typing) and Time.get_ticks_msec() - t0 < 2000:
+		if cb.dialogue_line != null:
+			cb.dialogue_label.skip_typing()
+		await process_frame
+	var cover := Control.new()
+	cover.name = "T20Cover"
+	cover.add_to_group("blocks_player")
+	world.add_child(cover)
+	await _press("interact")
+	var under_cover: String = cb.dialogue_line.text if is_instance_valid(cb) and cb.dialogue_line != null else ""
+	cover.visible = false
+	paused = true
+	await _press("ui_cancel")
+	var held_paused: bool = is_instance_valid(cb) and not cb.is_closed()
+	paused = false
+	if is_instance_valid(cb):
+		cb.close("test")
+	await process_frame
+	cover.visible = true
+	cover.remove_from_group("blocks_player")
+	cover.add_to_group("mission_board")
+	var over_board = runner.open(den, two, "c")
+	cover.queue_free()
+	await process_frame
+	paused = true
+	var while_paused = runner.open(den, two, "c")
+	paused = false
+	gm.game_over_active = true
+	var at_game_over = runner.open(den, two, "c")
+	gm.game_over_active = false
+	for b in boxes.call():
+		b.close("test")
+	check(cb_opened and under_cover == "One." and held_paused and over_board == null and while_paused == null and at_game_over == null,
+		"a screen over the box: E doesn't advance it ('%s'), Esc doesn't close it while paused (%s); nothing opens over a mission board, while paused or at Game Over (%s) (review patch)"
+		% [under_cover, held_paused, [over_board == null, while_paused == null, at_game_over == null]])
+
+	# He stands up or walks off: his open conversation closes first and the player is free (review patch).
+	den.talk()
+	await settle.call(3)
+	var stood_open: int = boxes.call().size()
+	den.stand()
+	await settle.call(1)
+	var after_stand: int = boxes.call().size()
+	den.sit_at(marker)
+	await settle.call(2)
+	den.talk()
+	await settle.call(3)
+	var walk_open: int = boxes.call().size()
+	den.walk_route(PackedVector3Array([den.global_position + Vector3(0.3, 0, 0)]))
+	await settle.call(1)
+	var after_walk: int = boxes.call().size()
+	den.sit_at(marker)
+	await settle.call(2)
+	check(stood_open == 1 and after_stand == 0 and walk_open == 1 and after_walk == 0 and den._seated,
+		"Den Fa stands up or walks off mid-conversation: his box closes first (open %d → %d, %d → %d) (review patch)" % [stood_open, after_stand, walk_open, after_walk])
+
 	var missing = runner.start(den, "res://data/dialogue/t20_missing.dialogue", "x")
 	var no_title = runner.start(den, DEN_FA_DIALOGUE, "t20_no_such_title")
 	var bad = runner.compile_text("~ x\nX: hi\n- a\n\tX: [if \n=> nowhere\n", "t20_bad")
-	var empty_res: Resource = runner.compile_text("~ nothing\n=> END\n", "t20_empty")
-	var ebox = runner.open(den, empty_res, "nothing") if empty_res != null else null
 	await settle.call(3)
-	den._cooldown = 0.0
+	var talks_before: int = talks[0]
+	den._process(den.COOLDOWN + 0.1)
 	den.dialogue_path = "res://data/dialogue/t20_missing.dialogue"
 	await _press("interact")
-	var failed_cool: float = den._cooldown
 	var failed_boxes: int = boxes.call().size()
-	den.dialogue_path = DEN_FA_DIALOGUE
-	den._cooldown = 0.0
+	den._process(den.COOLDOWN + 0.1)
+	den.dialogue_path = DIALOGUE_BROKEN_FIXTURE
 	await _press("interact")
+	var broken_boxes: int = boxes.call().size()
+	den._process(den.COOLDOWN + 0.1)
+	den.dialogue_path = DIALOGUE_SILENT_FIXTURE
+	gm.dialogue_flags = {}
+	await _press("interact")
+	await settle.call(3)
+	var silent_boxes: int = boxes.call().size()
+	var silent_talks: int = talks[0]
+	den.dialogue_path = DEN_FA_DIALOGUE
+	await _press("interact")              # still inside the cooldown the silent conversation restarted: nothing opens
+	var early_press: int = boxes.call().size()
+	den._process(den.COOLDOWN + 0.1)
+	await _press("interact")
+	await settle.call(2)
 	var reopened: int = boxes.call().size()
+	check(missing == null and no_title == null and bad == null and failed_boxes == 0 and broken_boxes == 0 and silent_boxes == 0
+		and silent_talks == talks_before and early_press == 0 and reopened == 1 and talks[0] == talks_before + 1,
+		"Den Fa's E on a missing file, a file that won't compile, a first contact that says nothing: no box, no talked; within his cooldown E does nothing, after it E talks again (talked %d → %d)" % [talks_before, talks[0]])
 	root.get_node("GameBus").game_over_triggered.emit("t20 test")
 	await settle.call(2)
 	var p1: Vector3 = player.global_position
@@ -5231,9 +5528,7 @@ func _check_den_fa_box(gm) -> void:
 	await settle.call(8)
 	Input.action_release("move_forward")
 	var walked := Vector2(player.global_position.x - p1.x, player.global_position.z - p1.z).length()
-	check(missing == null and no_title == null and bad == null and empty_res != null and (ebox == null or not is_instance_valid(ebox) or ebox.is_closed())
-		and failed_boxes == 0 and failed_cool > 2.0 and reopened == 1 and boxes.call().is_empty() and walked > 0.05,
-		"a missing file, a missing title, a file that won't compile, a title with nothing to say: nothing stays open; Den Fa's E works again after his cooldown; Game Over closes the box; the player walks (%.2f m)" % walked)
+	check(boxes.call().is_empty() and walked > 0.05, "Game Over closes the box; the player walks (%.2f m)" % walked)
 	_close_test_world(world)
 	await process_frame
 
@@ -5272,14 +5567,14 @@ func _press_key(key: Key) -> void:
 		await process_frame
 
 
-## A node that counts presses (and echoes) of the dialogue box's keys (interact, ui_accept, ui_cancel, jump)
+## A node that counts presses (and echoes) of the dialogue box's keys (interact, ui_accept, ui_cancel, jump, Tab)
 ## reaching it. Releases don't count: the release of the key that closed a box arrives after it is gone.
 static func _input_spy_script() -> GDScript:
 	var gs := GDScript.new()
 	gs.source_code = """extends Node
 var seen := {}
 func _note(e: InputEvent, where: String) -> void:
-	for a in ["interact", "ui_accept", "ui_cancel", "jump"]:
+	for a in ["interact", "ui_accept", "ui_cancel", "jump", "ui_focus_next", "ui_focus_prev"]:
 		if e.is_action(a) and e.is_pressed():
 			seen[where + ":" + a] = int(seen.get(where + ":" + a, 0)) + 1
 func _input(e: InputEvent) -> void:
@@ -5299,6 +5594,29 @@ func total() -> int:
 
 
 ## The text of one top-level function (from its `func` line to the next top-level func), "" if absent.
+## GDScript source without its comments (whole-line and trailing `#`, outside strings): a guard named only in a
+## comment doesn't count.
+static func _code_lines(src: String) -> String:
+	var out := PackedStringArray()
+	for line in src.split("\n"):
+		var in_str := ""
+		var cut := line.length()
+		for i in line.length():
+			var c := line[i]
+			if in_str != "":
+				if c == in_str:
+					in_str = ""
+			elif c == "\"" or c == "'":
+				in_str = c
+			elif c == "#":
+				cut = i
+				break
+		var code := line.substr(0, cut)
+		if code.strip_edges() != "":
+			out.append(code)
+	return "\n".join(out)
+
+
 static func _func_body(src: String, fname: String) -> String:
 	var a := src.find("\nfunc %s(" % fname)
 	if a < 0:
