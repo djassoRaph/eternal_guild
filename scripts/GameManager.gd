@@ -60,11 +60,13 @@ var adventurers_hired_this_run: int = 0
 var deaths_this_run: int = 0
 var dialogue_flags: Dictionary = {}    # conversation flag id -> true (e.g. "den_fa_first_contact"), saved per run
 # Den Fa's state (Story 10.3): "early" -> "mid" -> "late", forward only, moved by adjust_reputation() at the
-# tiers named in game_config.json's den_fa_state_tiers; saved per run; GuildBus.den_fa_state_changed on a move.
+# tiers named in game_config.json's den_fa_state_tiers; saved per run; GuildBus.den_fa_state_changed on each step
+# earned in play (loading a save and New Game are silent).
 const DEN_FA_STATES := ["early", "mid", "late"]
 const DEN_FA_DEFAULT_TIERS := {"mid": "Known", "late": "Trusted"}
+const DEN_FA_UNREACHABLE := 1 << 30    # a tier index no reputation reaches (too few tiers for Mid and Late)
 var den_fa_state: String = "early"
-var _den_fa_tier_warnings: int = 0     # a bad den_fa_state_tiers is warned about once a run
+var _den_fa_tier_warnings: int = 0     # a bad den_fa_state_tiers is warned about once a run (New Game re-arms it)
 
 
 
@@ -1320,13 +1322,14 @@ func _load_dialogue_data(data: Dictionary) -> void:
 	var flags = data.get("dialogue_flags", {})
 	dialogue_flags = flags.duplicate() if flags is Dictionary else {}
 	# Den Fa's state (Story 10.3): an older save has none (early); an unknown value is early with a warning.
-	# Then re-evaluated against the loaded reputation (a config change lands at once), never backwards.
+	# Then re-evaluated against the loaded reputation (a config change lands at once), never backwards, and
+	# silently: GuildBus.den_fa_state_changed means "earned in play", not "restored from a save".
 	var state = data.get("den_fa_state", "early")
 	if not DEN_FA_STATES.has(state):
 		push_warning("[GameManager] load: unknown den_fa_state %s: Den Fa starts early" % [state])
 		state = "early"
 	den_fa_state = state
-	_update_den_fa_state()
+	_update_den_fa_state(false)
 
 ## A saved counter, parsed defensively: null, junk or a negative number load as 0 (int(null) would abort
 ## load_save_data half-way).
@@ -1341,7 +1344,8 @@ func _reset_dialogue_state() -> void:
 	adventurers_hired_this_run = 0
 	deaths_this_run = 0
 	dialogue_flags = {}
-	den_fa_state = "early"
+	den_fa_state = "early"            # silently, like a load: no den_fa_state_changed
+	_den_fa_tier_warnings = 0         # "once a run": a New Game warns again
 
 ## Den Fa's state for a reputation tier index (Story 10.3, pure): "late" at late_index or above, "mid" at
 ## mid_index or above, else "early"; never earlier than `current` (an unknown current counts as early).
@@ -1351,21 +1355,25 @@ static func den_fa_state_for(current: String, tier_index: int, mid_index: int, l
 
 ## The tier indexes (in `tiers`, a reputation_tier_list) where Den Fa moves to mid and late, from config
 ## `cfg` ({"mid": label, "late": label}). An unknown label, late at or below mid, or no config: the defaults
-## (Known, Trusted) and a warning text for the caller to push (pure: {mid, late, warning}).
+## (Known, Trusted), else the second and third tiers, and a warning text naming the tiers used for the caller
+## to push (pure: {mid, late, warning}). With fewer than 3 tiers there is no room for both: Mid and Late are
+## unreachable (DEN_FA_UNREACHABLE) and he stays early.
 static func den_fa_tier_indexes(cfg, tiers: Array) -> Dictionary:
 	var labels: Array = tiers.map(func(t): return str(t.get("label", "")))
 	var mid := labels.find(str(cfg.get("mid", ""))) if cfg is Dictionary else -1
 	var late := labels.find(str(cfg.get("late", ""))) if cfg is Dictionary else -1
 	if mid >= 0 and late > mid:
 		return {"mid": mid, "late": late, "warning": ""}
-	var warning := "[GameManager] fallback: den_fa_state_tiers %s doesn't name two tiers of reputation_tiers in rising order: using mid %s, late %s" \
-		% [cfg, DEN_FA_DEFAULT_TIERS.mid, DEN_FA_DEFAULT_TIERS.late]
+	var head := "[GameManager] fallback: den_fa_state_tiers %s doesn't name two tiers of reputation_tiers in rising order" % [cfg]
 	mid = labels.find(DEN_FA_DEFAULT_TIERS.mid)
 	late = labels.find(DEN_FA_DEFAULT_TIERS.late)
 	if mid < 0 or late <= mid:   # the defaults aren't in this list either: the second and third tiers
-		mid = mini(1, tiers.size() - 1)
-		late = mid + 1
-	return {"mid": mid, "late": late, "warning": warning}
+		if tiers.size() < 3:     # no room for Mid and Late above the base tier: he stays early
+			return {"mid": DEN_FA_UNREACHABLE, "late": DEN_FA_UNREACHABLE + 1,
+				"warning": "%s, and reputation_tiers has %d tier(s), fewer than 3: Den Fa stays early" % [head, tiers.size()]}
+		mid = 1
+		late = 2
+	return {"mid": mid, "late": late, "warning": "%s: using mid %s, late %s" % [head, labels[mid], labels[late]]}
 
 ## den_fa_tier_indexes() for a config and the raw reputation_tiers, warning once a run.
 func _den_fa_tiers_from(cfg, raw_tiers) -> Dictionary:
@@ -1375,17 +1383,23 @@ func _den_fa_tiers_from(cfg, raw_tiers) -> Dictionary:
 		push_warning(r.warning)
 	return r
 
-## Move Den Fa's state forward if the reputation has reached his next tier; GuildBus says so.
-func _update_den_fa_state() -> void:
+## Move Den Fa's state forward if the reputation has reached his next tier, one state at a time: a jump across
+## both tiers is early -> mid, then mid -> late (review patch: no state is skipped). GuildBus.den_fa_state_changed
+## means "earned in play": `announce` false (loading a save) moves him without it.
+func _update_den_fa_state(announce := true) -> void:
 	var raw = DataManager.get_config("reputation_tiers", [])
 	var at := _den_fa_tiers_from(DataManager.get_config("den_fa_state_tiers"), raw)
-	var state := den_fa_state_for(den_fa_state, reputation_tier_index_for(tavern_reputation, reputation_tier_list(raw)), at.mid, at.late)
-	if state == den_fa_state:
-		return
-	var old := den_fa_state
-	den_fa_state = state
-	print("[GameManager] advance: Den Fa %s -> %s (reputation %d)" % [old, state, tavern_reputation])
-	GuildBus.den_fa_state_changed.emit(old, state)
+	var target := den_fa_state_for(den_fa_state, reputation_tier_index_for(tavern_reputation, reputation_tier_list(raw)), at.mid, at.late)
+	var from := maxi(0, DEN_FA_STATES.find(den_fa_state))   # an unknown value counts as early
+	den_fa_state = DEN_FA_STATES[from]
+	for i in range(from, DEN_FA_STATES.find(target)):
+		var old: String = DEN_FA_STATES[i]
+		den_fa_state = DEN_FA_STATES[i + 1]
+		if announce:
+			print("[GameManager] advance: Den Fa %s -> %s (reputation %d)" % [old, den_fa_state, tavern_reputation])
+			GuildBus.den_fa_state_changed.emit(old, den_fa_state)
+		else:
+			print("[GameManager] load: Den Fa %s -> %s (reputation %d)" % [old, den_fa_state, tavern_reputation])
 
 func get_patron_recruitment_pool() -> Array:
 	"""Get current patron recruitment candidates"""

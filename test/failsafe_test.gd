@@ -192,11 +192,14 @@ const DEN_FA_TITLES :=["first_contact", "early_1", "early_2", "early_3"]
 const BRIDGE_VALUES := ["reputation", "reputation_tier", "reputation_tier_index", "day", "roster_size", "adventurers_hired",
 	"deaths_this_run", "gold", "is_demo"]
 const GM_DIALOGUE_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
-	"deaths_this_run", "dialogue_flags", "game_over_active", "den_fa_state"]
+	"deaths_this_run", "dialogue_flags", "game_over_active", "den_fa_state", "_den_fa_tier_warnings"]
 ## Test 21 (Story 10.3): the GameManager fields it sets, restored at its end.
 const GM_DEN_FA_FIELDS := ["tavern_reputation", "current_day", "gold", "adventurers", "adventurers_hired_this_run",
 	"deaths_this_run", "dialogue_flags", "game_over_active", "den_fa_state", "_den_fa_tier_warnings"]
 const DEN_FA_STATE_ORDER := ["early", "mid", "late"]
+const DEBUG_PANEL_SCRIPT := "res://scenes/ui/debug_panel.gd"
+## Test 21's fixture (Story 10.3 review): Den Fa's entry title without its own mark_seen line.
+const DIALOGUE_UNMARKED_ENTER_FIXTURE := "res://test/fixtures/dialogue_unmarked_enter.txt"
 ## Keys the box takes besides interact/ui_accept/ui_cancel/jump (review patch: Tab toggles the roster).
 const BOX_ACTIONS_EXTRA := ["ui_focus_next", "ui_focus_prev"]
 ## Test 20's fixture files for Den Fa's E path: a file that doesn't compile, and one whose first contact says nothing.
@@ -4940,20 +4943,22 @@ func _check_den_fa_walks(gm, res) -> void:
 					first_marked = true
 				if w.menus == 0:
 					break   # no replies in this title: one walk is all of it
-	var menus_total := 0                  # the replies in these titles (Story 10.3's Mid/Late titles are Test 21's)
-	var first_title_line := 1 << 30
-	var after_titles := 1 << 30
+	# The replies in these titles, each title counted from its own start to the next title's, wherever it sits
+	# in the file (Story 10.3 review: no dependence on title order; the Mid/Late titles are Test 21's).
+	var menus_total := 0
+	var title_starts := []
 	for t in (res.titles as Dictionary).keys():
-		var at := int(res.titles[t])
-		if DEN_FA_TITLES.has(t):
-			first_title_line = mini(first_title_line, at)
-	for t in (res.titles as Dictionary).keys():
-		var at := int(res.titles[t])
-		if not DEN_FA_TITLES.has(t) and at > first_title_line:
-			after_titles = mini(after_titles, at)
-	for id in (res.lines as Dictionary).keys():
-		if str(res.lines[id].get("type", "")) == "response" and str(id).is_valid_int() and int(id) > first_title_line and int(id) < after_titles:
-			menus_total += 1
+		if str(res.titles[t]).is_valid_int():
+			title_starts.append(int(res.titles[t]))
+	for t in DEN_FA_TITLES:
+		var from := int(res.titles.get(t, -1))
+		var to := 1 << 30
+		for s in title_starts:
+			if s > from:
+				to = mini(to, s)
+		for id in (res.lines as Dictionary).keys():
+			if from >= 0 and str(res.lines[id].get("type", "")) == "response" and str(id).is_valid_int() and int(id) >= from and int(id) < to:
+				menus_total += 1
 	check(why.is_empty() and walks >= 24, "%d walks: every title ends in every state and reply; gated lines only where allowed %s" % [walks, why.slice(0, 4)])
 	check(first_marked and replies_seen.size() == menus_total and menus_total >= 5,
 		"first contact marks itself seen; every reply was picked (%d of %d)" % [replies_seen.size(), menus_total])
@@ -5583,7 +5588,8 @@ func test_den_fa_states() -> void:
 	_check_den_fa_state_table(gm)
 	var th := _check_den_fa_tier_config(gm, dm)
 	_check_den_fa_reputation(gm, gb, th)
-	_check_den_fa_state_save(gm, th)
+	_check_den_fa_state_save(gm, gb, th)
+	_check_den_fa_debug_panel()
 	await _check_den_fa_state_talk(gm, th)
 	for k in snap:
 		gm.set(k, snap[k])
@@ -5627,6 +5633,23 @@ func _check_den_fa_tier_config(gm, dm) -> Dictionary:
 	check(ok.get("mid") == 1 and ok.get("late") == 2 and ok.get("warning") == "" and custom.get("mid") == 2 and custom.get("late") == 4
 		and custom.get("warning") == "" and wrong.is_empty() and int(odd.get("late", 0)) > int(odd.get("mid", 0)) and str(odd.get("warning", "")) != "",
 		"the resolver: tier names to indexes; an unknown name, inverted or equal tiers, no config: Known/Trusted and a [GameManager] warning, never a crash (wrong: %s; odd tiers %s)" % [wrong, odd])
+	check(str(odd.get("warning", "")).contains("using mid A, late B") and not str(odd.get("warning", "")).contains("Known"),
+		"without Known/Trusted in the list the warning names the tiers really used (%s)" % odd.get("warning", ""))
+	# Review patch: fewer than 3 tiers (one tier, none, or a list without a third) can't hold Mid and Late: he
+	# stays Early at every tier, and the warning says so (it doesn't claim Known/Trusted).
+	var short_lists := {"one tier": [{"threshold": 0, "label": "Only"}], "empty": [], "missing": null,
+		"two tiers": [{"threshold": 0, "label": "Unknown"}, {"threshold": 25, "label": "Known"}]}
+	var short_wrong := []
+	for k in short_lists:
+		var lst: Array = gm.reputation_tier_list(short_lists[k])
+		var r: Dictionary = gm.den_fa_tier_indexes({"mid": "Known", "late": "Trusted"}, lst)
+		var states := []
+		for i in range(0, lst.size() + 2):
+			states.append(gm.den_fa_state_for("early", i, int(r.get("mid", 0)), int(r.get("late", 0))))
+		var w := str(r.get("warning", ""))
+		if not states.all(func(s): return s == "early") or not w.begins_with("[GameManager]") or not w.contains("stays early") or w.contains("using mid"):
+			short_wrong.append("%s %s %s" % [k, states, r])
+	check(short_wrong.is_empty(), "fewer than 3 reputation tiers: Mid and Late are unreachable (he stays Early) and the warning says so (wrong: %s)" % [short_wrong])
 	gm._den_fa_tier_warnings = 0
 	gm._den_fa_tiers_from({"mid": "Famous"}, dm.get_config("reputation_tiers", []))
 	gm._den_fa_tiers_from({"mid": "Famous"}, dm.get_config("reputation_tiers", []))
@@ -5636,7 +5659,7 @@ func _check_den_fa_tier_config(gm, dm) -> Dictionary:
 
 
 ## adjust_reputation() moves him Early -> Mid -> Late at the configured thresholds, one den_fa_state_changed per
-## transition (a spy on GuildBus); a drop never moves him back; one big jump is one transition.
+## transition (a spy on GuildBus); a drop never moves him back; one big jump steps early -> mid, then mid -> late.
 func _check_den_fa_reputation(gm, gb, th: Dictionary) -> void:
 	var sig_ok: bool = gb.has_signal("den_fa_state_changed") and gb.get_signal_list().any(func(sg): return sg.name == "den_fa_state_changed" and sg.args.size() == 2)
 	check(sig_ok, "GuildBus.den_fa_state_changed(old_state, new_state) exists")
@@ -5661,13 +5684,17 @@ func _check_den_fa_reputation(gm, gb, th: Dictionary) -> void:
 	gm.adjust_reputation(l + 5)
 	var jump := events.duplicate()
 	gb.den_fa_state_changed.disconnect(spy)
-	check(trail == want and steps == [["early", "mid"], ["mid", "late"]] and jump == [["early", "late"]],
-		"adjust_reputation: Early -> Mid at %d, Mid -> Late at %d, one signal per transition, a drop never moves him back, one jump is one transition (%s; %s; %s)" % [m, l, trail, steps, jump])
+	check(trail == want and steps == [["early", "mid"], ["mid", "late"]] and jump == [["early", "mid"], ["mid", "late"]] and gm.den_fa_state == "late",
+		"adjust_reputation: Early -> Mid at %d, Mid -> Late at %d, one signal per transition, a drop never moves him back, a jump across both tiers steps through Mid (two signals, in order) (%s; %s; %s)" % [m, l, trail, steps, jump])
 
 
 ## den_fa_state saves with the run's dialogue data, loads (old saves: re-evaluated; unknown: early + warning; never
-## backwards from the saved state) and resets for a New Game.
-func _check_den_fa_state_save(gm, th: Dictionary) -> void:
+## backwards from the saved state) and resets for a New Game. Loading and resetting are silent: the GuildBus signal
+## means "earned in play" (review patch: a spy sees nothing); the reset also re-arms the once-a-run tier warning.
+func _check_den_fa_state_save(gm, gb, th: Dictionary) -> void:
+	var events := []
+	var spy := func(a, b): events.append([a, b])
+	gb.den_fa_state_changed.connect(spy)
 	gm.tavern_reputation = th.mid
 	gm.den_fa_state = "mid"
 	var saved = JSON.parse_string(JSON.stringify(gm._dialogue_save_data()))
@@ -5688,17 +5715,38 @@ func _check_den_fa_state_save(gm, th: Dictionary) -> void:
 	gm.tavern_reputation = th.mid
 	gm._load_dialogue_data({"den_fa_state": 7})
 	var unknown_mid: String = gm.den_fa_state
+	gm.tavern_reputation = th.late
+	gm.den_fa_state = "late"
+	gm._den_fa_tier_warnings = 1
 	gm._reset_dialogue_state()
+	var warn_rearmed: bool = gm._den_fa_tier_warnings == 0
+	gb.den_fa_state_changed.disconnect(spy)
+	check(events.is_empty() and old_high == "late" and unknown_mid == "mid" and warn_rearmed,
+		"loading a save (even one that moves him: %s, %s) and a New Game emit no den_fa_state_changed (%s); the New Game re-arms the once-a-run tier warning (%s)"
+		% [old_high, unknown_mid, events, warn_rearmed])
 	check(saved is Dictionary and saved.get("den_fa_state") == "mid" and reset_state == "early" and round_trip == "mid" and old_high == "late"
 		and old_low == "early" and kept_late == "late" and unknown_low == "early" and unknown_mid == "mid" and gm.den_fa_state == "early",
 		"den_fa_state: saved (%s), reset to early, loaded back (Continue keeps %s); an old save is re-evaluated (%s / %s); a saved late stays late at 0 reputation (%s); an unknown value loads as early, then re-evaluated (%s / %s)"
 		% [saved.get("den_fa_state") if saved is Dictionary else "?", round_trip, old_high, old_low, kept_late, unknown_low, unknown_mid])
 
 
+## The debug panel goes through the reputation authority (review patch): no direct tavern_reputation writes
+## ("Unlock Tier 3" and the full reset use adjust_reputation, so Den Fa's state follows), and the full reset
+## clears the run's dialogue state (den_fa_state, flags, counters). A source check: pressing its buttons would
+## rewrite GameManager wholesale.
+func _check_den_fa_debug_panel() -> void:
+	var src := FileAccess.get_file_as_string(DEBUG_PANEL_SCRIPT)
+	var direct := RegEx.create_from_string("tavern_reputation\\s*=(?!=)").search_all(src)
+	var reset := _func_body(src, "_full_reset")
+	check(src != "" and direct.is_empty() and src.contains("adjust_reputation(50 - GameManager.tavern_reputation)")
+		and reset.contains("GameManager.adjust_reputation(-GameManager.tavern_reputation)") and reset.contains("GameManager._reset_dialogue_state()"),
+		"debug_panel.gd: reputation only through adjust_reputation (%d direct writes); the full reset also resets the dialogue state" % direct.size())
+
+
 ## The bridge's den_fa_state (AC 3); den_fa.dialogue's Mid and Late titles: compiled, lint-clean, in his voice,
 ## walked in their state through every reply, entries marking themselves seen (AC 3); his title picking per
 ## state (AC 4).
-func _check_den_fa_state_talk(gm, _th: Dictionary) -> void:
+func _check_den_fa_state_talk(gm, th: Dictionary) -> void:
 	var runner = load(RUNNER_SCRIPT) if ResourceLoader.exists(RUNNER_SCRIPT) else null
 	var bs = load(BRIDGE_SCRIPT) if ResourceLoader.exists(BRIDGE_SCRIPT) else null
 	var dmgr = root.get_node_or_null("DialogueManager")
@@ -5747,39 +5795,63 @@ func _check_den_fa_state_talk(gm, _th: Dictionary) -> void:
 	check(late_asks.is_empty() and mid_refs.size() >= 2 and not mid_refs.has("den_fa_state"),
 		"his voice: Late states things, he never asks (%s); Mid notices the guild through the bridge (%s)" % [late_asks, mid_refs.keys()])
 
+	# Every title is walked under two guild conditions (review patch: both sides of every gate, whatever the
+	# title's menus): a quiet run (no deaths, nobody hired, reputation fallen back to the base tier, which Mid
+	# survives by DS-2) and a run with a death, hires and the Mid tier. Gated text -> the condition that shows it.
+	var gates := {
+		"mid_enter": [["didn't come back", "deaths"]],
+		"mid_1": [["hired, this run", "hired"]],
+		"mid_3": [["they call your guild now", "tier"], ["You paid for some of it", "deaths"]],
+	}
+	var conds := [["quiet", 0, 0, 0], ["deaths, hires, Mid tier", 1, 3, th.mid]]   # name, deaths, hired, reputation
 	var why := []
 	var menus := {"mid": 0, "late": 0}
 	var replies_seen := {}
 	var replies_total := 0
-	var entries_marked := []
+	var entries_marked := {}
+	var gates_met := {}
 	for state in ["mid", "late"]:
 		var list: Array = [state + "_enter"] + (mid_n if state == "mid" else late_n)
 		for title in list:
 			replies_total += Array(str(sections.get(title, "")).split("\n")).filter(func(l): return l.strip_edges().begins_with("- ")).size()
-			for pick in 3:
-				gm.den_fa_state = state
-				gm.dialogue_flags = {"den_fa_first_contact": true}
-				gm.deaths_this_run = pick % 2
-				var w: Dictionary = await _walk_dialogue(dmgr, resource, title, pick, runner.new_bridge())
-				if not w.ended or w.texts.is_empty():
-					why.append("%s: no end or no line" % title)
-				if title.ends_with("_enter") and gm.dialogue_flags.get("den_fa_" + title) == true and pick == 0:
-					entries_marked.append(title)
-				if pick == 0:
-					menus[state] += w.menus
-				for r in w.replies:
-					replies_seen["%s:%s" % [title, r]] = true
-				if w.menus == 0:
-					break
-	check(why.is_empty() and entries_marked == ["mid_enter", "late_enter"] and menus.mid >= 1 and menus.late >= 1 and replies_seen.size() == replies_total,
-		"every Mid and Late title walked to its end in its state, every reply taken (%d of %d); a flavour-reply menu in each state %s; the entries mark themselves seen %s %s"
-		% [replies_seen.size(), replies_total, menus, entries_marked, why.slice(0, 3)])
-	await _check_den_fa_picking(gm, runner, resource, mid_n, late_n)
+			for ci in conds.size():
+				var cond: Array = conds[ci]
+				var on := {"deaths": cond[1] > 0, "hired": cond[2] > 0, "tier": cond[3] >= th.mid}
+				for pick in 3:
+					gm.den_fa_state = state
+					gm.dialogue_flags = {"den_fa_first_contact": true}
+					gm.deaths_this_run = cond[1]
+					gm.adventurers_hired_this_run = cond[2]
+					gm.tavern_reputation = cond[3]
+					var w: Dictionary = await _walk_dialogue(dmgr, resource, title, pick, runner.new_bridge())
+					var joined := "\n".join(w.texts)
+					if not w.ended or w.texts.is_empty():
+						why.append("%s/%s: no end or no line" % [cond[0], title])
+					if joined.contains("0 hired"):
+						why.append("%s/%s: counts nobody hired" % [cond[0], title])
+					for g in gates.get(title, []):
+						if joined.contains(g[0]) != on[g[1]]:
+							why.append("%s/%s: '%s' %s" % [cond[0], title, g[0], "missing" if on[g[1]] else "shown"])
+						gates_met["%s:%s:%s" % [title, g[0], on[g[1]]]] = true
+					if title.ends_with("_enter") and gm.dialogue_flags.get("den_fa_" + title) == true:
+						entries_marked[title] = true
+					if pick == 0 and ci == 0:
+						menus[state] += w.menus
+					for r in w.replies:
+						replies_seen["%s:%s" % [title, r]] = true
+					if w.menus == 0:
+						break
+	check(why.is_empty() and entries_marked.keys() == ["mid_enter", "late_enter"] and menus.mid >= 1 and menus.late >= 1 and replies_seen.size() == replies_total
+		and gates_met.size() == 8,
+		"every Mid and Late title walked to its end in its state, every reply taken (%d of %d), every gated line on both sides (%d of 8); a flavour-reply menu in each state %s; the entries mark themselves seen %s %s"
+		% [replies_seen.size(), replies_total, gates_met.size(), menus, entries_marked.keys(), why.slice(0, 4)])
+	await _check_den_fa_picking(gm, runner, resource, mid_n, late_n, th)
 
 
-## His title per state (AC 4): first contact, then the state's entry once, then its openings without repeats
-## (memory per state); talked(state); a state with no titles falls back to early_N with one warning.
-func _check_den_fa_picking(gm, runner, resource: Resource, mid_n: Array, late_n: Array) -> void:
+## His title per state (AC 4): first contact, then the entries up to his state once each, earliest first, then
+## its openings without repeats (memory per state); talked(state); a jump plays both entries in order; an entry
+## without its mark_seen line still plays once; a state with no titles falls back to early_N with one warning.
+func _check_den_fa_picking(gm, runner, resource: Resource, mid_n: Array, late_n: Array, th: Dictionary) -> void:
 	var world := Node3D.new()
 	world.name = "T21World"
 	root.add_child(world)
@@ -5803,8 +5875,10 @@ func _check_den_fa_picking(gm, runner, resource: Resource, mid_n: Array, late_n:
 		gm.den_fa_state = state
 		order.append(den._pick_title(resource))
 		order.append(den._pick_title(resource))   # not seen yet: the entry again
-	check(order == ["first_contact", "first_contact", "first_contact", "mid_enter", "mid_enter", "late_enter", "late_enter"],
-		"the order: first contact in any state until it is seen, then the state's entry until it is seen (%s)" % [order])
+	gm.dialogue_flags["den_fa_mid_enter"] = true
+	order.append(den._pick_title(resource))       # late, Mid's entry seen: Late's
+	check(order == ["first_contact", "first_contact", "first_contact", "mid_enter", "mid_enter", "mid_enter", "mid_enter", "late_enter"],
+		"the order: first contact in any state until it is seen, then every entry up to his state, earliest first, until each is seen (Late plays mid_enter first if it was never seen) (%s)" % [order])
 	var runs := {}
 	gm.dialogue_flags = {"den_fa_first_contact": true, "den_fa_mid_enter": true, "den_fa_late_enter": true}
 	for state in ["early", "mid", "late"]:
@@ -5840,29 +5914,42 @@ func _check_den_fa_picking(gm, runner, resource: Resource, mid_n: Array, late_n:
 	gm.dialogue_flags = {"den_fa_first_contact": true}
 	gm.den_fa_state = "mid"
 	for i in 2:
-		den.talk()
-		var t0 := Time.get_ticks_msec()
-		while said.size() <= i and Time.get_ticks_msec() - t0 < 2000:
-			await process_frame
-		var open: Array = get_nodes_in_group("dialogue_open")
-		titles_opened.append(str(open[0].start_from_title) if open.size() == 1 else "none")
-		for bx in open:
-			bx.close("test")
-		await process_frame
+		titles_opened.append(await _den_fa_talk_once(den, said))
 	gm.den_fa_state = "late"
-	gm.dialogue_flags["den_fa_late_enter"] = true
-	den.talk()
-	var t1 := Time.get_ticks_msec()
-	while said.size() < 3 and Time.get_ticks_msec() - t1 < 2000:
-		await process_frame
-	var late_open: Array = get_nodes_in_group("dialogue_open")
-	titles_opened.append(str(late_open[0].start_from_title) if late_open.size() == 1 else "none")
-	for bx in late_open:
-		bx.close("test")
-	await process_frame
-	check(titles_opened.size() == 3 and titles_opened[0] == "mid_enter" and mid_n.has(titles_opened[1]) and late_n.has(titles_opened[2])
-		and said == ["mid", "mid", "late"] and gm.dialogue_flags.get("den_fa_mid_enter") == true,
-		"talking: Mid's entry plays once (it marks itself seen), then a Mid opening; in Late a Late opening; talked(state) says the state (%s, %s)" % [titles_opened, said])
+	for i in 2:
+		titles_opened.append(await _den_fa_talk_once(den, said))
+	check(titles_opened.size() == 4 and titles_opened[0] == "mid_enter" and mid_n.has(titles_opened[1]) and titles_opened[2] == "late_enter" and late_n.has(titles_opened[3])
+		and said == ["mid", "mid", "late", "late"] and gm.dialogue_flags.get("den_fa_mid_enter") == true and gm.dialogue_flags.get("den_fa_late_enter") == true,
+		"talking: Mid's entry plays once, then a Mid opening; in Late, Late's entry once, then a Late opening (each entry marks itself seen); talked(state) says the state (%s, %s)" % [titles_opened, said])
+
+	# Review patch: a jump across both tiers (one reputation change) steps him through Mid, and his next
+	# conversations play both entries in order before any opening.
+	var events := []
+	var spy := func(a, b): events.append([a, b])
+	var gb = root.get_node("GuildBus")
+	gb.den_fa_state_changed.connect(spy)
+	gm.dialogue_flags = {"den_fa_first_contact": true}
+	gm.tavern_reputation = 0
+	gm.den_fa_state = "early"
+	gm.adjust_reputation(int(th.late) + 5)
+	gb.den_fa_state_changed.disconnect(spy)
+	var jumped := []
+	for i in 3:
+		jumped.append(await _den_fa_talk_once(den, said))
+	check(events == [["early", "mid"], ["mid", "late"]] and jumped.size() == 3 and jumped[0] == "mid_enter" and jumped[1] == "late_enter" and late_n.has(jumped[2]),
+		"a jump from Early past Trusted: two signals in order (%s); then mid_enter, late_enter, a Late opening (%s)" % [events, jumped])
+
+	# Review patch: an entry title without its own mark_seen line still plays only once: den_fa.gd marks it.
+	den.dialogue_path = DIALOGUE_UNMARKED_ENTER_FIXTURE
+	gm.dialogue_flags = {"den_fa_first_contact": true}
+	gm.den_fa_state = "mid"
+	var unmarked := [await _den_fa_talk_once(den, said)]
+	var marked_by_him: bool = gm.dialogue_flags.get("den_fa_mid_enter") == true
+	unmarked.append(await _den_fa_talk_once(den, said))
+	den.dialogue_path = DEN_FA_DIALOGUE
+	var fixture_text := FileAccess.get_file_as_string(DIALOGUE_UNMARKED_ENTER_FIXTURE)
+	check(fixture_text.contains("~ mid_enter") and not fixture_text.contains("mark_seen") and unmarked == ["mid_enter", "mid_1"] and marked_by_him,
+		"an entry title with no mark_seen line (fixture): he marks it seen himself once its first line shows, so it plays once (%s)" % [unmarked])
 
 	var thin: Resource = runner.compile_text("~ first_contact\nDen Fa: Hi.\n=> END\n\n~ early_1\nDen Fa: One.\n=> END\n\n~ early_2\nDen Fa: Two.\n=> END\n", "t21_thin")
 	gm.den_fa_state = "late"
@@ -5871,9 +5958,33 @@ func _check_den_fa_picking(gm, runner, resource: Resource, mid_n: Array, late_n:
 	var warned = den.get("_warned_states")
 	check(thin_picks.all(func(t): return t in ["early_1", "early_2"]) and thin_picks[0] != thin_picks[1] and warned is Dictionary and warned.get("late") == true and warned.size() == 1,
 		"a file with no titles for his state falls back to the early openings, warned once (%s, %s)" % [thin_picks, warned])
+	# Review patch: his warnings name the resource that lacks the titles, not dialogue_path.
+	var imported = runner.load_dialogue(DEN_FA_DIALOGUE)
+	var pick_src := _func_body(FileAccess.get_file_as_string(DEN_FA_SCRIPT_PATH), "_pick_title")
+	var has_src: bool = den.has_method("_source_of")
+	check(has_src and den._source_of(thin) == "t21_thin" and imported != null and den._source_of(imported) == imported.resource_path
+		and den._source_of(imported) != "" and pick_src.contains("_source_of(resource)") and not pick_src.contains("dialogue_path, state]")
+		and not pick_src.contains("he has nothing to say\" % dialogue_path"),
+		"his fallback warnings name the resource missing the titles (%s; %s)" % [den._source_of(thin) if has_src else "?", den._source_of(imported) if has_src and imported != null else "?"])
 	current_scene = null
 	world.queue_free()
 	await process_frame
+
+
+## One real talk() to Den Fa (Test 21): waits for his first line (talked grows `said`), returns the title the box
+## opened ("none" without exactly one box) and closes it.
+func _den_fa_talk_once(den, said: Array) -> String:
+	var n := said.size()
+	den.talk()
+	var t0 := Time.get_ticks_msec()
+	while said.size() <= n and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	var open: Array = get_nodes_in_group("dialogue_open")
+	var title := str(open[0].start_from_title) if open.size() == 1 else "none"
+	for bx in open:
+		bx.close("test")
+	await process_frame
+	return title
 
 
 func _close_test_world(world: Node) -> void:

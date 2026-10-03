@@ -260,7 +260,7 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 	t3_btn.pressed.connect(func():
 		GameManager.mission_tier_unlocked = 3
 		GameManager.taxes_paid_count = 2
-		GameManager.tavern_reputation = 50
+		GameManager.adjust_reputation(50 - GameManager.tavern_reputation)  # the authority: Den Fa's state follows (Story 10.3)
 		GameManager.total_missions_completed = 10
 		GameManager.refresh_available_missions()
 		print("Debug: Tier 3 unlocked (all prerequisites set)")
@@ -520,7 +520,8 @@ func _full_reset() -> void:
 	GameManager.current_day           = 1
 	GameManager.daily_operating_cost  = 5
 	GameManager.mission_tier_unlocked = 1
-	GameManager.tavern_reputation     = 0
+	GameManager.adjust_reputation(-GameManager.tavern_reputation)
+	GameManager._reset_dialogue_state()   # Den Fa back to early, conversation flags and run counters cleared (Story 10.3)
 	GameManager.total_missions_completed = 0
 	GameManager.adventurers.clear()
 	GameManager.active_missions.clear()

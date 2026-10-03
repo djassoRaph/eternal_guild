@@ -1,0 +1,12 @@
+# Test 21 fixture (Story 10.3 review): Den Fa's Mid entry title WITHOUT its own seen-flag line: den_fa.gd marks it.
+~ first_contact
+Den Fa: First.
+=> END
+
+~ mid_enter
+Den Fa: Mid entry, unmarked.
+=> END
+
+~ mid_1
+Den Fa: Mid one.
+=> END

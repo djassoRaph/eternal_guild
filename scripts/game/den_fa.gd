@@ -23,6 +23,7 @@ const PROMPT := "Press E - Talk to Den Fa"
 const Runner := preload("res://scripts/dialogue/dialogue_runner.gd")
 const FIRST_CONTACT_FLAG := "den_fa_first_contact"   # set by the file's first_contact title (bridge.mark_seen)
 const FLAG_PREFIX := "den_fa_"    # a state's entry title <state>_enter is seen once den_fa_<state>_enter is set
+const DEN_FA_STATES := ["early", "mid", "late"]   # his states in order (GameManager.den_fa_state, Story 10.3)
 const DEN_FA_HIP_BACK := 0.55     # his root (feet) stands this far in front of the seat marker ...
 const SEAT_SIDE := 0.48           # ... and this far to his right (the room side): he stands up clear of the chimney
 const SEAT_HEIGHT := 0.45         # the bench top above his feet
@@ -350,14 +351,15 @@ func talk() -> void:
 ## His state (Story 10.3): "early", "mid" or "late", read through the dialogue bridge (GameManager's).
 func _state() -> String:
 	var state := str(Runner.new_bridge().den_fa_state)
-	return state if state in ["early", "mid", "late"] else "early"
+	return state if state in DEN_FA_STATES else "early"
 
 
 ## The title to play (Story 10.3, AC 4): first_contact until it is seen this run (if the file has one); then
-## his state's entry title <state>_enter until it is seen; then one of the state's openings <state>_N
-## (whatever numbers the file has, so new openings need no code), never the same one twice in a row, the
-## memory kept per state. A state with no titles falls back to the early openings (one warning); "" (and
-## one warning) when the file has nothing at all.
+## the entry titles <state>_enter of every state up to his, earliest first, each until it is seen (a jump
+## from Early to Late, or both tiers reached off-screen, still plays mid_enter, then late_enter on the next
+## talk); then one of his state's openings <state>_N (whatever numbers the file has, so new openings need
+## no code), never the same one twice in a row, the memory kept per state. A state with no titles falls
+## back to the early openings (one warning); "" (and one warning) when the file has nothing at all.
 func _pick_title(resource: Resource = null) -> String:
 	if resource == null:
 		resource = Runner.load_dialogue(dialogue_path)
@@ -368,24 +370,35 @@ func _pick_title(resource: Resource = null) -> String:
 	if not bridge.seen(FIRST_CONTACT_FLAG) and titles.has("first_contact"):
 		return "first_contact"
 	var state := _state()
-	var entry := "%s_enter" % state
-	if titles.has(entry) and not bridge.seen(FLAG_PREFIX + entry):
-		return entry
+	for i in DEN_FA_STATES.find(state) + 1:
+		var entry := "%s_enter" % DEN_FA_STATES[i]
+		if titles.has(entry) and not bridge.seen(FLAG_PREFIX + entry):
+			return entry
 	var openings := Runner.numbered_titles(resource, state + "_")
 	if openings.is_empty() and state != "early":
 		if not _warned_states.has(state):
 			_warned_states[state] = true
-			push_warning("[DenFa] fallback: %s has no %s_N titles: he uses his early openings" % [dialogue_path, state])
+			push_warning("[DenFa] fallback: %s has no %s_N titles: he uses his early openings" % [_source_of(resource), state])
 		state = "early"
 		openings = Runner.numbered_titles(resource, "early_")
 	if openings.is_empty():
 		if not _warned_no_titles:
 			_warned_no_titles = true
-			push_warning("[DenFa] refuse: %s has no first_contact or early_N title: he has nothing to say" % dialogue_path)
+			push_warning("[DenFa] refuse: %s has no first_contact or early_N title: he has nothing to say" % _source_of(resource))
 		return ""
 	var i := pick_line(openings.size(), int(_last_opening.get(state, -1)), randf())
 	_last_opening[state] = i
 	return openings[i]
+
+
+## Where a dialogue resource came from, for his warnings (the resource that lacks the titles, which need not
+## be dialogue_path's): its own path (an imported file), else the path dialogue_runner.gd compiled it from.
+func _source_of(resource: Resource) -> String:
+	if resource == null:
+		return dialogue_path
+	if resource.resource_path != "":
+		return resource.resource_path
+	return str(resource.get_meta("source_path", dialogue_path))
 
 
 ## A line of his conversation is on screen: he has talked (in `state`). First contact and a state's entry
