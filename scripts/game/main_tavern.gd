@@ -145,6 +145,11 @@ func update_beer(change: int):
 
 # === INPUT HANDLING ===
 func _input(event):
+	# A conversation is open (Story 10.2): the dialogue box reads Esc/E/Space first and ends the conversation
+	# itself; Esc must never also toggle the pause menu. The debug keys (B, F9, F10) keep working.
+	if event.is_action("ui_cancel") and not get_tree().get_nodes_in_group("dialogue_open").is_empty():
+		return
+
 	# === STEP 1: Handle ESC key (highest priority) ===
 	if event.is_action_pressed("ui_cancel"):
 		# Try to close mission board first

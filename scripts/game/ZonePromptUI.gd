@@ -7,7 +7,8 @@
 # shows only its prompt. Zones that act on E ask owns_e(self) first, so one key press never does two
 # things where zones crowd together (the hearth's fire, the cat and Den Fa sit within 2.5 m). owns_e()
 # is also closed by a gate decided once per frame: a patron waiting to be served in range (they take E
-# first, zone_interactions.gd), a paused tree, Game Over, or an open mission screen. Because the gate is
+# first, zone_interactions.gd), a paused tree, Game Over, an open mission screen, or an open dialogue box
+# (Story 10.2: the box's prompt area is where this label draws, and E is the box's). Because the gate is
 # cached, input handled this frame sees the state from before any serve that same press made. While the
 # gate is closed the prompt is hidden too, so it never names an action E won't do.
 extends CanvasLayer
@@ -178,6 +179,8 @@ func _find_player() -> Node3D:
 
 func _gate_open(player: Node3D) -> bool:
 	if get_tree().paused:
+		return false
+	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():
 		return false
 	var gm := get_node_or_null("/root/GameManager")
 	if gm and gm.get("game_over_active"):

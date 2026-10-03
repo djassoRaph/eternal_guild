@@ -7,6 +7,11 @@
 			"prefix": "res://assets/characters/portraits/tarot/",
 			"reason": "Tarot art unfunded; demo uses class silhouettes (decision D-1, 2026-09-24)",
 			"owner": "Epic 17 / Story 26.13 / commission"
+		},
+		{
+			"prefix": "res://assets/characters/portraits/npc/",
+			"reason": "Dialogue portraits for the talking cast (data/dialogue/speakers.json, Story 10.2); until they exist the dialogue box draws a plate. Remove this entry once all five (den_fa, quest_dealer, bartender, elder, bard) exist.",
+			"owner": "Story 25.17"
 		}
 	],
 	"known_invalid_json": []

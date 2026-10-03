@@ -47,6 +47,8 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not player_in_zone or transitioning:
 		return
+	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():   # E is the dialogue box's (Story 10.2)
+		return
 	
 	if event.is_action_pressed("interact"):
 		print("Exit zone: E pressed!")

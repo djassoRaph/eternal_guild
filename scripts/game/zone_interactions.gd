@@ -72,6 +72,10 @@ func _input(event: InputEvent) -> void:
 	# CRITICAL: Skip if player is in exit zone (let exit_zone handle it)
 	if player_in_exit_zone:
 		return
+
+	# A conversation is open (Story 10.2): E is the dialogue box's (it reads keys first; this is the second guard)
+	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():
+		return
 	
 	# CRITICAL: Don't process zone input if ANY UI is open!
 	var mission_boards = get_tree().get_nodes_in_group("mission_board")

@@ -91,6 +91,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func can_be_petted() -> bool:
 	if _player == null or not is_instance_valid(_player) or not is_inside_tree() or get_tree().paused:
 		return false
+	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():   # a conversation is open (Story 10.2)
+		return false
 	if _prompt_ui != null and is_instance_valid(_prompt_ui) and not _prompt_ui.owns_e(_zone):
 		return false
 	var gm := get_node_or_null("/root/GameManager")

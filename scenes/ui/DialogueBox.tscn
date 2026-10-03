@@ -1,0 +1,269 @@
+[gd_scene load_steps=13 format=3 uid="uid://cor1hfb33apuh"]
+
+[ext_resource type="Script" path="res://scripts/ui/dialogue_box.gd" id="1_box"]
+[ext_resource type="PackedScene" uid="uid://ckvgyvclnwggo" path="res://addons/dialogue_manager/dialogue_label.tscn" id="2_label"]
+[ext_resource type="Script" uid="uid://bb52rsfwhkxbn" path="res://addons/dialogue_manager/dialogue_responses_menu.gd" id="3_menu"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.12, 0.11, 0.1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8, 0.65, 0.3, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.08, 0.075, 0.07, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8, 0.65, 0.3, 0.6)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reply"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+bg_color = Color(0.16, 0.15, 0.13, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.45, 0.38, 0.22, 0.6)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reply_hover"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+bg_color = Color(0.22, 0.19, 0.14, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.8, 0.65, 0.3, 0.6)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reply_focus"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.9, 0.75, 0.4, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="Theme" id="Theme_house"]
+default_font_size = 22
+Button/colors/font_color = Color(0.85, 0.85, 0.8, 1)
+Button/colors/font_disabled_color = Color(0.5, 0.5, 0.45, 1)
+Button/colors/font_focus_color = Color(0.95, 0.85, 0.55, 1)
+Button/colors/font_hover_color = Color(0.95, 0.85, 0.55, 1)
+Button/colors/font_hover_pressed_color = Color(0.95, 0.85, 0.55, 1)
+Button/colors/font_pressed_color = Color(0.95, 0.85, 0.55, 1)
+Button/styles/disabled = SubResource("StyleBoxFlat_reply")
+Button/styles/focus = SubResource("StyleBoxFlat_reply_focus")
+Button/styles/hover = SubResource("StyleBoxFlat_reply_hover")
+Button/styles/hover_pressed = SubResource("StyleBoxFlat_reply_hover")
+Button/styles/normal = SubResource("StyleBoxFlat_reply")
+Button/styles/pressed = SubResource("StyleBoxFlat_reply_hover")
+DialoguePlateInitials/base_type = &"Label"
+DialoguePlateInitials/colors/font_color = Color(0.95, 0.92, 0.85, 1)
+DialoguePlateInitials/colors/font_outline_color = Color(0, 0, 0, 0.6)
+DialoguePlateInitials/constants/outline_size = 6
+DialoguePlateInitials/font_sizes/font_size = 56
+DialoguePortraitFrame/base_type = &"PanelContainer"
+DialoguePortraitFrame/styles/panel = SubResource("StyleBoxFlat_frame")
+DialogueSpeaker/base_type = &"RichTextLabel"
+DialogueSpeaker/colors/default_color = Color(0.9, 0.75, 0.4, 1)
+DialogueSpeaker/font_sizes/normal_font_size = 24
+HBoxContainer/constants/separation = 20
+MarginContainer/constants/margin_bottom = 16
+MarginContainer/constants/margin_left = 20
+MarginContainer/constants/margin_right = 20
+MarginContainer/constants/margin_top = 16
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
+RichTextLabel/colors/default_color = Color(0.88, 0.86, 0.8, 1)
+VBoxContainer/constants/separation = 8
+
+[sub_resource type="Animation" id="Animation_reset"]
+length = 0.001
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Progress:position:y")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0, -0.25, 0, 0.25, 0),
+"times": PackedFloat32Array(0)
+}
+
+[sub_resource type="Animation" id="Animation_progress"]
+resource_name = "progress"
+loop_mode = 1
+step = 0.1
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Progress:position:y")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, -0.25, 0, 0.25, 0, 0, -0.25, 0, 0.2, -0.0157438, -4, -0.2, 0.0112069, 0.25, 0, -4, -0.25, 0, 0.25, 0, 0, -0.2, 0.00299701, 0.25, 0),
+"times": PackedFloat32Array(0, 0.1, 0.5, 0.6, 1)
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_progress"]
+_data = {
+&"RESET": SubResource("Animation_reset"),
+&"progress": SubResource("Animation_progress")
+}
+
+[node name="DialogueBox" type="CanvasLayer"]
+process_mode = 3
+layer = 110
+script = ExtResource("1_box")
+
+[node name="Balloon" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_house")
+
+[node name="Band" type="PanelContainer" parent="Balloon"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.15
+anchor_top = 1.0
+anchor_right = 0.85
+anchor_bottom = 1.0
+offset_top = -260.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 1
+
+[node name="Margin" type="MarginContainer" parent="Balloon/Band"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="Balloon/Band/Margin"]
+layout_mode = 2
+
+[node name="PortraitFrame" type="PanelContainer" parent="Balloon/Band/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"DialoguePortraitFrame"
+
+[node name="Portrait" type="TextureRect" parent="Balloon/Band/Margin/Row/PortraitFrame"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Initials" type="Label" parent="Balloon/Band/Margin/Row/PortraitFrame"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"DialoguePlateInitials"
+text = "DF"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Column" type="VBoxContainer" parent="Balloon/Band/Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CharacterLabel" type="RichTextLabel" parent="Balloon/Band/Margin/Row/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 1
+theme_type_variation = &"DialogueSpeaker"
+bbcode_enabled = true
+text = "Character"
+fit_content = true
+scroll_active = false
+
+[node name="DialogueLabel" parent="Balloon/Band/Margin/Row/Column" instance=ExtResource("2_label")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+text = "Dialogue..."
+
+[node name="ResponsesMenu" type="VBoxContainer" parent="Balloon/Band/Margin/Row/Column" node_paths=PackedStringArray("response_template")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+script = ExtResource("3_menu")
+response_template = NodePath("ResponseExample")
+hide_failed_responses = true
+
+[node name="ResponseExample" type="Button" parent="Balloon/Band/Margin/Row/Column/ResponsesMenu"]
+layout_mode = 2
+text = "Response example"
+alignment = 0
+autowrap_mode = 3
+
+[node name="ProgressSlot" type="Control" parent="Balloon/Band/Margin/Row"]
+custom_minimum_size = Vector2(20, 10)
+layout_mode = 2
+size_flags_vertical = 8
+mouse_filter = 2
+
+[node name="Progress" type="Polygon2D" parent="Balloon/Band/Margin/Row/ProgressSlot"]
+unique_name_in_owner = true
+color = Color(0.9, 0.75, 0.4, 1)
+polygon = PackedVector2Array(0, 0, 10, 10, 20, 0)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Balloon/Band/Margin/Row/ProgressSlot"]
+libraries/ = SubResource("AnimationLibrary_progress")
+autoplay = &"progress"
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+bus = &"SFX"
+
+[connection signal="gui_input" from="Balloon" to="." method="_on_balloon_gui_input"]
+[connection signal="response_selected" from="Balloon/Band/Margin/Row/Column/ResponsesMenu" to="." method="_on_responses_menu_response_selected"]

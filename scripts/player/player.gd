@@ -14,6 +14,7 @@ extends CharacterBody3D
 # CONSTANTS
 # =============================================================================
 const INTERACTION_RANGE = 2.5
+const DialogueRunner := preload("res://scripts/dialogue/dialogue_runner.gd")
 
 # =============================================================================
 # STATE
@@ -117,10 +118,18 @@ func _physics_process(delta: float) -> void:
 		_update_movement_animation()
 	
 	# Jump
-	if Input.is_action_just_pressed("jump") and is_on_floor():
+	if Input.is_action_just_pressed("jump") and is_on_floor() and not _jump_blocked():
 		velocity.y = jump_velocity
 	
 	move_and_slide()
+
+func _jump_blocked() -> bool:
+	"""No jump while a screen holds the player (a dialogue box, a popup), nor on the frame a dialogue box
+	closed: Space is ui_accept too, and the press that ended the conversation must not also jump (Story 10.2)."""
+	for node in get_tree().get_nodes_in_group("blocks_player"):
+		if node.visible:
+			return true
+	return DialogueRunner.just_closed()
 
 func _get_input_direction() -> Vector2:
 	"""Get normalized 2D input direction"""
@@ -186,6 +195,8 @@ func _update_movement_animation() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# E key interaction is handled by zone_interactions.gd
 	# This is a backup for direct patron interaction
+	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():   # the dialogue box has Enter/Space (Story 10.2)
+		return
 	if event.is_action_pressed("ui_accept"):
 		_try_interact_with_patron()
 
