@@ -54,7 +54,6 @@ any other document.** Update it when a feature ships, not before.
 | Feature | Why parked |
 |---|---|
 | **End-of-day reveal rework** | Diagnosed ("payout screen" problem); plan in 05_REVEAL_REWORK_PLAN.md. Was next, but save/load jumped the queue. Resume after save round-trip is solid. |
-| Hourglass time-display pillar (Blender asset) | Design spec complete. Moved up 2026-09-24: Batch 1 of the asset pipeline, modelled right after the D1 gate asset (08_ASSET_PROMPT_PACK §3, card B6). Stands mid-hall inside the round bar; style locked to inked |
 | Exterior world NPC flow | Bigger stage for a play that doesn't land yet — after reveal |
 | Fireplace drain-authority unification | TECH_DEBT; not mid-feature. (LimboAI evaluated as overkill — a single-owner FSM is enough.) |
 | Drag-and-drop dispatch | Design explored; after board UX |

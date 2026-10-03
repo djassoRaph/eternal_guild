@@ -8,7 +8,8 @@
 - **Files covered:** `Barbarian.glb`, `Knight.glb`, `Mage.glb`, `Mage.fbx`, `Rogue.glb`,
   `Rogue_Hooded.glb`, and their `*_texture.png` files (the `Knight_knight_texture.png`-style names
   are Godot's extracted copies of the pack's `knight_texture.png` etc.).
-- **Not here:** `Cleric.glb` is referenced by `data/characters/classes.json` but is not part of
-  this folder yet (Story 25.9 builds the Healer).
+- **Not here:** no `Cleric.glb`. Story 25.9 replaced the Cleric with the Healer, whose body is
+  `res://assets/characters/custom/healer.glb`; `data/characters/classes.json`
+  no longer references `Cleric.glb`.
 - Recorded 2026-09-24 (Epic 25 / Story 25.1). If the original download's `License.txt` is still
   available, keep a copy next to this file.

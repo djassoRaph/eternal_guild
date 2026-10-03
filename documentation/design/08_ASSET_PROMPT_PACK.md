@@ -211,7 +211,7 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
 - **`Base_Body`** is the neutral, unclothed reference body on the stretched rig
   (`anime_kit.build_base_body`): 4,872 tris, rest top 2.110. The foot report, the sit re-fit and the
   seated-room report are measured on it. It is **never exported**: a character file deletes it by
-  name right after its save-as. **Its seat thickness is 0.0112 m** (the hips bone's height minus the
+  name in its build step (`anime_dealer.build()` → `_drop_base_body`), the call after its save-as. **Its seat thickness is 0.0112 m** (the hips bone's height minus the
   lowest seat vertex, seated); the dealer's is 0.0098.
 - **Seated room:** in Sit_Chair_Idle, both `upperarm` heads are ≥ 1.05 m above the root
   (`AN_SEATED_SHOULDER_MIN`: the desk top, 0.85, + 0.20), so a seated character reads above the
@@ -230,7 +230,7 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
 - **Bone lengths come from the base.** A character file never edits its bones. To change a length,
   or the adduction:
   1. Edit `anime_rig.py`'s `TABLE` (or `ADDUCT_DEG`).
-  2. Rebuild the base from the untouched kit with the whole chain: `anime_base_build.run()` →
+  2. Rebuild the base from the untouched kit with the whole chain: `anime_base_build.open_kit()`, then (in its own call) `anime_base_build.finish()` →
      `anime_rig.run()` → `anime_kit.build_base_body()` → `anime_retarget.ratio_step()` →
      `anime_retarget.refit_sit("Base_Body")` → `anime_retarget.foot_report()`. The ratio step refuses
      a file whose actions already carry the stamp, so it can't run twice on one base.
@@ -261,6 +261,9 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
   **The rule:** a character whose seat thickness differs from `Base_Body`'s 0.0112 m by more than
   0.03 m runs `anime_retarget.refit_sit("<Role>_Body")` in its own file, and Test 19's
   `AN_SIT_HIPS_Y` takes the `SIT_HIPS_Y` it prints. (The dealer, at 0.0098, didn't need it.)
+  **`Sit_Chair_Pose` is neither re-fitted nor checked** (the foot report finds no contact frame in it:
+  KayKit's seated feet dangle), so it plays at the ×1.8675 hips height; it isn't a game clip, and any
+  role that needs it must re-fit it first.
 - **The handslots** (`handslot.l`, `handslot.r`) sit at the palms' centres and keep KayKit's axes:
   in Idle, Walking_A and Sit_Chair_Idle, `handslot.r`'s local −X and `handslot.l`'s local +X point
   up. (KayKit's own weapons use local Z and lie across the hips in those clips.) Build the hand
@@ -1327,7 +1330,6 @@ This table tracks each finished asset.
 | D1 Prior Ruins (gate) | 1 | Claude via Blender MCP (scripted build, §6.3 atlas remap, §6.4 export) | 2026-09-24 | **in game**: Stage D passed (LookDev + HexMapTest); 1,956 tris; runes emissive at roughness 0 |
 | B9 Tavern room shell (10-piece kit with B10) | — | Claude via Blender MCP (scripted kit on a 2 m module, §6.3 atlas remap with one kit-wide 4 m height scale, §6.4 export) | 2026-09-24 | **in game** (MainTavern): Stage D passed (LookDev corner + in-scene); 28–376 tris a piece |
 | B10 Front door (frame + leaf) | — | same kit as B9 | 2026-09-24 | **in game**: leaves swing out on a trigger (`front_door.gd`); frame 144, leaf 84 tris |
-| B6 Hourglass Pillar | 1 | | | concepts generating |
 | A1 + A2 Guild Tavern | 1 | Claude via Blender MCP (one parametric script; A2 = its mini LOD), §6.3 remap, §6.4 export | 2026-09-25 | **in game**: Stage D passed (LookDev + ExteriorWorld + HexMapTest); A1 4,568 tris, A2 996; windows emissive at roughness 0 (dark base + amber, not white) |
 | C9 Home marker | — | same script as A1/A2 | 2026-09-25 | **in game**: guild banner with the hourglass emblem on the tavern hex; 116 tris |
 | B6 Hourglass Pillar | 1 | Claude via Blender MCP (parametric stacked segments, octagonal lofts, emissive rune glyphs), §6.3 remap | 2026-09-25 | **in game**: Stage D passed (LookDev stages 0–4 + MainTavern); 2,480 tris; runes/sand/glass emissive teal at roughness 0 with a dark base; placed ×1.4 (the card's 3.5 m read too slender in the round bar) |
@@ -1342,7 +1344,5 @@ This table tracks each finished asset.
 | G12 The Bartender | RS | Claude via Blender MCP: the Barbarian body as a burly barkeep (bald, a grey beard, rolled sleeves, a knee-length apron, a belt cloth), recoloured by atlas cell, in `g12_g13_staff.blend` (a save-as of the townsfolk kit); five IK-posed clips (Walk_Bar, Wipe, Serve, Pour, Restock) checked for clearance against the counter, the shelf and the kegs | 2026-09-26 | **in game**: Stage D passed (LookDev beside the Knight in every state; MainTavern: wiping at a serve point with patrons seated, serve_toward = pour at the taps then serve at the nearest station with drink_handed, restock at beer 0, fired and re-hired through GuildBus with the front door held open as he passes); 4,473 tris, 83 clips |
 | G13 The Quest Dealer | RS | Claude via Blender MCP: the Mage body with the Rogue head as a silver-haired elf woman after Raphael's reference (ears, long hair, a gold circlet with a red gem, a high collar with gold trim, a plum coat, a quill on `handslot.r`), in the same file; Write and Brief clips (IK) at the guild desk B3 | 2026-09-26 | **in game**: Stage D passed (LookDev on a proxy stool and desk; MainTavern: writing at the desk at load, the stool pulled out and the shuffle in on arrival, AVAILABLE with the player at the desk front, BRIEFING with a bark while E's RecruitmentPopup is open); 4,815 tris, 83 clips; since 2026-09-27 the fallback body of the anime G13 below (`silver_elf.fallback_model_path`) |
 | G13 The Quest Dealer (anime) | AN | Claude via Blender MCP, route AN (`tools/blender/anime/`): the shared base `anime_base.blend` (the KayKit rig stretched to the §1 bone table, its 76 clips retargeted with the sits re-fitted to the 0.44 m seats), then her body after Raphael's silver-haired elf and the approved anime test (long platinum hair, elf ears, a gold circlet with a red gem, painted teal eyes, a high-collared plum coat with gold trim); one `Dealer_Body` (face + palette) and `Dealer_Quill` on `handslot.r`; Walk_Bar, Write and Brief re-posed by IK; desk, stool and self-clip clearance checked; `g13_quest_dealer_anime.glb`, a new file | 2026-09-27 | **in game** (`staff.json` `silver_elf`, `look: "anime"`): Stage D shots all kept against the six character criteria (§6.5: LookDev beside the Knight and the 25.13 dealer; MainTavern at zoom 12 and 8: writing at load, fire and re-hire, AVAILABLE, BRIEFING with a bark; the portrait framing; the zones walk; the crowd check at 24 bodies, 193 draws, 0.368 ms); 9,459 tris with the quill, 2 surfaces, 79 clips, 2.138 m; outline 0.011 (the approved test's; recommended at Stage D, pending Raphael's OK) |
-| B1 Hearth | 1 | | | concepts generating |
-| B2 Bar (round) | 1 | | | concepts generating |
 | D2 Demon Cult Crypt | 1 | | | concept picked (crypt v2) |
 | D3 Dragon's Lair | 1 (+2) | | | Batch 2 |
