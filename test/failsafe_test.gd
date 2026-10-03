@@ -4745,30 +4745,52 @@ func _check_speakers() -> void:
 		"the speaker id: the line's character name lower-cased with spaces to _, or its [#speaker=id] tag")
 	check(bx.display_name("den_fa", "Den Fa") == str(sp.get("den_fa", {}).get("name", "?")) and bx.display_name("t20_nobody", "Nobody Here") == "Nobody Here",
 		"the name shown: speakers.json's, or the raw character name for an unknown speaker")
-	# Den Fa's mask plate (his portrait exists since Story 25.17, so the plate is drawn directly): his dark teal,
-	# one pale featureless oval.
+	# The plates end to end, through portrait_texture() and the box's _show_speaker(). The cast's portraits exist
+	# since Story 25.17 (and the Elder's and the Bard's will), so two synthetic speakers whose PNGs are missing stand
+	# in (Story 25.17 review): a mask plate in Den Fa's dark teal (one pale featureless oval, no initials) and a
+	# colour plate with initials; each drawn once, cached, warned once a run. They leave the box's table at the end.
 	var teal := Color.html(str(sp.get("den_fa", {}).get("colour", "#000000")))
-	var mask_plate = bx._draw_plate(teal, true)
+	var fakes := {
+		"t20_masked": {"name": "T20 Masked", "portrait": "res://assets/characters/portraits/npc/t20_masked.png", "colour": "#" + teal.to_html(false), "plate": "mask"},
+		"t20_plated": {"name": "The T20 Plated", "portrait": "res://assets/characters/portraits/npc/t20_plated.png", "colour": "#5c3458"}}
+	var table: Dictionary = bx.speakers()
+	for k in fakes:
+		table[k] = fakes[k]
+	var absent_ok: bool = fakes.values().all(func(f): return not ResourceLoader.exists(str(f.portrait)))
+	var m1 = bx.portrait_texture("t20_masked")
+	var m2 = bx.portrait_texture("t20_masked")
 	var plate_ok := false
-	if mask_plate is ImageTexture:
-		var img: Image = (mask_plate as ImageTexture).get_image()
+	if m1 is ImageTexture:
+		var img: Image = (m1 as ImageTexture).get_image()
 		var c := img.get_size() / 2
 		var inside := [img.get_pixel(c.x, c.y), img.get_pixel(c.x, c.y - 30), img.get_pixel(c.x, c.y + 30), img.get_pixel(c.x - 18, c.y)]
 		var corner := img.get_pixel(12, 12)
 		plate_ok = img.get_size() == Vector2i(160, 160) and inside.all(func(p): return p == inside[0]) and inside[0].get_luminance() > 0.7 \
 			and corner.is_equal_approx(teal) and teal.get_luminance() < 0.35
-	check(plate_ok, "the mask plate: 160 px, Den Fa's dark teal, one pale featureless oval (the mask)")
-	# A speaker whose portrait is still missing (the Elder or the Bard until 25.11 / 25.12): its plate, cached, warned once.
-	var missing_ids := sp.keys().filter(func(k): return not ResourceLoader.exists(str(sp[k].get("portrait", ""))) if sp[k] is Dictionary else false)
-	if not missing_ids.is_empty():
-		var mid: String = missing_ids[0]
-		var warned_before: int = bx.warned_portraits.get(mid, 0)
-		var a = bx.portrait_texture(mid)
-		var b = bx.portrait_texture(mid)
-		var col := Color.html(str(sp[mid].get("colour", "#000000")))
-		var corner_ok: bool = a is ImageTexture and (a as ImageTexture).get_image().get_pixel(12, 12).is_equal_approx(col)
-		check(corner_ok and a == b and bx.warned_portraits.get(mid, 0) == maxi(warned_before, 1),
-			"%s's portrait missing: a drawn plate in its colour, cached, warned once a run" % mid)
+	var p1 = bx.portrait_texture("t20_plated")
+	var p2 = bx.portrait_texture("t20_plated")
+	var plated_ok: bool = p1 is ImageTexture and (p1 as ImageTexture).get_image().get_pixel(12, 12).to_html(false) == "5c3458"   # 8-bit: no float round trip
+	var shown := {}
+	var box_scene = load(BOX_SCENE) if ResourceLoader.exists(BOX_SCENE) else null
+	if box_scene is PackedScene:
+		var vp := SubViewport.new()
+		vp.disable_3d = true
+		root.add_child(vp)
+		var box = (box_scene as PackedScene).instantiate()
+		vp.add_child(box)
+		for id in fakes:
+			box._show_speaker(DialogueLine.new({"id": "t20_%s" % id, "next_id": "", "type": DMConstants.TYPE_DIALOGUE,
+				"character": str(fakes[id].name), "text": "Hm.", "tags": PackedStringArray(["speaker=%s" % id])}))
+			shown[id] = [box.portrait.texture, box.initials_label.visible, box.initials_label.text, box.character_label.text]
+		box.close("test")
+		vp.queue_free()
+	for k in fakes:
+		table.erase(k)
+	check(absent_ok and plate_ok and m1 == m2 and bx.warned_portraits.get("t20_masked", 0) == 1 and shown.get("t20_masked", []) == [m1, false, "TM", "T20 Masked"],
+		"a mask speaker whose portrait is missing: through portrait_texture() and the box, a 160 px plate in Den Fa's dark teal with one pale featureless oval, no initials, cached, warned once (%s)" % [shown.get("t20_masked")])
+	check(plated_ok and p1 == p2 and bx.warned_portraits.get("t20_plated", 0) == 1 and shown.get("t20_plated", []) == [p1, true, "TP", "The T20 Plated"],
+		"a speaker whose portrait is missing: through portrait_texture() and the box, a drawn plate in its colour with its initials, cached, warned once (%s; corner %s, warned %d)" % [
+		shown.get("t20_plated"), (p1 as ImageTexture).get_image().get_pixel(12, 12).to_html(false) if p1 is ImageTexture else p1, bx.warned_portraits.get("t20_plated", 0)])
 	var u = bx.portrait_texture("t20_nobody")
 	var u2 = bx.portrait_texture("t20_nobody")
 	check(u is ImageTexture and u == u2 and bx.warned_portraits.get("t20_nobody", 0) == 1 and bx.initials("The Quest Dealer") == "QD" and bx.initials("Den Fa") == "DF",
@@ -6483,9 +6505,8 @@ func test_dialogue_portraits() -> void:
 	# The sources: each resolves to a body that has the clip and the bone; the camera numbers are sane.
 	var studio = load(PORTRAIT_STUDIO_SCRIPT) if ResourceLoader.exists(PORTRAIT_STUDIO_SCRIPT) else null
 	var studio_ok: bool = studio is GDScript and (studio as GDScript).get_global_name() == "" \
-		and (studio as GDScript).get_script_method_list().any(func(m): return m.name == "resolve_source") \
-		and (studio as GDScript).get_script_method_list().any(func(m): return m.name == "source_error")
-	check(studio_ok, "portrait_studio.gd exists, with no class_name, and resolve_source() / source_error()")
+		and ["resolve_source", "source_error", "plan", "autosave_seconds", "guard_seconds"].all(func(f): return (studio as GDScript).get_script_method_list().any(func(m): return m.name == f))
+	check(studio_ok, "portrait_studio.gd exists, with no class_name, and resolve_source() / source_error() / plan() / autosave_seconds() / guard_seconds()")
 	var unsourced := PORTRAITS_RENDERED.filter(func(id): return not (sp.get(id) is Dictionary and sp[id].get("portrait_source") is Dictionary))
 	check(unsourced.is_empty(), "den_fa, quest_dealer and bartender have a portrait_source (missing: %s)" % [unsourced])
 	var qd_src = sp.get("quest_dealer", {}).get("portrait_source", {}) if sp.get("quest_dealer") is Dictionary else {}
@@ -6496,9 +6517,28 @@ func test_dialogue_portraits() -> void:
 		for id in sp:
 			if sp[id] is Dictionary and sp[id].get("portrait_source") is Dictionary:
 				_check_portrait_source(studio, id, sp[id].portrait_source, staff)
+	# Staff speakers follow their staff.json variant, never a raw model (a body swap such as 25.31's re-renders the
+	# right body): the Quest Dealer (desk_manager) and every speaker named after a staff role (the Bartender).
+	var roles: Dictionary = staff.get("roles", {}) if staff.get("roles") is Dictionary else {}
+	var staff_speakers := {"quest_dealer": "desk_manager"}
+	for id in sp:
+		if roles.has(id):
+			staff_speakers[id] = id
+	var off_variant := staff_speakers.keys().filter(func(id): return not (sp.get(id) is Dictionary and sp[id].get("portrait_source") is Dictionary
+		and str(sp[id].portrait_source.get("staff_variant", "")).begins_with(str(staff_speakers[id]) + "/") and not sp[id].portrait_source.has("model")))
+	check(staff_speakers.has("bartender") and off_variant.is_empty(),
+		"every staff speaker's portrait_source names its staff_variant, not a raw model (%s; wrong: %s)" % [staff_speakers, off_variant])
+	if studio_ok and sp.get("bartender") is Dictionary and sp.bartender.get("portrait_source") is Dictionary:
+		var bt: Dictionary = studio.resolve_source(sp.bartender.portrait_source, staff)
+		check(str(bt.get("path", "")) == "res://assets/characters/custom/g12_bartender.glb" and str(bt.get("look", "?")) == "" and str(bt.get("error", "?")) == "",
+			"the Bartender's variant resolves to the body his accepted portrait shows: g12_bartender.glb, its imported look (%s)" % [bt])
+	if studio_ok:
+		_check_portrait_source_errors(studio, sp)
+		_check_portrait_studio_plan(studio, sp, staff)
 	var note := str(data.get("_note", ""))
-	check(note.contains("PortraitStudio.tscn -- ids=") and note.contains("portrait_source") and note.contains("25.31") and note.contains("25.32"),
-		"speakers.json's _note: the portrait_source keys, the re-render command, and 25.31 / 25.32 re-render the Bartender and Den Fa")
+	check(note.contains("PortraitStudio.tscn -- ids=") and note.contains("portrait_source") and note.contains("25.31") and note.contains("25.32")
+		and note.contains("mipmaps/generate=true") and note.contains("detect_3d/compress_to=0"),
+		"speakers.json's _note: the portrait_source keys, the re-render command, 25.31 / 25.32 re-render the Bartender and Den Fa, a new PNG's two import edits")
 
 	# The box: the three resolve to their PNGs (no plate, no warning); the slot draws a 512 px portrait smoothly at 160.
 	var bx = load(BOX_SCRIPT) if ResourceLoader.exists(BOX_SCRIPT) else null
@@ -6537,8 +6577,20 @@ func test_dialogue_portraits() -> void:
 	# Its render path is the game's: the edge shader with the game's parameters (only linePixels widened, and its
 	# default stays 1 so the game draws as before), exactly one DirectionalLight (the edge pass multiplies by each).
 	var shader_src := FileAccess.get_file_as_string(EDGE_SHADER_PATH)
-	var game_scenes_wide := ["res://scenes/MainTavern.tscn", "res://scenes/world/ExteriorWorld.tscn", "res://scenes/HexMapTest.tscn",
-		"res://scenes/dev/LookDev.tscn"].filter(func(p): return FileAccess.get_file_as_string(p).contains("linePixels"))
+	# Every scene and material that uses the edge shader (found by its path or uid, not a list) keeps linePixels at
+	# its default: only the studio widens it; no script sets it either.
+	var shader_uid := FileAccess.get_file_as_string(EDGE_SHADER_PATH + ".uid").strip_edges()
+	var res_files: Array[String] = []
+	_collect_files("res://", ["tscn", "tres", "material", "gd"], res_files)
+	var users := res_files.filter(func(p): return p.get_extension() != "gd" and (FileAccess.get_file_as_string(p).contains(EDGE_SHADER_PATH)
+		or (shader_uid.begins_with("uid://") and FileAccess.get_file_as_string(p).contains(shader_uid))))
+	var game_scenes_wide := users.filter(func(p): return p != PORTRAIT_STUDIO_SCENE and FileAccess.get_file_as_string(p).contains("linePixels"))
+	game_scenes_wide += res_files.filter(func(p): return (p.get_extension() == "gd" and p != PORTRAIT_STUDIO_SCRIPT and not p.begins_with("res://test/")
+		and FileAccess.get_file_as_string(p).contains("linePixels")))
+	var known_users := [PORTRAIT_STUDIO_SCENE, "res://scenes/MainTavern.tscn", "res://scenes/world/ExteriorWorld.tscn", "res://scenes/dev/LookDev.tscn"]
+	var unfound := known_users.filter(func(p): return not users.has(p))
+	check(unfound.is_empty() and game_scenes_wide.is_empty(),
+		"the edge shader's %d users (scanned by path/uid): only PortraitStudio.tscn sets linePixels, no script does (setting it: %s; known users not found: %s)" % [users.size(), game_scenes_wide, unfound])
 	var edge_ok := false
 	var directional := -1
 	if ps is PackedScene:
@@ -6547,16 +6599,136 @@ func test_dialogue_portraits() -> void:
 		var mat: ShaderMaterial = quad.get_surface_override_material(0) as ShaderMaterial if quad != null else null
 		edge_ok = mat != null and _is_edge_material(mat) and is_equal_approx(float(mat.get_shader_parameter("lightIntensity")), 1.25) \
 			and is_equal_approx(float(mat.get_shader_parameter("lineAlpha")), 0.7) and bool(mat.get_shader_parameter("useLighting")) \
-			and float(mat.get_shader_parameter("linePixels")) >= 1.0
+			and float(mat.get_shader_parameter("linePixels")) > 1.0
 		directional = inst.find_children("*", "DirectionalLight3D", true, false).size()
 		inst.free()
 	check(shader_src.contains("uniform float linePixels = 1.0;") and game_scenes_wide.is_empty() and edge_ok and directional == 1,
-		"the studio draws through the game's edge shader and parameters (linePixels widened there only; the game's scenes keep the default 1) with exactly one DirectionalLight (%d)" % directional)
-	var guard: float = float((studio as GDScript).get_script_constant_map().get("AUTO_QUIT_SECONDS", 999.0)) if studio is GDScript else 999.0
-	check(ps is PackedScene and root_script is GDScript and (root_script as GDScript).resource_path == PORTRAIT_STUDIO_SCRIPT
-		and not "player_scene" in groups and guard <= 60.0,
-		"PortraitStudio.tscn: its root runs portrait_studio.gd, not in player_scene (PlayerManager stands down), hard quit at %.0f s (≤ 60, long before the 300 s autosave)" % guard)
+		"the studio draws through the game's edge shader and parameters (linePixels widened there only (> 1); the game's scenes keep the default 1) with exactly one DirectionalLight (%d)" % directional)
+	check(ps is PackedScene and root_script is GDScript and (root_script as GDScript).resource_path == PORTRAIT_STUDIO_SCRIPT and not "player_scene" in groups,
+		"PortraitStudio.tscn: its root runs portrait_studio.gd, not in player_scene (PlayerManager stands down)")
+	if studio_ok:
+		_check_portrait_studio_guard(studio)
 	print("")
+
+
+## The studio's save guard (Test 22, Story 25.17 review): it asks to quit, then a watchdog thread kills the
+## process, both well before SaveSystem's autosave whatever game_config says, with a budget per speaker; the hard
+## stop doesn't depend on a quit already asked for; after the guard fires nothing more is written.
+func _check_portrait_studio_guard(studio: GDScript) -> void:
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var autosave = studio.autosave_seconds(cfg if cfg is Dictionary else {})
+	var configured := float(cfg.get("autosave_interval_seconds", 300)) if cfg is Dictionary else 300.0
+	var reads := [studio.autosave_seconds({}), studio.autosave_seconds({"autosave_interval_seconds": 120}),
+		studio.autosave_seconds({"autosave_interval_seconds": 0}), studio.autosave_seconds({"autosave_interval_seconds": -5}),
+		studio.autosave_seconds({"autosave_interval_seconds": "junk"})]
+	check(autosave is float and is_equal_approx(autosave, configured) and reads == [300.0, 120.0, 1.0, 1.0, 1.0],
+		"the studio reads SaveSystem's autosave interval from game_config (%s s; none: 300; not a positive number: a Timer's 1 s) %s" % [autosave, reads])
+	var bad := []
+	for a in [float(autosave) if autosave is float else 300.0, 300.0, 120.0, 40.0, 1.0]:
+		for n in [0, 1, 3, 5, 50]:
+			var g = studio.guard_seconds(n, a)
+			if not g is Vector2 or g.x <= 0.0 or g.x >= g.y or g.y > a * 0.5 + 0.001:
+				bad.append("%d speaker(s), autosave %.0f s: %s" % [n, a, g])
+	check(bad.is_empty(), "the save guard asks to quit, then the hard stop, both by half the autosave interval whatever the config says (wrong: %s)" % [bad])
+	var g1 = studio.guard_seconds(1, 300.0)
+	var g5 = studio.guard_seconds(5, 300.0)
+	check(g1 is Vector2 and g5 is Vector2 and g5.x >= 60.0 and g5.x - g1.x >= 4.0 * 8.0,
+		"the guard's budget grows per speaker: a 5-speaker cold run gets %s s before the guard (1 speaker: %s s)" % [g5.x if g5 is Vector2 else g5, g1.x if g1 is Vector2 else g1])
+	var src := FileAccess.get_file_as_string(PORTRAIT_STUDIO_SCRIPT)
+	var watch := _func_body(src, "_watch")
+	var render := _func_body(src, "_render")
+	var last_wait := render.rfind("await ")
+	var gate := render.find("_quitting", last_wait)
+	check(_func_body(src, "_ready").contains("_watchdog.start(") and watch.contains("OS.kill(OS.get_process_id())") and not watch.contains("_quitting")
+		and _func_body(src, "_exit_tree").contains("wait_to_finish()") and _func_body(src, "_on_save_guard_timeout") != "",
+		"the hard stop: a watchdog thread started in _ready kills the process at the deadline whether or not a quit was asked for (the main loop may be what hangs); joined on exit")
+	check(last_wait > 0 and gate > last_wait and gate < render.find("save_png("),
+		"_render checks the guard after its last wait and before it writes: after the guard fires, nothing is written")
+	check(src.contains("mipmaps/generate=true") and src.contains("detect_3d/compress_to=0"),
+		"the studio's header says a new PNG's two import edits (mipmaps/generate=true, detect_3d/compress_to=0)")
+
+
+## source_error() rejects a wrong type or a conflicting key in a portrait_source (Test 22, Story 25.17 review): a
+## string, null, array or bool where a number goes; a look next to a staff_variant; unknown camera keys. A
+## function that aborts returns no String and fails the check (no vacuous pass).
+func _check_portrait_source_errors(studio: GDScript, sp: Dictionary) -> void:
+	var model_src = sp.get("den_fa", {}).get("portrait_source") if sp.get("den_fa") is Dictionary else null
+	var staff_src = sp.get("quest_dealer", {}).get("portrait_source") if sp.get("quest_dealer") is Dictionary else null
+	if not model_src is Dictionary or not staff_src is Dictionary:
+		check(false, "den_fa and quest_dealer have a portrait_source to vary")
+		return
+	var good := [studio.source_error(model_src), studio.source_error(staff_src)]
+	var cases := [["camera.fov", "24"], ["camera.head_height", null], ["camera.yaw_deg", [30]], ["camera.pitch_deg", true],
+		["camera.eye_offset", [0.0, "0.1", 0.0]], ["camera.zoom", 2.0], ["camera", null], ["clip", 5], ["bone", ""], ["bone", 3],
+		["time", "0"], ["time", -1.0], ["look", 3], ["model", ""], ["model", 7]]
+	var passed := []
+	for c in cases:
+		var e = studio.source_error(_t22_source_with(model_src, c[0], c[1]))
+		if not (e is String and e != ""):
+			passed.append("%s = %s" % c)
+	var anime = studio.source_error(_t22_source_with(staff_src, "look", "anime"))
+	var variant_typed = studio.source_error(_t22_source_with(staff_src, "staff_variant", 4))
+	check(good == ["", ""] and passed.is_empty() and anime is String and anime != "" and variant_typed is String and variant_typed != "",
+		"source_error() type-checks every key and rejects a look next to a staff_variant (the real sources: %s; let through: %s; look + staff_variant: '%s')" % [good, passed, anime])
+
+
+## A copy of a portrait_source with one key set ("camera.<key>" sets a camera key; null sets null).
+static func _t22_source_with(base: Dictionary, key: String, value) -> Dictionary:
+	var s: Dictionary = base.duplicate(true)
+	if key.begins_with("camera.") and s.get("camera") is Dictionary:
+		s.camera[key.trim_prefix("camera.")] = value
+	else:
+		s[key] = value
+	return s
+
+
+## plan() validates the whole request before anything is written (Test 22, Story 25.17 review): unknown or
+## repeated ids, an empty ids= or out=, a relative out=, an unknown argument, a speaker without a source, a bad
+## source, an unknown clip, a bad or shared portrait path anywhere in the request: an error and no jobs at all.
+func _check_portrait_studio_plan(studio: GDScript, sp: Dictionary, staff: Dictionary) -> void:
+	var fixture: Dictionary = sp.duplicate(true)
+	var base: Dictionary = sp.get("den_fa", {}).get("portrait_source", {}).duplicate(true) if sp.get("den_fa") is Dictionary else {}
+	var add := func(id: String, portrait: String, src: Dictionary) -> void:
+		fixture[id] = {"name": id, "portrait": portrait, "colour": "#333333", "portrait_source": src}
+	add.call("t22_badcam", PORTRAIT_DIR + "t22_badcam.png", _t22_source_with(base, "camera.fov", "24"))
+	add.call("t22_badclip", PORTRAIT_DIR + "t22_badclip.png", _t22_source_with(base, "clip", "T22NoSuchClip"))
+	add.call("t22_badbone", PORTRAIT_DIR + "t22_badbone.png", _t22_source_with(base, "bone", "t22_no_bone"))
+	add.call("t22_late", PORTRAIT_DIR + "t22_late.png", _t22_source_with(base, "time", 999.0))
+	add.call("t22_user", "user://t22_user.png", base)
+	add.call("t22_jpg", PORTRAIT_DIR + "t22_jpg.jpg", base)
+	add.call("t22_up", PORTRAIT_DIR + "../t22_up.png", base)
+	add.call("t22_same", PORTRAIT_DIR + "den_fa.png", base)
+	var out := ProjectSettings.globalize_path("user://").path_join("t22_previews")
+	var refused := [["ids="], ["ids=den_fa,t22_nobody"], ["ids=elder"], ["ids=den_fa", "out="], ["ids=den_fa", "out=previews"],
+		["idz=den_fa"], ["ids=den_fa,den_fa"], ["ids=den_fa", "out=" + out, "out=" + out], ["ids=den_fa,t22_badcam"], ["ids=den_fa,t22_badclip"],
+		["ids=den_fa,t22_badbone"], ["ids=den_fa,t22_late"], ["ids=den_fa,t22_user"], ["ids=den_fa,t22_jpg"], ["ids=den_fa,t22_up"], ["ids=den_fa,t22_same"]]
+	var let_through := []
+	for args in refused:
+		var r = studio.plan(PackedStringArray(args), fixture, staff)
+		if not (r is Dictionary and str(r.get("error", "")) != "" and r.get("jobs") is Array and (r.jobs as Array).is_empty()):
+			let_through.append(" ".join(args))
+	check(let_through.is_empty(), "the studio refuses a bad request whole, before any write: unknown/repeated ids, empty ids= or out=, a relative out=, an unknown argument, no source, a bad source, clip, bone, time or portrait path (let through: %s)" % [let_through])
+	var all = studio.plan(PackedStringArray(), sp, staff)
+	var all_ok: bool = all is Dictionary and str(all.get("error", "?")) == "" and all.get("jobs") is Array \
+		and (all.jobs as Array).map(func(j): return j.id) == PORTRAITS_RENDERED \
+		and (all.jobs as Array).all(func(j): return j.file == ProjectSettings.globalize_path(PORTRAIT_DIR + j.id + ".png"))
+	var one = studio.plan(PackedStringArray(["ids=quest_dealer", "out=" + out]), sp, staff)
+	var one_ok: bool = one is Dictionary and str(one.get("error", "?")) == "" and one.get("jobs") is Array and (one.jobs as Array).size() == 1 \
+		and one.jobs[0].file == out.path_join("quest_dealer.png")
+	check(all_ok and one_ok, "no ids: every speaker with a source, written to its portrait path; out=<absolute folder>: written there instead (%s; %s)" % [
+		all.get("error", all) if all is Dictionary else all, one.get("error", one) if one is Dictionary else one])
+
+
+static func _collect_files(dir_path: String, exts: Array, out: Array[String]) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for sub in dir.get_directories():
+		if not (dir_path == "res://" and sub in ["addons", "build", ".godot"]):
+			_collect_files(dir_path.path_join(sub), exts, out)
+	for file_name in dir.get_files():
+		if file_name.get_extension() in exts:
+			out.append(dir_path.path_join(file_name))
 
 
 ## One portrait file (Test 22, AC 6): a 512 × 512 Texture2D, opaque, not blank (luminance spread and many colours),
