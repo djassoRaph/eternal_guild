@@ -4059,6 +4059,7 @@ func test_staff_runtime() -> void:
 		and first._stands.size() == 6 and absf(wrapf(float(first._stands[first.RESTOCK_INDEX].phi) - PI, -PI, PI)) < 0.01,
 		"hired at start: he is at serve_point_01 wiping (at %s, %s); five serve stations and the restock station at φ 180 (%d stations)" % [first.global_position, first.anim_state(), first._stands.size()])
 	_check_staff_body(first, "the Bartender", _staff_model_path(staff_roles, "bartender"), str(bk_spec.get("look", "")) in ["anime", "realistic"] if bk_spec is Dictionary else false)
+	_check_look_under_presets(first)
 	var bt_name: String = first.display_name
 	first.set_autopilot(false)
 	var cloth_hand: Node3D = first.model.find_child("Bartender_ClothHand", true, false) as Node3D if first.model else null
@@ -5017,13 +5018,53 @@ func _check_staff_body(x, who: String, want_path: String, anime := false) -> voi
 		else "%s: its imported materials as they are, no toon override (wrong: %s)") % [who, look.slice(0, 4)])
 
 
-## What is wrong with a loaded staff body's look (Test 19, Story 25.30; F48): the anime body's surfaces carry the
-## toon override (shared, never the imported material edited) with the shared outline as next_pass; any other body
-## has no override. Fails when fewer than two surfaces were inspected (never vacuous).
+## Story 25.31 review P4: the look check follows the active preset (25.23's D2 pick only changes game_config). Run once
+## under a darker shader preset, switched here in the test (game_config.json untouched), on the Bartender and on the
+## Healer (her crystal staff: V5's prop glow), then switched back and re-applied: every surface must pass.
+func _check_look_under_presets(x) -> void:
+	var al = load(ANIME_LOOK_SCRIPT)
+	var was: String = al.preset()
+	var dark := ""
+	for p in al.preset_names():
+		if p != al.APPROVED:
+			dark = p
+			break
+	var healer: Node3D = (load(HEALER_MODEL_PATH) as PackedScene).instantiate() if ResourceLoader.exists(HEALER_MODEL_PATH) else null
+	var probe := {"model": healer}
+	al.apply(healer)
+	var at_pick: Array = _staff_look_wrong(probe, true)
+	var dark_wrong := ["no darker preset in game_config"]
+	if dark != "":
+		al.set_preset(dark)
+		al.apply(x.model)
+		al.apply(healer)
+		dark_wrong = _staff_look_wrong(x, true) + _staff_look_wrong(probe, true)
+	al.set_preset(was)
+	al.apply(x.model)
+	var back: Array = _staff_look_wrong(x, true)
+	var had_healer := healer != null
+	if healer:
+		healer.free()
+	check(had_healer and at_pick.is_empty() and dark_wrong.is_empty() and back.is_empty(),
+		"the look check follows the preset: the Healer (crystal glow) at '%s' and the Bartender + the Healer under '%s' pass; back at '%s' (wrong: %s / %s / %s)" % [
+			was, dark, was, at_pick.slice(0, 4), dark_wrong.slice(0, 4), back.slice(0, 4)])
+
+
+## What is wrong with a loaded staff body's look (Test 19, Story 25.30; F48; preset-aware since the 25.31 review, P4):
+## an anime / realistic body's surfaces carry anime_look's toon copy for the ACTIVE preset (shared, never the imported
+## material edited): "approved" a StandardMaterial3D toon (roughness > 0, no specular, no metal, opaque) with the shared
+## anime_outline.tres as next_pass; a shader preset (25.23's darker_a / darker_b) its anime_toon ShaderMaterial (ink
+## roughness > 0) with that preset's own outline copy (or the approved toon with it on a source the shader can't
+## draw). V5: a PROP's (unskinned) glowing source gets the glow toon (emission kept, roughness 0, no outline) in every
+## preset; the skinned body never glows. Any other body has no override. Fails when fewer than two surfaces were
+## inspected (never vacuous).
 static func _staff_look_wrong(x, anime: bool) -> Array:
 	if x.model == null:
 		return ["no body"]
-	var outline: Material = load(ANIME_OUTLINE) if ResourceLoader.exists(ANIME_OUTLINE) else null
+	var al = load(ANIME_LOOK_SCRIPT)
+	var look: String = al.preset()
+	var outline: Material = al._outline_of(look)
+	var toon_shader = load(ANIME_TOON_SHADER)
 	var out := []
 	var n := 0
 	for mi in x.model.find_children("*", "MeshInstance3D", true, false):
@@ -5039,12 +5080,30 @@ static func _staff_look_wrong(x, anime: bool) -> Array:
 				if ov != null:
 					out.append(tag + " overridden")
 				continue
+			if not al.is_toon(ov) or str(ov.get_meta(al.TOON_META)) != look or ov.get_meta(al.SOURCE_META, null) != src:
+				out.append(tag + " not toned with '%s'" % look)
+				continue
+			if ov is ShaderMaterial:
+				var sm := ov as ShaderMaterial
+				if sm.shader != toon_shader or float(sm.get_shader_parameter("ink_roughness")) <= 0.0:
+					out.append(tag + " look")
+				if sm.next_pass != outline or look == al.APPROVED:
+					out.append(tag + " no outline")
+				continue
 			if not ov is StandardMaterial3D:
 				out.append(tag + " not toned")
 				continue
 			var m := ov as StandardMaterial3D
-			if m.diffuse_mode != BaseMaterial3D.DIFFUSE_TOON or m.specular_mode != BaseMaterial3D.SPECULAR_DISABLED or m.metallic > 0.0 \
-					or m.metallic_specular > 0.0 or m.roughness <= 0.0 or m.emission_enabled or m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			var base_ok: bool = m.diffuse_mode == BaseMaterial3D.DIFFUSE_TOON and m.specular_mode == BaseMaterial3D.SPECULAR_DISABLED \
+					and m.metallic == 0.0 and m.metallic_specular == 0.0 and m.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED
+			if _emits(src):
+				# V5: light, not ink, and only on a prop
+				if (mi as MeshInstance3D).skin != null:
+					out.append(tag + " the body glows")
+				if not base_ok or not m.emission_enabled or m.roughness != 0.0 or m.next_pass != null:
+					out.append(tag + " glow look")
+				continue
+			if not base_ok or m.roughness <= 0.0 or _emits(m):
 				out.append(tag + " look")
 			if outline == null or m.next_pass != outline:
 				out.append(tag + " no outline")
@@ -5052,10 +5111,23 @@ static func _staff_look_wrong(x, anime: bool) -> Array:
 		var o := outline as StandardMaterial3D
 		if o == null or o.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED or o.cull_mode != BaseMaterial3D.CULL_FRONT or not o.grow \
 				or o.grow_amount <= 0.0 or o.metallic > 0.0 or o.emission_enabled or o.roughness <= 0.0 or o.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
-			out.append("the outline material")
+			out.append("the outline material (%s)" % look)
+		if look == al.APPROVED and o != load(ANIME_OUTLINE):
+			out.append("approved without the shared outline")
 	if n < 2:
 		out.append("only %d surfaces inspected" % n)
 	return out
+
+
+## A material that really emits light (colour x energy, or an added emission texture): anime_look's glow rule (V5, P10).
+static func _emits(m: Material) -> bool:
+	if not m is BaseMaterial3D or not (m as BaseMaterial3D).emission_enabled:
+		return false
+	var b := m as BaseMaterial3D
+	if b.emission_energy_multiplier <= 0.0:
+		return false
+	var c := b.emission
+	return maxf(c.r, maxf(c.g, c.b)) > 0.0 or (b.emission_texture != null and b.emission_operator == BaseMaterial3D.EMISSION_OP_ADD)
 
 
 ## The anime base's sit re-fit on the loaded dealer (Test 19, Story 25.30 AC 1/N3): Sit_Chair_Idle's hips at

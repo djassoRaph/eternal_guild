@@ -344,7 +344,10 @@ re-point is the rollback.
   `anime_look_preset` / `anime_look_presets` (`approved`: `TOON_BAND` 0.12 and `anime_outline.tres`,
   grow 0.011 m, ink (0.17, 0.09, 0.12); `darker_a`: grow 0.013; `darker_b`: grow 0.015). Today's
   setting is `approved`. Raphael picks the cast's preset and its thicker ink (R-1) on Story 25.23's
-  D2 sheet in the picked mood; the pick only changes the config (and Test 23).
+  D2 sheet in the picked mood; the pick only changes the config. The tests follow the active preset:
+  Test 23 reads the pick from the config, and Test 19's look check (`_staff_look_wrong`) takes the
+  preset's toon (a shader preset's ShaderMaterial with its own outline copy) and V5's prop glow in
+  every preset; Test 19 runs it once under a darker preset, switched in the test (25.31 review P4).
 - **The dark side** is albedo × the hall's ambient (the mood's, Story 25.23). The characters get no
   light of their own (A-5).
 
