@@ -6696,13 +6696,19 @@ func test_dialogue_portraits() -> void:
 	_collect_files("res://", ["tscn", "tres", "material", "gd"], res_files)
 	var users := res_files.filter(func(p): return p.get_extension() != "gd" and (FileAccess.get_file_as_string(p).contains(EDGE_SHADER_PATH)
 		or (shader_uid.begins_with("uid://") and FileAccess.get_file_as_string(p).contains(shader_uid))))
-	var game_scenes_wide := users.filter(func(p): return p != PORTRAIT_STUDIO_SCENE and FileAccess.get_file_as_string(p).contains("linePixels"))
+	# A game scene may carry linePixels at its default 1.0 (Godot's editor writes the default out on a re-save,
+	# 2026-10-04); it fails only when a value is > 1 or can't be read.
+	var game_scenes_wide := users.filter(func(p): return p != PORTRAIT_STUDIO_SCENE and _edge_line_pixels_widened(FileAccess.get_file_as_string(p)))
 	game_scenes_wide += res_files.filter(func(p): return (p.get_extension() == "gd" and p != PORTRAIT_STUDIO_SCRIPT and not p.begins_with("res://test/")
 		and FileAccess.get_file_as_string(p).contains("linePixels")))
 	var known_users := [PORTRAIT_STUDIO_SCENE, "res://scenes/MainTavern.tscn", "res://scenes/world/ExteriorWorld.tscn", "res://scenes/dev/LookDev.tscn"]
 	var unfound := known_users.filter(func(p): return not users.has(p))
 	check(unfound.is_empty() and game_scenes_wide.is_empty(),
-		"the edge shader's %d users (scanned by path/uid): only PortraitStudio.tscn sets linePixels, no script does (setting it: %s; known users not found: %s)" % [users.size(), game_scenes_wide, unfound])
+		"the edge shader's %d users (scanned by path/uid): only PortraitStudio.tscn widens linePixels (> 1; the default 1.0 written out is fine), no script sets it (widening it: %s; known users not found: %s)" % [users.size(), game_scenes_wide, unfound])
+	check(not _edge_line_pixels_widened("shader_parameter/linePixels = 1.0\n") and _edge_line_pixels_widened("shader_parameter/linePixels = 1.5\n")
+		and _edge_line_pixels_widened("shader_parameter/linePixels = 2\n") and _edge_line_pixels_widened("linePixels = nope\n")
+		and not _edge_line_pixels_widened("shader_parameter/lineAlpha = 0.7\n"),
+		"the linePixels scan passes the default 1.0 and fails a widened (1.5, 2) or unreadable value")
 	var edge_ok := false
 	var directional := -1
 	if ps is PackedScene:
@@ -6721,6 +6727,23 @@ func test_dialogue_portraits() -> void:
 	if studio_ok:
 		_check_portrait_studio_guard(studio)
 	print("")
+
+
+## True when a resource's text widens the edge shader's linePixels: any "linePixels = v" with v > 1, or a value
+## that doesn't read as a number (Test 22; the default 1.0 the editor writes out is not a widening).
+func _edge_line_pixels_widened(text: String) -> bool:
+	if not text.contains("linePixels"):
+		return false
+	var re := RegEx.new()
+	re.compile("linePixels\\s*=\\s*([^\\s]+)")
+	var found := re.search_all(text)
+	if found.size() != text.count("linePixels"):
+		return true
+	for m in found:
+		var v: String = m.get_string(1)
+		if not v.is_valid_float() or float(v) > 1.0:
+			return true
+	return false
 
 
 ## The studio's save guard (Test 22, Story 25.17 review): it asks to quit, then a watchdog thread kills the
