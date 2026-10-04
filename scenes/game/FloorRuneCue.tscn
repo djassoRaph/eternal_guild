@@ -6,15 +6,16 @@
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rune"]
 render_priority = 1
 transparency = 1
+blend_mode = 1
 cull_mode = 2
 shading_mode = 0
-albedo_color = Color(1, 0.74, 0.32, 0.9)
+albedo_color = Color(1, 0.78, 0.36, 1)
 albedo_texture = ExtResource("2_tex")
 roughness = 0.0
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_rune"]
 material = SubResource("StandardMaterial3D_rune")
-size = Vector2(1.3, 1.3)
+size = Vector2(1.5, 1.5)
 
 [node name="FloorRuneCue" type="Node3D"]
 script = ExtResource("1_cue")

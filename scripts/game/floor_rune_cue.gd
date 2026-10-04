@@ -15,7 +15,7 @@ const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
 @export var hearth_path: NodePath
 @export var anchor_name := "interact_point"
 @export var fade_seconds := 0.25
-@export var max_alpha := 0.9
+@export var max_alpha := 1.0
 
 var zone: Area3D = null
 ## The prompt UI to ask (tests give a stand-in); null = ZonePromptUI.find(get_tree()).
