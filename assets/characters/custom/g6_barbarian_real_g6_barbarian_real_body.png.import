@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://dfogn3qugmwn1"
+path="res://.godot/imported/g6_barbarian_real_g6_barbarian_real_body.png-fbb6adffad3f8815b48d18a3e3f3b5fe.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "3edc9185e2f54e5aac84c6809f6d2214"
+}
+
+[deps]
+
+source_file="res://assets/characters/custom/g6_barbarian_real_g6_barbarian_real_body.png"
+dest_files=["res://.godot/imported/g6_barbarian_real_g6_barbarian_real_body.png-fbb6adffad3f8815b48d18a3e3f3b5fe.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0
