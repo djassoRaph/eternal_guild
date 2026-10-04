@@ -7748,6 +7748,19 @@ func test_light_and_mood() -> void:
 		cue._process(1.0)
 		var hid: bool = not ring.visible
 		check(shown and hid, "the cue shows while its zone owns E and hides when another takes E (shown %s, hidden %s)" % [shown, hid])
+		# review 2026-10-04: a paused tree (the fireplace minigame, Game Over) hides it at once instead of freezing it
+		# visible: the cue keeps processing while paused, and shows again (with its fade) once unpaused
+		standin.owner_zone = z
+		cue._process(1.0)
+		var back_on: bool = ring.visible
+		paused = true
+		cue._process(0.016)
+		var hid_paused: bool = not ring.visible and not cue.shown
+		paused = false
+		cue._process(1.0)
+		var after: bool = ring.visible
+		check(cue.process_mode == Node.PROCESS_MODE_ALWAYS and back_on and hid_paused and after,
+			"the cue hides while the tree is paused and returns after (processes while paused %s; on %s, paused hidden %s, back %s)" % [cue.process_mode == Node.PROCESS_MODE_ALWAYS, back_on, hid_paused, after])
 		w.free()
 	elif cue:
 		cue.free()
