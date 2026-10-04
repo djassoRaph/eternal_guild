@@ -74,8 +74,13 @@ def scratch_chain(chain, folder, prefix):
                            folder + prefix + "_kaykit_sit.json", folder + prefix + "_kaykit_rest.json",
                            folder + prefix + "_foot_report.json"))
     out["name"] = chain["name"] + "-scratch"
-    if chain.get("arm_src_json"):
-        out["arm_src_json"] = folder + prefix + "_arm_src.json"
+    # every other file a chain names, too (REAL-1's rig_rest_json: real_chain.record_rest on a scratch base would
+    # otherwise compare against, and assert on, the shipped record)
+    for key, suffix in (("arm_src_json", "_arm_src.json"), ("rig_rest_json", "_rig_rest.json")):
+        if chain.get(key):
+            out[key] = folder + prefix + suffix
+    left = sorted(k for k, v in out.items() if isinstance(v, str) and v.startswith(BLEND) and not v.startswith(folder))
+    assert not left, "scratch_chain: %s still name the shipped chain's files" % left
     return out
 
 
