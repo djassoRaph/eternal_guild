@@ -232,6 +232,7 @@ const RL_BODY_SURFACES := 3            # surfaces on <Role>_Body (props apart)
 const RL_TEXTURES := 2                 # textures per body (the head projection + the body atlas), each <= RL_TEX_SIZE
 const RL_TEX_SIZE := 1024
 const RL_TOP := [1.50, 2.25]           # rest top with headwear (the lintel rule kept)
+const RL_SEATED_HALF_W := 0.449        # the widest seated half-width over the realistic patron pool (the Mage; P3)
 ## The Bartender's own clips on route RL (N9: clips per role) and his loops (V12).
 const BARTENDER_CLIPS := ["Walk_Bar", "Wipe", "Pour", "Serve", "Restock"]
 const BARTENDER_EXCLUDED := ["Write", "Brief"]
@@ -1733,12 +1734,14 @@ func test_round_bar() -> void:
 		# Elbow room (found in the 2026-09-25 playtest: neighbours on adjacent stools look crowded).
 		var row := []
 		var tables := []
-		# Story 25.31 S2 (AC 12): SEAT_ELBOW_ROOM from the realistic townsfolk seated (widest half-width 0.434 m with
-		# elbows, hats and packs, + a 0.30 m gap): the round bar's adjacent stools (sit roots 1.23 m apart) are usable
+		# Story 25.31 (AC 12; the code review's P3): SEAT_ELBOW_ROOM against the whole realistic patron pool seated:
+		# the widest half-width (Sit_Chair_Idle, every frame, the skinned body + the shown props) is the Mage's 0.449 m
+		# (measured from the twelve GLBs headlessly, 2026-10-04); the round bar's adjacent stools (1.23 m) stay usable
+		var widest := RL_SEATED_HALF_W
 		var room := float(sp.get_script_constant_map().get("SEAT_ELBOW_ROOM", 0.0))
 		var adjacent := 2.0 * (3.95 - float(rp_c.get("SIT_HIP_BACK", 0.4))) * sin(deg_to_rad(10.0))
-		check(room >= 2.0 * 0.434 + 0.25 and room <= adjacent,
-			"SEAT_ELBOW_ROOM %.2f: two seated realistic townsfolk keep a gap (>= %.2f) and adjacent bar stools (%.2f m) are usable" % [room, 2.0 * 0.434 + 0.25, adjacent])
+		check(room >= 2.0 * widest + 0.25 and room <= adjacent,
+			"SEAT_ELBOW_ROOM %.2f: two of the widest seated realistic patrons (%.3f) keep a gap (>= %.2f) and adjacent bar stools (%.2f m) are usable" % [room, widest, 2.0 * widest + 0.25, adjacent])
 		for i in 4:
 			row.append({"approach": Vector3(1.0 * i, 0, -0.3), "sit": Transform3D(Basis.IDENTITY, Vector3(1.0 * i, 0.54, 0))})
 			tables.append({"approach": Vector3(1.0 * i, 0, 0), "sit": null})

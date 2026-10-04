@@ -451,7 +451,10 @@ never toned. Before removing a fallback file, repoint the field in the same comm
   0.397, `SIT_CLIP_SEAT` 0.45, `BAR_STOOL_SEAT` 0.72, `SIT_LIFT` 0.27) hold for every RL body; the
   entry's speeds set the clip rates (V9), its head tops place the bubbles (+ 0.30 / 0.38 seated,
   + 0.45 for villagers), `tankard_scale` 1.1 sizes the held tankard (KayKit bodies 1.8), and
-  `PatronSpawner.SEAT_ELBOW_ROOM` is 1.17 (the widest seated half-width 0.434 + 0.30).
+  `PatronSpawner.SEAT_ELBOW_ROOM` is 1.17: the widest seated half-width over the whole pool (townsfolk
+  and classes; Sit_Chair_Idle, every frame, the shown props included) is the Mage's 0.449 (the
+  townsfolk's 0.436), so two of the widest neighbours keep 0.27 m (townsfolk 0.30) and the round
+  bar's adjacent stools (1.23 m) stay usable (re-measured in the 25.31 code review, P3).
 - **Old saves (AH-7):** a patron saves its entry's `model_path`; a saved path that is not in the pool
   any more (a KayKit body) re-picks a body by `origin_type`.
 - The adventurer pool: six entries on the class files (`adventurer_fighter` … `adventurer_ranger`);

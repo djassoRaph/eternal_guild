@@ -127,9 +127,11 @@ func _collect_seats() -> void:
 	seats = build_seats(marks, table_positions)
 	print("PatronSpawner: %d seats (%d from the scene, %d table spots)" % [seats.size(), marks.size(), seats.size() - marks.size()])
 
-# Story 25.31 S2 (AC 12): measured on the realistic townsfolk seated (Sit_Chair_Idle): the widest half-width with
-# the elbows, hats and the traveller's pack is 0.434 m, so two neighbours keep 0.30 m between them at 2 x 0.434 + 0.30.
-# The round bar's adjacent stools (sit roots 1.23 m apart) are now usable; KayKit's wide bodies needed 1.6.
+# Story 25.31 (AC 12; re-measured in the code review, P3): the widest seated half-width (Sit_Chair_Idle, every frame,
+# the skinned body plus the props the game shows) over the whole realistic patron pool (the six townsfolk and the six
+# class bodies) is the Mage's 0.449 m (the townsfolk's widest 0.436, the traveller's pack). At 1.17 two neighbours keep
+# 1.17 - 2 x 0.449 = 0.27 m between them (0.30 between townsfolk), and the round bar's adjacent stools (sit roots
+# 1.23 m apart) stay usable; KayKit's wide bodies needed 1.6.
 const SEAT_ELBOW_ROOM := 1.17
 
 ## A free seat picked at random (roll in 0..1), preferring seats with elbow room from every
