@@ -547,7 +547,9 @@ func _hold_tankard(full: bool) -> void:
 	if slot < 0:
 		return
 	for a in patron_body_mesh.find_children("*", "BoneAttachment3D", true, false):
-		# KayKit's items hang on child bones of handslot.r; route RL's props are attached to handslot.r itself (V4)
+		# KayKit's items hang on child bones of handslot.r, and so do route RL's props: the glTF import gives a
+		# bone-parented prop an item bone of its own under the slot (OldWoman_Cane <- handslot.r); b == slot catches an
+		# attachment on the slot itself (the outgoing TankardSlot)
 		var b := skel.find_bone((a as BoneAttachment3D).bone_name)
 		if b >= 0 and (b == slot or skel.get_bone_parent(b) == slot) and (a as Node3D).visible:
 			(a as Node3D).visible = false

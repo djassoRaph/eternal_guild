@@ -1,15 +1,19 @@
-# real_bartender.py - the realistic spike's Bartender (2026-10-04, catalogue G12; a TEST: nothing shipped points at it).
+# real_bartender.py - the Bartender on route RL (catalogue G12): the realistic spike's build (2026-10-04, commit 5ae8dc0)
+# promoted in Story 25.31 S1 to the shipped g12_bartender_real.glb (staff.json barkeep.model_path; CFG below).
 # Raphael's chosen concept (realistic_test/ref_bartender_concept.png): a heavy-set, bald, weathered barkeep, ~1.86 m;
 # a full grey beard; a wine-red shirt with rolled sleeves and a laced collar; a long dark leather apron (bib, neck
 # strap, chest pocket, mid-shin, frayed hem) tied at the back; a belt with an off-white cloth at his left hip (the
 # sheet's front and side views both put it there); dark trousers; worn boots with turned-down cuffs.
 # One call per step (README's runner, plus tools/blender/realistic on sys.path):
-#   open_base_as_bartender()   realistic_base.blend saved as realistic_bartender_test.blend (a file load: own call)
+#   open_base_as_bartender()   realistic_base.blend saved as g12_bartender_real.blend (a file load: own call)
 #   build()                    his parts (real_body) on the REAL-1 rig, joined into Bartender_Body (2 surfaces: the head
 #                              projection + the body atlas), the cloth props on hips / handslot.r, the merge report
+#   paint_head()               the painted head pass (real_bake; overwrite_ok=True to re-bake the shipped PNG)
 #   build_clips()              Idle and Walking_A with his arms re-posed (the KayKit chibi arms stand 45 degrees out),
-#                              Walk_Bar and Wipe (the 25.13 method, his reach), then the speeds (anime_clearcheck)
-#   export()                   Rig + body + props to assets/characters/custom/tests/g12_bartender_realtest.glb
+#                              his five bar clips Walk_Bar, Wipe, Serve, Pour, Restock (the 25.13 method, his reach);
+#                              speeds() (anime_clearcheck), real_bar.report for the bar clearances
+#   export()                   Rig + body + props to assets/characters/custom/g12_bartender_real.glb (refuses the
+#                              existing GLB unless overwrite_ok=True)
 #   turnaround(out_dir)        front / side / back renders (EEVEE, a toon ramp and an ink hull: the game's look); the
 #                              file is reverted after (the render setup is never saved)
 import math
@@ -499,7 +503,8 @@ def grounded(clips=("Idle", "Walking_A", "Walk_Bar", "Wipe")):
 
 
 def counter_report(clip="Wipe"):
-    """How deep anything of his (props included) goes below the counter top (1.12) beyond its inner edge (0.55 ahead),
+    """How deep anything of his (props included) goes below the counter top (1.12) beyond its inner edge (EDGE ahead
+    of a serve stand: 0.43; the spike stood at r 1.76 with the edge 0.55 ahead),
     over the clip: the hands and the cloth must ride ON the top."""
     import anime_clearcheck as CC
     import numpy as np
@@ -507,9 +512,9 @@ def counter_report(clip="Wipe"):
     worst = 0.0
     for f in CC.frames_of(clip, 2):
         p = CC.cloud(clip, f, with_props=True, cfg=cfg)
-        q = p[(p[:, 2] > 0.55) & (p[:, 1] < 1.12)]
+        q = p[(p[:, 2] > EDGE) & (p[:, 1] < COUNTER_TOP)]
         if len(q):
-            worst = max(worst, 1.12 - float(np.min(q[:, 1])))
+            worst = max(worst, COUNTER_TOP - float(np.min(q[:, 1])))
     CC._rest()
     print("%s: deepest point under the counter top beyond its edge: %.3f m" % (clip, worst))
     return worst
