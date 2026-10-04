@@ -200,12 +200,17 @@ A character outside KayKit's 41-joint contract keeps its own rig and runs route 
 weights and checks. Add `tools/blender/realistic/den_fa` (or `cat`) to the runner's `sys.path`; the module names start
 with `real_`, so the fresh-import loop reloads them.
 
-**Den Fa** (`den_fa/`, `<art>/blender/g9_den_fa_real.blend` -> `custom/g9_den_fa_real.glb`; R-8: no wings):
+**Den Fa** (`den_fa/`, `<art>/blender/g9_den_fa_real_v6.blend` -> `custom/g9_den_fa_real_v6.glb`; R-8: no wings).
+v6 (2026-10-04, Raphael on v5: "The shoulders are not broad enough. The legs are too slim.") is the same rig and clips
+with a broader body: round deltoids set outward of the upper-arm bone (shoulder span 0.74 m, v5 0.67; capped by the
+chimney face, which his seated left arm reaches within 2 mm: weights can't buy more, a vertex at 0.40 m is past the face
+seated even on `d_chest`), deltoids and an upper chest deep front to back, thicker thighs under a wider skirt, chunkier
+boots and feet. v5 (`g9_den_fa_real.blend` / `.glb`, commit 7f5148a's builder) stays on disk untouched.
 
 | Step | Call | What it does |
 |---|---|---|
 | 0 | `DA.record_shipped(DF.RECORD)` with the shipped `g9_den_fa.blend` OPEN (never saved) | 25.10's rest and actions -> `<art>/blender/g9_den_fa_25_10_record.json` |
-| 1 | `DF.new_file()` | an empty file saved as `g9_den_fa_real.blend` (refuses an existing file) |
+| 1 | `DF.new_version()`, then open `DF.BLEND` in the next call (v5's first build: `DF.new_file()`, steps 2-3) | v6: a file copy of v5's `.blend` (rig and clips carried; `compare()` still 0.0) |
 | 2 | `DF.build_rig()` | `DenFa_Rig`, the 30 `d_` bones (25.10's minus the 12 wing bones) |
 | 3 | `DF.build_clips()` | the six clips from `real_den_fa_anims` (25.10's pose functions, the wing tuck dropped), stashed on muted NLA tracks; `compare()` proves the rest and every F-curve on the kept bones against the record (0.0 on 2026-10-04) |
 | 4 | `python den_fa/real_den_fa_paint.py [--overwrite]` (system Python) | the body atlas over `real_layout.REG` (his garments in the boxes; the coat base #26587e under slate grime) |

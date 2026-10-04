@@ -19,12 +19,20 @@
 # stays within 0.15 m of the thighs (the bench check, AC 5) and never hangs from the hips (it would go through the
 # bench).
 #
+# v6 (Raphael on the v5 sheet, 2026-10-04: "The shoulders are not broad enough. The legs are too slim."): the same rig
+# and clips (DC-3), a broader body around them: the coat's upper chest fuller and its shoulder line sloping out to round
+# deltoids (the sleeves wider at the top, their cap set outward of the upper-arm bone), the shoulder span 0.74 m (v5
+# 0.67; the pick ~0.80 at his height, but the seated left arm meets the chimney face at 0.74: build_sleeve), thicker
+# thighs under a wider skirt, chunkier boots and feet. v5 is commit
+# 7f5148a's builder (g9_den_fa_real.blend / .glb, both kept untouched, N5); v6 builds in a copy of v5's file.
+#
 # One call per step (the README's runner, with tools/blender/realistic/den_fa on sys.path):
-#   new_file()        an empty file saved as <art>/blender/g9_den_fa_real.blend (refuses an existing file)
+#   new_file()        an empty file saved as BLEND (refuses an existing file; v5's first build)
+#   new_version()     v6: a file copy of v5's .blend (rig and clips carried, never written) to BLEND (then open it)
 #   build_rig()       DenFa_Rig, the 30 bones
 #   build_clips()     the six clips (real_den_fa_anims), stashed; compare() against the 25.10 record
 #   build()           DenFa_Body (the parts joined) and check()
-#   export()          DenFa_Rig + DenFa_Body -> assets/characters/custom/g9_den_fa_real.glb (then reverts the file)
+#   export()          DenFa_Rig + DenFa_Body -> assets/characters/custom/g9_den_fa_real_v6.glb (then reverts the file)
 import math
 import os
 
@@ -39,11 +47,13 @@ import real_body as RB
 import real_den_fa_anims as DA
 
 ART = C.ART
-BLEND = C.BLEND + "g9_den_fa_real.blend"
+BLEND = C.BLEND + "g9_den_fa_real_v6.blend"
+V5_BLEND = C.BLEND + "g9_den_fa_real.blend"       # v5 (shipped as g9_den_fa_real.glb): read only, never opened for writing
 OLD_BLEND = C.BLEND + "g9_den_fa.blend"
 RECORD = C.BLEND + "g9_den_fa_25_10_record.json"
 BODY_PNG = ART + "textures/realistic/g9_den_fa_real_body.png"
-GLB = "F:/GAME I AM MAKING/shiningsun/assets/characters/custom/g9_den_fa_real.glb"
+GLB = "F:/GAME I AM MAKING/shiningsun/assets/characters/custom/g9_den_fa_real_v6.glb"
+SHIPPED = ("g9_den_fa.glb", "g9_den_fa_real.glb")  # never exported over (N5)
 RIG = "DenFa_Rig"
 BODY = "DenFa_Body"
 BODY_MAT = "RT_DenFa_Body"
@@ -107,6 +117,17 @@ def new_file():
     bpy.ops.wm.read_homefile(use_empty=True)
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
     return bpy.data.filepath
+
+
+def new_version():
+    """v6: copy v5's .blend on disk to BLEND (its rig and its six clips carried unchanged; v5's file is only read).
+    Refuses an existing BLEND and an open file with unsaved changes. Open BLEND in the NEXT call (a file load leaves a
+    stale context), then build()."""
+    import shutil
+    assert not os.path.exists(BLEND), "%s exists: open it instead" % BLEND
+    assert not bpy.data.is_dirty, "the open file has unsaved changes: %r" % bpy.data.filepath
+    shutil.copyfile(V5_BLEND, BLEND)
+    return BLEND, os.path.getsize(BLEND)
 
 
 def build_rig():
@@ -265,23 +286,25 @@ def contour(rx, yf, yb, n, th):
 
 
 # the coat's body (z, rx, y_front, y_back, n_front, n_back): broad in the chest, square shoulders (the pick), sylphlike
-COAT_TORSO = [   # v4 (the coordinator's read of v3 vs the pick): a fitted waist, a fuller chest, sloped round shoulders
+COAT_TORSO = [   # v6 (Raphael: "the shoulders are not broad enough"): the waist kept, the upper chest fuller and
+    # broader (rx 0.228 -> 0.272 under the arms), the shoulder line sloping from the collar out under the deltoids
     (1.16, 0.140, -0.112, 0.108, 2.2, 2.2),
     (1.24, 0.166, -0.138, 0.126, 2.3, 2.3),
-    (1.36, 0.162, -0.140, 0.124, 2.3, 2.3),
-    (1.52, 0.178, -0.152, 0.130, 2.3, 2.3),
-    (1.68, 0.210, -0.168, 0.142, 2.3, 2.3),
-    (1.80, 0.228, -0.170, 0.146, 2.3, 2.3),
-    (1.88, 0.234, -0.160, 0.142, 2.2, 2.2),
-    (1.94, 0.218, -0.140, 0.128, 2.1, 2.1),
-    (1.985, 0.186, -0.118, 0.110, 2.1, 2.1),
-    (2.020, 0.130, -0.098, 0.092, 2.0, 2.0),
-    (2.035, 0.085, -0.084, 0.078, 2.0, 2.0),
+    (1.36, 0.168, -0.140, 0.126, 2.3, 2.3),
+    (1.52, 0.195, -0.155, 0.134, 2.3, 2.3),
+    (1.68, 0.240, -0.186, 0.152, 2.3, 2.3),
+    (1.80, 0.272, -0.200, 0.162, 2.3, 2.3),
+    (1.88, 0.290, -0.194, 0.160, 2.2, 2.2),
+    (1.94, 0.278, -0.168, 0.144, 2.1, 2.1),
+    (1.985, 0.232, -0.128, 0.116, 2.0, 2.0),
+    (2.020, 0.160, -0.102, 0.094, 2.0, 2.0),
+    (2.035, 0.090, -0.086, 0.080, 2.0, 2.0),
 ]
-# the skirt (z, rx, y_front, y_back): an A-line flare from the fitted waist (hem ~1.9x the waist's half-width, the
-# pick), the back within 0.15 m of the thigh axes (the bench)
-SKIRT = [(1.32, 0.174, -0.150, 0.136), (1.20, 0.188, -0.156, 0.142), (1.00, 0.228, -0.178, 0.150),
-         (0.80, 0.264, -0.200, 0.150), (0.62, 0.296, -0.220, 0.150), (0.46, 0.326, -0.238, 0.150)]
+# the skirt (z, rx, y_front, y_back): an A-line flare from the fitted waist, v6 wider (room for the thicker thighs, the
+# pick's hem), the back within 0.15 m of the thigh axes (the bench)
+SKIRT = [(1.32, 0.190, -0.155, 0.138), (1.20, 0.212, -0.162, 0.144), (1.00, 0.258, -0.186, 0.150),
+         (0.80, 0.290, -0.208, 0.150), (0.62, 0.310, -0.226, 0.150), (0.46, 0.336, -0.244, 0.150)]
+# (v6a's 0.322 / 0.350 at the hem put his seated left side 4 mm past the chimney face)
 SKIRT_N = 2.4
 HEM = 0.46
 
@@ -357,12 +380,19 @@ def build_collar(name, mat, segs=24):
 
 
 def build_sleeve(name, mat, s, sx):
-    # v4: a round deltoid cap (the first ring small, inside the shoulder), wide at the shoulder, tapering to the cuff
-    pts = [Vector((sx * 0.214, 0.0, 2.030)), Vector((sx * 0.226, 0.0, 2.008)), Vector((sx * 0.238, 0.0, 1.975)),
-           Vector((sx * 0.246, 0.0, 1.925)), Vector((sx * 0.252, 0.0, 1.850)), Vector((sx * 0.262, 0.0, 1.700)),
-           Vector((sx * 0.276, 0.0, 1.520)), Vector((sx * 0.290, -0.010, 1.330)), Vector((sx * 0.302, -0.015, 1.170))]
-    # (front-back, lateral) radii: the cap's lateral reach kept off the chimney face in StandUp / SitDown (AC 5)
-    rads = [(0.034, 0.030), (0.068, 0.058), (0.088, 0.075), (0.097, 0.083), (0.098, 0.086), (0.090, 0.082), (0.080, 0.077), 0.078, 0.078]
+    # v6: a big round deltoid (the pick's broad sloped shoulders): the cap's centre line set up to 0.04 m outward of the
+    # upper-arm bone (it rejoins the bone at the elbow, so the bend is the bone's), the sleeve widest at the top and
+    # tapering to the cuff, deep front to back. The outside stops at 0.372 m from the midline (v5 0.33): seated, his
+    # left upper arm faces the chimney face (AC 5); 0.396 (v6a) put it 0.025 m past the face in Sit, StandUp, SitDown
+    # (weights can't buy more: chest-weighted, a vertex at 0.40 is still 0.014-0.017 m past the face seated)
+    pts = [Vector((sx * 0.244, 0.0, 2.000)), Vector((sx * 0.262, 0.0, 1.985)), Vector((sx * 0.274, 0.0, 1.950)),
+           Vector((sx * 0.278, 0.0, 1.900)), Vector((sx * 0.276, 0.0, 1.830)), Vector((sx * 0.276, 0.0, 1.730)),
+           Vector((sx * 0.278, 0.0, 1.620)), Vector((sx * 0.281, -0.002, 1.500)), Vector((sx * 0.290, -0.010, 1.330)),
+           Vector((sx * 0.302, -0.015, 1.170))]
+    # (front-back, lateral) radii: a full round top to the deltoid (v6b's small first rings read as a peak)
+    # deep front to back (the 3/4 game camera reads the shoulders' depth as breadth; the lateral reach is capped)
+    rads = [(0.056, 0.055), (0.098, 0.088), (0.124, 0.100), (0.134, 0.096), (0.128, 0.090), (0.112, 0.082),
+            (0.098, 0.076), (0.088, 0.072), 0.082, 0.080]
     bm = bmesh.new()
     params, rings = RB.tube(bm, pts, rads, 14, up=lambda p, d: Vector((0, -1, 0)), cap0=True, cap1=True)
     RB.param_uvs(bm, params, "sleeve", wrap_u=True)
@@ -439,26 +469,34 @@ def build_glove(name, mat, s, sx):
 
 
 def build_leg(name, mat, s, sx):
-    pts = [Vector((sx * 0.105, 0.0, 1.24)), Vector((sx * 0.108, 0.0, 1.12)), Vector((sx * 0.112, 0.0, 1.00)),
-           Vector((sx * 0.116, 0.0, 0.88)), Vector((sx * 0.118, 0.0, 0.76)), Vector((sx * 0.120, 0.0, 0.66)),
+    # v6 (Raphael: "the legs are too slim"): thighs ~22 % thicker (0.090 -> 0.110), the top kept inside the skirt
+    pts = [Vector((sx * 0.100, 0.0, 1.24)), Vector((sx * 0.104, 0.0, 1.12)), Vector((sx * 0.110, 0.0, 1.00)),
+           Vector((sx * 0.115, 0.0, 0.88)), Vector((sx * 0.118, 0.0, 0.76)), Vector((sx * 0.120, 0.0, 0.66)),
            Vector((sx * 0.120, 0.012, 0.52))]
     bm = bmesh.new()
-    params, rings = RB.tube(bm, pts, [0.090, 0.087, 0.084, 0.079, 0.074, 0.070, 0.064], 12, up=lambda p, d: Vector((0, -1, 0)))
+    params, rings = RB.tube(bm, pts, [0.098, 0.108, 0.104, 0.098, 0.092, 0.087, 0.080], 12, up=lambda p, d: Vector((0, -1, 0)))
     RB.param_uvs(bm, params, "trousers", wrap_u=True)
     return RB.finish(name, bm, mat, leg_w(s))
+
+
+BOOT_X = 0.124              # v6: the boot's axis at the ankle (the shin bone's x 0.12; v5 0.121)
 
 
 def build_boot(name, mat, s, sx):
     """A knee-high brown leather boot: the shaft (a slight flare at its top, under the knee) and the foot."""
     bm = bmesh.new()
-    pts = [Vector((sx * 0.121, 0.004, 0.575)), Vector((sx * 0.121, 0.010, 0.45)), Vector((sx * 0.121, 0.018, 0.25)),
-           Vector((sx * 0.121, 0.022, 0.12))]
-    # v4: chunky, a little slouched at the top (the pick)
-    p1, r1 = RB.tube(bm, pts, [(0.100, 0.098), 0.090, 0.078, 0.070], 12, up=lambda p, d: Vector((0, -1, 0)))
+    bx = BOOT_X
+    pts = [Vector((sx * (bx + 0.006), 0.004, 0.575)), Vector((sx * (bx + 0.004), 0.010, 0.45)),
+           Vector((sx * (bx + 0.002), 0.018, 0.25)), Vector((sx * bx, 0.022, 0.12))]
+    # v6: chunkier (Raphael: "the legs are too slim"): the shaft ~35 % thicker, deeper front-back than wide (it reads
+    # solid from the side and the game camera), its centre a little outward of the shin bone so the two flared,
+    # slouched tops keep a ~3 cm gap between the knees
+    p1, r1 = RB.tube(bm, pts, [(0.134, 0.114), (0.118, 0.108), (0.105, 0.100), (0.094, 0.090)], 12,
+                     up=lambda p, d: Vector((0, -1, 0)))
     shaft = set(bm.verts)
-    # the foot: rings along y from the heel to the toe (z, half-width, height above the sole)
-    foot = [(0.095, 0.046, 0.085), (0.068, 0.060, 0.150), (0.000, 0.063, 0.130), (-0.090, 0.064, 0.100),
-            (-0.165, 0.060, 0.080), (-0.220, 0.048, 0.062), (-0.248, 0.026, 0.044)]
+    # the foot: rings along y from the heel to the toe (y, half-width, height above the sole); v6 broader and longer
+    foot = [(0.108, 0.064, 0.098), (0.076, 0.084, 0.165), (0.000, 0.090, 0.145), (-0.090, 0.094, 0.116),
+            (-0.172, 0.088, 0.092), (-0.236, 0.072, 0.072), (-0.272, 0.040, 0.052)]
     segs = 12
     frings = []
     for y, hw, h in foot:
@@ -467,7 +505,7 @@ def build_boot(name, mat, s, sx):
             a = 2 * math.pi * k / segs
             ca, sa = math.cos(a), math.sin(a)
             zc = h / 2.0
-            ring.append(bm.verts.new((sx * 0.121 + hw * sa, y, max(0.0, zc + (h / 2.0) * RB.se(ca, 2.6)))))
+            ring.append(bm.verts.new((sx * bx + hw * sa, y, max(0.0, zc + (h / 2.0) * RB.se(ca, 2.6)))))
         frings.append(ring)
     for a_, b_ in zip(frings[:-1], frings[1:]):
         for k in range(segs):
@@ -476,7 +514,7 @@ def build_boot(name, mat, s, sx):
     bm.faces.new(list(reversed(frings[-1])))
     params = {}
     for v in bm.verts:
-        params[v] = p1.get(v) if v in shaft else (((math.atan2(v.co.x - sx * 0.121, -v.co.y) / (2 * math.pi)) + 0.5) % 1.0,
+        params[v] = p1.get(v) if v in shaft else (((math.atan2(v.co.x - sx * bx, -v.co.y) / (2 * math.pi)) + 0.5) % 1.0,
                                                   0.02 + 0.30 * v.co.z / 0.14)
     RB.param_uvs(bm, params, "boots", wrap_u=True)
 
@@ -663,7 +701,7 @@ def export(overwrite_ok=False):
     re-export after a clip or body change). Saves first and reverts after, in a finally (nothing the export does
     stays). The clips are built from their pose functions, never rewritten from other clips (no SRC_* copies)."""
     assert C.is_open(BLEND)
-    assert GLB.endswith("_real.glb"), "never the shipped g9_den_fa.glb"
+    assert os.path.basename(GLB) not in SHIPPED, "never over a shipped body (N5): %s" % GLB
     assert overwrite_ok or not os.path.exists(GLB), "%s exists: export(overwrite_ok=True) to re-export it" % GLB
     arm = rig()
     rest(arm)
