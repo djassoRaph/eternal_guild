@@ -26,7 +26,7 @@
 # A morning with no briefing pending turns to day after tavern_light_morning_hold_seconds.
 #
 # The logic is static and node-free (tests call it); the node only applies the result. Loaded by path: no class_name.
-# Dev selector (debug builds): F6 the mood, F7 the phase, F8 the cast's shading preset (anime_look.gd).
+# Dev selector (debug builds): 1 the mood, 2 the phase, 3 the cast's shading preset (anime_look.gd), 4 the edge pass on/off.
 extends Node
 
 const GAME_CONFIG_PATH := "res://data/config/game_config.json"
@@ -96,7 +96,7 @@ static var _phases := {}           # phase name -> entry
 static var _cfg := {}
 static var _loaded := false
 
-## Bodies' shading preset cycling (F8) and the hall's lights. Paths are relative to this node
+## Bodies' shading preset cycling (key 3) and the hall's lights. Paths are relative to this node
 ## (TavernNavigation/Environment/TavernLighting in MainTavern).
 @export var env_path := NodePath("../WorldEnvironment")
 @export var sun_path := NodePath("../Outdoors Light")
@@ -111,7 +111,7 @@ static var _loaded := false
 @export var bar_probe_path := NodePath("../../../BarProbe")
 ## The subtree whose tavern_candle / tavern_window lights this node drives (the hall's SubViewport).
 @export var scope_path := NodePath("../../..")
-## F6 / F7 / F8 in debug builds.
+## Keys 1 / 2 / 3 / 4 in debug builds.
 @export var dev_keys := true
 
 var mood := TODAY
@@ -687,19 +687,24 @@ func _input(event: InputEvent) -> void:
 	if not dev_keys or not OS.is_debug_build():
 		return
 	var k := event as InputEventKey
-	if k == null or not k.pressed or k.echo:
+	if k == null or not k.pressed or k.echo or k.ctrl_pressed or k.alt_pressed or k.meta_pressed:
+		return
+	# the number row, not F6/F7/F8: Godot 4.4's editor takes those (run scene / pause / stop) when the game is embedded
+	# in its Game tab; and never while a text field has the focus
+	var focus := get_tree().root.gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
 		return
 	match k.keycode:
-		KEY_F6:
+		KEY_1:
 			var names := mood_names()
 			set_mood(names[(names.find(mood) + 1) % names.size()])
-		KEY_F7:
+		KEY_2:
 			set_phase(PHASES[(PHASES.find(phase) + 1) % PHASES.size()])
-		KEY_F8:
+		KEY_3:
 			var presets: Array = ANIME_LOOK.preset_names()
 			ANIME_LOOK.set_preset(presets[(presets.find(ANIME_LOOK.preset()) + 1) % presets.size()])
 			retone_cast()
-		KEY_F4:
+		KEY_4:
 			toggle_edge_pass()
 		_:
 			return
@@ -764,6 +769,6 @@ func _show_label() -> void:
 		layer.add_child(_label)
 	var c := current()
 	var q := edge_pass()
-	_label.text = "mood %s / phase %s / preset %s / edges %s" % [c.mood, c.phase, c.preset, "off" if q and not q.visible else "on"]
+	_label.text = "[1] mood %s  [2] phase %s  [3] preset %s  [4] edges %s" % [c.mood, c.phase, c.preset, "off" if q and not q.visible else "on"]
 	_label.visible = true
 	_label_left = 3.0

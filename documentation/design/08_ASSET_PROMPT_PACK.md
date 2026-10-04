@@ -1677,7 +1677,7 @@ the rig's root at 0,0,0. Then set the import keys in the character spec ("Export
       when the mood takes it off the hall, the fills. "today" changes nothing.
     - **MainTavern at zoom 12 and zoom 8,** set through the camera's `target_zoom`: the character at
       its job, next to the player, Den Fa and the patrons, in the picked mood (and the fire out, the
-      worst case). The dev keys F6 / F7 / F8 cycle the mood, the phase and the shading preset
+      worst case). The dev keys 1 / 2 / 3 cycle the mood, the phase and the shading preset (4 toggles the edge pass)
       (debug builds), or `TavernLighting.set_mood()` / `set_phase()` by eval.
     - **A portrait framing:** the driver's own ortho Camera3D, about 1 m, on the head, under the
       tavern lights. It is judged, not shipped: the portraits are 25.17's.
