@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://cgfed6dmx82kj"
+path="res://.godot/imported/g1_player_real_g1_player_real_headpaint.png-555bb07bcfedcdd9a31c84b9f6514e0e.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "a0f485eaa1e1c296e955b073c448036e"
+}
+
+[deps]
+
+source_file="res://assets/characters/custom/g1_player_real_g1_player_real_headpaint.png"
+dest_files=["res://.godot/imported/g1_player_real_g1_player_real_headpaint.png-555bb07bcfedcdd9a31c84b9f6514e0e.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

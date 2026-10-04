@@ -1,0 +1,7 @@
+{
+	"_note": "Story 25.31 (AC 5, AH-1, V9, V10): the player's body, read by scripts/player/player.gd at _ready (FileAccess, no autoload). model_path: his body (route RL, tools/blender/realistic/real_player.py: one man for the demo, a weathered retired adventurer); fallback_model_path: the body when the model is missing or broken (then player.gd's LAST_RESORT_BODY, the same Rogue); look: \"realistic\" (anime_look.gd tones his own body; \"anime\" is the same path; none on a fallback); run_ground_speed: Running_A's measured ground speed on his own body (m/s; real_player.rate()): Running_A plays at speed / run_ground_speed, so the gameplay speed (player.gd speed, 5.0) stays and his feet don't skate. A future New Game body choice swaps this data, not the scene.",
+	"model_path": "res://assets/characters/custom/g1_player_real.glb",
+	"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+	"look": "realistic",
+	"run_ground_speed": 6.996
+}

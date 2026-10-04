@@ -1,6 +1,11 @@
 # player.gd
-# Player controller with KayKit animation support
-# Supports: Movement, jumping, patron interaction, and animations
+# Player controller: movement, jumping, patron interaction, and animations.
+# Story 25.31 (AC 5, V10): the body comes from data/characters/player.json (read with FileAccess: no autoload), never a
+# node baked into Player.tscn: model_path, then fallback_model_path, then LAST_RESORT_BODY (the old KayKit Rogue), with
+# a "[Player] fallback:" warning. It is added before the model is aligned and the animations are set up, keeps the old
+# Rogue's yaw (BODY_YAW_DEG), and on its own body takes anime_look.gd's toon look when look is "realistic" (or
+# "anime"). Running_A plays at speed / run_ground_speed (V9: the clip's measured ground speed on that body), so the feet
+# don't skate at the gameplay speed; Idle at 1.0; a fallback body plays at 1.0.
 extends CharacterBody3D
 
 # =============================================================================
@@ -14,6 +19,13 @@ extends CharacterBody3D
 # CONSTANTS
 # =============================================================================
 const INTERACTION_RANGE = 2.5
+const PLAYER_DATA := "res://data/characters/player.json"
+## The body when player.json's model and fallback are both missing or broken (the pre-25.31 body).
+const LAST_RESORT_BODY := "res://assets/characters/models/kaykit_adventurers/Rogue.glb"
+const ANIME_LOOK := "res://scripts/game/anime_look.gd"
+const LOOKS := ["anime", "realistic"]
+## The old Rogue node's yaw in Player.tscn (degrees about Y): the body keeps it.
+const BODY_YAW_DEG := 172.07
 const DialogueRunner := preload("res://scripts/dialogue/dialogue_runner.gd")
 
 # =============================================================================
@@ -26,7 +38,14 @@ var is_moving: bool = false
 # =============================================================================
 # NODE REFERENCES
 # =============================================================================
-@onready var rogue_model: Node3D = $Rogue
+## Where the body comes from (tests point it at a fixture before the player enters the tree).
+@export var data_path := PLAYER_DATA
+
+var body_model: Node3D = null
+var body_path := ""                 # the scene the body was instanced from
+var body_look := ""                 # the look applied ("" on a fallback or an imported-look body)
+var using_fallback := false
+var run_rate := 1.0                 # Running_A's playback rate (speed / run_ground_speed on his own body)
 @onready var animation_player: AnimationPlayer = null
 
 # =============================================================================
@@ -42,21 +61,69 @@ func _ready():
 	print("   Controls: WASD/ZQSD Move | E Interact | Space Jump")
 	
 	# Setup model
-	if rogue_model:
+	_load_body()
+	if body_model:
 		_align_model_to_collision()
-		_disable_model_collision(rogue_model)
+		_disable_model_collision(body_model)
 		_setup_animations()
 	else:
-		push_warning("Player: Rogue model not found!")
+		push_warning("[Player] missing: no body could be loaded")
+
+
+## The body from player.json: model_path, fallback_model_path, then LAST_RESORT_BODY (a missing file or a scene
+## whose root is not a Node3D moves on to the next).
+func _load_body() -> void:
+	var spec := {}
+	if FileAccess.file_exists(data_path):
+		var d = JSON.parse_string(FileAccess.get_file_as_string(data_path))
+		if d is Dictionary:
+			spec = d
+	if spec.is_empty():
+		push_warning("[Player] fallback: %s is missing or not an object" % data_path)
+	var tried := []
+	for p in [str(spec.get("model_path", "")), str(spec.get("fallback_model_path", "")), LAST_RESORT_BODY]:
+		if p == "":
+			continue
+		var scene = load(p) if ResourceLoader.exists(p) else null
+		var inst: Node = (scene as PackedScene).instantiate() if scene is PackedScene else null
+		if inst is Node3D:
+			body_model = inst as Node3D
+			body_path = p
+			break
+		if inst:
+			inst.free()
+		tried.append(p)
+	if body_model == null:
+		return
+	using_fallback = body_path != str(spec.get("model_path", ""))
+	if using_fallback:
+		push_warning("[Player] fallback: body %s is missing, using '%s'" % [tried, body_path])
+	body_model.name = "Body"
+	body_model.rotation.y = deg_to_rad(BODY_YAW_DEG)
+	add_child(body_model)
+	if using_fallback:
+		return
+	var look := str(spec.get("look", ""))
+	if look in LOOKS:
+		var look_script = load(ANIME_LOOK) if ResourceLoader.exists(ANIME_LOOK) else null
+		if look_script is Script:
+			look_script.apply(body_model)
+			body_look = look
+		else:
+			push_warning("[Player] missing: the look script %s; the body keeps its imported look" % ANIME_LOOK)
+	elif look != "":
+		push_warning("[Player] unknown look '%s'; the body keeps its imported look" % look)
+	var ground = spec.get("run_ground_speed")
+	if (ground is float or ground is int) and is_finite(float(ground)) and float(ground) > 0.0:
+		run_rate = speed / float(ground)
 
 func _setup_animations():
-	"""Find and configure the AnimationPlayer from the Rogue model"""
-	# KayKit models have AnimationPlayer as a child
-	animation_player = rogue_model.get_node_or_null("AnimationPlayer")
+	"""Find and configure the AnimationPlayer of the body"""
+	animation_player = body_model.get_node_or_null("AnimationPlayer")
 	
 	if not animation_player:
 		# Try searching recursively
-		animation_player = _find_animation_player(rogue_model)
+		animation_player = _find_animation_player(body_model)
 	
 	if animation_player:
 		print("Found AnimationPlayer with animations:")
@@ -66,7 +133,7 @@ func _setup_animations():
 		# Start with idle animation
 		_play_animation("Idle")
 	else:
-		push_warning("Player: No AnimationPlayer found in Rogue model")
+		push_warning("[Player] missing: no AnimationPlayer in the body %s" % body_path)
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	"""Recursively search for AnimationPlayer"""
@@ -105,9 +172,9 @@ func _physics_process(delta: float) -> void:
 		is_moving = true
 		
 		# Rotate model to face movement direction
-		if rogue_model:
+		if body_model:
 			var target_rot = atan2(direction.x, direction.z)
-			rogue_model.rotation.y = lerp_angle(rogue_model.rotation.y, target_rot, rotation_speed * delta)
+			body_model.rotation.y = lerp_angle(body_model.rotation.y, target_rot, rotation_speed * delta)
 	else:
 		velocity.x = 0
 		velocity.z = 0
@@ -179,7 +246,7 @@ func _play_animation(anim_name: String, blend_time: float = 0.2) -> void:
 	if anim:
 		anim.loop_mode = Animation.LOOP_LINEAR
 	
-	animation_player.play(anim_name, blend_time)
+	animation_player.play(anim_name, blend_time, run_rate if anim_name == "Running_A" else 1.0)
 
 func _update_movement_animation() -> void:
 	"""Update animation based on movement state"""
@@ -266,13 +333,13 @@ func get_closest_patron_in_range() -> RealisticPatron:
 func _align_model_to_collision() -> void:
 	"""Align model to stand at the bottom of collision capsule"""
 	var collision_shape = get_node_or_null("CollisionShape3D")
-	if not collision_shape or not rogue_model:
+	if not collision_shape or not body_model:
 		return
 	
 	var shape = collision_shape.shape
 	if shape is CapsuleShape3D:
 		var capsule_bottom = -shape.height / 2
-		rogue_model.position.y = capsule_bottom
+		body_model.position.y = capsule_bottom
 		print("Model aligned to collision bottom: ", capsule_bottom)
 
 func _disable_model_collision(node: Node) -> void:

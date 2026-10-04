@@ -199,6 +199,14 @@ const RUNNER_SCRIPT := "res://scripts/dialogue/dialogue_runner.gd"
 const BOX_SCENE := "res://scenes/ui/DialogueBox.tscn"
 const BOX_SCRIPT := "res://scripts/ui/dialogue_box.gd"
 const PLAYER_SCENE := "res://scenes/player/Player.tscn"
+## Test 24 (Story 25.31, AC 5, V9, V10): the player's body from data.
+const PLAYER_DATA_PATH := "res://data/characters/player.json"
+const PLAYER_SCRIPT := "res://scripts/player/player.gd"
+const PLAYER_BODY_PATH := "res://assets/characters/custom/g1_player_real.glb"
+const PLAYER_FALLBACK_PATH := "res://assets/characters/models/kaykit_adventurers/Rogue.glb"
+const PLAYER_MISSING_FIXTURE := "res://test/fixtures/player_missing_body.json"
+const PLAYER_RUN_GROUND_SPEED := 6.996     # Running_A's ground speed on his body (real_player.rate(), m/s): V9's measure
+const PLAYER_SPEED := 5.0                  # the gameplay speed (V9: unchanged)
 const PORTRAIT_DIR := "res://assets/characters/portraits/npc/"          # Story 25.17
 const PORTRAIT_STUDIO_SCENE := "res://scenes/dev/PortraitStudio.tscn"
 const PORTRAIT_STUDIO_SCRIPT := "res://scripts/dev/portrait_studio.gd"
@@ -276,6 +284,7 @@ func _initialize() -> void:
 	await test_den_fa_states()
 	test_dialogue_portraits()
 	test_anime_look_presets()
+	await test_player_body()
 
 	_finish()
 
@@ -7006,3 +7015,98 @@ func test_anime_look_presets() -> void:
 	m2.free()
 	print("")
 
+
+# --- Test 24: The player's body (Story 25.31, AC 5) ---
+# One man for the demo (AH-1), on route RL: Player.tscn bakes no body; player.gd loads data/characters/player.json's
+# model (else its fallback, else the old Rogue), keeps the old yaw, tones his own body (look "realistic"), and plays
+# Running_A at speed / run_ground_speed (V9: the gameplay speed stays, the feet don't skate). The GLB passes the RL rules
+# (Test 19's checker); the worn sword is a prop on hips and nothing hangs from his hands (R-9).
+func test_player_body() -> void:
+	print("[Test 24] The player's body")
+	var spec = _read_json(PLAYER_DATA_PATH) if FileAccess.file_exists(PLAYER_DATA_PATH) else null
+	check(spec is Dictionary and str(spec.get("model_path", "")) == PLAYER_BODY_PATH and ResourceLoader.exists(PLAYER_BODY_PATH)
+		and str(spec.get("fallback_model_path", "")) == PLAYER_FALLBACK_PATH and ResourceLoader.exists(PLAYER_FALLBACK_PATH)
+		and str(spec.get("look", "")) == "realistic" and str(spec.get("_note", "")).length() > 10,
+		"player.json: his realistic body, the KayKit Rogue as its fallback, look realistic, a _note")
+	var ground := float(spec.get("run_ground_speed", 0.0)) if spec is Dictionary else 0.0
+	check(absf(ground - PLAYER_RUN_GROUND_SPEED) < 0.005, "player.json run_ground_speed %.3f is Running_A's measured ground speed on his body (%.3f m/s)" % [ground, PLAYER_RUN_GROUND_SPEED])
+	var tscn := FileAccess.get_file_as_string(PLAYER_SCENE)
+	check(not tscn.contains("Rogue.glb") and not tscn.contains("[node name=\"Rogue\"") and not tscn.contains("instance=ExtResource"),
+		"Player.tscn bakes no body (the body comes from player.json)")
+	var src := FileAccess.get_file_as_string(PLAYER_SCRIPT)
+	check(not src.contains("$Rogue") and not src.contains("rogue_model") and src.contains("PLAYER_DATA") and not src.contains("/root/"),
+		"player.gd: no $Rogue, no rogue_model, the body from PLAYER_DATA, no autoload path")
+	_check_staff_glb(PLAYER_BODY_PATH, [[], "Player_", ["Player_Sword"], [], ["Walk_Bar", "Wipe", "Pour", "Serve", "Restock", "Write", "Brief"],
+		["Idle", "Running_A"], [], RL_TRI_BUDGET, RL_BODY_SURFACES, "realistic"])
+	# R-9: the sword is worn (a prop on hips), nothing on his hand slots
+	var inst := (load(PLAYER_BODY_PATH) as PackedScene).instantiate() if ResourceLoader.exists(PLAYER_BODY_PATH) else Node3D.new()
+	var atts := inst.find_children("*", "BoneAttachment3D", true, false)
+	var psks := inst.find_children("*", "Skeleton3D", true, false)
+	var on := {}
+	for a in atts:
+		# glTF puts a bone-parented prop on an item bone of its own (KayKit's way): name the rig bone it hangs from
+		var bn := str((a as BoneAttachment3D).bone_name)
+		if not psks.is_empty():
+			var sk := psks[0] as Skeleton3D
+			var bi := sk.find_bone(bn)
+			if bi >= 0 and sk.get_bone_parent(bi) >= 0 and bn.begins_with("Player_"):
+				bn = sk.get_bone_name(sk.get_bone_parent(bi))
+		on[bn] = a.find_children("*", "MeshInstance3D", true, false).map(func(m): return str(m.name))
+	inst.free()
+	check(on.get("hips", []).has("Player_Sword") and not on.has("handslot.r") and not on.has("handslot.l"),
+		"his sword is a prop on hips (worn, the pick's), nothing on his hand slots (R-9) (%s)" % [on])
+
+	var world := Node3D.new()
+	root.add_child(world)
+	var pl = (load(PLAYER_SCENE) as PackedScene).instantiate()
+	world.add_child(pl)
+	var why := []
+	if pl.body_model == null:
+		why.append("no body")
+	else:
+		if pl.body_path != PLAYER_BODY_PATH or pl.using_fallback:
+			why.append("body %s" % pl.body_path)
+		if absf(rad_to_deg(pl.body_model.rotation.y) - 172.07) > 0.1 or absf(pl.body_model.position.y + 0.75) > 0.001:
+			why.append("yaw %.2f / y %.3f" % [rad_to_deg(pl.body_model.rotation.y), pl.body_model.position.y])
+		if pl.body_look != "realistic":
+			why.append("look '%s'" % pl.body_look)
+		var toned := 0
+		var surfaces := 0
+		var look = load(ANIME_LOOK_SCRIPT)
+		for mi in pl.body_model.find_children("*", "MeshInstance3D", true, false):
+			for s in ((mi as MeshInstance3D).mesh.get_surface_count() if (mi as MeshInstance3D).mesh else 0):
+				surfaces += 1
+				if look.is_toon((mi as MeshInstance3D).get_surface_override_material(s)):
+					toned += 1
+		if surfaces < 2 or toned != surfaces:
+			why.append("toned %d of %d surfaces" % [toned, surfaces])
+		if absf(pl.speed - PLAYER_SPEED) > 1e-6 or absf(pl.run_rate - PLAYER_SPEED / PLAYER_RUN_GROUND_SPEED) > 0.001:
+			why.append("speed %.2f, run rate %.3f" % [pl.speed, pl.run_rate])
+		pl._play_animation("Running_A", 0.0)
+		var ap: AnimationPlayer = pl.animation_player
+		if ap == null or ap.current_animation != "Running_A" or absf(ap.get_playing_speed() * PLAYER_RUN_GROUND_SPEED - PLAYER_SPEED) > 0.01:
+			why.append("Running_A at %.3f" % (ap.get_playing_speed() if ap else -1.0))
+		pl._play_animation("Idle", 0.0)
+		if ap == null or absf(ap.get_playing_speed() - 1.0) > 1e-6:
+			why.append("Idle at %.3f" % (ap.get_playing_speed() if ap else -1.0))
+	check(why.is_empty(), "Player.tscn: his body from player.json, the old yaw (172.07°) at the capsule's foot, the realistic look on every surface, Running_A at speed / run_ground_speed (the feet slide at 5.0 m/s: no skating), Idle at 1.0 (wrong: %s)" % [why])
+	pl.queue_free()
+	# the fallback: his model missing -> the KayKit Rogue, its imported look, Running_A at 1.0
+	var fb = load(PLAYER_SCRIPT).new()
+	fb.data_path = PLAYER_MISSING_FIXTURE
+	var cap := CollisionShape3D.new()
+	cap.name = "CollisionShape3D"
+	cap.shape = CapsuleShape3D.new()
+	(cap.shape as CapsuleShape3D).height = 1.5
+	fb.add_child(cap)
+	world.add_child(fb)
+	var fwhy := []
+	if fb.body_model == null or fb.body_path != PLAYER_FALLBACK_PATH or not fb.using_fallback or fb.body_look != "" or fb.run_rate != 1.0:
+		fwhy.append("%s, fallback %s, look '%s', rate %s" % [fb.body_path, fb.using_fallback, fb.body_look, fb.run_rate])
+	elif fb.body_model.find_children("*", "MeshInstance3D", true, false).any(func(m): return (m as MeshInstance3D).get_surface_override_material(0) != null):
+		fwhy.append("the fallback body toned")
+	check(fwhy.is_empty(), "his model missing: the fallback (the KayKit Rogue) with its imported look and Running_A at 1.0 (wrong: %s)" % [fwhy])
+	fb.queue_free()
+	world.queue_free()
+	await process_frame
+	print("")

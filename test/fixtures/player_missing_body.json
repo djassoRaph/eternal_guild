@@ -1,0 +1,7 @@
+{
+	"_note": "Test 24's fixture (Story 25.31): player.json with its model missing, so player.gd loads the fallback body (the KayKit Rogue) with its imported look and Running_A at 1.0.",
+	"model_path": "res://assets/characters/custom/t24_missing_player_body.glb",
+	"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+	"look": "realistic",
+	"run_ground_speed": 6.996
+}
