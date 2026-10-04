@@ -4545,6 +4545,7 @@ func test_staff_runtime() -> void:
 		if bt.global_position.distance_to(start_out) > 1.0:
 			break
 	var in_ring_d := Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z).length()
+	var left_d: float = bt.global_position.distance_to(start_out)   # he really left before the re-hire (P12)
 	gb.staff_hired.emit("t_bar", "bartender")
 	var crossed := false
 	n = 0
@@ -4555,8 +4556,8 @@ func test_staff_runtime() -> void:
 		var phi_deg := absf(rad_to_deg(atan2(d.x, d.y)))
 		if d.length() > 2.30 and d.length() < 3.0 and phi_deg < 170.0:
 			crossed = true                                 # through the counter, not the flap
-	check(in_ring_d < 2.3 and arrived[0] and not crossed and bt.work_state() == "IDLE",
-		"hired while still leaving his station (r %.2f): he takes it again without crossing the counter" % in_ring_d)
+	check(left_d > 1.0 and in_ring_d < 2.3 and arrived[0] and not crossed and bt.work_state() == "IDLE",
+		"hired while still leaving his station (%.2f m along his way out, r %.2f): he takes it again without crossing the counter" % [left_d, in_ring_d])
 	# fired in the tick he takes his station: the tree is mid-crossfade into Wipe, where a travel waits for the fade to end
 	var mid_fade: bool = bt.playback != null and bt.playback.get_fading_from_node() != ""
 	left[0] = false
@@ -6916,7 +6917,9 @@ static func _bar_walk_why(bt, route: PackedVector3Array, why: Array) -> void:
 		for i in mini(5, bt._stands.size()):
 			var sphi := rad_to_deg(float(bt._stands[i].phi))
 			var sr: float = Vector2(bt._stands[i].pos.x - RING_CENTER.x, bt._stands[i].pos.z - RING_CENTER.z).length()
-			if absf(wrapf(phi - sphi, -180.0, 180.0)) <= 1.0 and d.length() <= maxf(sr, float(bt.walk_radius_at(deg_to_rad(phi)))) + 0.05:
+			# the leg spans the arc's radius to the stand's, nothing inside the ring (the 25.31 review's P12)
+			var arc_r := float(bt.walk_radius_at(deg_to_rad(phi)))
+			if absf(wrapf(phi - sphi, -180.0, 180.0)) <= 1.0 and d.length() <= maxf(sr, arc_r) + 0.05 and d.length() >= minf(sr, arc_r) - 0.05:
 				on_leg = true
 		if not on_flap and not on_leg and absf(d.length() - float(bt.walk_radius_at(deg_to_rad(phi)))) > 0.05:
 			why.append("off the arc at %.0f° r %.2f" % [phi, d.length()])
