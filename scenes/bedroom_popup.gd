@@ -33,6 +33,7 @@ func open_bedroom():
 	update_all_displays()
 	popup_centered()
 	GameManager.log_message("Reviewing the day before resting...")
+	GameBus.day_phase_changed.emit("evening")   # Story 25.23: the hall's evening light
 
 func update_all_displays():
 	"""Update all UI elements with current GameManager data"""
@@ -105,7 +106,8 @@ func purchase_firewood(bundles: int, cost: int):
 func start_sleep_sequence():
 	"""Begin the sleep/day advancement sequence"""
 	GameManager.log_message("Heading to bed for the night...")
-	
+	GameBus.day_phase_changed.emit("late_night")   # Story 25.23: the hall goes quiet as you sleep
+
 	# Close this popup
 	hide()
 	
@@ -139,6 +141,7 @@ func _on_fade_complete():
 
 	print("New day started through bedroom sequence")
 	GameManager.log_message("A new day dawns at the Eternal Guild!")
+	GameBus.day_phase_changed.emit("morning")   # Story 25.23: the new day's morning light (day follows the briefing)
 
 	if GameManager.has_pending_briefing:
 		_show_morning_briefing()

@@ -139,6 +139,7 @@ func show_reports(mission_reports: Array):
 	current_report_index = -1
 
 	if reports.size() == 0:
+		GameBus.day_phase_changed.emit("day")   # Story 25.23: nothing to brief, the day's light
 		queue_free()
 		return
 
@@ -152,6 +153,7 @@ func _show_next_report():
 
 	if current_report_index >= reports.size():
 		GameManager.log_message("Morning briefing complete. Time to manage the guild.")
+		GameBus.day_phase_changed.emit("day")   # Story 25.23: the briefing is done, the day's light
 		queue_free()
 		return
 
