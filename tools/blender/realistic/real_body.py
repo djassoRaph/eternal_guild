@@ -2,8 +2,9 @@
 # (real_chain.REAL_1's table) from the concept sheet's own silhouette rows (real_layout). anime_kit supplies the
 # primitives (new_obj, skin, chain, blend, ellipsoid) and the rig lookups (K.setup, K.H, K.T); every shape here is
 # new: the anime kit's parts are drawn for the SD test's landmarks and head. The shapes' heights are REAL-1's (the
-# Bartender's sheet); a REAL-2 body is built in REAL-1's frame and carried onto the REAL-2 rest by transfer_rest
-# (build_base(transfer=...): REAL-2's Base_Body).
+# Bartender's sheet). The bases' neutral bodies (build_neutral, 25.31 S1.0 v2) are built straight on the open rig from
+# a body's params (real_chain.MAN / WOMAN); transfer_rest carries a mesh built on one rest onto another (unused by the
+# bases since v2).
 #
 # Two texture schemes:
 #   - the head material (the head, beard, ears, neck): each face takes one of the concept's three views by its normal
@@ -95,15 +96,18 @@ def head_ring(z):
     return w, yf, yb
 
 
-def nose(x, z):
-    """Forward displacement of the nose, brows, sockets and cheekbones at (x, z) on the face."""
+def nose(x, z, face=None):
+    """Forward displacement of the nose, brows, sockets and cheekbones at (x, z) on the face. face: {"nose": k,
+    "brow": k} multiplies the nose (tip and wings) and the brow ridge (None: the Bartender's, x 1.0)."""
+    kn = face.get("nose", 1.0) if face else 1.0
+    kb = face.get("brow", 1.0) if face else 1.0
     d = 0.0
     if 1.668 < z < 1.74:
         tip = _interp([(1.668, 0.0), (1.676, 0.012), (1.686, 0.024), (1.70, 0.019), (1.72, 0.009), (1.738, 0.002)], z)
         sig = _interp([(1.668, 0.020), (1.68, 0.019), (1.70, 0.014), (1.738, 0.010)], z)
-        d += tip * gauss(x, sig)
-        d += 0.006 * gauss(abs(x) - 0.019, 0.007) * gauss(z - 1.679, 0.007)          # the nostril wings
-    d += 0.007 * gauss(z - 1.751, 0.0085) * (1 - gauss(x, 0.02)) * gauss(abs(x) - 0.04, 0.035)   # the brow ridge
+        d += (tip * kn) * gauss(x, sig)
+        d += (0.006 * kn) * gauss(abs(x) - 0.019, 0.007) * gauss(z - 1.679, 0.007)          # the nostril wings
+    d += (0.007 * kb) * gauss(z - 1.751, 0.0085) * (1 - gauss(x, 0.02)) * gauss(abs(x) - 0.04, 0.035)   # the brow ridge
     d -= 0.011 * gauss(abs(x) - 0.042, 0.019) * gauss(z - 1.733, 0.011)                  # the eye sockets
     d += 0.006 * gauss(abs(x) - 0.064, 0.020) * gauss(z - 1.703, 0.014)                  # the cheekbones
     return d
@@ -122,7 +126,7 @@ def head_theta(k, segs=HEAD_SEGS):
     return math.pi * math.copysign(abs(t) ** 1.35, t)
 
 
-def head_point(th, z, nf=2.6, nb=2.2):
+def head_point(th, z, nf=2.6, nb=2.2, face=None):
     w, yf, yb = head_ring(z)
     cy, d = (yf + yb) / 2.0, (yb - yf) / 2.0
     s, c = math.sin(th), math.cos(th)
@@ -130,7 +134,7 @@ def head_point(th, z, nf=2.6, nb=2.2):
     x = w * se(s, n)
     y = cy - d * se(c, n)
     if c > 0:
-        y -= nose(x, z) * min(1.0, c * 2.0)
+        y -= nose(x, z, face) * min(1.0, c * 2.0)
     return Vector((x, y, z))
 
 
@@ -387,12 +391,12 @@ def skirt_w(top_z, hem_z, front_follow=0.55, legs=0.85):
 
 # ------------------------------------------------------------------ the parts
 
-def build_head(name, mat, sheet=None):
+def build_head(name, mat, sheet=None, face=None):
     bm = bmesh.new()
     segs = HEAD_SEGS
     rings = []
     for z in HEAD_Z:
-        rings.append([bm.verts.new(head_point(head_theta(k), z)) for k in range(segs)])
+        rings.append([bm.verts.new(head_point(head_theta(k), z, face=face)) for k in range(segs)])
     w, yf, yb = head_ring(1.86)
     top = bm.verts.new((0.0, -0.080, 1.861))
     w, yf, yb = head_ring(1.60)
@@ -728,7 +732,15 @@ def build_trouser_leg(name, mat, s, girth=1.0):
     return finish(name, bm, mat, leg_w(s))
 
 
-def build_boot(name, mat, s):
+BOOT = {"length": 1.0, "width": 1.0, "height": 1.0, "girth": 1.0, "top": 0.37, "cuff": True}
+
+
+def build_boot(name, mat, s, boot=None):
+    """The boot round the ankle. boot (BOOT's keys): the foot's length (y about the ankle), width (x), instep height
+    (z), the shaft's girth, its top z (the shaft stretched from 0.15) and the turned-down cuff (True / False). The
+    defaults are REAL-1's (the Bartender's) boot, vertex-identical to the spike's."""
+    bt = dict(BOOT, **(boot or {}))
+    kl, kw, kh, kg = bt["length"], bt["width"], bt["height"], bt["girth"]
     sx = 1 if s == "l" else -1
     ank = K.T("lowerleg." + s)
     xc, yc = ank.x, ank.y - 0.012
@@ -736,12 +748,18 @@ def build_boot(name, mat, s):
     params = {}
     # the shaft (around a vertical axis), bottom into the foot
     shaft = [(0.150, 0.059), (0.22, 0.059), (0.30, 0.062), (0.37, 0.066)]
+    if bt["top"] != 0.37:
+        shaft = [(0.150 + (z - 0.150) * (bt["top"] - 0.150) / (0.37 - 0.150), r) for z, r in shaft]
+    if kg != 1.0:
+        shaft = [(z, r * kg) for z, r in shaft]
     pp, srings = tube(bm, [Vector((xc, yc + 0.012, z)) for z, r in shaft], [(r, r * 1.04) for z, r in shaft], 12,
                       up=lambda p, d: Vector((0, -1, 0)), cap0=False, cap1=False, v_range=(0.40, 1.0))
     params.update({v: (u * 0.5, v_) for v, (u, v_) in pp.items()})
     # the foot: rings across Y (heel back to toe), each a flat-bottomed oval in X-Z
     foot = [(0.090, 0.030, 0.075), (0.075, 0.044, 0.118), (0.045, 0.051, 0.158), (0.005, 0.054, 0.172), (-0.050, 0.056, 0.140),
             (-0.100, 0.058, 0.104), (-0.150, 0.059, 0.082), (-0.195, 0.054, 0.070), (-0.230, 0.042, 0.062), (-0.250, 0.024, 0.052)]
+    if (kl, kw, kh) != (1.0, 1.0, 1.0):
+        foot = [(y * kl, hw * kw, top * kh) for y, hw, top in foot]
     n = 14
     rings = []
     for i, (y, hw, top) in enumerate(foot):
@@ -759,12 +777,25 @@ def build_boot(name, mat, s):
         for k in range(n):
             bm.faces.new((a[k], a[(k + 1) % n], b[(k + 1) % n], b[k]))
     bm.faces.new(list(reversed(rings[0])))
-    tip = bm.verts.new((xc, yc - 0.262, 0.024))
+    tip = bm.verts.new((xc, yc - 0.262 * kl, 0.024 * kh))
     params[tip] = (0.75, 0.05)
     for k in range(n):
         bm.faces.new((rings[-1][k], rings[-1][(k + 1) % n], tip))
+    if not bt["cuff"]:                                          # no cuff: the shaft's top edge rolled in a little
+        top = srings[-1]
+        inner = [bm.verts.new(Vector((xc, yc + 0.012, v.co.z - 0.01)) + (v.co - Vector((xc, yc + 0.012, v.co.z))) * 0.86)
+                 for v in top]
+        for v in inner:
+            params[v] = (0.0, 1.0)
+        for k in range(12):
+            bm.faces.new((top[k], top[(k + 1) % 12], inner[(k + 1) % 12], inner[k]))
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        param_uvs(bm, params, "boots", wrap_u=True)
+        return finish(name, bm, mat, K.chain(["lowerleg." + s, "foot." + s, "toes." + s], 0.04))
     # the turned-down cuff at the top
     cuff = [(0.334, 0.071), (0.360, 0.075), (0.392, 0.076), (0.392, 0.066), (0.350, 0.064)]
+    if bt["top"] != 0.37 or kg != 1.0:
+        cuff = [(z + bt["top"] - 0.37, r * kg) for z, r in cuff]
     cr = []
     for z, r in cuff:
         ring = []
@@ -1004,94 +1035,13 @@ def transfer_rest(ob, src_rest, girth):
     return moved
 
 
-def _weight_on(ob, bones):
-    names = {g.index: g.name for g in ob.vertex_groups}
-    out = []
-    for v in ob.data.vertices:
-        ws = [(g.weight, names[g.group]) for g in v.groups if g.weight > 1e-4]
-        tot = sum(w for w, _ in ws) or 1.0
-        out.append((sum(w for w, n in ws if n in bones) / tot, bool(ws) and max(ws)[1] in bones))
-    return out
+# ------------------------------------------------------------------ the spike's body (superseded)
 
-
-def fit_profile(ob, profile, bones=("hips", "spine", "chest"), bin_h=0.04, min_verts=16):
-    """Reshape a skinned body's trunk to a silhouette on the open rig's rest (REAL-2's woman's frame: the shoulders, a
-    waist, the hips): profile {"width": [(z, half-width)], "front": [(z, depth in front of the spine line)], "back":
-    [(z, depth behind it)], "centre_y": the spine line's y (default 0: the rig's spine)}. Per height band, the trunk's
-    own extents (vertices whose dominant bone is in `bones`) are measured, and every vertex is scaled about the spine
-    line toward the profile by its weight on `bones` (the thigh tops and shoulder caps follow part way); eased in over
-    0.04 m past the profile's ends, nothing moves beyond. Returns {band z: (sx, s_front, s_back)}."""
-    me = ob.data
-    wt = _weight_on(ob, bones)
-    zs = [z for z, _ in profile["width"]]
-    z0, z1 = min(zs), max(zs)
-    bands = {}
-    for v, (w, dom) in zip(me.vertices, wt):
-        if dom and z0 - bin_h <= v.co.z <= z1 + bin_h:
-            e = bands.setdefault(int(round(v.co.z / bin_h)), [0.0, 1e9, -1e9, 0])
-            e[0], e[1], e[2], e[3] = max(e[0], abs(v.co.x)), min(e[1], v.co.y), max(e[2], v.co.y), e[3] + 1
-    rows = {}
-    cy = profile.get("centre_y", 0.0)
-    for b, (xmax, ymin, ymax, n) in bands.items():
-        if n < min_verts or ymin >= cy or ymax <= cy:       # a band that is not a whole trunk ring measures nothing
-            continue
-        z = b * bin_h
-        rows[z] = (_interp(profile["width"], z) / xmax, _interp(profile["front"], z) / (cy - ymin),
-                   _interp(profile["back"], z) / (ymax - cy), cy)
-    keys = sorted(rows)
-
-    def at(z):
-        if z <= keys[0]:
-            return rows[keys[0]]
-        if z >= keys[-1]:
-            return rows[keys[-1]]
-        for a, b in zip(keys[:-1], keys[1:]):
-            if a <= z <= b:
-                t = (z - a) / (b - a)
-                return tuple(rows[a][i] + (rows[b][i] - rows[a][i]) * t for i in range(4))
-        return rows[keys[-1]]
-
-    for v, (w, _) in zip(me.vertices, wt):
-        if w <= 0.0 or not (z0 - 0.04 <= v.co.z <= z1 + 0.04):
-            continue
-        k = w * K.clamp01(min(v.co.z - (z0 - 0.04), (z1 + 0.04) - v.co.z) / 0.04)
-        sx, sf, sb, cy = at(v.co.z)
-        v.co.x *= 1.0 + (sx - 1.0) * k
-        sy = sf if v.co.y < cy else sb
-        v.co.y = cy + (v.co.y - cy) * (1.0 + (sy - 1.0) * k)
-    me.update()
-    return {round(z, 2): tuple(round(x, 3) for x in rows[z][:3]) for z in keys}
-
-
-def add_bust(ob, bust, bones=("chest", "spine")):
-    """bust: (amplitude m, (x, z) centre, sigma m): the front of the chest pushed forward (and a little down-filled),
-    both sides, on the open rig's rest; only vertices weighted to the trunk, in front of its centre line."""
-    amp, (bx, bz), sig = bust
-    wt = _weight_on(ob, bones)
-    n = 0
-    for v, (w, _) in zip(ob.data.vertices, wt):
-        if w <= 0.0 or v.co.y >= 0.0:
-            continue
-        d = sum(gauss(math.hypot(v.co.x - sx * bx, v.co.z - bz), sig) for sx in (1.0, -1.0))
-        if d > 1e-3:
-            v.co.y -= amp * min(1.0, d) * w * K.clamp01(-v.co.y / 0.06)
-            n += 1
-    ob.data.update()
-    return n
-
-
-# ------------------------------------------------------------------ the neutral base body (chain step 3)
-
-def build_base(transfer=None):
-    """Base_Body: the realistic neutral body (skin material, no apron/beard), the foot report's and the sit re-fit's
-    reference. Never exported. transfer: None on REAL-1; for another chain's base (REAL-2) {"src_rest": REAL-1's
-    rest_record, "girth": ..., "profile": ..., "bust": ...}: the parts are built on REAL-1's bones (the rig lookups read
-    src_rest), skinned to the open rig, carried onto its rest (transfer_rest), the trunk fitted to the profile
-    (fit_profile) and the bust added (add_bust)."""
+def build_base():
+    """The spike's REAL-1 Base_Body (the Bartender's shirt, sleeves, trousers and belly; skin material): the bases' body
+    until 25.31 S1.0 v2 replaced it with build_neutral (Raphael: "a bit thick on the belly side"). Kept to rebuild the
+    spike's reference; no chain step calls it."""
     K.setup()
-    if transfer:
-        src = transfer["src_rest"]
-        K.S["bone"] = {n: (Vector(r["head"]), Vector(r["tail"])) for n, r in src.items()}
     K.remove(["Base_Body"])
     m = K.mat("AN_BaseSkin", "C4A084")
     parts = [build_head("RB_Head", m), build_neck("RB_Neck", m), build_torso("RB_Torso", m, hem_jag=False),
@@ -1107,14 +1057,231 @@ def build_base(transfer=None):
     bpy.ops.object.join()
     body = bpy.context.view_layer.objects.active
     body.name = body.data.name = "Base_Body"
-    if transfer:
-        K.setup()                                              # the rig lookups back on the open rig
-        print("transfer_rest: %d vertices onto %s's rest" % (transfer_rest(body, transfer["src_rest"], transfer["girth"]),
-                                                             C.rig().get("anime_rig")))
-        if transfer.get("profile"):
-            print("fit_profile (band z: sx, front, back):", fit_profile(body, transfer["profile"]))
-        if transfer.get("bust"):
-            print("add_bust: %d vertices" % add_bust(body, transfer["bust"]))
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
-    print("Base_Body (realistic): %d tris, top %.3f" % (tris, max(v.co.z for v in body.data.vertices)))
+    print("Base_Body (the spike's): %d tris, top %.3f" % (tris, max(v.co.z for v in body.data.vertices)))
+    return body
+
+
+# ------------------------------------------------------------------ the neutral base bodies (25.31 S1.0 v2)
+# Raphael (2026-10-04) on the first bases: "not really much of a woman avatar ... a bit thick on the belly side". The
+# bases were the spike Bartender's shirt-and-belly body (REAL-2 that body reshaped). build_neutral() makes a neutral,
+# clothing-less mannequin straight on the OPEN rig from a body's params (real_chain's REAL_1["body"] / REAL_2["body"]),
+# every height in that rig's own metres: a trunk lofted through a smooth (monotone cubic) profile, a neck, the
+# analytic head scaled onto the rig's head bone, one tube per arm and leg, the hands, the boots. A character's girth
+# (the Bartender's belly) is its own param ("belly", "trunk_scale"), never the base's.
+
+def pchip(table, z):
+    """Monotone cubic (Fritsch-Carlson) through table [(z, v)] (any order), clamped at the ends: smooth, no overshoot."""
+    t = sorted(table)
+    xs, ys = [a for a, _ in t], [b for _, b in t]
+    n = len(t)
+    if z <= xs[0]:
+        return ys[0]
+    if z >= xs[-1]:
+        return ys[-1]
+    h = [xs[i + 1] - xs[i] for i in range(n - 1)]
+    dl = [(ys[i + 1] - ys[i]) / h[i] for i in range(n - 1)]
+    m = [0.0] * n
+    m[0], m[-1] = dl[0], dl[-1]
+    for i in range(1, n - 1):
+        if dl[i - 1] * dl[i] <= 0:
+            m[i] = 0.0
+        else:
+            w1, w2 = 2 * h[i] + h[i - 1], h[i] + 2 * h[i - 1]
+            m[i] = (w1 + w2) / (w1 / dl[i - 1] + w2 / dl[i])
+    i = max(k for k in range(n - 1) if xs[k] <= z)
+    u = (z - xs[i]) / h[i]
+    h00, h10, h01, h11 = 2 * u ** 3 - 3 * u ** 2 + 1, u ** 3 - 2 * u ** 2 + u, -2 * u ** 3 + 3 * u ** 2, u ** 3 - u ** 2
+    return h00 * ys[i] + h10 * h[i] * m[i] + h01 * ys[i + 1] + h11 * h[i] * m[i + 1]
+
+
+def _col(table, j):
+    return [(r[0], r[j]) for r in table]
+
+
+def _rig_scale():
+    """This rig's size against REAL-1's (shoulder joint height 1.48): the weight blends' widths scale with it."""
+    return K.H("upperarm.l").z / 1.48
+
+
+def _trunk_w():
+    f = _rig_scale()
+    zs, zc, zsh, sj = K.H("spine").z, K.H("chest").z, K.H("upperarm.l").z, K.H("upperarm.l").x
+
+    def fn(co):
+        z = co.z
+        if z < zs - 0.07 * f:
+            w = {"hips": 1.0}
+        elif z < zs + 0.05 * f:
+            w = K.blend("hips", "spine", (z - (zs - 0.07 * f)) / (0.12 * f))
+        elif z < zc - 0.08 * f:
+            w = {"spine": 1.0}
+        elif z < zc + 0.04 * f:
+            w = K.blend("spine", "chest", (z - (zc - 0.08 * f)) / (0.12 * f))
+        else:
+            w = {"chest": 1.0}
+        if z > zsh - 0.10 * f and abs(co.x) > sj - 0.055:
+            s = "l" if co.x > 0 else "r"
+            k = K.clamp01((abs(co.x) - (sj - 0.055)) / 0.10) * K.clamp01((z - (zsh - 0.10 * f)) / (0.07 * f))
+            w = {b: v * (1 - 0.65 * k) for b, v in w.items()}
+            w["upperarm." + s] = w.get("upperarm." + s, 0.0) + 0.65 * k
+        return w
+    return fn
+
+
+def _neck_w():
+    f = _rig_scale()
+    zh = K.H("head").z
+    return lambda co: K.blend("chest", "head", (co.z - (zh - 0.05 * f)) / (0.09 * f))
+
+
+def _arm_w(s):
+    sj = K.H("upperarm.l").x
+    f = K.chain(["upperarm." + s, "lowerarm." + s, "wrist." + s, "hand." + s], 0.05)
+
+    def fn(co):
+        w = f(co)
+        k = K.clamp01((sj + 0.055 - abs(co.x)) / 0.08)
+        if k > 0:
+            w = {b: v * (1 - k) for b, v in w.items()}
+            w["chest"] = w.get("chest", 0.0) + k
+        return w
+    return fn
+
+
+def _leg_w(s):
+    sc = _rig_scale()
+    hz = K.H("upperleg." + s).z
+    f = K.chain(["upperleg." + s, "lowerleg." + s, "foot." + s], 0.06)
+
+    def fn(co):
+        w = f(co)
+        k = K.clamp01((co.z - (hz - 0.09 * sc)) / (0.08 * sc))
+        if k > 0:
+            w = {b: v * (1 - k) for b, v in w.items()}
+            w["hips"] = w.get("hips", 0.0) + k
+        return w
+    return fn
+
+
+def build_trunk(name, mat, P):
+    """The trunk: rings every P["trunk_step"] through P["trunk"] [(z, half-width, front y, back y, n front, n back)]
+    (pchip per column), capped at both ends; then the belly and the bust (front vertices pushed forward)."""
+    tab = P["trunk"]
+    sx, sy = P.get("trunk_scale", (1.0, 1.0))
+    z0, z1 = tab[0][0], tab[-1][0]
+    step = P.get("trunk_step", 0.02)
+    nz = max(2, int(round((z1 - z0) / step)))
+    rings = []
+    for i in range(nz + 1):
+        z = z0 + (z1 - z0) * i / nz
+        rx, yf, yb = (pchip(_col(tab, j), z) for j in (1, 2, 3))
+        nf, nb = pchip(_col(tab, 4), z), pchip(_col(tab, 5), z)
+        cy = (yf + yb) / 2.0
+        rings.append((z, rx * sx, cy + (yf - cy) * sy, cy + (yb - cy) * sy, nf, nb))
+    bm = bmesh.new()
+    loft(bm, rings, P.get("trunk_segs", 32), cap_bottom=True, cap_top=True)
+    belly, bust = P.get("belly"), P.get("bust")
+    for v in bm.verts:
+        p = v.co
+        if p.y >= 0.0:
+            continue
+        front = K.clamp01(-p.y / 0.06)
+        d = 0.0
+        if belly and belly[0]:
+            amp, bz, szz, sxx = belly
+            d += amp * gauss(p.z - bz, szz) * gauss(p.x, sxx)
+        if bust and bust[0]:
+            amp, bx, bz, sig_up, sig_down = bust
+            g = 0.0
+            for side in (1.0, -1.0):
+                sg = sig_up if p.z > bz else sig_down          # fuller and longer above, a tighter fold below
+                g += gauss(p.x - side * bx, sig_up) * gauss(p.z - bz, sg)
+            d += amp * min(1.0, g)
+        p.y -= d * front
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return finish(name, bm, mat, _trunk_w())
+
+
+def build_neutral_neck(name, mat, P):
+    bm = bmesh.new()
+    loft(bm, [(z, rx, yf, yb, 2.0, 2.0) for z, rx, yf, yb in P["neck"]], 16, cap_bottom=True, cap_top=True)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return finish(name, bm, mat, _neck_w())
+
+
+HEAD_PIVOT_SRC = Vector((0.0, -0.050, 1.580))     # REAL-1's head bone head: the analytic head's own frame
+
+
+def build_neutral_head(name, mat, P):
+    """The analytic head (REAL-1's frame) with P["head"]'s face params, the jaw narrowed, scaled about REAL-1's head
+    pivot (scale; width x on top) and set on the open rig's head bone."""
+    h = P.get("head", {})
+    ob = build_head(name, mat, face=h)
+    sc, wd, jaw = h.get("scale", 1.0), h.get("width", 1.0), h.get("jaw", 0.0)
+    dst = K.H("head")
+    for v in ob.data.vertices:
+        p = v.co.copy()
+        if jaw:
+            p.x *= 1.0 - jaw * K.smoothstep(1.71, 1.61, p.z)
+        q = p - HEAD_PIVOT_SRC
+        v.co = dst + Vector((q.x * sc * wd, q.y * sc, q.z * sc))
+    ob.data.update()
+    return ob
+
+
+def build_limb_arm(name, mat, s, P):
+    """One tube from inside the shoulder to the wrist: P["upperarm"] [(t along the upper arm, r up, r front-back)] and
+    P["forearm"] [(t along the forearm, ...)] (the T-pose rest: palm down, so the wrist is wider front-back)."""
+    S, E, W = arm_frame(s)
+    du, dl = (E - S), (W - E)
+    pts, rads = [], []
+    for t, ru, rd in P["upperarm"]:
+        pts.append(S + du * t)
+        rads.append((ru, rd))
+    for t, ru, rd in P["forearm"]:
+        pts.append(E + dl * t)
+        rads.append((ru, rd))
+    bm = bmesh.new()
+    params, _ = tube(bm, pts, rads, P.get("limb_sides", 14), up=up_z, cap0=True, cap1=True)
+    return finish(name, bm, mat, _arm_w(s))
+
+
+def build_limb_leg(name, mat, s, P):
+    """One tube down the leg's bone line: P["leg"] [(z, r front-back, r across, y offset (+ back: the calf))], top
+    (inside the trunk) to the ankle (inside the boot)."""
+    hip, knee, ank = K.H("upperleg." + s), K.T("upperleg." + s), K.T("lowerleg." + s)
+
+    def at(z):
+        if z >= knee.z:
+            return hip.lerp(knee, (hip.z - z) / (hip.z - knee.z))
+        return knee.lerp(ank, (knee.z - z) / (knee.z - ank.z))
+    pts = [at(z) + Vector((0.0, dy, 0.0)) for z, rf, rs, dy in P["leg"]]
+    rads = [(rf, rs) for z, rf, rs, dy in P["leg"]]
+    bm = bmesh.new()
+    params, _ = tube(bm, pts, rads, P.get("limb_sides", 14), up=lambda p, d: Vector((0, -1, 0)), cap0=True, cap1=True)
+    return finish(name, bm, mat, _leg_w(s))
+
+
+def build_neutral(P):
+    """Base_Body, the neutral mannequin on the OPEN rig (chain step 3): P is a chain's "body" (real_chain). Never
+    exported; the sit re-fit, the foot report and the arm pass measure it."""
+    K.setup()
+    K.remove(["Base_Body"])
+    m = K.mat("AN_BaseSkin", P.get("skin", "C4A084"))
+    parts = [build_neutral_head("RB_Head", m, P), build_neutral_neck("RB_Neck", m, P), build_trunk("RB_Trunk", m, P)]
+    for s in ("l", "r"):
+        parts += [build_limb_arm("RB_Arm_" + s, m, s, P), build_hand("RB_Hand_" + s, m, s, scale=P.get("hand", 1.0)),
+                  build_limb_leg("RB_Leg_" + s, m, s, P), build_boot("RB_Boot_" + s, m, s, P.get("boot"))]
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    for o in parts:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = parts[0]
+    bpy.ops.object.join()
+    body = bpy.context.view_layer.objects.active
+    body.name = body.data.name = "Base_Body"
+    tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
+    print("Base_Body (%s): %d tris, top %.3f, soles %.3f" % (P.get("name", "?"), tris, max(v.co.z for v in body.data.vertices),
+                                                          min(v.co.z for v in body.data.vertices)))
     return body

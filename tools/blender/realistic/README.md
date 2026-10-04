@@ -16,7 +16,16 @@ route AN stays for the anime Quest Dealer, her fallback body. Art-side files liv
 Both: the sit clips re-fitted for the 0.45 m table chairs (R-5: the bar stools get a foot ring at seat - 0.45), the
 76-clip foot report stamped, one arm pass on the game clips. A base's files sit beside it: `<stem>_kaykit_feet.json`,
 `_kaykit_sit.json`, `_kaykit_rest.json` (KayKit's own data, recorded in step 1b), `_foot_report.json`,
-`_arm_src.json` (the arm pass's source); REAL-1 also has `realistic_base_rig_rest.json` (its rest, REAL-2's source).
+`_arm_src.json` (the arm pass's source); REAL-1 also has `realistic_base_rig_rest.json` (its rest; REAL-2's v1 body was
+built on it).
+
+**The neutral bodies (v2, 2026-10-04).** Each base's `Base_Body` is a clothing-less mannequin built straight on its rig
+from the chain's `body` params (`real_chain.MAN` / `WOMAN`, every height in that rig's metres): REAL-1 an average man
+(flat stomach; hips 0.181, waist 0.160, chest 0.186 half-widths; the spike's boots, so its foot report holds); REAL-2 a
+woman (hips 0.192, waist 0.127, ribs 0.151 half-widths, a modest bust, slimmer arms and legs, hands x 0.86, the head
+x 0.93 with a narrower jaw and softer brow, a slender neck, smaller ankle boots). The v1 bodies were the spike
+Bartender's (shirt and beer belly; REAL-2 that body reshaped) and read as men. Girth and a belly are a character's own
+params (`belly`, `trunk_scale`), never a base's.
 
 ## Running
 
@@ -55,7 +64,7 @@ rebuild at scratch files (the regression rebuild of the AN base, 25.31 S1.0).
 | 1b | `RC.finish(ch)` | KayKit's leg lengths, its feet on every frame of the 76 clips and its sit clips recorded; stripped to `Rig` + the 76 actions; saved |
 | 2 | `RC.rig(ch)` | the rest pose to the chain's table (directions and rolls kept; the handslot at the palm); stamped `anime_rig` = `real_rig` = REAL-1 / REAL-2 |
 | — | `RC.record_rest(RC.REAL_1)` | REAL-1 only, once: its rest -> `realistic_base_rig_rest.json` (refuses a different record) |
-| 3 | `RC.base_body(ch)` | `Base_Body`, the neutral reference body (never exported): REAL-1 `real_body.build_base()`; REAL-2 the same parts built on REAL-1's recorded rest, carried onto REAL-2's (`transfer_rest`: each bone's length ratio along it, its girth across it), the trunk fitted to a woman's silhouette (`fit_profile`: hips, waist, shoulders, depth in front of / behind the spine line) and a bust (`add_bust`) |
+| 3 | `RC.base_body(ch)` | `Base_Body`, the neutral mannequin (never exported): `real_body.build_neutral(ch["body"])` on the open rig (a pchip-lofted trunk with the bust / belly, a neck, the analytic head scaled onto the head bone, one tube per arm and leg, the hands, `build_boot(boot=)`); repeatable. After it, re-run 5 and 7 (and 6 when the boots changed) |
 | 4 | `RC.ratio(ch)` | hips + root location keys x the leg ratio; never run twice |
 | 5 | `RC.sit(ch)` | `refit_sit("Base_Body")` for the 0.45 m seat (iterated to < 0.002), prints `SIT_HIPS_Y`; repeatable |
 | 6 | `RC.feet(ch)` | the 76-clip foot report + contact correction, stamped `anime_foot_report` |
@@ -107,7 +116,7 @@ on screen before use.
 
 - `real_chain.py`: the REAL-1 / REAL-2 configs and the chain steps.
 - `real_body.py`: the body parts (REAL-1's heights; the Bartender's shapes), the head projection, `rest_record`,
-  `transfer_rest`, `fit_profile`, `add_bust`, `build_base`.
+  `transfer_rest`, `build_neutral` (the bases' bodies) and `build_base` (the spike's body, superseded).
 - `real_arms.py`: the arm pass and its clearance report.
 - `real_layout.py`: concept sheets and the body atlas layout (pure Python).
 - `real_paint.py`: the head and body textures (system Python: numpy + Pillow).
