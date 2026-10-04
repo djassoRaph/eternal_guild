@@ -9,7 +9,7 @@
 ## 1. Visual Style & Art Direction
 
 ### 1.1 Core Aesthetic
-The game's aesthetic is a 2.5D cinematic style inspired by 80's anime, particularly the works of *Studio Ghibli* and *Record of Lodoss War*. It aims to blend a cozy, painterly atmosphere with the potential for epic fantasy and darker undertones.
+The game's aesthetic is a 2.5D cinematic style inspired by 80's anime, particularly the works of *Studio Ghibli* and *Record of Lodoss War*. It aims to blend a cozy, painterly atmosphere with the potential for epic fantasy and darker undertones. Since 2026-10-04 the 3D cast is realistic and darker (gritty cel shading, thick ink, muted earthy colours); the 80s anime influences carry the mood and the 2D art.
 
 ### 1.2 Technical Execution
 This look is achieved by rendering a 3D environment through a custom pixel-art shader in Godot. The target art style is a **high-resolution pixel art illustration with sharp volumetric shading, complex dithering, and a rich, detailed color palette**. The tavern decor will feature clean pixel edges with a concept-art rendering style.
@@ -48,7 +48,7 @@ Mission dispatch is handled through a full-screen **World Map**, not a list popu
 The atmosphere goal is for adventurers to be **residents of the world, not menu entries** — visible in the tavern, leaving when dispatched, returning when done. This is cosmetic and built in four separately-shippable layers. Each layer is good on its own; development can stop at any rung and still leave a livelier game. None of it is built until the core dispatch-and-reveal loop is proven.
 
 **Shared rules (apply to all layers):**
-* Avatars use the class bodies set by `model_path` in `data/characters/classes.json` (Fighter, Rogue, Mage, Healer, Barbarian, Ranger), mapped from the adventurer's class; the anime class bodies come in Story 25.31.
+* Avatars use the class bodies set by `model_path` in `data/characters/classes.json` (Fighter, Rogue, Mage, Healer, Barbarian, Ranger), mapped from the adventurer's class; the realistic class bodies come in Story 25.31.
 * **Only physically-present adventurers are rendered.** Adventurers out on missions are NOT in the tavern. Wounded, Resting, and Ready adventurers are.
 * **On-screen avatar count is capped** (target ~8–12 visible) regardless of roster size. With a soft roster cap of 78, the tavern can never render everyone — a dozen visible bodies reads as "full and lively"; the data layer still tracks the full roster. This mirrors the existing 5-patron visible cap.
 

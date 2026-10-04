@@ -39,6 +39,15 @@ An honest check against your own docs:
 
 ## 1. The style rule: environment and characters
 
+> **Interim, 2026-10-04 (sprint-change-proposal-2026-10-04.md):** the cast is REALISTIC now, not anime
+> (R-1). Route RL (`tools/blender/realistic/`, rig REAL-1: 1.86 m, ~7.35 heads, leg ratio 2.154; REAL-2
+> for women, ~1.70 m, a slimmer frame) replaces route AN for every new character; the AN spec below
+> stays valid only for the anime Quest Dealer, her fallback body. Until Story 25.31 rewrites this
+> section, the AN rules apply to RL except: proportions (REAL-1, REAL-2), faces (projected from the
+> picked concept sheet), textures (≤ 2 per body at ≤ 1024², mipmaps on), seats (bar stools ~0.70, R-5)
+> and the look's preset and ink width (picked in Story 25.23). The concept prompts (§1 "Character
+> concepts") are already realistic.
+
 Since 2026-09-26 the style rule has two halves (decision A-1, Story 25.30):
 
 - **Environment** (buildings, rooms, furniture, props, landmarks, tiles): the KayKit box, below.

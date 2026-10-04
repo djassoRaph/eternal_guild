@@ -4,7 +4,9 @@
 
 **Goal (Raphael, 2026-09-24):** remake **all** of the game's assets in the locked inked style
 (`08_ASSET_PROMPT_PACK.md` §1), replacing the stock KayKit models. Since 2026-09-26 the characters are
-anime instead (route AN: §0 item 4, §5 and the character spec in `08` §1). This file is the checklist.
+anime instead (route AN: §0 item 4, §5 and the character spec in `08` §1). Since 2026-10-04 the
+characters are realistic (route RL; sprint-change-proposal-2026-10-04.md); §0 item 4 and §5 follow in
+Story 25.31. This file is the checklist.
 The *how* (image pipeline, Blender prompts, atlas remap, export, Godot check) lives in `08`.
 
 **How to use it:** one row per asset. When an asset moves, update its **Status** here in the same
