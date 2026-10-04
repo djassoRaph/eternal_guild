@@ -29,7 +29,7 @@ const DESK_NEAR := 1.0             # within this of the desk top she shuffles (W
 const SLIDE_TIME := 0.5
 const BARK_GAP := 20.0
 const WORK_STATES := ["IDLE", "BRIEFING", "AVAILABLE"]
-const QUILL := "Dealer_Quill"      # the body's prop node: shows while she is seated
+const QUILL := "Dealer_Quill"      # the body's prop node: shows only while she writes (25.31, R-9: hands empty otherwise)
 
 @export var desk_path: NodePath
 @export var recruitment_zone_path: NodePath
@@ -313,7 +313,7 @@ func _player_at_desk() -> bool:
 func _update_quill() -> void:
 	var q := model.find_child(QUILL, true, false) as Node3D if model else null
 	if q:
-		q.visible = _seated
+		q.visible = _seated and _wanted == "Write"
 
 
 func _prop_nodes() -> Array:

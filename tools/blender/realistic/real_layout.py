@@ -60,6 +60,19 @@ PLAYER["crown_rows"] = {"front": 27.0, "side": 31.0, "back": 30.0}   # the drawn
 PLAYER["top_from_back"] = {"nz": 0.55, "z_min": 1.80, "y": (-0.20, 0.06), "rows": (38.0, 78.0)}   # the crown (above the
                                                                      # hairline, never the face or the ears): the back view's hair laid flat
 
+# The Quest Dealer's pick (25.31 S1, AC 6b, catalogue G13): eternal_guild_art/picked/C_G13_quest_dealer.png, REAL-2
+# (1.70 m: the hair's top to the soles). Her long hair falls to mid-back, so the crop windows are 290 px (rows 22-312)
+# instead of 130: the projection reaches the hair's tips. The side view shows her RIGHT side; its centre puts her nose
+# tip (px 698) and the back of her hair (px ~605) on REAL-2's head.
+DEALER = make_sheet(
+    "F:/GAME I AM MAKING/eternal_guild_art/picked/C_G13_quest_dealer.png", 1.70,
+    {"front": (249.0, 30.0, 745.0), "side": (620.0, 31.0, 745.0), "back": (1065.0, 30.0, 743.0)},
+    {"front": (249.0 - 145.0, 22.0, 0.0, 0.5), "side": (470.0, 22.0, 0.5, 0.5), "back": (1065.0 - 145.0, 22.0, 0.0, 0.0)},
+    head_win=290.0, side_flip=True)
+DEALER["crown_rows"] = {"front": 30.0, "side": 31.0, "back": 30.0}
+DEALER["top_from_back"] = {"nz": 0.55, "z_min": 1.66, "y": (-0.17, 0.05), "rows": (40.0, 85.0)}
+DEALER["face_y"] = 0.06            # the front view keeps more of her cheeks (the side view's shading muddied them)
+
 CONCEPT = BARTENDER["concept"]
 HEIGHT = BARTENDER["height"]
 VIEWS = BARTENDER["views"]

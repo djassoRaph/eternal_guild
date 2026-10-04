@@ -23,7 +23,7 @@
 				"clip": "Idle",
 				"time": 0.0,
 				"bone": "head",
-				"camera": {"eye_offset": [0.0, 0.25, 0.1], "head_height": 0.55, "yaw_deg": -30.0, "pitch_deg": 6.0, "fov": 24.0}
+				"camera": {"eye_offset": [0.0, 0.14, 0.107], "head_height": 0.23, "yaw_deg": -30.0, "pitch_deg": 6.0, "fov": 24.0}
 			}
 		},
 		"bartender": {

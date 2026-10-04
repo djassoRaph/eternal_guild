@@ -512,6 +512,114 @@ PLAYER_PAINTERS = [
 ]
 
 
+# ------------------------------------------------------------------ the Quest Dealer (25.31 S1, AC 6b; her pick
+# C_G13_quest_dealer.png): a plum wool coat with gold trim. Regions:
+#   shirt (wraps)  the coat's body, buttoned: the gold trim and buttons down its front (u 0.5)
+#   apron          the coat's skirt halves (gold trim on both edges: the front opening and the back vent; a frayed hem)
+#   bib            the stand collar (gold top edge)      sleeve / roll  the sleeves / the cuffs (gold edges)
+#   trousers, seat dark trousers                          cloth          the quill's feather
+DEALER_PALETTE = {
+    "apron": (100, 82, 94), "apron_dark": (66, 52, 62), "apron_edge": (48, 36, 44), "gold": (162, 128, 78),
+    "gold_dark": (104, 80, 48), "trousers": (46, 44, 47), "boots": (88, 74, 62), "boots_dark": (52, 44, 38),
+    "skin": (204, 168, 144), "skin_dark": (160, 120, 104), "hair": (60, 50, 50), "belt": (70, 56, 46),
+    "buckle": (150, 128, 90), "feather": (176, 164, 150), "feather_dark": (110, 98, 88),
+}
+
+
+def wool(cv, seed=301, folds=14, hem=False):
+    w, h = cv.pw, cv.ph
+    n = fbm(w, h, 5, 4, (cv.wrap_u, False), seed)
+    img = tint(col("apron"), n, 0.09)
+    img = mix(img, np.clip((fbm(w, h, 8, 3, (cv.wrap_u, False), seed + 1) - 0.6) * 3, 0, 1), col("apron_dark"), 0.45)
+    img = mix(img, lines_layer(w, h, fold_strokes(w, h, folds, h * 0.25, True, 0.35, seed + 2, (0.1, 0.95)), 1.8, cv.wrap_u, 0.7),
+              col("ink"), 0.35)
+    if hem:
+        yy = np.linspace(1, 0, h)[:, None] * np.ones((1, w))
+        img = mix(img, np.clip((0.15 - yy) / 0.15, 0, 1) ** 1.5, col("apron_dark"), 0.6)
+        fib = (fbm(w, h, 60, 2, (False, False), seed + 4) > 0.55) * np.clip((0.03 - yy) / 0.03, 0, 1)
+        img = mix(img, fib, col("apron_edge"), 0.9)
+    return img
+
+
+def _gold_band(img, x0, x1):
+    img[:, x0:x1] = col("gold")
+    img[:, x0:x0 + 1] = col("gold_dark")
+    img[:, x1 - 1:x1] = col("gold_dark")
+    return img
+
+
+def dealer_coat(cv):
+    w, h = cv.pw, cv.ph
+    img = wool(cv, 301)
+    cx = int(0.5 * w)
+    img = _gold_band(img, cx - 6, cx + 6)
+    yy, xx = np.mgrid[0:h, 0:w]
+    for k in range(6):                                         # the buttons down the front, the top ones under the collar
+        y = int(h * (0.08 + 0.15 * k))
+        m = ((xx - cx) ** 2 + (yy - y) ** 2) < 16
+        img[m] = col("gold_dark")
+    cv.put(img)
+
+
+def dealer_skirt(cv):
+    w, h = cv.pw, cv.ph
+    img = wool(cv, 311, folds=18, hem=True)
+    bw = max(4, int(w * 0.035))
+    img = _gold_band(img, 0, bw)
+    img = _gold_band(img, w - bw, w)
+    cv.put(img)
+
+
+def dealer_collar(cv):
+    w, h = cv.pw, cv.ph
+    img = wool(cv, 321, folds=4)
+    img[: int(h * 0.22)] = col("gold")
+    img[int(h * 0.22):int(h * 0.25)] = col("gold_dark")
+    cv.put(img)
+
+
+def dealer_sleeve(cv):
+    w, h = cv.pw, cv.ph
+    img = wool(cv, 331, folds=6)
+    img = mix(img, lines_layer(w, h, fold_strokes(w, h, 14, w * 0.3, False, 0.5, 332, (0.35, 0.75)), 1.8, True, 0.6), col("ink"), 0.45)
+    cv.put(img)
+
+
+def dealer_cuff(cv):
+    w, h = cv.pw, cv.ph
+    img = tint(col("apron_dark"), fbm(w, h, 8, 3, (True, False), 341), 0.10)
+    img[: int(h * 0.18)] = col("gold")
+    img[int(h * 0.18):int(h * 0.22)] = col("gold_dark")
+    img[int(h * 0.88):] = col("gold")
+    cv.put(img)
+
+
+def feather(cv):
+    w, h = cv.pw, cv.ph
+    img = tint(col("feather"), fbm(w, h, 6, 3, (False, False), 351), 0.10)
+    barbs = lines_layer(w, h, [([(w * 0.5, y), (w * (0.05 if k % 2 else 0.95), y - h * 0.08)], 0.8) for k, y in
+                                enumerate(np.linspace(h * 0.1, h, 40))], 1.2, False, 0.3)
+    img = mix(img, barbs, col("feather_dark"), 0.5)
+    img[:, int(w * 0.48):int(w * 0.52)] = col("feather_dark")
+    cv.put(img)
+
+
+DEALER_PAINTERS = [
+    ("shirt", True, False, dealer_coat),
+    ("apron", False, False, dealer_skirt),
+    ("bib", False, False, dealer_collar),
+    ("sleeve", True, False, dealer_sleeve),
+    ("roll", True, False, dealer_cuff),
+    ("forearm", True, False, lambda cv: skin(cv, hairy=False, seed=361)),
+    ("hand", False, False, hands),
+    ("trousers", True, False, trousers),
+    ("seat", True, False, lambda cv: trousers(cv, seat=True)),
+    ("boots", True, False, boots),
+    ("belt", True, True, belt),
+    ("cloth", False, False, feather),
+]
+
+
 def body_texture(out, painters=None, palette=None, ground="apron_dark", flat_cells=True, misc_fn=None):
     """The body atlas: each (region, wrap_u, wrap_v, painter) paints its real_layout.REG region (periodic on a
     wrapping axis); misc's flat cells last (misc_fn: the role's own, default the Bartender's). palette: {name: (r, g,

@@ -1,5 +1,5 @@
 {
-	"_note": "Story 25.13: the staff's bodies and placeholder barks. Barks are placeholders for Raphael to rewrite (Epic 10's Read and Setup, Epic 16). Epic 16 adds wages and hire candidates; each candidate names a variant here (several Quest Dealer looks are planned). Story 25.30: a variant may say look \"anime\" (anime_look.gd tones its body) and carry a body block of its own measured numbers (metres, m/s: hip_back, stool_pull, seated_front, walk_half_at_desk, idle_front, bubble_seated, hall_speed, bar_speed); they apply only when the variant's own body loads, a fallback body uses the script's constants. The KayKit g13 dealer is the anime dealer's fallback: repoint fallback_model_path before ever removing it. Story 25.31: look \"realistic\" (route RL's bodies, the same toon path as \"anime\"); the Bartender's body block adds his bar numbers (serve_r, restock_r, ring_r, keg_r, gap_r, walk_bar_half_low / _shelf / _mid, tankard_scale), measured on his body by tools/blender/realistic/real_bar.py; the 25.13 KayKit-rig g12 is his fallback.",
+	"_note": "Story 25.13: the staff's bodies and placeholder barks. Barks are placeholders for Raphael to rewrite (Epic 10's Read and Setup, Epic 16). Epic 16 adds wages and hire candidates; each candidate names a variant here (several Quest Dealer looks are planned). Story 25.30: a variant may say look \"anime\" (anime_look.gd tones its body) and carry a body block of its own measured numbers (metres, m/s: hip_back, stool_pull, seated_front, walk_half_at_desk, idle_front, bubble_seated, hall_speed, bar_speed); they apply only when the variant's own body loads, a fallback body uses the script's constants. The KayKit g13 dealer is the anime dealer's fallback: repoint fallback_model_path before ever removing it. Story 25.31: look \"realistic\" (route RL's bodies, the same toon path as \"anime\"); the Bartender's body block adds his bar numbers (serve_r, restock_r, ring_r, keg_r, gap_r, walk_bar_half_low / _shelf / _mid, tankard_scale), measured on his body by tools/blender/realistic/real_bar.py; the 25.13 KayKit-rig g12 is his fallback. The Quest Dealer is realistic too (R-2, REAL-2): her anime body re-exported with the face-seam fix (g13_quest_dealer_anime_v2.glb, Q3) is her fallback; the anime and the KayKit g13 GLBs stay on disk.",
 	"roles": {
 		"bartender": {
 			"display_name": "the Bartender",
@@ -15,9 +15,9 @@
 			"display_name": "the Quest Dealer",
 			"default_variant": "silver_elf",
 			"variants": {
-				"silver_elf": {"model_path": "res://assets/characters/custom/g13_quest_dealer_anime.glb", "fallback_model_path": "res://assets/characters/custom/g13_quest_dealer.glb",
-					"look": "anime",
-					"body": {"hip_back": 0.397, "stool_pull": 0.45, "seated_front": -0.276, "walk_half_at_desk": 0.289, "idle_front": 0.159, "bubble_seated": 1.94, "hall_speed": 1.51, "bar_speed": 0.75}}
+				"silver_elf": {"model_path": "res://assets/characters/custom/g13_quest_dealer_real.glb", "fallback_model_path": "res://assets/characters/custom/g13_quest_dealer_anime_v2.glb",
+					"look": "realistic",
+					"body": {"hip_back": 0.45, "stool_pull": 0.47, "seated_front": -0.23, "walk_half_at_desk": 0.295, "idle_front": 0.127, "bubble_seated": 1.51, "hall_speed": 1.17, "bar_speed": 0.8}}
 			},
 			"barks": ["The contract requires a signature. Two, if you're feeling lucky.", "I'll need three days. Four, if they're honest.", "Terms first. Heroics after.", "Sign here. And here. Mind the ink."]
 		}

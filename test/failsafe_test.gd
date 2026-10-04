@@ -143,8 +143,9 @@ const BAR_SPOT := Vector3(3.95, 0.10, -7.55)            # between Stool03 and St
 const STAFF_DATA_PATH := "res://data/characters/staff.json"          # Story 25.13
 const BARTENDER_PATH := "res://assets/characters/custom/g12_bartender_real.glb"       # Story 25.31: the realistic body (route RL)
 const BARTENDER_FALLBACK_PATH := "res://assets/characters/custom/g12_bartender.glb"   # the 25.13 KayKit-rig Bartender: his fallback
-const DEALER_PATH := "res://assets/characters/custom/g13_quest_dealer_anime.glb"       # Story 25.30: the anime body
-const DEALER_FALLBACK_PATH := "res://assets/characters/custom/g13_quest_dealer.glb"     # the 25.13 KayKit dealer: her fallback
+const DEALER_PATH := "res://assets/characters/custom/g13_quest_dealer_real.glb"        # Story 25.31 (R-2): the realistic body
+const DEALER_FALLBACK_PATH := "res://assets/characters/custom/g13_quest_dealer_anime_v2.glb"   # her anime body, the face-seam fix (Q3)
+const DEALER_KAYKIT_PATH := "res://assets/characters/custom/g13_quest_dealer.glb"      # the 25.13 KayKit dealer (on disk, unused)
 const BARTENDER_SCENE := "res://scenes/game/Bartender.tscn"
 const DEALER_SCENE := "res://scenes/game/QuestDealer.tscn"
 const STAFF_BASE_SCRIPT := "res://scripts/game/staff_npc.gd"
@@ -176,6 +177,11 @@ const AN_BODY_SURFACES := 3            # surfaces on <Role>_Body (props counted 
 const AN_TRI_BUDGET := 10000           # min(10000, ceil(9,459 measured x 1.15 / 500) x 500) = the cap (T3); the same number as 08
 const AN_SIT_HIPS_Y := 0.450           # the re-fitted Sit_Chair_Idle hips height (model-local): T2's SIT_HIPS_Y (Base_Body; her seat within 0.03)
 const AN_SEATED_SHOULDER_MIN := 1.05   # seated upperarm heads, root-local: the desk top 0.85 + 0.20 (N2)
+## Story 25.31: REAL-2's sit re-fit (Sit_Chair_Idle's hips, model-local) and the realistic dealer's seated shoulders. Her
+## shoulders measure 1.034, under 25.30's desk top + 0.20 (1.05): raise the desk stool or lower the desk is Raphael's call
+## at Stage D (AC 6b); until then the measured value is the floor.
+const RL_SIT_HIPS_Y_W := 0.5164
+const RL_SEATED_SHOULDER_MIN_W := 1.03
 # Story 25.31: the realistic cast (route RL; AH-15). The AN rules stay for the anime dealer (her fallback since R-2).
 const RL_TRI_CAP := 10000              # per body, props included (14,000 only with re-measured hall and town budgets)
 const RL_TRI_BUDGET := 10000
@@ -2918,7 +2924,7 @@ func test_staff() -> void:
 	# route ("anime" / "realistic"; 25.31: the RL rules - two textures at <= 1024, a head projection, top 1.50-2.25)]
 	var glb_rules := {"bartender": [[], "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"],
 			BARTENDER_CLIPS, BARTENDER_EXCLUDED, BARTENDER_LOOPS, BARTENDER_ONE_SHOTS, RL_TRI_BUDGET, RL_BODY_SURFACES, "realistic"],
-		"desk_manager": [[], "Dealer_", ["Dealer_Quill"], DEALER_CLIPS, DEALER_EXCLUDED, DEALER_LOOPS, DEALER_ONE_SHOTS, AN_TRI_BUDGET, AN_BODY_SURFACES, "anime"]}
+		"desk_manager": [[], "Dealer_", ["Dealer_Quill"], DEALER_CLIPS, DEALER_EXCLUDED, DEALER_LOOPS, DEALER_ONE_SHOTS, RL_TRI_BUDGET, RL_BODY_SURFACES, "realistic"]}
 	for role in glb_rules:
 		var rv = roles.get(role)
 		var vs = rv.get("variants", {}) if rv is Dictionary else {}
@@ -2929,8 +2935,8 @@ func test_staff() -> void:
 			_check_staff_glb(str(v.get("model_path", "")) if v is Dictionary else "", glb_rules[role])
 	# Review 2026-10-03: a custom fallback body (the 25.13 KayKit-rig dealer behind the anime one) is a staff body
 	# too and gets the same checks under its own rule (a stock KayKit fallback, the Bartender's Barbarian, does not).
-	var fallback_rules := {"desk_manager": [DEALER_MESH_ALLOW, "Dealer_", ["Dealer_Quill", "Dealer_Ears"],
-			STAFF_CLIPS, [], STAFF_LOOPS, STAFF_ONE_SHOTS, 7000, -1],
+	var fallback_rules := {"desk_manager": [[], "Dealer_", ["Dealer_Quill"], DEALER_CLIPS, DEALER_EXCLUDED, DEALER_LOOPS,
+			DEALER_ONE_SHOTS, AN_TRI_BUDGET, AN_BODY_SURFACES, "anime"],
 		"bartender": [BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"],
 			STAFF_CLIPS, [], STAFF_LOOPS, STAFF_ONE_SHOTS, 7000, -1]}
 	for role in fallback_rules:
@@ -2948,9 +2954,9 @@ func test_staff() -> void:
 	var se_body = se.get("body") if se is Dictionary else null
 	var bad_keys := DEALER_BODY_KEYS.filter(func(k): return not (se_body is Dictionary and (se_body.get(k) is float or se_body.get(k) is int)
 		and (k == "seated_front" or float(se_body.get(k)) > 0.0)))
-	check(se is Dictionary and str(se.get("look", "")) == "anime" and str(se.get("model_path", "")) == DEALER_PATH
+	check(se is Dictionary and str(se.get("look", "")) == "realistic" and str(se.get("model_path", "")) == DEALER_PATH
 		and str(se.get("fallback_model_path", "")) == DEALER_FALLBACK_PATH and bad_keys.is_empty(),
-		"staff.json silver_elf: the anime body (look anime), the 25.13 KayKit dealer as its fallback, and every body number (missing or bad %s)" % [bad_keys])
+		"staff.json silver_elf: the realistic body (look realistic), her anime v2 body as its fallback, and every body number (missing or bad %s)" % [bad_keys])
 	# the realistic Bartender's data (Story 25.31, V14, F29): look "realistic", the 25.13 g12 as his fallback, every
 	# body number; his ring (ring_r / keg_r / gap_r) clears the shelf, the kegs and the counter for his own Walk_Bar
 	# half-widths (Test 19's 25.13 rules), he serves between the ring and the counter, the tankard drawn x 1.0-1.8
@@ -4100,7 +4106,7 @@ func test_staff_runtime() -> void:
 	var fg_seated_quill: bool = fg_quill != null and fg_quill.is_visible_in_tree()
 	var fg_pull: float = (fg._seat() - fg._standing_root()).length() if fg.model else -1.0
 	var fg_head_ok := true
-	for hn in ["Dealer_Circlet", "Dealer_Ears"]:
+	for hn in ["Dealer_Body"]:                          # (her anime body: the circlet and ears are in it)
 		var h: Node3D = fg.model.find_child(hn, true, false) as Node3D if fg.model else null
 		if h == null or not h.is_visible_in_tree():
 			fg_head_ok = false
@@ -4126,7 +4132,7 @@ func test_staff_runtime() -> void:
 			fg_walk_quill = fg_quill != null and fg_quill.is_visible_in_tree()
 	check(fg.using_fallback and fg.model != null and fg.model.scene_file_path == DEALER_FALLBACK_PATH and fg_at < 0.02 and absf(fg_pull - float(dconst_r.get("STOOL_PULL", 0.52))) < 0.005
 		and fg_look.is_empty() and fg_seated_quill and fg_walked and not fg_walk_quill and fg_head_ok and fg_hands.is_empty(),
-		"her anime file missing: the 25.13 KayKit dealer, seated by the script's own numbers (%.3f m off, stool pull %.2f), not the data's; no toon (%s); her quill out seated, gone walking %s; circlet and ears shown, no hand items %s" % [fg_at, fg_pull, fg_look.slice(0, 2), [fg_seated_quill, fg_walk_quill], fg_hands])
+		"her realistic file missing: her anime v2 body, seated by the script's own numbers (%.3f m off, stool pull %.2f), not the data's; no toon (%s); her quill out while she writes, gone walking %s; her body shown, no hand items %s" % [fg_at, fg_pull, fg_look.slice(0, 2), [fg_seated_quill, fg_walk_quill], fg_hands])
 	fg.queue_free()
 	await process_frame
 	if stool:
@@ -4219,6 +4225,7 @@ func test_staff_runtime() -> void:
 		"hired, she walks in from the west, pulls the stool out, sits and shuffles in: seated %.3f m from her seat, facing the room, the stool home, writing (%s; %s, stool out to %.2f, shuffle %d ticks)" % [qd.global_position.distance_to(want), qd.anim_state(), q_seq, min_stool_z, seated_ticks])
 	check(zero_bt and zero_qd, "a zero tick changes nothing (no NaN): his turn in place, her stool slide %s" % [[zero_bt, zero_qd]])
 	var states_ok := true
+	var quill_states := {}                                 # R-9 (25.31): the quill shows only while she writes
 	for pair in [["BRIEFING", "Brief"], ["AVAILABLE", "Available"], ["IDLE", "Write"]]:
 		qd.set_autopilot(false)
 		qd.set_work_state(pair[0])
@@ -4226,8 +4233,9 @@ func test_staff_runtime() -> void:
 			qd.tick(dt)
 		if qd.work_state() != pair[0] or qd.anim_state() != pair[1]:
 			states_ok = false
+		quill_states[pair[1]] = quill != null and quill.visible
 	check(states_ok, "set_work_state drives Brief, Available and Write (Story 16.4's states)")
-	var quill_in: bool = quill != null and qd._seated and quill.visible
+	var quill_in: bool = quill != null and qd._seated and quill.visible and quill_states == {"Brief": false, "Available": false, "Write": true}
 	var pos_here: Vector3 = qd.global_position
 	var state_here: String = qd.anim_state()
 	gb.staff_hired.emit("t_desk_2", "desk_manager")
@@ -4327,7 +4335,7 @@ func test_staff_runtime() -> void:
 	check(q_left[0] and not qd.visible and stool != null and stool.position.length() < 0.01, "fired, she stands, puts the stool back and leaves")
 	check(pull_aim >= 0.0 and pull_aim < 10.0 and push_aim >= 0.0 and push_aim < 10.0,
 		"Interact faces the stool (its mesh's centre): %.1f° off pulling it out, %.1f° off pushing it back (< 10°)" % [pull_aim, push_aim])
-	check(quill_in and quill_out, "her quill shows while she is seated and hides while she walks")
+	check(quill_in and quill_out, "her quill (a prop, R-9) shows only while she writes: hidden in Brief and Available and while she walks %s" % [quill_states])
 	for i in 10:
 		qd.tick(dt)
 	check(door._holders.is_empty() and not qd.is_walking(), "gone: she lets go of the door and stays put (holders %d)" % door._holders.size())
@@ -4554,6 +4562,13 @@ func _check_sit_refit(world: Node) -> void:
 	sr.hired_at_start_override = 0
 	world.add_child(sr)
 	var why := []
+	# the body staff.json loads: REAL-2 (25.31, look realistic) or the anime base (25.30)
+	var sd = _read_json(STAFF_DATA_PATH)
+	var dm_v = sd.get("roles", {}).get("desk_manager", {}) if sd is Dictionary else {}
+	var dv = dm_v.get("variants", {}).get(str(dm_v.get("default_variant", "")), {}) if dm_v is Dictionary and dm_v.get("variants") is Dictionary else {}
+	var rl: bool = dv is Dictionary and str(dv.get("look", "")) == "realistic"
+	var hips_want: float = RL_SIT_HIPS_Y_W if rl else AN_SIT_HIPS_Y
+	var shoulder_min: float = RL_SEATED_SHOULDER_MIN_W if rl else AN_SEATED_SHOULDER_MIN
 	var sk: Skeleton3D = null
 	if sr.model:
 		var sks: Array = sr.model.find_children("*", "Skeleton3D", true, false)
@@ -4575,7 +4590,7 @@ func _check_sit_refit(world: Node) -> void:
 		var hips0: Vector3 = bone_at.call("Sit_Chair_Idle", 0.0, "hips")
 		for t in [0.0, idle_len * 0.5]:
 			var hp: Vector3 = bone_at.call("Sit_Chair_Idle", t, "hips")
-			if absf(hp.y - AN_SIT_HIPS_Y) > 0.03 or absf(hp.z + 0.40) > 0.02:
+			if absf(hp.y - hips_want) > 0.03 or absf(hp.z + 0.40) > 0.02:
 				why.append("hips (%.3f, %.3f) at t %.2f" % [hp.y, hp.z, t])
 			for f in ["foot.l", "foot.r"]:
 				var rest_y: float = (to_model * sk.get_bone_global_rest(sk.find_bone(f)).origin).y
@@ -4584,14 +4599,14 @@ func _check_sit_refit(world: Node) -> void:
 					why.append("%s %.3f (rest %.3f)" % [f, fy, rest_y])
 			for u in ["upperarm.l", "upperarm.r"]:
 				var uy: float = (bone_at.call("Sit_Chair_Idle", t, u) as Vector3).y
-				if uy < AN_SEATED_SHOULDER_MIN:
+				if uy < shoulder_min:
 					why.append("%s %.3f" % [u, uy])
 		var down_end: Vector3 = bone_at.call("Sit_Chair_Down", ap.get_animation("Sit_Chair_Down").length, "hips")
 		var up_start: Vector3 = bone_at.call("Sit_Chair_StandUp", 0.0, "hips")
 		if down_end.distance_to(hips0) > 0.01 or up_start.distance_to(hips0) > 0.01:
 			why.append("Down ends %.3f / StandUp starts %.3f from the seat pose" % [down_end.distance_to(hips0), up_start.distance_to(hips0)])
 		ap.stop()
-	check(why.is_empty(), "the sit re-fit on her anime body: Sit_Chair_Idle's hips at %.2f and 0.40 behind the root, the feet planted, the shoulders ≥ %.2f (the desk top + 0.20), Down and StandUp meeting it (wrong: %s)" % [AN_SIT_HIPS_Y, AN_SEATED_SHOULDER_MIN, why.slice(0, 4)])
+	check(why.is_empty(), "the sit re-fit on her %s body: Sit_Chair_Idle's hips at %.2f and 0.40 behind the root, the feet planted, the shoulders ≥ %.2f (%s), Down and StandUp meeting it (wrong: %s)" % ["realistic (REAL-2)" if rl else "anime", hips_want, shoulder_min, "measured: the desk call is Raphael's" if rl else "the desk top + 0.20", why.slice(0, 4)])
 	sr.queue_free()
 
 
