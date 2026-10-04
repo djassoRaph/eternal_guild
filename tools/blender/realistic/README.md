@@ -150,6 +150,36 @@ MCP call each): `open_base_as(id)`, `build(id)`, `paint_head(id)`, `build_clips(
 - R-9: hands empty; worn things on the body or a visible prop on hips (the merchant's purse); the old woman's cane is a
   prop on handslot.r that `RealisticPatron.dress_body` hides.
 
+## The class bodies (25.31 S3)
+
+`real_classes.py` (+ `real_classes_paint.py`, system Python: `python real_classes_paint.py <class>|all [--overwrite]
+[--body-only]`) builds the six class bodies from `<art>/picked/C_G<n>_<class>.png`: the Fighter (G2), the Mage (G4) and
+the Barbarian (G6) on REAL-1, the Rogue (G3), the Healer (G5) and the Ranger (G7) on REAL-2; one `.blend` and one GLB
+each: `<art>/blender/g<n>_<class>_real.blend` -> `custom/g<n>_<class>_real.glb`. Steps (one MCP call each):
+`open_base_as(V)`, `build(V)`, `build_clips(V)`, `build(V, props_only=True)` (the hand props aimed from the re-posed
+Idle), `paint_head(V)`, `measure(V)` (+ `robe_check(V)` for the Mage and the Healer), `export(V)`. A later `build(V)`
+keeps the clips; re-run `paint_head` after it.
+
+- Sheets: `real_layout.CLASS_SHEETS` (eye-line registered); `_crops` widens the head windows for the Rogue's ponytail,
+  the Healer's hood and the Barbarian's long beard (300 px). The Healer's hood is a head-material shell projected from
+  her pick (its gold edge and folds are the drawing's); the Barbarian's hair fall and long beard too (his pick's axe is
+  mirrored out of the back view: `real_classes_paint._barbarian_head`). The Ranger's hair and braid are body-atlas
+  strands (her pick draws them under a hood in two views).
+- R-9 (refined): EMPTY-HANDED bodies. Carried items are props on a hand slot, which the game hides (`RealisticPatron.
+  dress_body`): the Fighter's sword (r) and shield (l), the Mage's staff, the Healer's crystal staff, the Barbarian's
+  axe (r), the Ranger's bow (l). Worn gear is visible: the Rogue's sheathed daggers (a prop on hips), the Ranger's
+  quiver (a prop on chest), satchels and straps on the body. Hand props are aimed from Idle's first frame
+  (`slot_frame`: built in rest so the bone carries them).
+- AH-3 / V5: the Healer's crystal is the staff's second material `RT_Healer_Crystal` (emissive green on a dark base,
+  roughness 0); `anime_merge.check` (`emission_ok`) fails emission on a body material or one the body shares, and an
+  emissive material above roughness 0. `anime_look.gd` keeps it emissive at roughness 0 without an outline.
+- Long robes (Mage, Healer): skirt halves split at the front (`split_skirt`), the front following the thighs fully and
+  high up (`legs` 1.0, h^0.22) with front ease, and below the knee handed over to the shins (`robe_w`, `shin` 1.0) so a
+  seated robe hangs along the shins instead of standing out like a board. `robe_check` runs anime_clearcheck's check (b)
+  with the RL regions (legs = "trousers", skirt = "apron"; proved on a bad pose first).
+- Burly (AH-5): the Barbarian's jerkin is lofted on `burly_ring` (the neutral man x 1.13 / 1.10 + a belly), bare arms
+  x 1.32 / 1.22 (`bare_arm`), `arms_out` up to 10 deg.
+
 The bar stools (25.31 S2.0, R-5) are not a Blender build: `tools/props/make_tall_stool.py` writes
 `b2_bar_stool_tall.gltf` (seat 0.72, the foot ring and footrest 0.45 m under it) from the 25.6 stool's design.
 
@@ -174,4 +204,5 @@ own body before a build), each from the base's retargeted clips kept as `SRC_*` 
 - `real_bar.py`: the Bartender's bar clearance and body numbers.
 - `real_player.py`, `real_dealer.py`: the player and the Quest Dealer (25.31 S1).
 - `real_townsfolk.py`, `real_townsfolk_paint.py`: the six townsfolk and their textures (25.31 S2).
+- `real_classes.py`, `real_classes_paint.py`: the six class bodies and their textures (25.31 S3).
 - `real_bake.py`: the painted head pass.
