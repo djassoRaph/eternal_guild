@@ -1,0 +1,151 @@
+{
+ "asset": {
+  "generator": "Eternal Guild make_tall_stool.py (Story 25.31 S2.0)",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    2
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "bar_stool"
+  },
+  {
+   "name": "seat_point",
+   "translation": [
+    0,
+    0.72,
+    0
+   ]
+  },
+  {
+   "children": [
+    0,
+    1
+   ],
+   "name": "b2_bar_stool_tall"
+  }
+ ],
+ "materials": [
+  {
+   "doubleSided": true,
+   "name": "kaykit_atlas_mat",
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicFactor": 0
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "bar_stool",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "textures": [
+  {
+   "sampler": 0,
+   "source": 0
+  }
+ ],
+ "images": [
+  {
+   "mimeType": "image/png",
+   "name": "hexagons_medieval",
+   "uri": "hexagons_medieval.png"
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9728,
+   "minFilter": 9984
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 372,
+   "type": "VEC3",
+   "min": [
+    -0.18477590382099152,
+    -0.0023538959212601185,
+    -0.18477590382099152
+   ],
+   "max": [
+    0.18477590382099152,
+    0.7200000286102295,
+    0.4000000059604645
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 372,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 372,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5123,
+   "count": 372,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 4464,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 4464,
+   "byteLength": 4464,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 8928,
+   "byteLength": 2976,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 11904,
+   "byteLength": 744,
+   "target": 34963
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 12648,
+   "uri": "b2_bar_stool_tall.bin"
+  }
+ ]
+}

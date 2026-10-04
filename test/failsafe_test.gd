@@ -87,7 +87,10 @@ const HEARTH_OBJECTS := ["hearth_stone", "mantel", "mantel_props", "andirons", "
 const HEARTH_MARKERS := ["sit_point", "interact_point", "fire_point", "smoke_point", "onibi_point"]
 
 const ROUND_BAR_PATH := "res://assets/environment/custom/b2_round_bar.gltf"
-const BAR_STOOL_PATH := "res://assets/environment/custom/b2_bar_stool.gltf"
+const BAR_STOOL_PATH := "res://assets/environment/custom/b2_bar_stool_tall.gltf"   # Story 25.31 S2.0 (R-5); 25.6's b2_bar_stool.gltf stays on disk
+## Story 25.31 S2.0 (R-5): the realistic sit clips' soles relative to the hips, measured on REAL-1 / REAL-2's Sit_Chair_Idle
+## (heels 0.268 / 0.287, toes 0.620 / 0.580 ahead of the hips): the stool's footrest must lie under both.
+const SIT_SOLES_AHEAD := Vector2(0.29, 0.58)
 const BACK_BAR_PATH := "res://assets/environment/custom/b12_back_bar.gltf"
 const TANKARD_FULL_PATH := "res://assets/environment/custom/h1_tankard_full.gltf"
 const TANKARD_EMPTY_PATH := "res://assets/environment/custom/h1_tankard_empty.gltf"
@@ -1606,7 +1609,37 @@ func test_round_bar() -> void:
 	for k in stool:
 		if str(k).get_file() == "seat_point":
 			seat_y = (stool[k].world as Transform3D).origin.y
-	check(absf(seat_y - 0.44) <= 0.05, "the stool's seat_point is at %.2f m (0.44, the KayKit chair height)" % seat_y)
+	# Story 25.31 S2.0 (R-5): bar height. The seat is set so the seated realistic elbows (0.39 / 0.36 above the seat on
+	# REAL-1 / REAL-2) meet the 1.10 m counter top; RealisticPatron seats patrons at its height and lifts the body
+	# by seat - the clip's 0.45 m seat, so the soles land on the foot ring / footrest 0.45 m under the seat.
+	var rp_c: Dictionary = (load(PATRON_SCRIPT_PATH) as Script).get_script_constant_map() if ResourceLoader.exists(PATRON_SCRIPT_PATH) else {}
+	var stool_seat := float(rp_c.get("BAR_STOOL_SEAT", -1.0))
+	check(seat_y >= 0.70 and seat_y <= 0.78 and absf(seat_y - stool_seat) < 0.005,
+		"the stool's seat_point is at %.2f m (bar height 0.70-0.78; RealisticPatron.BAR_STOOL_SEAT %.2f)" % [seat_y, stool_seat])
+	var lift := float(rp_c.get("SIT_LIFT", -1.0))
+	check(absf(lift - (seat_y - float(rp_c.get("SIT_CLIP_SEAT", 0.0)))) < 0.005 and absf(float(rp_c.get("SIT_CLIP_SEAT", 0.0)) - 0.45) < 0.011
+		and absf(float(rp_c.get("SIT_HIP_BACK", 0.0)) - 0.397) < 0.01,
+		"RealisticPatron: SIT_LIFT %.2f = the seat - the sit clips' seat (SIT_CLIP_SEAT 0.45), SIT_HIP_BACK %.3f (0.397, measured)" % [lift, float(rp_c.get("SIT_HIP_BACK", 0.0))])
+	# The footrest: the highest mesh point ahead of the legs (z > 0.25 in the stool's frame: the sitter faces +Z) is the
+	# crossbar's top, at the soles' height (seat - 0.45) and spanning the soles of both bases.
+	var rest_top := -1.0
+	var rest_z := Vector2(INF, -INF)
+	var leg_r := 0.0
+	for k in stool:
+		var mesh = stool[k].props.get("mesh")
+		if not mesh is Mesh:
+			continue
+		for s in (mesh as Mesh).get_surface_count():
+			for v in ((mesh as Mesh).surface_get_arrays(s)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+				var w: Vector3 = (stool[k].world as Transform3D) * v
+				if w.z > 0.25:
+					rest_top = maxf(rest_top, w.y)
+					rest_z = Vector2(minf(rest_z.x, w.z), maxf(rest_z.y, w.z))
+				if w.y < 0.01:
+					leg_r = maxf(leg_r, Vector2(w.x, w.z).length())
+	check(absf(rest_top - (seat_y - 0.45)) <= 0.01 and rest_z.x <= SIT_SOLES_AHEAD.y and rest_z.y >= SIT_SOLES_AHEAD.x,
+		"the footrest's top is at %.2f m (seat - 0.45 = %.2f), %.2f-%.2f m ahead (the soles %.2f-%.2f)" % [rest_top, seat_y - 0.45, rest_z.x, rest_z.y, SIT_SOLES_AHEAD.x, SIT_SOLES_AHEAD.y])
+	check(leg_r > 0.0 and leg_r <= 0.27, "the stool's floor footprint stays 25.6's (legs within r %.2f of its centre)" % leg_r)
 
 	var bs := _scene_nodes(BAR_STOOL_SCENE_PATH) if ResourceLoader.exists(BAR_STOOL_SCENE_PATH) else {}
 	var seat_local := Transform3D.IDENTITY
@@ -1636,9 +1669,9 @@ func test_round_bar() -> void:
 		and rp.get_script_method_list().any(func(m): return m.name == "seat_root")
 	check(has_api, "PatronSpawner.build_seats() and RealisticPatron.seat_root() exist")
 	if has_api:
-		var seat_t := Transform3D(Basis.looking_at(Vector3(0, 0, 1), Vector3.UP, true), Vector3(0, 0.54, -3.95))   # +Z toward the centre
+		var seat_t := Transform3D(Basis.looking_at(Vector3(0, 0, 1), Vector3.UP, true), Vector3(0, 0.1 + float(rp_c.get("BAR_STOOL_SEAT", 0.44)), -3.95))   # +Z toward the centre
 		var root: Vector3 = rp.seat_root(seat_t)
-		check(root.distance_to(Vector3(0, 0.1, -3.55)) < 0.02, "seat_root: 0.40 m in front of the seat, on the floor (%s)" % root)
+		check(root.distance_to(Vector3(0, 0.1, -3.553)) < 0.02, "seat_root: 0.397 m in front of the seat, on the floor (%s)" % root)
 		var far := Vector3(-3.0, 0, -1.0)
 		var near := Vector3(0.1, 0, -3.5)
 		var only_tables: Array = sp.build_seats([], [far, near])

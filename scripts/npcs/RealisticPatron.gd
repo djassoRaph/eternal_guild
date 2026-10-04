@@ -6,12 +6,19 @@ class_name RealisticPatron
 const SPEED = 2.5
 const GRAVITY = 9.8
 
-# Seats and drinks (Story 25.6). Measured on the KayKit rig: Sit_Chair_Idle puts the hips 0.40 m
-# behind the character root and just above a 0.44 m seat, so a patron on a seat marker stands its
-# root 0.40 m in front of the seat centre, facing the way the marker's +Z points.
-const SIT_HIP_BACK := 0.40
-const SIT_SEAT_HEIGHT := 0.44
-const SIT_LIFT := 0.0            # model lift while seated (0 for the 0.44 m bar stools)
+# Seats and drinks (Story 25.6; re-measured for the realistic cast in Story 25.31 S2.0, R-5). The realistic
+# sit clips (REAL-1 and REAL-2, refit_sit for a 0.45 m chair) put the hips 0.397 m behind the character root,
+# the seat 0.45 m up and the soles on the floor (KayKit's: 0.40 / 0.44). Every patron_seat marker is a bar stool
+# (BarStool.tscn: b2_bar_stool_tall.gltf, seat 0.72 m, seated elbows at the 1.10 m counter top, a foot ring and a
+# footrest 0.45 m under the seat), so a patron on a seat marker stands its root on the floor SIT_HIP_BACK in front
+# of the seat centre, facing the way the marker's +Z points, and its body rides up SIT_LIFT onto the stool (the
+# soles on the footrest). Table spots (no marker) sit at the clip's own 0.45 m with no lift.
+const SIT_HIP_BACK := 0.397
+const SIT_CLIP_SEAT := 0.45      # the sit clips' seat height (realistic bodies; KayKit's 0.44)
+const BAR_STOOL_SEAT := 0.72     # the bar stool's seat_point above the floor
+const SIT_SEAT_HEIGHT := BAR_STOOL_SEAT   # a seat marker's height above the floor (seat_root puts the root under it)
+const SIT_LIFT := BAR_STOOL_SEAT - SIT_CLIP_SEAT   # 0.27: the body's lift on a stool (its soles on the footrest)
+const SIT_LIFT_SECONDS := 0.6    # the lift eases in while Sit_Chair_Down plays (and out with StandUp)
 const TANKARD_FULL := "res://assets/environment/custom/h1_tankard_full.gltf"
 const TANKARD_EMPTY := "res://assets/environment/custom/h1_tankard_empty.gltf"
 const TANKARD_EMPTY_AT := 0.7    # the tankard is empty at 70% of the drinking time
@@ -395,7 +402,11 @@ func _settle_on_seat(animate: bool) -> void:
 	var f: Vector3 = seat_transform.basis.z
 	if patron_body_mesh:
 		patron_body_mesh.rotation.y = atan2(f.x, f.z)
-		patron_body_mesh.position.y = SIT_LIFT
+		if animate:
+			create_tween().tween_property(patron_body_mesh, "position:y", SIT_LIFT, SIT_LIFT_SECONDS) \
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		else:
+			patron_body_mesh.position.y = SIT_LIFT
 	if animate:
 		create_tween().tween_property(self, "global_position", dest, 0.25)
 	else:
@@ -546,6 +557,9 @@ func on_drinking_timer_timeout():
 		# state transition until the animation is done.
 		if animation_player and animation_player.has_animation("Sit_Chair_StandUp"):
 			_patron_play_animation("Sit_Chair_StandUp", false)
+			if patron_body_mesh and patron_body_mesh.position.y > 0.0:   # down off the stool while standing up
+				create_tween().tween_property(patron_body_mesh, "position:y", 0.0, SIT_LIFT_SECONDS) \
+					.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 			await get_tree().create_timer(_SIT_DOWN_SECONDS).timeout  # StandUp measures the same 0.8s as Sit_Chair_Down
 
 		_drop_tankard()
