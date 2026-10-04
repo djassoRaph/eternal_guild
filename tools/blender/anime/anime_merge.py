@@ -7,7 +7,7 @@
 #   sharp_face, no custom normals, every face smooth: the outline's grow moves each exported vertex along its own
 #   normal, and glTF splits a vertex wherever its corner normals differ, opening a crack in the ink); Rig and body at
 #   scale 1 (grow_amount is in local metres); every material opaque (BSDF Alpha unlinked at 1.0) with backface
-#   culling off. Rig's matrix_world is the identity (the parts are parented without a parent inverse, and every
+#   culling off; no emission except on a prop's own material at roughness 0 (AH-3, 25.31: emission_ok). Rig's matrix_world is the identity (the parts are parented without a parent inverse, and every
 #   measurement assumes the rig at the origin).
 # The report prints NORMALS / UV / WEIGHTS / TRIS / SURFACES / MATERIALS as OK / OVER.
 import bpy
@@ -47,6 +47,15 @@ def join(name, parts):
     return body
 
 
+def emission_ok(m, bsdf, body_mats):
+    """AH-3 / V5 (25.31): emission only on a PROP's own material (never on a body material, never on one the body
+    shares: the quill shares the palette, the Healer's crystal has its own), and an emissive material at roughness 0
+    (light, not ink: the edge shader leaves roughness 0 un-inked; anime_look keeps it emissive without an outline)."""
+    if bsdf.inputs["Emission Strength"].default_value <= 0.0:
+        return True
+    return m not in body_mats and bsdf.inputs["Roughness"].default_value == 0.0
+
+
 def _deform_bones(arm):
     return {b.name for b in arm.data.bones if b.use_deform}
 
@@ -73,11 +82,12 @@ def check(body, props=(), tri_budget=TRI_BUDGET, surface_cap=SURFACE_CAP):
     sharp = any(a.name in ("sharp_edge", "sharp_face") and any(d.value for d in a.data) for a in me.attributes)
     rows["NORMALS"] = me.normals_domain == "POINT" and not sharp and not me.has_custom_normals and all(p.use_smooth for p in me.polygons)
     mats_ok = True
+    body_mats = set(m for m in me.materials if m)
     all_mats = list(me.materials) + [m for p in props for m in p.data.materials]
     for m in all_mats:
         bsdf = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None) if m and m.use_nodes else None
         if m is None or bsdf is None or bsdf.inputs["Alpha"].is_linked or abs(bsdf.inputs["Alpha"].default_value - 1.0) > 1e-6 \
-                or m.use_backface_culling or bsdf.inputs["Metallic"].default_value > 0.0 or bsdf.inputs["Emission Strength"].default_value > 0.0:
+                or m.use_backface_culling or bsdf.inputs["Metallic"].default_value > 0.0 or not emission_ok(m, bsdf, body_mats):
             mats_ok = False
     rows["MATERIALS"] = mats_ok
     tris = sum(len(p.vertices) - 2 for p in me.polygons)

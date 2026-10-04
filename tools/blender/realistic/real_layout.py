@@ -129,6 +129,54 @@ OLD_WOMAN["top_from_back"] = {"nz": 0.55, "z_min": 1.62, "y": (-0.15, 0.06), "ro
 TOWNSFOLK_SHEETS = {"farmer": FARMER, "local": LOCAL, "traveller": TRAVELLER, "guard": GUARD, "merchant": MERCHANT,
                     "old_woman": OLD_WOMAN}
 
+
+def _crops(sheet, win, tops, lefts):
+    """Override a sheet's head crop windows (square, win px): for picks whose projected parts reach far from the eyes
+    (a ponytail, a hood, a long beard)."""
+    sheet["head_win"] = float(win)
+    for view, q in (("front", (0.0, 0.5)), ("side", (0.5, 0.5)), ("back", (0.0, 0.0))):
+        sheet["head_crops"][view] = (float(lefts[view]), float(tops[view])) + q
+    return sheet
+
+
+# The class bodies' picks (25.31 S3, AC 8; eternal_guild_art/picked/C_G<n>_<class>.png, 1344 x 768), registered on the
+# eye line like the townsfolk's: the Fighter, the Mage and the Barbarian on REAL-1 (the player's head), the Rogue, the
+# Healer and the Ranger on REAL-2 (eyes z 1.5855, nose tip y -0.190). Rows read off 3x ruler crops (2026-10-04). Every
+# side view faces image-right except the Healer's (her left side).
+_CPICK = "F:/GAME I AM MAKING/eternal_guild_art/picked/C_%s.png"
+FIGHTER = sheet_by_eyes(_CPICK % "G2_fighter", 1.86, 1.710, -0.213,
+                        {"front": (251.0, 79.5, 747.0), "side": (711.7, 79.0, 750.0), "back": (1085.0, None, 741.0)},
+                        win=140.0)
+FIGHTER["crown_rows"] = {"front": 27.0, "side": 31.0, "back": 29.0}
+FIGHTER["top_from_back"] = {"nz": 0.55, "z_min": 1.78, "y": (-0.20, 0.06), "rows": (36.0, 76.0)}
+ROGUE = _crops(sheet_by_eyes(_CPICK % "G3_rogue", 1.70, 1.5855, -0.190,
+                             {"front": (241.7, 81.7, 750.0), "side": (706.0, 85.0, 745.0), "back": (1073.0, None, 741.0)}),
+               200, {"front": 15.0, "side": 15.0, "back": 15.0}, {"front": 141.7, "side": 520.0, "back": 973.0})
+ROGUE["face_y"] = 0.06
+ROGUE["crown_rows"] = {"front": 28.0, "side": 30.0, "back": 28.0}
+ROGUE["top_from_back"] = {"nz": 0.55, "z_min": 1.64, "y": (-0.16, 0.06), "rows": (34.0, 72.0)}
+MAGE = sheet_by_eyes(_CPICK % "G4_mage", 1.86, 1.710, -0.213,
+                     {"front": (250.0, 88.3, 741.0), "side": (750.7, 89.0, 745.0), "back": (1100.0, None, 739.0)},
+                     win=140.0)
+HEALER = _crops(sheet_by_eyes(_CPICK % "G5_healer", 1.70, 1.5855, -0.190,
+                              {"front": (276.7, 88.3, 747.0), "side": (659.3, 90.7, 748.0), "back": (1068.3, None, 737.0)},
+                              side_flip=False),
+                170, {"front": 6.0, "side": 6.0, "back": 6.0}, {"front": 191.7, "side": 639.0, "back": 983.3})
+HEALER["face_y"] = 0.06
+HEALER["crown_rows"] = {"front": 30.0, "side": 28.0, "back": 31.0}       # the hood's drawn top (never the bleed above it)
+HEALER["top_from_back"] = {"nz": 0.55, "z_min": 1.70, "y": (-0.14, 0.10), "rows": (40.0, 80.0)}   # the hood's crown laid flat
+BARBARIAN = _crops(sheet_by_eyes(_CPICK % "G6_barbarian", 1.86, 1.710, -0.213,
+                                 {"front": (264.0, 80.0, 748.0), "side": (746.0, 81.0, 748.0), "back": (1090.0, None, 743.0)}),
+                   300, {"front": 10.0, "side": 10.0, "back": 10.0}, {"front": 114.0, "side": 482.0, "back": 940.0})
+BARBARIAN["crown_rows"] = {"front": 32.0, "side": 30.0, "back": 33.0}
+BARBARIAN["top_from_back"] = {"nz": 0.55, "z_min": 1.78, "y": (-0.20, 0.06), "rows": (38.0, 80.0)}
+RANGER = sheet_by_eyes(_CPICK % "G7_ranger", 1.70, 1.5855, -0.190,
+                       {"front": (262.7, 86.7, 742.0), "side": (713.3, 89.0, 746.0), "back": (1073.0, None, 744.0)},
+                       win=150.0)
+RANGER["face_y"] = 0.06
+CLASS_SHEETS = {"fighter": FIGHTER, "rogue": ROGUE, "mage": MAGE, "healer": HEALER, "barbarian": BARBARIAN,
+                "ranger": RANGER}
+
 CONCEPT = BARTENDER["concept"]
 HEIGHT = BARTENDER["height"]
 VIEWS = BARTENDER["views"]
