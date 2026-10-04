@@ -140,6 +140,7 @@ var _blend_t := 1.0
 var _blend_len := 0.0
 var _hold_left := -1.0
 var _pending_phase := ""
+var _pending_mood := ""
 var _label: Label = null
 var _label_left := 0.0
 
@@ -400,7 +401,8 @@ func _ready() -> void:
 	var gb := get_node_or_null("/root/GameBus")
 	if gb and gb.has_signal("day_phase_changed"):
 		gb.day_phase_changed.connect(_on_day_phase)
-	mood = configured_mood()
+	mood = _pending_mood if _pending_mood != "" else configured_mood()
+	_pending_mood = ""
 	var start := _pending_phase if _pending_phase != "" else phase_default()
 	_pending_phase = ""
 	phase = start
@@ -427,9 +429,11 @@ func _process(delta: float) -> void:
 
 
 ## Switch the mood at once (the phase stays; a running blend ends at its target). Returns the mood now active.
+## Before _ready the mood is kept and applied at _ready (instead of the configured one).
 func set_mood(mood_name: String) -> String:
 	mood = resolve_mood(mood_name)
 	if not is_node_ready():
+		_pending_mood = mood
 		return mood
 	_blend_t = 1.0
 	applied = combine(mood_params(mood, today), phase_params(phase))

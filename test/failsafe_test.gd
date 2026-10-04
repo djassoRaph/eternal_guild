@@ -7605,6 +7605,12 @@ func test_light_and_mood() -> void:
 	var rig3 := _lm_rig(TL)
 	check(rig3.ctl.phase == str(cfg.get("tavern_light_phase_default", "day")) and rig3.ctl.mood == TL.configured_mood(), "a fresh rig starts in the configured mood and the default phase")
 	rig3.root.free()
+	# review 2026-10-04: set_mood before _ready is kept (like set_phase's), not overwritten by the configured mood
+	var rig4 := _lm_rig(TL, "", null, "moody_b")
+	var mb4: Dictionary = TL.mood_params("moody_b", rig4.ctl.today)
+	check(rig4.ctl.mood == "moody_b" and (rig4.env.environment as Environment).ambient_light_color.is_equal_approx(mb4.ambient_color)
+		and (rig4.sun as DirectionalLight3D).light_cull_mask == INK_LAYER_MASK, "set_mood before _ready is kept and applied at _ready (%s)" % rig4.ctl.mood)
+	rig4.root.free()
 	# review 2026-10-04 (MEDIUM): MainTavern's Environment is a sub-resource every instance of the cached scene shares.
 	# A reload (Pause -> Load Game -> reload_current_scene) while a dimmed phase is on must still snapshot the scene's
 	# saved light as today: each controller works on its own copy and never writes the shared one
@@ -7728,8 +7734,8 @@ func test_light_and_mood() -> void:
 ## Test 25's fixture rig: the hall's light nodes on the paths TavernLighting expects (SubViewport/TavernNavigation/...),
 ## a real Hearth and a real pillar, two candles and a window. Returns the nodes; free rig.root after.
 ## `shared_env`: the WorldEnvironment uses this Environment (a cached scene's sub-resource, shared by every
-## instance) instead of a new one (review 2026-10-04).
-func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null) -> Dictionary:
+## instance) instead of a new one; `early_mood`: set_mood before _ready (review 2026-10-04).
+func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, early_mood := "") -> Dictionary:
 	var r := Node3D.new()
 	r.name = "LMRig"
 	var navn := Node3D.new()
@@ -7805,6 +7811,8 @@ func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null) ->
 	ctl.dev_keys = false
 	if early_phase != "":
 		ctl.set_phase(early_phase, 0.0)
+	if early_mood != "":
+		ctl.set_mood(early_mood)
 	envn.add_child(ctl)
 	root.add_child(r)
 	return {"root": r, "ctl": ctl, "env": we, "sun": sun, "fill": fill, "bar": barl, "desk": deskl, "hearth": hearth, "pillar": pillar,
