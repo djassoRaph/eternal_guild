@@ -3805,14 +3805,24 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 		for mk in (mesh_subs if mesh_subs is Dictionary else {}):
 			if mesh_subs[mk] is Dictionary and int(mesh_subs[mk].get("generate/lods", 0)) == 1:
 				lods_off = false
+		# the RL texture rule counts the whole GLB (the 25.31 review's P8): the body's surfaces AND every prop's, every
+		# texture slot, so a prop with its own textured material can't slip a third texture in
 		var distinct_tex := {}
-		for s in (nsurf if nsurf > 0 else 0):
-			var mt = body_mi.mesh.surface_get_material(s)
-			if mt is BaseMaterial3D and (mt as BaseMaterial3D).albedo_texture:
-				distinct_tex[(mt as BaseMaterial3D).albedo_texture.resource_path] = true
+		for tmi in inst.find_children("*", "MeshInstance3D", true, false):
+			var tmesh: Mesh = (tmi as MeshInstance3D).mesh
+			for s in (tmesh.get_surface_count() if tmesh else 0):
+				var mt = tmesh.surface_get_material(s)
+				if not mt is BaseMaterial3D:
+					continue
+				for slot in ["albedo_texture", "emission_texture", "normal_texture", "roughness_texture", "metallic_texture", "ao_texture"]:
+					var t: Texture2D = (mt as BaseMaterial3D).get(slot)
+					if t:
+						distinct_tex[t.resource_path if t.resource_path != "" else str(t.get_instance_id())] = true
+						if rl and (t.get_width() > RL_TEX_SIZE or t.get_height() > RL_TEX_SIZE) and tmi != body_mi:
+							tex_wrong.append("%s %s %dx%d" % [tmi.name, slot, t.get_width(), t.get_height()])
 		var tex_ok: bool = not rl or distinct_tex.size() <= RL_TEXTURES
 		check(body_mi != null and nsurf >= 1 and nsurf <= cap and tex_n == nsurf and has_face and tex_wrong.is_empty() and lods_off and tex_ok,
-			"%s: one %sBody with %d surfaces (≤ %d), each textured, the %s among them (%s); its %d textures (%s) Lossless with mipmaps and Detect 3D off (wrong %s); no LODs, per mesh too (%s)" % [fname, prefix, nsurf, cap, "head projection" if rl else "face", has_face, distinct_tex.size(), ("≤ %d at ≤ %d²" % [RL_TEXTURES, RL_TEX_SIZE]) if rl else "any", tex_wrong, lods_off])
+			"%s: one %sBody with %d surfaces (≤ %d), each textured, the %s among them (%s); %d textures in the GLB, props included (%s) Lossless with mipmaps and Detect 3D off (wrong %s); no LODs, per mesh too (%s)" % [fname, prefix, nsurf, cap, "head projection" if rl else "face", has_face, distinct_tex.size(), ("≤ %d at ≤ %d²" % [RL_TEXTURES, RL_TEX_SIZE]) if rl else "any", tex_wrong, lods_off])
 		var an_st := _mesh_stats(path)
 		check(tri_budget <= tri_cap and an_st.tris > 0 and an_st.tris <= tri_cap,
 			"%s: %d tris under the %s hard cap (%d, props included; budget %d)" % [fname, an_st.tris, "RL" if rl else "AN", tri_cap, tri_budget])
