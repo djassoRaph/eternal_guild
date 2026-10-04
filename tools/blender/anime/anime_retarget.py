@@ -235,7 +235,12 @@ def refit_sit(body_name="Base_Body", seat_y=None, rebuild_ok=False, seat_verts=N
         h_idle += err
     rest_pose()
     if abs(err) > SEAT_GATE:
-        raise RuntimeError("refit_sit: the seat is %.4f m off after %d rounds (gate %.2f): the clips are rewritten but wrong" % (err, it, SEAT_GATE))
+        raise RuntimeError("refit_sit: the seat is %.4f m off after %d rounds (gate %.2f): the clips are rewritten but wrong "
+                           "(and unstamped: open_base_as refuses this file)" % (err, it, SEAT_GATE))
+    # the stamp open_base_as checks, only once the gate passed (_refit_clips cleared it: a rejected re-fit that is saved
+    # later never passes as fitted, not even under an earlier run's stamp)
+    for clip in C.SIT_CLIPS:
+        bpy.data.actions[clip]["anime_sit_refit"] = seat_y
     return _refit_result(arm, idle, out, seat_after, seat_y, own)
 
 
@@ -278,7 +283,8 @@ def _refit_clips(data, k, h_idle, seat_y):
             poses[-1] = (poses[-1][0], poses[0][1])              # the loop's last key repeats its first
         chans = [("hips", "location")] + [(b + "." + s, "rotation_quaternion") for s in ("l", "r") for b in feet_bones]
         _rekey(act, chans, poses)
-        act["anime_sit_refit"] = seat_y
+        if "anime_sit_refit" in act:                         # rewritten, not yet gated: refit_sit stamps after the gate
+            del act["anime_sit_refit"]
         out[clip] = len(poses)
     return out
 
