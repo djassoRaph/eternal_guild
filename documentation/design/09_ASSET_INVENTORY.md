@@ -372,15 +372,21 @@ illustrations are ruled out (05_REVEAL_REWORK_PLAN:110).
 
 Codex → "Dragon Eye Book" theming; mission cards (skull danger icons); roster cards/tokens; reveal
 panel (warm/muted/dark tones, "no skull iconography spam"); HUD with 5 reputation tiers;
-interaction feedback ("floating icons and/or glowing runes on the floor", still missing for the
-fireplace); speech bubbles; narrative panels (Den Fa, Hidden Threshold, Kingdom Chronicle, not
+interaction feedback ("floating icons and/or glowing runes on the floor"; the fireplace's is built
+since Story 25.23 (V5): `scenes/game/FloorRuneCue.tscn`, a warm-gold rune ring at the hearth's
+interact_point while the fire owns E; the other zones' old InteractionInfo planes still don't show);
+speech bubbles; narrative panels (Den Fa, Hidden Threshold, Kingdom Chronicle, not
 started). Sources: 04_Art_and_Interaction:42-66, EPIC_PROGRESS:9,206-252,329-346,
 05_REVEAL_REWORK_PLAN:99.
 
 ### 7.7 VFX
 
 Fire burn states (dormant, high, low, dying) and the last fire going out at the end of a run; teal
-rune and hourglass glow; glowing floor runes for interaction; coin burst; minigame target glow;
+rune and hourglass glow; glowing floor runes for interaction (the fireplace's built, 25.23); the hall's
+light (25.23, V10 and V11: moods today / moody_a / moody_b and six day phases as data in
+`game_config.json`, `scripts/game/tavern_lighting.gd`; warm pools from the hearth, torches, candles,
+the board's sconces and a bar pool; window spot lights and additive light cards, the fake god rays,
+since volumetric fog shafts don't render under the orthographic camera; the picks are Raphael's); coin burst; minigame target glow;
 speech-bubble pop and fade; hex reveal animation (lift, tumble, flip, settle), which the
 WorldMapBoard doesn't have yet. Sources: EPIC_PROGRESS:132-140,252, 03_STORY_BIBLE:116,
 session.md:40-51, 02_STATE:23.

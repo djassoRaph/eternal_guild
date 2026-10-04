@@ -432,9 +432,18 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
   opaque. At zoom 12, 0.011 m is about 0.5 px on the half-resolution SubViewport (45 px/m), so in
   the hall the edge shader does most of the inking and the hull shows up close. Raphael was shown
   0.011 against 0.018 at zoom 8 at Stage D. Portrait-width outlines are 25.17's.
-- **Shadow tone:** the dark side is albedo × the tavern ambient (cool and dark), by design. Don't
-  fight it with lights: the environment's lights don't change for characters (A-5). The tavern's
-  omni lights showed no extra tone bands in the Stage D hall shots.
+- **Shadow tone:** the dark side is albedo × the hall's ambient. Correction (Story 25.23, T1
+  measured): "today" the ambient was never cool: MainTavern's Environment sets no ambient source, so
+  the Background source renders the project's clear colour, a neutral 0.3 grey (its own ambient
+  colour (0.4, 0.5, 0.7) × 0.3 is ignored). Since R-4 (2026-10-04) the environment's lights DO
+  change: the picked mood (`game_config.json` › `tavern_light_mood`, scripts/game/tavern_lighting.gd)
+  sets an explicit ambient colour and the day phase scales it, so the cast's dark side is albedo ×
+  the picked mood's ambient. Characters still get no light of their own (A-5).
+- **The ink light (25.23, LM-3):** the edge pass multiplies the screen by every DirectionalLight that
+  reaches its EdgeQuad, so the hall keeps exactly one, and its transform, colour (1, 0.8, 0.5) and
+  energy 1.5 never change in any mood or phase. A mood only moves its cull mask: all layers (it also
+  lights the hall: "today") or render layer 20, the EdgeQuad's alone (a pure ink light: the moody
+  moods). The EdgeQuad is on layer 20 with no shadow; `camera_3d.gd` adds layer 20 to its cull mask.
 
 #### Budgets
 
@@ -467,11 +476,31 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
   - The VISIBLE counter counts each opaque element once, but Forward+ draws opaque geometry again in
     the depth prepass, so the GPU's real draws are about twice the counter. Compare only against a
     baseline from the same run.
-- **Shadows:** the hall budget is measured with no shadow-casting light (MainTavern has none; its
-  SHADOW draws are 0). The outline is an opaque `next_pass`, so under a shadowed light each body
-  surface and its hull are drawn again in every shadow view: up to 4 PSSM splits for ExteriorWorld's
-  sun, and up to 6 faces for a shadowed omni. The town gets its own budget, measured with the anime
-  villagers and the player under the sun (25.31).
+- **Shadows:** the 2026-09-27 hall budget above was measured with no shadow-casting light. The outline
+  is an opaque `next_pass`, so under a shadowed light each body surface and its hull are drawn again
+  in every shadow view: up to 4 PSSM splits for ExteriorWorld's sun, 2 views for a dual-paraboloid
+  omni, 6 for a cube one. The town gets its own budget, measured with the anime villagers and the
+  player under the sun (25.31).
+- **The hall under 25.23's lights (re-measured 2026-10-04):** the crowd check with the realistic S1
+  bodies (the Bartender's, the player's and the Quest Dealer's GLBs as clones, 6 within the hearth
+  light's range), RTX 3080, V-Sync off, 2,900 frames per sample, render times summed over both
+  viewports. The moody moods shadow the hearth only (dual paraboloid, hard edges):
+
+  | Bodies | Mood | VISIBLE | SHADOW | GPU (ms) | CPU (ms) | fps |
+  |---|---|---|---|---|---|---|
+  | 6 (the hall's own) | today | 103 | 0 | 0.296 | 0.249 | 1008 |
+  | 24 | today | 178 | 0 | 0.353 | 0.315 | 808 |
+  | 6 | moody_a | 105 | 65 | 0.428 | 0.326 | 1012 |
+  | 22 | moody_a | 171 | 97 | 0.486 | 0.389 | 671 |
+  | 24 | moody_a | 179 | 97 | 0.493 | 0.394 | 672 |
+  | 24 | moody_a, the hearth's shadow in cube mode | 179 | 204 | 0.477 | 0.476 | 672 |
+  | 24 | moody_a, the hearth's shadow off (its share) | 179 | 0 | 0.372 | 0.318 | 808 |
+  | 24 | moody_b | 179 | 97 | 0.493 | 0.400 | 672 |
+
+  - **Budgets: VISIBLE 200** at 24 bodies (unchanged: lights add no visible draws) and **SHADOW 100**
+    at 24 bodies with the hearth's dual-paraboloid shadow (97 rounded up to the next 50; 250 if cube
+    is picked). It passes: 0.49 ms at 24 bodies against 8.3 ms; no mitigation step was needed.
+    Full table: `<art>/shots/25-23/25-23_budget.md`.
 
 #### Export
 
@@ -1305,9 +1334,13 @@ the rig's root at 0,0,0. Then set the import keys in the character spec ("Export
     - **LookDev:** instance the character's own scene so the shipped load path applies the look (the
       dealer: `res://scenes/game/QuestDealer.tscn` with `hired_at_start_override = 1` and autopilot
       off). Show it beside the KayKit Knight and the body it replaces, in its clips; seated clips on
-      a 0.44 m proxy stool behind a 0.85 m proxy desk.
+      a 0.44 m proxy stool behind a 0.85 m proxy desk. LookDev's "tavern" preset follows the hall's
+      configured mood (`tavern_light_mood`; Story 25.23): its ambient, the sun as an ink-only light
+      when the mood takes it off the hall, the fills. "today" changes nothing.
     - **MainTavern at zoom 12 and zoom 8,** set through the camera's `target_zoom`: the character at
-      its job, next to the player, Den Fa and the patrons.
+      its job, next to the player, Den Fa and the patrons, in the picked mood (and the fire out, the
+      worst case). The dev keys F6 / F7 / F8 cycle the mood, the phase and the shading preset
+      (debug builds), or `TavernLighting.set_mood()` / `set_phase()` by eval.
     - **A portrait framing:** the driver's own ortho Camera3D, about 1 m, on the head, under the
       tavern lights. It is judged, not shipped: the portraits are 25.17's.
     - **The crowd check** (for a new kind of body, or a budget change):
@@ -1320,7 +1353,10 @@ the rig's root at 0,0,0. Then set the import keys in the character spec ("Export
         SubViewport and the root viewport, and turn V-Sync off (a capped GPU downclocks).
       - In later evals (the counters read 0 for the first 2 frames), average over ≥ 120 frames: the
         SubViewport's VISIBLE and SHADOW draw calls, the GPU and CPU render times summed over both
-        viewports (plus the frame setup CPU time), and the uncapped fps.
+        viewports (plus the frame setup CPU time), and the uncapped fps. Measure in "today" and in
+        the picked mood; SHADOW counts every shadowed light's views (take one sample with each
+        shadowed light off: its own share). Start the accumulation in one short eval and poll it
+        (the TCP server keeps one client, and a long eval's reply can be lost; 25.23).
       - Take the baseline in the same run with the clones freed. Free the clones and restore V-Sync
         in their own eval.
       - It passes if, at 24 bodies, the larger of the GPU and CPU render times is ≤ 8.3 ms. The

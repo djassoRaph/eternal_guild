@@ -505,6 +505,15 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - Stage D: `<art>/shots/portraits/25-17_sheet.png` (the three at 512 and at 160) and the box in MainTavern with Den Fa's and the Quest Dealer's portraits. Raphael's verdict on the sheet (2026-10-03): "Good as they are", the faces turned toward the text (the viewer's right); Stage D closed. Re-render the Bartender after 25.31 and Den Fa after 25.32.
 - Code review patches (2026-10-03): the studio checks the whole request before it writes anything (unknown or repeated ids, an empty or relative `out=`, a bad source, clip, bone or portrait path); `portrait_source` types are checked and a `look` next to a `staff_variant` is refused; the Bartender's source is his staff variant `bartender/barkeep` (the same body: his portrait re-renders byte-identical); the save guard follows `autosave_interval_seconds` with a budget per speaker, and a watchdog thread kills a run that hangs. Test 20's plate checks use stand-in speakers; Test 22 grew (the request checks, the guard, the shader's users scanned); the suite is at 687/687.
 
+
+**Story 25.23: light and mood, day phases (in review, 2026-10-04; pulled forward by R-4, between 25.31 S1 and S2).**
+- The hall's light is data now: a mood (today, moody_a, moody_b) and a day phase (morning, day, dusk, evening, late night, dawn) in `game_config.json`, applied by `scripts/game/tavern_lighting.gd`. "today" is the scene as it was (a shot of it matches the old hall pixel for pixel); the game ships on "today" until Raphael picks.
+- The moody moods take the sun off the hall (it still draws the ink, unchanged) and light it with warm pools: the hearth (now with a hard shadow), the torches, the thin candle, the board's sconces, the bar and the desk. A warm pool over the round bar keeps faces readable there.
+- Phases follow the loop: evening when you open the bedroom, late night as you sleep, morning on the new day, day after the briefing (`GameBus.day_phase_changed`). Windows carry the phase's colour (light cards; volumetric fog didn't work under the orthographic camera).
+- The fireplace finally has its glowing floor rune (V5), shown while the fire owns E.
+- Dev keys in debug builds: F6 mood, F7 phase, F8 the cast's shading preset. LookDev follows the configured mood.
+- The hall budget re-measured under the new lights: 0.49 ms at 24 bodies; new budgets VISIBLE 200 and SHADOW 100 (08 §1).
+- Failsafe Test 25 added; Tests 10, 11, 22, 23 extended (766 pass, the known POT check aside). Stage D sheets D1 (mood), D2 (shading, ink width, face normals) and D3 (phases, fire, glows, rune, windows, portraits, budget) in `<art>/shots/25-23/`, waiting for Raphael's picks.
 ---
 
 ## Installed Plugins
