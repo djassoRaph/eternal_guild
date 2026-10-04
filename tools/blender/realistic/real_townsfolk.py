@@ -1085,16 +1085,7 @@ def build_clips(v):
         bpy.data.actions[n].use_fake_user = True
     for clip in ARMS_OUT:
         if clip != "Running_A":                           # repeatable: start from the base's clip, recorded once
-            a = bpy.data.actions[clip]
-            src = bpy.data.actions[SRC_OF[clip]]
-            a.fcurves.clear()
-            for fc in src.fcurves:
-                n = a.fcurves.new(fc.data_path, index=fc.array_index, action_group=fc.group.name if fc.group else "")
-                n.keyframe_points.add(len(fc.keyframe_points))
-                for k, kp in zip(n.keyframe_points, fc.keyframe_points):
-                    k.co, k.interpolation = kp.co, kp.interpolation
-                    k.handle_left, k.handle_right = kp.handle_left, kp.handle_right
-                n.update()
+            RP.restore_from(clip, SRC_OF[clip])          # (the stamp cleared: arms_out refuses a stamped clip)
         # at most 6 degrees: the arm pass already fits the base; this only clears the cloth a few cm wider than it (a
         # cloak or capelet over the arms is cloth the arms move UNDER, never pushed out of)
         out.append((clip + " arms out", RP.arms_out(clip, body_name=c["body"], gap=0.02, max_deg=6.0)))

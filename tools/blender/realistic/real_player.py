@@ -457,14 +457,37 @@ def pose_idle(t):
 
 
 ARM_GAP = 0.025                         # Running_A's forearms and hands kept this far outside his coat
+ARMS_STAMP = "real_player_arms_out"     # on a clip arms_out rewrote (its gap)
+SRC_RUN = "SRC_Running_A"               # his Running_A as the base retargeted it (25.31 review P11), removed for the export
+
+
+def restore_from(clip, src_name):
+    """`clip`'s channels replaced by its recorded source's (an SRC_* copy) and its arms_out stamp cleared: a rewrite
+    step starts from the base's clip on every run, never from its own output (the townsfolk's S2 lesson)."""
+    a, src = bpy.data.actions[clip], bpy.data.actions[src_name]
+    a.fcurves.clear()
+    for fc in src.fcurves:
+        n = a.fcurves.new(fc.data_path, index=fc.array_index, action_group=fc.group.name if fc.group else "")
+        n.keyframe_points.add(len(fc.keyframe_points))
+        for k, kp in zip(n.keyframe_points, fc.keyframe_points):
+            k.co, k.interpolation = kp.co, kp.interpolation
+            k.handle_left, k.handle_right = kp.handle_left, kp.handle_right
+        n.update()
+    if ARMS_STAMP in a:
+        del a[ARMS_STAMP]
+    return a
 
 
 def arms_out(clip, body_name=None, gap=ARM_GAP, max_deg=30.0):
     """Running_A on REAL-1 keeps the base's arm pass (fitted to the neutral man); his coat is ~0.03 m wider, so each
     key frame's upper arm turns AWAY from the body (about the chest's front-back axis, the arm pass's own measure,
-    real_arms.clearance) just enough to keep `gap`. Rewrites the upperarm rotation channels only."""
+    real_arms.clearance) just enough to keep `gap`. Rewrites the upperarm rotation channels only, and stamps the clip;
+    refuses a clip it already rewrote (restore_from its SRC_* copy first, or rebuild it): a second turn would start
+    from its own output."""
     import real_arms as RA
     act = bpy.data.actions[clip]
+    if ARMS_STAMP in act:
+        raise RuntimeError("arms_out(%s): already turned (stamp %s): restore_from its SRC_* copy first" % (clip, act[ARMS_STAMP]))
     body = bpy.data.objects[body_name or CFG["body"]]
     dom = RA._dominant(body)
     arm = C.rig()
@@ -508,7 +531,7 @@ def arms_out(clip, body_name=None, gap=ARM_GAP, max_deg=30.0):
         poses.append((f, {"upperarm." + s: {"rotation_quaternion": arm.pose.bones["upperarm." + s].rotation_quaternion.copy()}
                           for s, _ in RA.SIDES}))
     RT._rekey(act, [("upperarm.l", "rotation_quaternion"), ("upperarm.r", "rotation_quaternion")], poses)
-    act["real_player_arms_out"] = gap
+    act[ARMS_STAMP] = gap
     RT.rest_pose()
     C.drop_cached_clouds()
     out = {s: round(math.degrees(max(t[s] for t in turns)), 1) for s, _ in RA.SIDES}
@@ -516,12 +539,26 @@ def arms_out(clip, body_name=None, gap=ARM_GAP, max_deg=30.0):
     return out
 
 
+def _ensure_run_src():
+    """His Running_A as the base retargeted it, copied once (SRC_RUN, fake user, removed for the export)."""
+    if SRC_RUN not in bpy.data.actions:
+        a = bpy.data.actions["Running_A"]
+        assert ARMS_STAMP not in a, "Running_A was already rewritten (no SRC copy): rebuild the file from the base"
+        cp = a.copy()
+        cp.name = SRC_RUN
+        cp.use_fake_user = True
+
+
 def build_clips():
+    """Idle re-posed and Running_A's arms out, each from a recorded source: repeatable (a re-run never turns the arms
+    again from its own output)."""
     assert C.is_open(CFG["blend"])
     RBT.ensure_sources()
+    _ensure_run_src()
     _use_his_soles()
     out = AN.build_clips([("Idle", AN.IDLE_S, pose_idle, True)])
     bpy.data.actions["Idle"].use_fake_user = True
+    restore_from("Running_A", SRC_RUN)
     out.append(("Running_A arms out", arms_out("Running_A")))
     print("clips", out)
     return out
@@ -543,4 +580,4 @@ def export(overwrite_ok=False):
     assert C.is_open(CFG["blend"])
     RT.rest_pose()
     objs = [C.rig(), bpy.data.objects[CFG["body"]]] + [bpy.data.objects[n] for n in CFG["props"]]
-    return RC.export_glb(CFG["glb"], objs, drop_actions=list(RBT.SRC.values()), overwrite_ok=overwrite_ok)
+    return RC.export_glb(CFG["glb"], objs, drop_actions=list(RBT.SRC.values()) + [SRC_RUN], overwrite_ok=overwrite_ok)

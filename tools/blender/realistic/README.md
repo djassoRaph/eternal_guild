@@ -132,7 +132,7 @@ on screen before use.
 | Character | Module | Base | File / GLB | Notes |
 |---|---|---|---|---|
 | G12 the Bartender | `real_bartender.py` (+ `real_bar.py`) | REAL-1 | `g12_bartender_real.blend` / `custom/g12_bartender_real.glb` | the spike's body with `build_hand_real`, apron folds (`APRON_FOLDS`, `skirt_w` 0.75 / 0.35), his five bar clips; `real_bar.report` checks every clip at its stations against the 25.13 bar geometry with his body block's radii, `halves` gives the Walk_Bar half-widths |
-| G1 the player | `real_player.py` | REAL-1 | `g1_player_real.blend` / `custom/g1_player_real.glb` | the Bartender's head x 0.88 / -0.02 m under a hair shell; the coat, vest, collar, lapels, skirt halves (a back vent); the sword a prop on hips; Idle re-posed; `arms_out` keeps Running_A's arms outside the coat; `rate()` measures Running_A's ground speed (player.json) |
+| G1 the player | `real_player.py` | REAL-1 | `g1_player_real.blend` / `custom/g1_player_real.glb` | the Bartender's head x 0.88 / -0.02 m under a hair shell; the coat, vest, collar, lapels, skirt halves (a back vent); the sword a prop on hips; Idle re-posed; `arms_out` keeps Running_A's arms outside the coat, from its `SRC_Running_A` copy on every `build_clips()` (it refuses a clip it already turned; `restore_from` clears that); `rate()` measures Running_A's ground speed (player.json) |
 | G13 the Quest Dealer | `real_dealer.py` | REAL-2 | `g13_quest_dealer_real.blend` / `custom/g13_quest_dealer_real.glb` | REAL-2's head (width 0.90, jaw 0.14), a hair cap and a long fall, elf ears, the circlet band; the buttoned coat over the bust (`bust_dome`); the quill a prop on handslot.r; her desk clips; `measure()` = anime_clearcheck's desk report with her config |
 
 ## The townsfolk (25.31 S2)
