@@ -2605,6 +2605,31 @@ func test_townsfolk_runtime() -> void:
 			why.append("%s: fallback %s look '%s' rate %.3f/%.3f shown %d lift %.2f" % [id, vil.using_fallback, vil.body_look, vil.walk_rate, want_walk, shown.size(), vil.bubble_lift()])
 		vil.queue_free()
 	check(why.is_empty(), "villagers: each on its own realistic body, hands empty, Walking_A at walk_speed / its ground speed, the bubble over its head %s" % [why])
+	# the 25.31 review's P7 (AC 17: the look gate "on a fallback" for villagers too): an entry whose model is missing
+	# (added to the cached townsfolk doc for this check only) gives the villager its fallback body, untoned, Walking_A at
+	# 1.0 and the bubble at the old height
+	var doc_vars: Array = RPS._townsfolk_doc().get("variants", [])
+	var vbroken := (by_id.get("guard", {}) as Dictionary).duplicate()
+	vbroken["id"] = "t16_missing_guard"
+	vbroken["model_path"] = "res://assets/characters/custom/__missing_g19_guard.glb"
+	doc_vars.append(vbroken)
+	var fv = vscene.instantiate()
+	fv.variant_id = "t16_missing_guard"
+	fv.set_physics_process(false)
+	world.add_child(fv)
+	doc_vars.erase(vbroken)
+	var fv_toned := 0
+	for mi in (fv._model.find_children("*", "MeshInstance3D", true, false) if fv._model else []):
+		for s in ((mi as MeshInstance3D).mesh.get_surface_count() if (mi as MeshInstance3D).mesh else 0):
+			var m = (mi as MeshInstance3D).get_surface_override_material(s)
+			if m is Material and (m as Material).has_meta(&"anime_toon"):
+				fv_toned += 1
+	var fv_path: String = fv._model.scene_file_path if fv._model else "no body"
+	check(fv._model != null and fv.using_fallback and fv_path == str(vbroken.get("fallback_model_path", "")) and fv.body_look == ""
+			and fv_toned == 0 and fv.walk_rate == 1.0 and fv.bubble_lift() == 0.0 and RPS.townsfolk_pool().size() == pool.size(),
+		"villagers: a missing model loads the entry's fallback %s, untoned (%d toned), Walking_A at %.2f, the bubble at the old height (lift %.2f)" % [
+			fv_path.get_file(), fv_toned, fv.walk_rate, fv.bubble_lift()])
+	fv.queue_free()
 	world.queue_free()
 	await process_frame
 	print("")
