@@ -27,6 +27,70 @@ TEXTURES = ART + "textures/anime/"
 SCRATCH_TEXTURES = TEXTURES + "scratch/"                # regression rebuilds write here, never over a shipped PNG (25.31 V3)
 
 
+# ------------------------------------------------------------------ chain configs (25.31 S1.0)
+# A chain is one base built from the untouched KayKit kit: its files, its rest-pose table and its stamps. The generic
+# steps (anime_base_build, anime_rig, anime_retarget, open_base_as) take a chain and touch only that chain's files;
+# nothing patches this module. AN (below) is route AN's anime base; route RL's REAL-1 / REAL-2 live in
+# tools/blender/realistic/real_chain.py and are registered with register_chain(). A step that is not given a chain
+# finds it by the rig's stamp (rig["anime_rig"]); a stamp nobody registered refuses.
+
+def chain_files(base_blend, feet_json, sit_json, rest_json, foot_report_json):
+    return {"base_blend": base_blend, "feet_json": feet_json, "sit_json": sit_json, "rest_json": rest_json,
+            "foot_report_json": foot_report_json}
+
+
+AN = dict(chain_files(BASE_BLEND, FEET_JSON, SIT_JSON, REST_JSON, BLEND + "anime_base_foot_report.json"),
+          name="AN", stamp="N2-B",
+          # the rest-pose table (anime_rig.run): N2's candidate B. bone: (head, length); arms and legs mirror to .r;
+          # None: at the parent's tail / to the knee (knee_z) / KayKit's own length
+          table={"hips": ((0.0, 0.0, 0.742), 0.198), "spine": ((0.0, 0.0, 0.940), 0.280),
+                 "chest": ((0.0, 0.0, 1.220), 0.250), "head": ((0.0, 0.0, 1.487), 0.251),
+                 "upperarm.l": ((0.16, 0.0, 1.38), 0.30), "lowerarm.l": (None, 0.28),
+                 "upperleg.l": ((0.105, 0.0, 0.843), None)},
+          knee_z=0.466,
+          # the handslot at the palm: (from the head of bone, along the direction of bone, this far, this far down)
+          palm=("hand", "hand", 0.010, -0.004),
+          adduct_deg=0.0, extra_stamps={},
+          seat_y=SEAT_Y,              # refit_sit's seat (every AN seat is 0.44)
+          arm_pass=None)              # route AN keeps KayKit's arms
+
+
+CHAINS = {AN["stamp"]: AN}
+
+
+def register_chain(chain):
+    """Make a chain findable by its rig stamp (real_chain registers REAL-1 / REAL-2). A stamp is one chain's."""
+    old = CHAINS.get(chain["stamp"])
+    assert old is None or old["base_blend"] == chain["base_blend"], "stamp %s is already chain %s" % (chain["stamp"], old["name"])
+    CHAINS[chain["stamp"]] = chain
+    return chain
+
+
+def scratch_chain(chain, folder, prefix):
+    """A copy of `chain` whose every file is `folder/prefix...` (a regression rebuild of a whole base; never
+    registered: pass it to each step explicitly, and a step that falls back to the stamp writes nothing of it)."""
+    out = dict(chain)
+    out.update(chain_files(folder + prefix + ".blend", folder + prefix + "_kaykit_feet.json",
+                           folder + prefix + "_kaykit_sit.json", folder + prefix + "_kaykit_rest.json",
+                           folder + prefix + "_foot_report.json"))
+    out["name"] = chain["name"] + "-scratch"
+    if chain.get("arm_src_json"):
+        out["arm_src_json"] = folder + prefix + "_arm_src.json"
+    return out
+
+
+def chain_of(arm=None, chain=None):
+    """The chain of the open file's rig (by its stamp); a given chain must carry that stamp."""
+    arm = arm or rig()
+    stamp = arm.get("anime_rig")
+    if chain is not None:
+        assert stamp is None or stamp == chain["stamp"], "this rig is %r, not chain %s's %r" % (stamp, chain["name"], chain["stamp"])
+        return chain
+    if stamp not in CHAINS:
+        raise RuntimeError("no chain registered for the rig stamp %r (import real_chain for REAL-1 / REAL-2)" % stamp)
+    return CHAINS[stamp]
+
+
 def rig():
     return bpy.data.objects["Rig"]
 
@@ -40,19 +104,24 @@ def is_open(path):
     return bool(bpy.data.filepath) and norm_path(bpy.data.filepath) == norm_path(path)
 
 
-def open_base_as(role_blend_path, overwrite_ok=False):
-    """Chain step 7 for any role: anime_base.blend saved as the role's own .blend, once the base carries every chain
-    step's stamp (rig, ratio, sit re-fit, foot report). A file load: the next step goes in its own call. Refuses the
-    base's own path, and an existing file unless overwrite_ok (N5: a rebuild over a shipped file is a decision)."""
-    assert norm_path(role_blend_path) != norm_path(BASE_BLEND), "open_base_as: the base itself is not a role file"
+def open_base_as(role_blend_path, overwrite_ok=False, chain=AN):
+    """Chain step 7 for any role: the chain's base (AN: anime_base.blend) saved as the role's own .blend, once the base
+    carries every chain step's stamp (rig, ratio, sit re-fit at the chain's seat, foot report, the arm pass if the
+    chain has one). A file load: the next step goes in its own call. Refuses the base's own path, and an existing file
+    unless overwrite_ok (N5: a rebuild over a shipped file is a decision)."""
+    assert norm_path(role_blend_path) != norm_path(chain["base_blend"]), "open_base_as: the base itself is not a role file"
     assert overwrite_ok or not os.path.exists(role_blend_path), \
         "open_base_as: %s exists (pass overwrite_ok=True to rebuild it)" % role_blend_path
-    bpy.ops.wm.open_mainfile(filepath=BASE_BLEND)
+    bpy.ops.wm.open_mainfile(filepath=chain["base_blend"])
     arm = bpy.data.objects["Rig"]
-    assert "anime_rig" in arm and any("anime_leg_ratio" in a for a in bpy.data.actions), "not a finished base"
-    unfit = [n for n in SIT_CLIPS if "anime_sit_refit" not in bpy.data.actions[n]]
-    assert not unfit, "not a finished base: %s not re-fitted (anime_retarget.refit_sit)" % unfit
+    assert arm.get("anime_rig") == chain["stamp"], "not chain %s's base (rig %r)" % (chain["name"], arm.get("anime_rig"))
+    assert any("anime_leg_ratio" in a for a in bpy.data.actions), "not a finished base"
+    unfit = [n for n in SIT_CLIPS if abs(bpy.data.actions[n].get("anime_sit_refit", -1.0) - chain["seat_y"]) > 1e-6]
+    assert not unfit, "not a finished base: %s not re-fitted for the %.2f m seat (anime_retarget.refit_sit)" % (unfit, chain["seat_y"])
     assert "anime_foot_report" in arm, "not a finished base: no foot report / contact correction (anime_retarget.foot_report)"
+    if chain.get("arm_pass"):
+        unpassed = [n for n in chain["arm_pass"]["clips"] if "real_arm_pass" not in bpy.data.actions[n]]
+        assert not unpassed, "not a finished base: %s without the arm pass (real_arms.run)" % unpassed
     os.makedirs(os.path.dirname(role_blend_path), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=role_blend_path)
     return bpy.data.filepath

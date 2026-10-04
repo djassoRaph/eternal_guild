@@ -1,30 +1,65 @@
-# real_layout.py - the realistic spike's shared numbers (pure Python: imported in Blender by real_body and in system
-# Python by real_paint). The concept sheet's measurement frame and the body atlas's regions.
+# real_layout.py - route RL's shared numbers (pure Python: imported in Blender by real_body and in system Python by
+# real_paint): a concept SHEET's measurement frame (which pixels a 3D point projects to, per view) and the body
+# atlas's regions.
 #
-# The concept (eternal_guild_art/realistic_test/ref_bartender_concept.png, 1344 x 768, Raphael's chosen turnaround)
-# measured by silhouette rows: each view's crown and sole rows give its own scale (m/px), so a 3D point projects to a
-# pixel of any of the three views (front, his left side, back). The head, beard, ears and neck are textured by that
-# projection (real_paint.head_texture); the body is built from the same rows.
-CONCEPT = "F:/GAME I AM MAKING/eternal_guild_art/realistic_test/ref_bartender_concept.png"
-HEIGHT = 1.86
-VIEWS = {
-    # name: (centre px x (front/back: the head's midline; side: the ankle line), crown row, sole row)
-    "front": (262.3, 32.0, 746.0),
-    "side": (713.0, 36.0, 743.0),
-    "back": (1092.3, 34.0, 735.0),
-}
+# A sheet (make_sheet) is one picked concept turnaround: its PNG, the character's height, and per view the centre
+# pixel column and the crown and sole rows (each view's own scale, m/px), plus the head crop boxes that
+# real_paint.head_texture cuts out of it (one quadrant of the head texture per view) and the head texture's skin
+# quadrant. real_body.projection_uvs projects a head's faces onto it; real_paint.head_texture(out, sheet) paints the
+# matching texture. A new character's sheet is measured off its own pick and saved as JSON (save_sheet / load_sheet:
+# `python real_paint.py head <out.png> --sheet <sheet.json>`).
+# BARTENDER is the spike's sheet (eternal_guild_art/realistic_test/ref_bartender_concept.png, 1344 x 768, Raphael's
+# chosen turnaround), measured by silhouette rows; the module-level CONCEPT ... HEAD_SKIN_UV are its values.
+import json
 
 
-def scale(view):
-    cx, top, sole = VIEWS[view]
-    return HEIGHT / (sole - top)
+def make_sheet(concept, height, views, head_crops, head_win=130.0, head_skin_uv=(0.75, 0.25)):
+    """views: {"front"|"side"|"back": (centre px x (front/back: the head's midline; side: the ankle line), crown row,
+    sole row)}; head_crops: {view: (window left px, window top px, quadrant u0, quadrant v0)} with square windows of
+    head_win px (quadrants of the head texture; the fourth is skin at head_skin_uv)."""
+    assert set(views) == {"front", "side", "back"} and set(head_crops) <= set(views)
+    return {"concept": concept, "height": float(height), "views": {k: tuple(v) for k, v in views.items()},
+            "head_crops": {k: tuple(v) for k, v in head_crops.items()}, "head_win": float(head_win),
+            "head_skin_uv": tuple(head_skin_uv)}
 
 
-def to_px(view, x, y, z):
+def save_sheet(sheet, path):
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(sheet, f, indent=1)
+
+
+def load_sheet(path):
+    with open(path, encoding="utf-8") as f:
+        d = json.load(f)
+    return make_sheet(d["concept"], d["height"], d["views"], d["head_crops"], d.get("head_win", 130.0),
+                      d.get("head_skin_uv", (0.75, 0.25)))
+
+
+BARTENDER = make_sheet(
+    "F:/GAME I AM MAKING/eternal_guild_art/realistic_test/ref_bartender_concept.png", 1.86,
+    {"front": (262.3, 32.0, 746.0), "side": (713.0, 36.0, 743.0), "back": (1092.3, 34.0, 735.0)},
+    {"front": (262.3 - 65.0, 27.0, 0.0, 0.5), "side": (618.0, 31.0, 0.5, 0.5), "back": (1092.3 - 65.0, 29.0, 0.0, 0.0)})
+
+CONCEPT = BARTENDER["concept"]
+HEIGHT = BARTENDER["height"]
+VIEWS = BARTENDER["views"]
+HEAD_WIN = BARTENDER["head_win"]
+HEAD_CROPS = BARTENDER["head_crops"]
+HEAD_SKIN_UV = BARTENDER["head_skin_uv"]
+
+
+def scale(view, sheet=None):
+    sheet = sheet or BARTENDER
+    cx, top, sole = sheet["views"][view]
+    return sheet["height"] / (sole - top)
+
+
+def to_px(view, x, y, z, sheet=None):
     """A Blender rest point (front -Y, his left +X, up Z) to a concept pixel (px, py) in `view`."""
-    cx, top, sole = VIEWS[view]
-    s = scale(view)
-    py = top + (HEIGHT - z) / s
+    sheet = sheet or BARTENDER
+    cx, top, sole = sheet["views"][view]
+    s = scale(view, sheet)
+    py = top + (sheet["height"] - z) / s
     if view == "front":
         return cx + x / s, py
     if view == "side":                     # his left side: his front is image-left
@@ -32,20 +67,13 @@ def to_px(view, x, y, z):
     return cx - x / s, py                  # back: his left is image-left
 
 
-# The head texture: three square crops of the concept (px windows), one quadrant each; quadrant 4 is a skin fill.
-HEAD_WIN = 130.0
-HEAD_CROPS = {   # view: (window left px, window top px, quadrant u0, quadrant v0)
-    "front": (262.3 - 65.0, 27.0, 0.0, 0.5),
-    "side": (618.0, 31.0, 0.5, 0.5),
-    "back": (1092.3 - 65.0, 29.0, 0.0, 0.0),
-}
-HEAD_SKIN_UV = (0.75, 0.25)
-
-
-def head_uv(view, x, y, z):
-    px, py = to_px(view, x, y, z)
-    wx, wy, u0, v0 = HEAD_CROPS[view]
-    return u0 + 0.5 * (px - wx) / HEAD_WIN, v0 + 0.5 * (1.0 - (py - wy) / HEAD_WIN)
+def head_uv(view, x, y, z, sheet=None):
+    """The head texture's UV of a rest point seen in `view` (its quadrant: the view's crop window)."""
+    sheet = sheet or BARTENDER
+    px, py = to_px(view, x, y, z, sheet)
+    wx, wy, u0, v0 = sheet["head_crops"][view]
+    win = sheet["head_win"]
+    return u0 + 0.5 * (px - wx) / win, v0 + 0.5 * (1.0 - (py - wy) / win)
 
 
 # The body atlas (1024 px): regions in UV space (u0, v0, u1, v1), v up. A wrapping axis (a closed ring) spans

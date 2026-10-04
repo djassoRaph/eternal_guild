@@ -40,6 +40,14 @@ export in the same call.
 | 10 | `anime_clearcheck.measure(cfg=)`, `proof(nums, cfg)`, `desk_report(nums, cfg)`, `proof_self_clips(cfg)`, `self_clips(cfg)` | the body numbers (into `staff.json`), desk and stool clearance, the self-clip checks, each check first shown to report on a deliberately bad pose; each leaves the rig in rest with no active action |
 | 11 | export | `export_scene.gltf(use_selection=True, export_apply=False, export_skins=True, export_animations=True, export_yup=True)` with only Rig, the body and its props selected, to a NEW file name |
 
+**Chains (25.31 S1.0).** Steps 1–7 take a chain config: `anime_common.AN` (this route's base, the default of every
+call above) or route RL's `real_chain.REAL_1` / `REAL_2` (`tools/blender/realistic/README.md`). A chain holds the
+base's files, the rest-pose table (`anime_rig.run(chain=)`), the stamps and the seat (`refit_sit`'s default: AN 0.44,
+RL 0.45); a step not given one finds it by the rig's stamp (`anime_common.chain_of`). `open_kit` refuses an existing
+base; `foot_report` writes the chain's JSON only in that chain's base (else `out=`). `anime_common.scratch_chain(AN,
+folder, prefix)` rebuilds a whole base into scratch files: 25.31 S1.0 rebuilt the AN base that way and got
+`anime_base.blend`'s rest, stamps, all 76 actions and the four JSONs back identical.
+
 `anime_face.py` runs in system Python (Pillow): `python anime_face.py <out.png> [preset] [--overwrite]` paints a face
 preset (`dealer`, `young_f`, `adult_f`, `aged_f`, `young_m`, `adult_m`, `aged_m`; colours are overrides of `run()`)
 and checks its eyes at mip 5 (>= 40 % darker than the skin). It refuses an existing file without `--overwrite`.

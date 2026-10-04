@@ -15,6 +15,9 @@
 #                  the floor; over the limit, a hips-height contact correction (smoothed); a before/after table;
 #                  the rig stamped rig["anime_foot_report"] (anime_dealer.open_base_as_dealer checks it).
 #   seated_room()  the upperarm heads in Sit_Chair_Idle (frame 0 and mid), root-local: >= 1.05 (the desk top + 0.20).
+# Chains (25.31 S1.0): refit_sit and foot_report read the chain's recorded KayKit JSONs (anime_common.chain_of: the
+# rig's stamp, or the chain passed in) and refit_sit's default seat is the chain's (AN 0.44, RL 0.45); foot_report
+# writes the chain's foot report JSON only when the open file IS that chain's base (else pass `out`).
 # Frames: armature +Z up, -Y front. The hips bone's local Y is armature +Z and its local Z is armature -Y (asserted),
 # so hips location[1] is the height and location[2] the front (+) / back (-).
 import math
@@ -192,9 +195,11 @@ SEAT_GATE = 0.01            # ... and refuses beyond this after MAX_ITER rounds
 MAX_ITER = 10                # the error roughly halves per round (a 0.50 m seat: 0.0345 -> 0.0019 in 5)
 
 
-def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False, seat_verts=None):
+def refit_sit(body_name="Base_Body", seat_y=None, rebuild_ok=False, seat_verts=None, chain=None):
     arm = C.rig()
     _assert_hips_axes(arm)
+    chain = C.chain_of(arm, chain)
+    seat_y = chain["seat_y"] if seat_y is None else seat_y
     # a role's own clips (anime_anims.build_clips) are the actions ratio_step never stamped; some are built from the
     # sit clips (the dealer's Write / Brief), so a re-fit under them needs the role's clips rebuilt after it
     own = sorted(a.name for a in bpy.data.actions if "anime_leg_ratio" not in a)
@@ -202,7 +207,7 @@ def refit_sit(body_name="Base_Body", seat_y=C.SEAT_Y, rebuild_ok=False, seat_ver
         raise RuntimeError("%s: a role's own clips (anime_anims.build_clips) exist: refit_sit(..., rebuild_ok=True), "
                            "then re-run the role's build_clips()" % own)
     body = bpy.data.objects[body_name]
-    data = C.load_json(C.SIT_JSON)
+    data = C.load_json(chain["sit_json"])
     idle_rows = data["clips"]["Sit_Chair_Idle"]["rows"]
     loc0 = idle_rows[0]["hips_loc"]
     # the channel assert, on the recorded KayKit values: location[1] the height (+0.0753), location[2] back (-0.397)
@@ -299,13 +304,17 @@ def _refit_result(arm, idle, out, seat_after, seat_y, own):
 
 # ------------------------------------------------------------------ the foot report and the contact correction
 
-def foot_report(body_name="Base_Body", correct=True):
+def foot_report(body_name="Base_Body", correct=True, chain=None, out=None):
     arm = C.rig()
     _assert_hips_axes(arm)
+    chain = C.chain_of(arm, chain)
+    if out is None:
+        assert C.is_open(chain["base_blend"]), "foot_report: not chain %s's base: pass out= (never its base's JSON)" % chain["name"]
+        out = chain["foot_report_json"]
     body = bpy.data.objects[body_name]
     pts = C.sole_points(arm, [body])
     fb = sorted({b for s in ("l", "r") for b, _ in pts[s]})
-    kk = C.load_json(C.FEET_JSON)["lowest_foot"]
+    kk = C.load_json(chain["feet_json"])["lowest_foot"]
     table = {}
     for act in sorted(bpy.data.actions, key=lambda a: a.name):
         if act.name in C.SIT_CLIPS or act.name not in kk:
@@ -324,7 +333,7 @@ def foot_report(body_name="Base_Body", correct=True):
     over = {c: v for c, v in table.items() if v[1] > LIMIT}
     game = {c: table[c] for c in C.GAME_CLIPS}
     arm["anime_foot_report"] = LIMIT
-    C.save_json(C.BLEND + "anime_base_foot_report.json", {"limit": LIMIT, "contact": CONTACT, "columns": ["before", "after", "contact frames", "frames"],
+    C.save_json(out, {"limit": LIMIT, "contact": CONTACT, "columns": ["before", "after", "contact frames", "frames"],
                                                          "clips": table, "over_after": over})
     print("foot report (clip: before, after, contact frames, frames): game %s" % game)
     print("over %.2f after the correction: %s" % (LIMIT, over))

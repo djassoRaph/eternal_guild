@@ -1,6 +1,11 @@
-# real_paint.py - the realistic spike's textures (2026-10-04), system Python (numpy + Pillow), lossless PNG:
-#   python real_paint.py head <out.png> [--overwrite]   the head material: three crops of Raphael's concept turnaround
-#                                                       (front, his left side, back; real_layout.HEAD_CROPS), the
+# real_paint.py - route RL's textures (the spike 2026-10-04; reusable since 25.31 S1.0), system Python (numpy +
+# Pillow), lossless PNG. As functions: head_texture(out, sheet) (any concept sheet: real_layout.make_sheet / load_sheet,
+# its PNG and crop boxes) and body_texture(out, painters, palette) (any region -> painter map over real_layout.REG;
+# the default is the Bartender's). From the command line:
+#   python real_paint.py head <out.png> [--sheet <sheet.json>] [--overwrite]
+#                                                       the head material: three crops of the picked concept turnaround
+#                                                       (front, his left side, back; the sheet's head_crops; default the
+#                                                       spike's Bartender sheet, real_layout.BARTENDER), the
 #                                                       background flood-filled away and bled over with the nearest
 #                                                       drawing (so a mesh edge a pixel past the drawn silhouette samples
 #                                                       skin or beard, never the sheet's grey), upscaled, a skin quadrant
@@ -60,8 +65,11 @@ def fbm(w, h, cells, octaves=4, periodic=(True, True), seed=0):
     return out / tot
 
 
+PAL = dict(L.PALETTE)        # the palette the painters read (body_texture(palette=...) swaps it for one atlas)
+
+
 def col(name):
-    return np.array(L.PALETTE[name], dtype=float)
+    return np.array(PAL[name], dtype=float)
 
 
 def tint(base, n, amount):
@@ -356,34 +364,50 @@ def misc(img):
         img[int(cy):int(cy + cw), int(cx):int(cx + cw)] = col(names[key])
 
 
-def body_texture(out):
-    N = L.BODY_PX
-    img = np.zeros((N, N, 3)) + col("apron_dark")
-    shirt(Canvas(img, "shirt", True))
-    leather(Canvas(img, "apron"), seed=51, hem=True)
-    bib(Canvas(img, "bib"))
-    straps(Canvas(img, "straps"))
-    sleeve(Canvas(img, "sleeve", True))
-    sleeve(Canvas(img, "roll", True, True), roll=True)
-    skin(Canvas(img, "forearm", True))
-    hands(Canvas(img, "hand"))
-    trousers(Canvas(img, "trousers", True))
-    trousers(Canvas(img, "seat", True), seat=True)
-    boots(Canvas(img, "boots", True))
-    belt(Canvas(img, "belt", True, True))
-    cloth(Canvas(img, "cloth"))
-    misc(img)
-    Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB").save(out)
+# the Bartender's atlas: (region, wrap_u, wrap_v, painter(canvas)) in paint order
+BARTENDER_PAINTERS = [
+    ("shirt", True, False, shirt),
+    ("apron", False, False, lambda cv: leather(cv, seed=51, hem=True)),
+    ("bib", False, False, bib),
+    ("straps", False, False, straps),
+    ("sleeve", True, False, sleeve),
+    ("roll", True, True, lambda cv: sleeve(cv, roll=True)),
+    ("forearm", True, False, skin),
+    ("hand", False, False, hands),
+    ("trousers", True, False, trousers),
+    ("seat", True, False, lambda cv: trousers(cv, seat=True)),
+    ("boots", True, False, boots),
+    ("belt", True, True, belt),
+    ("cloth", False, False, cloth),
+]
+
+
+def body_texture(out, painters=None, palette=None, ground="apron_dark", flat_cells=True):
+    """The body atlas: each (region, wrap_u, wrap_v, painter) paints its real_layout.REG region (periodic on a
+    wrapping axis); misc's flat cells last. palette: {name: (r, g, b)} over real_layout.PALETTE's keys (a recolour)."""
+    global PAL
+    keep = PAL
+    PAL = dict(L.PALETTE, **(palette or {}))
+    try:
+        N = L.BODY_PX
+        img = np.zeros((N, N, 3)) + col(ground)
+        for region, wu, wv, fn in (painters or BARTENDER_PAINTERS):
+            fn(Canvas(img, region, wu, wv))
+        if flat_cells:
+            misc(img)
+        Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB").save(out)
+    finally:
+        PAL = keep
     print("body atlas ->", out)
 
 
 # ------------------------------------------------------------------ the head: the concept's own drawing
 
-def _background(a):
+def _background(a, bg_value=147):
     """The sheet's grey reached from the crop's border (low saturation, value near the sheet's)."""
     sat = a.max(axis=2) - a.min(axis=2)
     val = a.mean(axis=2)
-    cand = (sat < 12) & (np.abs(val - 147) < 16)
+    cand = (sat < 12) & (np.abs(val - bg_value) < 16)
     h, w = cand.shape
     bg = np.zeros_like(cand)
     stack = [(y, x) for y in range(h) for x in (0, w - 1)] + [(y, x) for x in range(w) for y in (0, h - 1)]
@@ -421,16 +445,21 @@ def _bleed(a, bg, steps=24):
     return a
 
 
-def head_texture(out):
-    N = 1024
+def head_texture(out, sheet=None, skin_rgb=None, bg_value=147, N=1024):
+    """The head texture of a concept sheet (real_layout.make_sheet / load_sheet; default the spike's Bartender): each
+    view's crop box (sheet["head_crops"], sheet["head_win"] px square) cut from the sheet's PNG, its grey background
+    (value ~bg_value, low saturation, reached from the border) flood-filled away with its silhouette ink, bled over
+    with the nearest drawing, upscaled into its quadrant; the rest is skin (skin_rgb, default the palette's)."""
+    sheet = sheet or L.BARTENDER
     Q = N // 2
-    con = Image.open(L.CONCEPT).convert("RGB")
-    img = Image.new("RGB", (N, N), tuple(int(c) for c in col("skin")))
-    for view, (wx, wy, u0, v0) in L.HEAD_CROPS.items():
+    win = sheet["head_win"]
+    con = Image.open(sheet["concept"]).convert("RGB")
+    img = Image.new("RGB", (N, N), tuple(int(c) for c in (skin_rgb or col("skin"))))
+    for view, (wx, wy, u0, v0) in sheet["head_crops"].items():
         pad = 12                                                 # crop wider so the bleed has context, trimmed after
-        box = (int(round(wx)) - pad, int(round(wy)) - pad, int(round(wx + L.HEAD_WIN)) + pad, int(round(wy + L.HEAD_WIN)) + pad)
+        box = (int(round(wx)) - pad, int(round(wy)) - pad, int(round(wx + win)) + pad, int(round(wy + win)) + pad)
         a = np.asarray(con.crop(box), dtype=float)
-        bg = _background(a.astype(np.int32))
+        bg = _background(a.astype(np.int32), bg_value)
         # the drawn silhouette ink (the 3 px next to the sheet) goes too: the game's hull draws the outline, and a
         # mesh edge a hair inside the drawn one would show a second line
         grown = bg.copy()
@@ -441,7 +470,7 @@ def head_texture(out):
             grown = g
         a = _bleed(a, grown, steps=80)
         crop = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
-        sc = Q / L.HEAD_WIN
+        sc = Q / win
         big = crop.resize((int(round(crop.width * sc)), int(round(crop.height * sc))), Image.LANCZOS)
         big = big.filter(ImageFilter.UnsharpMask(radius=2.0, percent=70, threshold=2))
         # the window's exact origin inside the padded crop (sub-pixel offset of wx/wy kept)
@@ -454,10 +483,19 @@ def head_texture(out):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    argv = sys.argv[1:]
+    sheet = None
+    if "--sheet" in argv:
+        i = argv.index("--sheet")
+        sheet = L.load_sheet(argv[i + 1])
+        del argv[i:i + 2]
+    args = [a for a in argv if not a.startswith("--")]
     if len(args) != 2 or args[0] not in ("head", "body"):
-        sys.exit("usage: python real_paint.py head|body <out.png> [--overwrite]")
-    if os.path.exists(args[1]) and "--overwrite" not in sys.argv:
+        sys.exit("usage: python real_paint.py head|body <out.png> [--sheet <sheet.json>] [--overwrite]")
+    if os.path.exists(args[1]) and "--overwrite" not in argv:
         sys.exit("%s exists (--overwrite to repaint)" % args[1])
     os.makedirs(os.path.dirname(os.path.abspath(args[1])), exist_ok=True)
-    (head_texture if args[0] == "head" else body_texture)(args[1])
+    if args[0] == "head":
+        head_texture(args[1], sheet)
+    else:
+        body_texture(args[1])

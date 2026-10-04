@@ -1,12 +1,15 @@
-# real_body.py - the realistic spike's body parts (2026-10-04), built in the REST pose of the REAL-1 rig
-# (real_chain.TABLE) from the concept sheet's own silhouette rows (real_layout). anime_kit supplies the primitives
-# (new_obj, skin, chain, blend, ellipsoid) and the rig lookups (K.setup, K.H, K.T); every shape here is new: the anime
-# kit's parts are drawn for the SD test's landmarks and head.
+# real_body.py - route RL's body parts (the spike 2026-10-04; 25.31 S1.0), built in the REST pose of the REAL-1 rig
+# (real_chain.REAL_1's table) from the concept sheet's own silhouette rows (real_layout). anime_kit supplies the
+# primitives (new_obj, skin, chain, blend, ellipsoid) and the rig lookups (K.setup, K.H, K.T); every shape here is
+# new: the anime kit's parts are drawn for the SD test's landmarks and head. The shapes' heights are REAL-1's (the
+# Bartender's sheet); a REAL-2 body is built in REAL-1's frame and carried onto the REAL-2 rest by transfer_rest
+# (build_base(transfer=...): REAL-2's Base_Body).
 #
 # Two texture schemes:
 #   - the head material (the head, beard, ears, neck): each face takes one of the concept's three views by its normal
-#     (front / side / back) and its corners project onto that view's pixels (real_layout.head_uv): the face, scar,
-#     brows, beard strands and ears ARE the concept's drawing.
+#     (front / side / back) and its corners project onto that view's pixels (real_layout.head_uv, on any sheet:
+#     projection_uvs(bm, sheet=...); the head builders pass `sheet` through): the face, scar, brows, beard strands
+#     and ears ARE the concept's drawing.
 #   - the body atlas (everything else): each part's own (u, v) parameters mapped into its region (real_layout.REG);
 #     a closed ring wraps over 1 + PAD of its region and the painter tiles that region (real_paint.body_texture).
 # Blender frame: front -Y, his left +X, up Z. Godot (x, y, z) = Blender (x, z, -y).
@@ -184,9 +187,10 @@ def flat_uvs(bm, uv):
             l[lay].uv = uv
 
 
-def projection_uvs(bm, under_front_y=-0.10):
+def projection_uvs(bm, under_front_y=-0.10, sheet=None):
     """The head material: each face's corners projected onto the concept view its normal faces most (front / side /
-    back); faces looking down take the front view when they are in front of under_front_y, else the back."""
+    back); faces looking down take the front view when they are in front of under_front_y, else the back. sheet: the
+    concept sheet (real_layout.make_sheet; default the spike's Bartender)."""
     bm.normal_update()
     lay = bm.loops.layers.uv.get("UVMap") or bm.loops.layers.uv.new("UVMap")
     counts = {"front": 0, "side": 0, "back": 0}
@@ -203,7 +207,7 @@ def projection_uvs(bm, under_front_y=-0.10):
         counts[view] += 1
         for l in f.loops:
             p = l.vert.co
-            l[lay].uv = L.head_uv(view, p.x, p.y, p.z)
+            l[lay].uv = L.head_uv(view, p.x, p.y, p.z, sheet)
     return counts
 
 
@@ -383,7 +387,7 @@ def skirt_w(top_z, hem_z, front_follow=0.55, legs=0.85):
 
 # ------------------------------------------------------------------ the parts
 
-def build_head(name, mat):
+def build_head(name, mat, sheet=None):
     bm = bmesh.new()
     segs = HEAD_SEGS
     rings = []
@@ -400,7 +404,7 @@ def build_head(name, mat):
         bm.faces.new((top, rings[0][k], rings[0][(k + 1) % segs]))
         bm.faces.new((bot, rings[-1][(k + 1) % segs], rings[-1][k]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    counts = projection_uvs(bm)
+    counts = projection_uvs(bm, sheet=sheet)
     print("head views", counts)
     return finish(name, bm, mat, head_w)
 
@@ -456,7 +460,7 @@ def beard_point(th, z, s):
     return Vector((cen.x + d.x * r, cen.y + d.y * r, z))
 
 
-def build_beard(name, mat, cols=40, rows=9):
+def build_beard(name, mat, cols=40, rows=9, sheet=None):
     bm = bmesh.new()
     ths = [head_theta(k, cols) for k in range(cols)]
     grid = []
@@ -479,11 +483,11 @@ def build_beard(name, mat, cols=40, rows=9):
     f0 = max(bm.faces, key=lambda f: -f.calc_center_median().y)
     if f0.normal.y > 0:
         bmesh.ops.reverse_faces(bm, faces=bm.faces)
-    print("beard views", projection_uvs(bm))
+    print("beard views", projection_uvs(bm, sheet=sheet))
     return finish(name, bm, mat, head_w)
 
 
-def build_ears(name, mat):
+def build_ears(name, mat, sheet=None):
     bm = bmesh.new()
     for sx in (1, -1):
         c = Vector((0.090 * sx, -0.058, 1.726))
@@ -496,17 +500,17 @@ def build_ears(name, mat):
                 q.x -= sx * 0.006 * max(0.0, 1 - rr * 1.3)
             v.co = c + R @ q
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    print("ear views", projection_uvs(bm))
+    print("ear views", projection_uvs(bm, sheet=sheet))
     return finish(name, bm, mat, head_w)
 
 
-def build_neck(name, mat):
+def build_neck(name, mat, sheet=None):
     bm = bmesh.new()
     rings = [(1.47, 0.080, -0.125, 0.045, 2.2, 2.2), (1.54, 0.074, -0.118, 0.026, 2.2, 2.2), (1.60, 0.070, -0.112, 0.022, 2.2, 2.2),
              (1.66, 0.064, -0.10, 0.018, 2.2, 2.2)]
     loft(bm, rings, 14)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    print("neck views", projection_uvs(bm))
+    print("neck views", projection_uvs(bm, sheet=sheet))
     return finish(name, bm, mat, neck_w)
 
 
@@ -952,12 +956,142 @@ def build_belt(name, mat, z=1.030, h=0.046):
     return finish(name, bm, mat, torso_w)
 
 
+# ------------------------------------------------------------------ REAL-1 -> another rest (REAL-2)
+
+def rest_record(arm):
+    """A rig's rest, for transfer_rest: {bone: {"matrix": matrix_local (16 floats, row major), "head", "tail",
+    "length"}}."""
+    return {b.name: {"matrix": [x for row in b.matrix_local for x in row], "head": list(b.head_local),
+                     "tail": list(b.tail_local), "length": b.length} for b in arm.data.bones}
+
+
+def _rest_matrix(row):
+    m = row["matrix"]
+    return Matrix([m[0:4], m[4:8], m[8:12], m[12:16]])
+
+
+def transfer_rest(ob, src_rest, girth):
+    """Carry a skinned mesh built on the rest `src_rest` (rest_record of another rig whose bones have the same
+    directions and rolls: every chain keeps KayKit's) onto the open rig's rest: each vertex goes through its bones'
+    src -> dst rest frames, weighted, with each bone's length ratio along it (so a bone's head and tail land on the
+    new ones) and its girth factors across it: girth {bone: (gx, gz)} in the bone's local X and Z (torso and head:
+    X across, Z front-back; absent: 1.0). The weights are kept. Returns the vertex count moved."""
+    arm = C.rig()
+    T = {}
+    for b in arm.data.bones:
+        if b.name not in src_rest:
+            continue
+        gx, gz = girth.get(b.name, (1.0, 1.0))
+        along = b.length / src_rest[b.name]["length"]
+        T[b.name] = b.matrix_local @ Matrix.Diagonal((gx, along, gz, 1.0)) @ _rest_matrix(src_rest[b.name]).inverted()
+    names = {g.index: g.name for g in ob.vertex_groups}
+    mw = ob.matrix_world.copy()
+    inv = mw.inverted()
+    moved = 0
+    for v in ob.data.vertices:
+        p = mw @ v.co
+        acc, tot = Vector((0.0, 0.0, 0.0)), 0.0
+        for g in v.groups:
+            n = names[g.group]
+            if g.weight > 1e-6 and n in T:
+                acc += (T[n] @ p) * g.weight
+                tot += g.weight
+        if tot <= 0.0:
+            raise RuntimeError("transfer_rest: vertex %d of %s has no deform weight" % (v.index, ob.name))
+        v.co = inv @ (acc / tot)
+        moved += 1
+    ob.data.update()
+    return moved
+
+
+def _weight_on(ob, bones):
+    names = {g.index: g.name for g in ob.vertex_groups}
+    out = []
+    for v in ob.data.vertices:
+        ws = [(g.weight, names[g.group]) for g in v.groups if g.weight > 1e-4]
+        tot = sum(w for w, _ in ws) or 1.0
+        out.append((sum(w for w, n in ws if n in bones) / tot, bool(ws) and max(ws)[1] in bones))
+    return out
+
+
+def fit_profile(ob, profile, bones=("hips", "spine", "chest"), bin_h=0.04, min_verts=16):
+    """Reshape a skinned body's trunk to a silhouette on the open rig's rest (REAL-2's woman's frame: the shoulders, a
+    waist, the hips): profile {"width": [(z, half-width)], "front": [(z, depth in front of the spine line)], "back":
+    [(z, depth behind it)], "centre_y": the spine line's y (default 0: the rig's spine)}. Per height band, the trunk's
+    own extents (vertices whose dominant bone is in `bones`) are measured, and every vertex is scaled about the spine
+    line toward the profile by its weight on `bones` (the thigh tops and shoulder caps follow part way); eased in over
+    0.04 m past the profile's ends, nothing moves beyond. Returns {band z: (sx, s_front, s_back)}."""
+    me = ob.data
+    wt = _weight_on(ob, bones)
+    zs = [z for z, _ in profile["width"]]
+    z0, z1 = min(zs), max(zs)
+    bands = {}
+    for v, (w, dom) in zip(me.vertices, wt):
+        if dom and z0 - bin_h <= v.co.z <= z1 + bin_h:
+            e = bands.setdefault(int(round(v.co.z / bin_h)), [0.0, 1e9, -1e9, 0])
+            e[0], e[1], e[2], e[3] = max(e[0], abs(v.co.x)), min(e[1], v.co.y), max(e[2], v.co.y), e[3] + 1
+    rows = {}
+    cy = profile.get("centre_y", 0.0)
+    for b, (xmax, ymin, ymax, n) in bands.items():
+        if n < min_verts or ymin >= cy or ymax <= cy:       # a band that is not a whole trunk ring measures nothing
+            continue
+        z = b * bin_h
+        rows[z] = (_interp(profile["width"], z) / xmax, _interp(profile["front"], z) / (cy - ymin),
+                   _interp(profile["back"], z) / (ymax - cy), cy)
+    keys = sorted(rows)
+
+    def at(z):
+        if z <= keys[0]:
+            return rows[keys[0]]
+        if z >= keys[-1]:
+            return rows[keys[-1]]
+        for a, b in zip(keys[:-1], keys[1:]):
+            if a <= z <= b:
+                t = (z - a) / (b - a)
+                return tuple(rows[a][i] + (rows[b][i] - rows[a][i]) * t for i in range(4))
+        return rows[keys[-1]]
+
+    for v, (w, _) in zip(me.vertices, wt):
+        if w <= 0.0 or not (z0 - 0.04 <= v.co.z <= z1 + 0.04):
+            continue
+        k = w * K.clamp01(min(v.co.z - (z0 - 0.04), (z1 + 0.04) - v.co.z) / 0.04)
+        sx, sf, sb, cy = at(v.co.z)
+        v.co.x *= 1.0 + (sx - 1.0) * k
+        sy = sf if v.co.y < cy else sb
+        v.co.y = cy + (v.co.y - cy) * (1.0 + (sy - 1.0) * k)
+    me.update()
+    return {round(z, 2): tuple(round(x, 3) for x in rows[z][:3]) for z in keys}
+
+
+def add_bust(ob, bust, bones=("chest", "spine")):
+    """bust: (amplitude m, (x, z) centre, sigma m): the front of the chest pushed forward (and a little down-filled),
+    both sides, on the open rig's rest; only vertices weighted to the trunk, in front of its centre line."""
+    amp, (bx, bz), sig = bust
+    wt = _weight_on(ob, bones)
+    n = 0
+    for v, (w, _) in zip(ob.data.vertices, wt):
+        if w <= 0.0 or v.co.y >= 0.0:
+            continue
+        d = sum(gauss(math.hypot(v.co.x - sx * bx, v.co.z - bz), sig) for sx in (1.0, -1.0))
+        if d > 1e-3:
+            v.co.y -= amp * min(1.0, d) * w * K.clamp01(-v.co.y / 0.06)
+            n += 1
+    ob.data.update()
+    return n
+
+
 # ------------------------------------------------------------------ the neutral base body (chain step 3)
 
-def build_base():
+def build_base(transfer=None):
     """Base_Body: the realistic neutral body (skin material, no apron/beard), the foot report's and the sit re-fit's
-    reference. Never exported."""
+    reference. Never exported. transfer: None on REAL-1; for another chain's base (REAL-2) {"src_rest": REAL-1's
+    rest_record, "girth": ..., "profile": ..., "bust": ...}: the parts are built on REAL-1's bones (the rig lookups read
+    src_rest), skinned to the open rig, carried onto its rest (transfer_rest), the trunk fitted to the profile
+    (fit_profile) and the bust added (add_bust)."""
     K.setup()
+    if transfer:
+        src = transfer["src_rest"]
+        K.S["bone"] = {n: (Vector(r["head"]), Vector(r["tail"])) for n, r in src.items()}
     K.remove(["Base_Body"])
     m = K.mat("AN_BaseSkin", "C4A084")
     parts = [build_head("RB_Head", m), build_neck("RB_Neck", m), build_torso("RB_Torso", m, hem_jag=False),
@@ -973,6 +1107,14 @@ def build_base():
     bpy.ops.object.join()
     body = bpy.context.view_layer.objects.active
     body.name = body.data.name = "Base_Body"
+    if transfer:
+        K.setup()                                              # the rig lookups back on the open rig
+        print("transfer_rest: %d vertices onto %s's rest" % (transfer_rest(body, transfer["src_rest"], transfer["girth"]),
+                                                             C.rig().get("anime_rig")))
+        if transfer.get("profile"):
+            print("fit_profile (band z: sx, front, back):", fit_profile(body, transfer["profile"]))
+        if transfer.get("bust"):
+            print("add_bust: %d vertices" % add_bust(body, transfer["bust"]))
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     print("Base_Body (realistic): %d tris, top %.3f" % (tris, max(v.co.z for v in body.data.vertices)))
     return body
