@@ -28,6 +28,7 @@ const CAMERA_DISTANCE := 14.0  # along the view axis; orthographic, so only clip
 const AUTO_QUIT_SECONDS := 240.0
 # Map toppers sit on a real KayKit hex (top face at y = 0) in the map preset.
 const HEX_BASE := "res://assets/environment/hexagons/base/hex_grass.gltf"
+const TAVERN_LIGHTING := preload("res://scripts/game/tavern_lighting.gd")
 
 @onready var _camera: Camera3D = %Camera3D
 @onready var _subject_root: Node3D = %Subject
@@ -73,3 +74,28 @@ func _apply_preset() -> void:
 		light.visible = not is_map
 	_map_sun.visible = is_map
 	_floor.visible = not is_map  # the hex top sits at y = 0, same as the floor plane
+	if not is_map:
+		_follow_hall_mood()
+
+
+## LM-12 (Story 25.23): the "tavern" preset follows the hall's configured mood (game_config.json › tavern_light_mood)
+## through TavernLighting's static helpers, so a quick check doesn't lie about the hall: the ambient, whether the sun
+## lights the scene (else it only inks: the EdgeQuad moves to layer 20 with it, as in MainTavern), the cool fill, and
+## the warm fill standing in for the hearth (x the mood's hearth_scale). "today" (the default) changes nothing.
+func _follow_hall_mood(mood := "") -> void:
+	if mood == "":
+		mood = TAVERN_LIGHTING.reload_config()
+	if mood == TAVERN_LIGHTING.TODAY:
+		return
+	var v: Dictionary = TAVERN_LIGHTING.mood_params(mood)
+	var env := ($SubViewportContainer/SubViewport/WorldEnvironment as WorldEnvironment).environment
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = v.ambient_color
+	env.ambient_light_energy = float(v.ambient_energy)
+	env.tonemap_exposure = float(v.exposure)
+	if not v.sun_lights_hall:
+		(_camera.get_node("EdgeQuad") as VisualInstance3D).layers = TAVERN_LIGHTING.INK_LAYER_MASK
+		(%OutdoorsLight as DirectionalLight3D).light_cull_mask = TAVERN_LIGHTING.INK_LAYER_MASK
+	(%CoolFill as OmniLight3D).light_energy = float(v.fill_energy)
+	(%WarmFill as OmniLight3D).light_energy = 1.5 * float(v.hearth_scale)
+	print("[LookDev] the tavern light follows the hall's mood: %s" % mood)
