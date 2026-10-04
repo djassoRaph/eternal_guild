@@ -24,6 +24,20 @@ const TANKARD_EMPTY := "res://assets/environment/custom/h1_tankard_empty.gltf"
 const TANKARD_EMPTY_AT := 0.7    # the tankard is empty at 70% of the drinking time
 const TANKARD_HELD_SCALE := 1.8  # chunky in the hand, like KayKit's props; true size on the counter
 
+# The body's look (Story 25.31 S2, AC 9/12, V11; AH-16 / Q5): a townsfolk.json entry with look "realistic" (or
+# "anime", the same path) takes anime_look.gd's toon look on ITS OWN body; its fallback_model_path (today's KayKit
+# body) loads when the model is missing or broken, and keeps its imported look. On its own body: the hand slots'
+# props (the old woman's cane) are HIDDEN (R-9 refined: hands empty; shown only when the game needs them), Running_A
+# plays at SPEED / run_ground_speed (V9: the clip's measured ground speed on that body, so the feet don't skate at
+# the gameplay speed), the held tankard is drawn at the entry's tankard_scale, and the speech bubble and the service
+# emote sit above the entry's measured seated head (sit_head_top).
+const LOOKS := ["anime", "realistic"]
+const ANIME_LOOK := "res://scripts/game/anime_look.gd"
+const HAND_SLOTS := ["handslot.l", "handslot.r"]
+const BUBBLE_GAP := 0.30         # the speech bubble's text this far above a measured head
+const INDICATOR_GAP := 0.38      # the beer emote's centre this far above a measured seated head
+const INDICATOR_Y := 2.2         # the emote's height on a body with no measured head (KayKit's)
+
 # State machine (Epic 8 — split the old SITTING_WAITING into SEATED, the pre-service beat, and
 # WAITING_SERVICE, once the sitting timer fires and the beer-mug indicator shows. WAITING_SERVICE
 # is appended rather than inserted so WALKING_TO_TABLE/SEATED/DRINKING/LEAVING keep their old
@@ -58,7 +72,13 @@ var patron_origin_type: String = ""   # traveler/local/soldier/trader — keys a
 var service_indicator: Sprite3D
 var patron_body_mesh: Node3D       # Set dynamically after model swap
 var animation_player: AnimationPlayer = null  # NEW
-var current_model_path: String = ""  # remembered so save/restore keeps the same model
+var current_model_path: String = ""  # remembered so save/restore keeps the same model (the ENTRY's model_path)
+var body_variant: Dictionary = {}    # the townsfolk.json entry the body came from ({} for a bare path)
+var body_path: String = ""           # the file actually instanced (the fallback's when the model failed)
+var using_fallback := false
+var body_look := ""                  # the look applied ("" on a fallback or an imported-look body)
+var run_rate := 1.0                  # Running_A's playback rate on this body
+var tankard_scale := TANKARD_HELD_SCALE
 
 # Patron bodies come from data (Story 25.14): townsfolk variants plus adventurers passing through,
 # each with the origin type it belongs to. This list is only the fallback when the file is missing
@@ -175,7 +195,8 @@ func _ready():
 # =============================================================================
 
 func _swap_to_random_model():
-	_swap_to_model(str(pick_variant(townsfolk_pool(), "", randf()).get("model_path", FALLBACK_MODELS[0])))
+	var v := pick_variant(townsfolk_pool(), "", randf())
+	_swap_to_model(str(v.get("model_path", FALLBACK_MODELS[0])), v)
 
 ## data/characters/townsfolk.json, parsed once ({} when missing or broken).
 static func _townsfolk_doc() -> Dictionary:
@@ -240,13 +261,94 @@ static func pick_name(variant: Dictionary, roll_first: float, roll_last: float) 
 	var j := mini(int(clampf(roll_last, 0.0, 0.999999) * lasts.size()), lasts.size() - 1)
 	return "%s %s" % [firsts[i], lasts[j]]
 
-func _swap_to_model(model_path: String) -> void:
-	"""Load a specific model, replacing any current one. Used for random spawn AND save-restore."""
+## The pool entry whose model_path is `path` ({} when none: an old save's path, a bare fallback file).
+static func variant_of(path: String) -> Dictionary:
+	for v in townsfolk_pool():
+		if str(v.get("model_path", "")) == path:
+			return v
+	return {}
+
+
+## A variant's body, instanced: its model_path, else its fallback_model_path (a missing file or a scene whose root
+## is not a Node3D moves on). {"node": Node3D or null, "path": the file used, "fallback": the fallback was used}.
+static func instance_body(variant: Dictionary) -> Dictionary:
+	var model := str(variant.get("model_path", ""))
+	for p in [model, str(variant.get("fallback_model_path", ""))]:
+		if p == "":
+			continue
+		var res = load(p) if ResourceLoader.exists(p) else null
+		var inst: Node = (res as PackedScene).instantiate() if res is PackedScene else null
+		if inst is Node3D:
+			return {"node": inst, "path": p, "fallback": p != model}
+		if inst:
+			inst.free()
+	return {"node": null, "path": "", "fallback": false}
+
+
+## The look gate on a body just instanced from `variant` (V11): on its own body, look "realistic" / "anime" takes
+## anime_look.gd's toon look and the hand-slot props are hidden (R-9 refined); a fallback body keeps its imported
+## look and its items (KayKit's). Returns the look applied ("" for none).
+static func dress_body(model: Node3D, variant: Dictionary, fallback: bool) -> String:
+	if fallback or model == null:
+		return ""
+	var look := str(variant.get("look", ""))
+	if look == "":
+		return ""
+	if not look in LOOKS:
+		push_warning("[Patron] unknown look '%s' for %s; the body keeps its imported look" % [look, variant.get("id", "?")])
+		return ""
+	for a in hand_props(model):
+		(a as Node3D).visible = false
+	var look_script = load(ANIME_LOOK) if ResourceLoader.exists(ANIME_LOOK) else null
+	if not look_script is Script:
+		push_warning("[Patron] missing: the look script %s; the body keeps its imported look" % ANIME_LOOK)
+		return ""
+	look_script.apply(model)
+	return look
+
+
+## The BoneAttachment3Ds that hang from a hand slot: on the slot itself, or on an item bone whose parent is one (the
+## glTF import gives a bone-parented prop an item bone of its own, KayKit's way: the old woman's cane is
+## OldWoman_Cane <- handslot.r).
+static func hand_props(model: Node) -> Array:
+	var sks := model.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty():
+		return []
+	var sk := sks[0] as Skeleton3D
+	var out := []
+	for a in model.find_children("*", "BoneAttachment3D", true, false):
+		var b := sk.find_bone(str((a as BoneAttachment3D).bone_name))
+		if b < 0:
+			continue
+		var par := sk.get_bone_parent(b)
+		if sk.get_bone_name(b) in HAND_SLOTS or (par >= 0 and sk.get_bone_name(par) in HAND_SLOTS):
+			out.append(a)
+	return out
+
+
+## A clip's playback rate on a variant's own body: gameplay speed / the clip's measured ground speed (V9), 1.0 on a
+## fallback body or without a measurement.
+static func clip_rate(variant: Dictionary, key: String, speed: float, fallback: bool) -> float:
+	var g = variant.get(key)
+	if fallback or not (g is float or g is int) or not is_finite(float(g)) or float(g) <= 0.0:
+		return 1.0
+	return speed / float(g)
+
+
+func _swap_to_model(model_path: String, variant: Dictionary = {}) -> void:
+	"""Load a specific model, replacing any current one. Used for random spawn AND save-restore. The variant (its
+	pool entry; looked up by model_path when not given) brings the fallback, the look and the measured numbers."""
+	if variant.is_empty():
+		variant = variant_of(model_path)
+	if variant.is_empty():
+		variant = {"model_path": model_path}
 	# Load first: a bad path keeps the current body rather than leaving an invisible patron.
-	var model_resource = load(model_path) if model_path != "" and ResourceLoader.exists(model_path) else null
-	if not model_resource is PackedScene:
+	var body := instance_body(variant)
+	if body.node == null:
 		push_warning("RealisticPatron: Could not load model: " + model_path)
 		return
+	if body.fallback:
+		push_warning("[Patron] fallback: %s is missing, using '%s'" % [model_path, body.path])
 	# Remove the existing model (the .tscn's built-in one on first call, or a prior PatronModel
 	# on restore). Never remove the service indicator, timers, collision, or nav agent.
 	for child in get_children():
@@ -254,10 +356,17 @@ func _swap_to_model(model_path: String) -> void:
 			child.queue_free()
 
 	current_model_path = model_path
-	patron_body_mesh = model_resource.instantiate()
+	body_variant = variant
+	body_path = body.path
+	using_fallback = body.fallback
+	patron_body_mesh = body.node
 	patron_body_mesh.name = "PatronModel"
 	add_child(patron_body_mesh)
-	print("Patron model: ", model_path.get_file())
+	body_look = dress_body(patron_body_mesh, variant, using_fallback)
+	run_rate = clip_rate(variant, "run_ground_speed", SPEED, using_fallback)
+	var ts = variant.get("tankard_scale")
+	tankard_scale = float(ts) if not using_fallback and (ts is float or ts is int) and float(ts) > 0.0 else TANKARD_HELD_SCALE
+	print("Patron model: ", body_path.get_file())
 
 	# Find AnimationPlayer inside the loaded model
 	animation_player = _find_animation_player(patron_body_mesh)
@@ -292,7 +401,7 @@ func _patron_play_animation(anim_name: String, loop: bool = true) -> void:
 	if anim:
 		anim.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 
-	animation_player.play(anim_name, 0.2)
+	animation_player.play(anim_name, 0.2, run_rate if anim_name == "Running_A" else 1.0)
 
 # =============================================================================
 # PHYSICS & MOVEMENT
@@ -315,7 +424,16 @@ func _physics_process(delta: float):
 
 	if service_indicator and service_indicator.visible:
 		var time = Time.get_ticks_msec() / 1000.0
-		service_indicator.position.y = 2.2 + sin(time * 3.0) * 0.15
+		service_indicator.position.y = seated_head_height(INDICATOR_GAP, INDICATOR_Y) + sin(time * 3.0) * 0.15
+
+## Height above the patron's origin `gap` over its seated head: the entry's measured sit_head_top (+ SIT_LIFT on a
+## stool), or `default` on a fallback body / an entry with no measurement.
+func seated_head_height(gap: float, default: float) -> float:
+	var t = body_variant.get("sit_head_top")
+	if using_fallback or not (t is float or t is int) or not is_finite(float(t)):
+		return default
+	return float(t) + (SIT_LIFT if seat_transform != null else 0.0) + gap
+
 
 func _navigate_with_agent(delta: float):
 	if not nav_agent:
@@ -429,8 +547,9 @@ func _hold_tankard(full: bool) -> void:
 	if slot < 0:
 		return
 	for a in patron_body_mesh.find_children("*", "BoneAttachment3D", true, false):
+		# KayKit's items hang on child bones of handslot.r; route RL's props are attached to handslot.r itself (V4)
 		var b := skel.find_bone((a as BoneAttachment3D).bone_name)
-		if b >= 0 and skel.get_bone_parent(b) == slot and (a as Node3D).visible:
+		if b >= 0 and (b == slot or skel.get_bone_parent(b) == slot) and (a as Node3D).visible:
 			(a as Node3D).visible = false
 			_hidden_items.append(a)
 	var att := BoneAttachment3D.new()
@@ -455,7 +574,7 @@ func _stand_tankard_upright(mug, frames_left := 2) -> void:
 		get_tree().process_frame.connect(_stand_tankard_upright.bind(mug, frames_left - 1), CONNECT_ONE_SHOT)
 		return
 	if is_instance_valid(mug) and (mug as Node3D).is_inside_tree() and patron_body_mesh:
-		(mug as Node3D).global_basis = Basis(patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * TANKARD_HELD_SCALE)
+		(mug as Node3D).global_basis = Basis(patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * tankard_scale)
 
 func _on_tankard_empty() -> void:
 	if current_state == PatronState.DRINKING:
@@ -589,7 +708,10 @@ func _start_ambient_chatter() -> void:
 		return
 	# preload by path (like coin_reward) so this compiles even before the editor scans the
 	# new script into the global class registry.
-	var bubble = preload("res://scripts/fx/patron_speech_bubble.gd").new()
+	var bubble_script := preload("res://scripts/fx/patron_speech_bubble.gd")
+	var bubble = bubble_script.new()
+	var hh := float(bubble_script.HEAD_HEIGHT)
+	bubble.position.y = seated_head_height(BUBBLE_GAP, hh) - hh   # above a measured seated head (25.31 S2)
 	add_child(bubble)  # child of the patron, so it rides along and cleans up with them
 	bubble.say(line)
 
@@ -706,12 +828,15 @@ func restore_from_save(save: Dictionary, table_pos: Vector3, entrance: Vector3, 
 	has_been_served = save.get("has_been_served", false)
 
 	var mp: String = save.get("model_path", "")
-	if mp == "" or not ResourceLoader.exists(mp):
-		# Saves from before model_path (or a body since removed): a body of the saved origin type,
+	var v := variant_of(mp) if mp != "" else {}
+	if v.is_empty():
+		# Saves from before model_path, a body since removed, or a body no longer in the pool (AH-7: the KayKit
+		# townsfolk GLBs stay on disk as fallbacks, so "missing" isn't enough): a body of the saved origin type,
 		# so a patron from the old keep still looks like a guard.
-		mp = str(pick_variant(townsfolk_pool(), patron_origin_type, randf()).get("model_path", ""))
+		v = pick_variant(townsfolk_pool(), patron_origin_type, randf())
+		mp = str(v.get("model_path", ""))
 	if mp != "" and mp != current_model_path:
-		_swap_to_model(mp)
+		_swap_to_model(mp, v)
 
 	var pos = save.get("position", [])
 	if pos is Array and pos.size() == 3:
@@ -771,7 +896,7 @@ func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int, seat = 
 	var variant := pick_variant(townsfolk_pool(), "", randf())
 	var mp := str(variant.get("model_path", ""))
 	if mp != "" and mp != current_model_path:
-		_swap_to_model(mp)
+		_swap_to_model(mp, variant)
 	var otype := str(variant.get("origin_type", ""))
 	var labels := ORIGINS.filter(func(o): return o.type == otype)
 	if labels.is_empty():

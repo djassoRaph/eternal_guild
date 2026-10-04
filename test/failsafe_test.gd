@@ -120,6 +120,15 @@ const GAME_MANAGER_PATH := "res://scripts/GameManager.gd"
 const CAST_CLIPS := ["Idle", "Walking_A", "Running_A", "Sit_Chair_Down", "Sit_Chair_Idle", "Sit_Chair_StandUp", "Cheer", "Interact"]
 const TOWNSFOLK_PATH := "res://data/characters/townsfolk.json"
 const TOWNSFOLK_ROLES := ["farmer", "local", "traveller", "guard", "merchant", "old_woman"]   # Story 25.14
+## Story 25.31 S2: the realistic townsfolk (route RL): their mesh prefixes, props, the patron / villager bodies' loops
+## and one-shots (V12), and Walking_A / Running_A's measured ground speeds (real_townsfolk.measure; V9).
+const TOWNSFOLK_PREFIX := {"farmer": "Farmer", "local": "Local", "traveller": "Traveller", "guard": "Guard",
+	"merchant": "Merchant", "old_woman": "OldWoman"}
+const TOWNSFOLK_PROPS := {"merchant": ["Merchant_Purse"], "old_woman": ["OldWoman_Cane"]}
+const CAST_LOOPS := ["Idle", "Walking_A", "Running_A", "Sit_Chair_Idle"]
+const CAST_ONE_SHOTS := ["Sit_Chair_Down", "Sit_Chair_StandUp", "Cheer", "Interact"]
+const TOWNSFOLK_GROUND := {"farmer": [1.143, 2.629], "local": [1.207, 2.754], "traveller": [1.207, 2.629],
+	"guard": [1.175, 2.671], "merchant": [1.111, 2.796], "old_woman": [1.026, 2.004]}
 const PATRON_ORIGIN_TYPES := ["traveler", "local", "soldier", "trader"]
 const PATRON_LINES_PATH := "res://data/dialogue/patron_lines.json"
 const VILLAGER_BARKS_PATH := "res://data/dialogue/villager_barks.json"
@@ -300,6 +309,7 @@ func _initialize() -> void:
 	print("")
 	await test_fire_resume()
 	await test_tankard_upright()
+	await test_townsfolk_runtime()
 	await test_notice_board_live()
 	await test_staff_review_fixes()
 	await test_dialogue()
@@ -1689,9 +1699,15 @@ func test_round_bar() -> void:
 		# Elbow room (found in the 2026-09-25 playtest: neighbours on adjacent stools look crowded).
 		var row := []
 		var tables := []
+		# Story 25.31 S2 (AC 12): SEAT_ELBOW_ROOM from the realistic townsfolk seated (widest half-width 0.434 m with
+		# elbows, hats and packs, + a 0.30 m gap): the round bar's adjacent stools (sit roots 1.23 m apart) are usable
+		var room := float(sp.get_script_constant_map().get("SEAT_ELBOW_ROOM", 0.0))
+		var adjacent := 2.0 * (3.95 - float(rp_c.get("SIT_HIP_BACK", 0.4))) * sin(deg_to_rad(10.0))
+		check(room >= 2.0 * 0.434 + 0.25 and room <= adjacent,
+			"SEAT_ELBOW_ROOM %.2f: two seated realistic townsfolk keep a gap (>= %.2f) and adjacent bar stools (%.2f m) are usable" % [room, 2.0 * 0.434 + 0.25, adjacent])
 		for i in 4:
-			row.append({"approach": Vector3(1.2 * i, 0, -0.3), "sit": Transform3D(Basis.IDENTITY, Vector3(1.2 * i, 0.54, 0))})
-			tables.append({"approach": Vector3(1.2 * i, 0, 0), "sit": null})
+			row.append({"approach": Vector3(1.0 * i, 0, -0.3), "sit": Transform3D(Basis.IDENTITY, Vector3(1.0 * i, 0.54, 0))})
+			tables.append({"approach": Vector3(1.0 * i, 0, 0), "sit": null})
 		var has_pick: bool = sp.get_script_method_list().any(func(m): return m.name == "pick_seat")
 		var picks: Array = [sp.pick_seat(row, [0], 0.0), sp.pick_seat(row, [0], 0.99), sp.pick_seat(row, [0, 2], 0.0),
 			sp.pick_seat(row, [0, 1, 2, 3], 0.5)] if has_pick else []
@@ -1755,7 +1771,10 @@ func test_tankard_upright() -> void:
 	var turned_early: bool = mug != null and not mug.transform.basis.is_equal_approx(local0)
 	for i in 2:
 		await process_frame
-	var want: Basis = Basis(p.patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * float(p.TANKARD_HELD_SCALE)) if p.patron_body_mesh else Basis()
+	# Story 25.31 S2: the held size is the body's (its entry's tankard_scale on a realistic body, KayKit's 1.8 otherwise)
+	var want_scale: float = float(p.body_variant.get("tankard_scale", p.TANKARD_HELD_SCALE)) if not p.using_fallback else float(p.TANKARD_HELD_SCALE)
+	check(absf(float(p.tankard_scale) - want_scale) < 0.001, "the held tankard is drawn x%.2f on this body (%s)" % [float(p.tankard_scale), p.body_path.get_file()])
+	var want: Basis = Basis(p.patron_body_mesh.global_basis.get_rotation_quaternion()).scaled(Vector3.ONE * float(p.tankard_scale)) if p.patron_body_mesh else Basis()
 	var off := 0.0
 	if mug:
 		for col in 3:
@@ -2202,32 +2221,67 @@ func test_townsfolk_kit() -> void:
 		"the Healer and the Ranger still visit, as travelling adventurers (25.9's C4)")
 	check(variants.all(func(v): return ResourceLoader.exists(str(v.get("model_path", "")))), "every pool model exists")
 
+	# Story 25.31 S2 (AC 11/12, V11, V12): the townsfolk are route RL's realistic bodies, checked on the RL rules by
+	# Test 19's GLB checker (the KayKit rig, the cast's 76 clips with the patrons' loops, none of the staff's clips, one
+	# <Role>_Body of <= 3 surfaces with the head projection, <= 2 textures at <= 1024² Lossless with mipmaps, no LODs,
+	# <= 10,000 tris with props, no glow, no metal, a top in 1.50-2.25); their fallbacks are the Story 25.14 KayKit-kit
+	# GLBs (still on disk, the old rules); hands empty (R-9 refined): no prop on a hand slot except the old woman's cane,
+	# which the game hides (RealisticPatron.dress_body); the merchant's purse is worn on hips.
 	for v in townsfolk:
+		var id := str(v.get("id", ""))
 		var path := str(v.get("model_path", ""))
-		var ok := path != "" and ResourceLoader.exists(path)
-		var bones := 0
-		var missing := []
-		var hand_items := []
-		if ok:
+		var prefix: String = str(TOWNSFOLK_PREFIX.get(id, "?")) + "_"
+		var props: Array = TOWNSFOLK_PROPS.get(id, [])
+		check(str(v.get("look", "")) == "realistic" and path == "res://assets/characters/custom/g19_%s_real.glb" % id,
+			"%s: its realistic body g19_%s_real.glb, look realistic (%s, %s)" % [id, id, path.get_file(), v.get("look", "")])
+		_check_staff_glb(path, [[], prefix, props, [], STAFF_CLIPS, CAST_LOOPS, CAST_ONE_SHOTS, RL_TRI_BUDGET, RL_BODY_SURFACES, "realistic"])
+		var fb := str(v.get("fallback_model_path", ""))
+		var fb_ok := fb == "res://assets/characters/custom/townsfolk_%s.glb" % id and ResourceLoader.exists(fb)
+		var fbones := 0
+		var fmissing := ["missing"]
+		if fb_ok:
+			var finst := (load(fb) as PackedScene).instantiate()
+			var fsks := finst.find_children("*", "Skeleton3D", true, false)
+			fbones = (fsks[0] as Skeleton3D).get_bone_count() if not fsks.is_empty() else 0
+			var faps := finst.find_children("*", "AnimationPlayer", true, false)
+			var fclips: PackedStringArray = (faps[0] as AnimationPlayer).get_animation_list() if not faps.is_empty() else PackedStringArray()
+			fmissing = CAST_CLIPS.filter(func(c): return not c in fclips)
+			finst.free()
+		var fst := _mesh_stats(fb) if fb_ok else {"tris": 0, "wrong": ["missing"]}
+		check(fb_ok and fbones >= 41 and fmissing.is_empty() and fst.tris > 0 and fst.tris <= 7000 and fst.wrong.is_empty(),
+			"%s's fallback is its Story 25.14 body %s (%d bones, %d tris, clips missing %s)" % [id, fb.get_file(), fbones, fst.tris, fmissing])
+		for k in ["walk_ground_speed", "run_ground_speed", "head_top", "sit_head_top", "tankard_scale"]:
+			var n = v.get(k)
+			if not ((n is float or n is int) and float(n) > 0.0):
+				check(false, "%s: townsfolk.json %s is a positive number (%s)" % [id, k, n])
+		check(absf(float(v.get("walk_ground_speed", 0.0)) - float(TOWNSFOLK_GROUND.get(id, [0, 0])[0])) < 0.005
+			and absf(float(v.get("run_ground_speed", 0.0)) - float(TOWNSFOLK_GROUND.get(id, [0, 0])[1])) < 0.005,
+			"%s: walk / run ground speeds %.3f / %.3f are the measured ones (real_townsfolk.measure)" % [id, float(v.get("walk_ground_speed", 0.0)), float(v.get("run_ground_speed", 0.0))])
+		# hands empty: the props on the hand slots, and what the game shows of them on its own body
+		var RPS = load(PATRON_SCRIPT_PATH)
+		var hand := []
+		var shown := []
+		var purse_on_hips := id != "merchant"
+		if ResourceLoader.exists(path):
 			var inst := (load(path) as PackedScene).instantiate()
 			var sks := inst.find_children("*", "Skeleton3D", true, false)
-			if not sks.is_empty():
+			var hp: Array = RPS.hand_props(inst)
+			for a in hp:
+				hand.append(str(a.find_children("*", "MeshInstance3D", true, false).map(func(m): return str(m.name))))
+			RPS.dress_body(inst, v, false)
+			shown = hp.filter(func(a): return (a as Node3D).visible).map(func(a): return str((a as BoneAttachment3D).bone_name))
+			if id == "merchant" and not sks.is_empty():
 				var sk := sks[0] as Skeleton3D
-				bones = sk.get_bone_count()
-				for b in bones:
-					var par := sk.get_bone_parent(b)
-					if par >= 0 and sk.get_bone_name(par) in ["handslot.l", "handslot.r"]:
-						hand_items.append("%s<-%s" % [sk.get_bone_name(b), sk.get_bone_name(par)])
-			var aps := inst.find_children("*", "AnimationPlayer", true, false)
-			var clips: PackedStringArray = (aps[0] as AnimationPlayer).get_animation_list() if not aps.is_empty() else PackedStringArray()
-			missing = CAST_CLIPS.filter(func(c): return not c in clips)
+				for a in inst.find_children("*", "BoneAttachment3D", true, false):
+					var bi := sk.find_bone(str((a as BoneAttachment3D).bone_name))
+					var par := sk.get_bone_parent(bi) if bi >= 0 else -1
+					var on_bone := sk.get_bone_name(par) if par >= 0 and str((a as BoneAttachment3D).bone_name).begins_with("Merchant_") else str((a as BoneAttachment3D).bone_name)
+					if on_bone == "hips" and (a as Node3D).visible and a.find_child("Merchant_Purse", true, false) != null:
+						purse_on_hips = true
 			inst.free()
-		check(ok and bones >= 41 and missing.is_empty(), "%s body %s: %d bones, clips missing %s" % [v.get("id"), path.get_file(), bones, missing])
-		var st := _mesh_stats(path) if ok else {"tris": 0, "glow": 0, "wrong": ["missing"]}
-		check(ok and st.tris > 0 and st.tris <= 7000 and st.wrong.is_empty(),
-			"%s: %d tris (≤ 7,000), glow rule (wrong: %s)" % [path.get_file(), st.tris, st.wrong])
-		var hands_ok: bool = hand_items.is_empty() or (v.get("id", "") == "old_woman" and hand_items.size() == 1 and str(hand_items[0]).ends_with("handslot.r"))
-		check(ok and hands_ok, "%s keeps its hands free (items: %s)" % [v.get("id"), hand_items])
+		var want_hand := ["[\"OldWoman_Cane\"]"] if id == "old_woman" else []
+		check(hand == want_hand and shown.is_empty() and purse_on_hips,
+			"%s keeps its hands free: hand-slot props %s (only the old woman's cane), shown by the game %s (none), the purse worn on hips %s" % [id, hand, shown, purse_on_hips])
 
 	var rp = load(PATRON_SCRIPT_PATH) as Script
 	var has_api: bool = rp != null and ["townsfolk_pool", "pick_variant"].all(func(m): return rp.get_script_method_list().any(func(x): return x.name == m))
@@ -2334,8 +2388,8 @@ func test_townsfolk_kit() -> void:
 	var vconst: Dictionary = vs.get_script_constant_map() if vs != null else {}
 	var gap = vconst.get("QUIET_GAP", null)
 	check(gap is Vector2 and gap.x >= 3.0 and gap.y >= gap.x, "villagers leave a quiet gap after each bark (%s s)" % [gap])
-	check(variants.filter(func(v): return v.get("id", "") in ["local", "guard"]).all(func(v): return str(v.get("names", "")) == "masculine"),
-		"the local and the guard (the Knight's face) draw masculine names")
+	check(variants.filter(func(v): return v.get("id", "") in ["farmer", "local", "traveller", "guard", "merchant"]).all(func(v): return str(v.get("names", "")) == "masculine"),
+		"the farmer, the local, the traveller, the guard and the merchant (the men of their picks) draw masculine names")
 	var door := Vector2(-20.65, 10.0)   # TavernEntranceZone
 	var near_door := false
 	var paths := {}   # villager -> sampled path points (a post is a single point)
@@ -2365,6 +2419,82 @@ func test_townsfolk_kit() -> void:
 			if best < 1.0:
 				crossings.append("%s/%s %.2f m" % [str(keys[i]).get_file(), str(keys[j]).get_file(), best])
 	check(crossings.is_empty(), "villagers' paths keep 1 m apart, so nobody walks through anybody %s" % [crossings])
+	print("")
+
+
+## Test 16, runtime part (Story 25.31 S2, AC 12, V11, AH-7): the look gate for patrons and villagers (on its own
+## body: the toon look, the hand-slot props hidden, the clip rate from the measured ground speed; on the fallback: none
+## of it), an old save's KayKit townsfolk path re-picked by origin type, the patron's stool lift and the bubble heights.
+func test_townsfolk_runtime() -> void:
+	print("[Test 16] The realistic townsfolk at runtime: look gate, fallback, old saves, rates, bubbles")
+	var world := Node3D.new()
+	root.add_child(world)
+	var RPS = load(PATRON_SCRIPT_PATH)
+	var pool: Array = RPS.townsfolk_pool()
+	var by_id := {}
+	for v in pool:
+		by_id[str(v.get("id", ""))] = v
+	var p = (load("res://scenes/npcs/RealisticPatron.tscn") as PackedScene).instantiate()
+	p.set_physics_process(false)
+	world.add_child(p)
+	await process_frame
+	var why := []
+	for id in TOWNSFOLK_ROLES:
+		var v: Dictionary = by_id.get(id, {})
+		p._swap_to_model(str(v.get("model_path", "")), v)
+		var toned := 0
+		for mi in p.patron_body_mesh.find_children("*", "MeshInstance3D", true, false):
+			for s in ((mi as MeshInstance3D).mesh.get_surface_count() if (mi as MeshInstance3D).mesh else 0):
+				var m = (mi as MeshInstance3D).get_surface_override_material(s)
+				if m is Material and (m as Material).has_meta(&"anime_toon"):
+					toned += 1
+		var want_rate: float = RPS.SPEED / float(v.get("run_ground_speed", 1.0))
+		var shown: Array = RPS.hand_props(p.patron_body_mesh).filter(func(a): return (a as Node3D).visible)
+		if p.using_fallback or p.body_look != "realistic" or toned < 2 or absf(p.run_rate - want_rate) > 0.001 or not shown.is_empty() \
+				or p.current_model_path != str(v.get("model_path", "")) or absf(p.tankard_scale - float(v.get("tankard_scale", 0.0))) > 0.001:
+			why.append("%s: fallback %s look '%s' toned %d rate %.3f/%.3f shown %d" % [id, p.using_fallback, p.body_look, toned, p.run_rate, want_rate, shown.size()])
+	check(why.is_empty(), "patrons: each realistic townsperson on its own body: toon look, hands empty, Running_A at SPEED / its ground speed, its tankard size %s" % [why])
+	# the fallback: a missing model loads the entry's fallback, keeps its imported look and plays at 1.0; the save keeps
+	# the entry's model_path (V11)
+	var broken := (by_id.get("guard", {}) as Dictionary).duplicate()
+	broken["model_path"] = "res://assets/characters/custom/__missing_g19_guard.glb"
+	p._swap_to_model(str(broken.model_path), broken)
+	check(p.using_fallback and p.body_path == str(broken.get("fallback_model_path", "")) and p.body_look == "" and p.run_rate == 1.0
+		and p.current_model_path == str(broken.model_path) and absf(p.tankard_scale - RPS.TANKARD_HELD_SCALE) < 0.001,
+		"patrons: a missing model loads its fallback %s with its own look, rate 1.0, the KayKit tankard size; the save keeps the entry's path" % p.body_path.get_file())
+	# AH-7: an old save's body that is no longer in the pool (the KayKit townsfolk guard, still on disk) re-picks by origin
+	var save := {"position": [0.0, 0.0, 0.0], "state": RPS.PatronState.SEATED, "name": "Bram Cooper", "origin": "the old keep",
+		"origin_type": "soldier", "payment": 8, "model_path": "res://assets/characters/custom/townsfolk_guard.glb"}
+	p.restore_from_save(save, Vector3.ZERO, Vector3.ZERO, 0, null)
+	check(p.current_model_path == str(by_id.get("guard", {}).get("model_path", "")) and not p.using_fallback and p.body_look == "realistic",
+		"old saves (AH-7): a saved KayKit guard (not in the pool any more) comes back as the realistic guard (%s)" % p.current_model_path.get_file())
+	# seated on a stool: the body lifted, the bubble over the measured seated head
+	p.seat_transform = Transform3D(Basis.IDENTITY, Vector3(0, 0.1 + RPS.BAR_STOOL_SEAT, 0))
+	p._settle_on_seat(false)
+	var want_b: float = float(by_id.guard.sit_head_top) + RPS.SIT_LIFT + RPS.BUBBLE_GAP
+	check(absf(p.patron_body_mesh.position.y - RPS.SIT_LIFT) < 0.001 and absf(p.seated_head_height(RPS.BUBBLE_GAP, 0.0) - want_b) < 0.001,
+		"patrons on a stool: the body rides up %.2f m, the bubble at %.2f m over the root (the seated head + the lift + %.2f)" % [p.patron_body_mesh.position.y, want_b, RPS.BUBBLE_GAP])
+	p.queue_free()
+	# villagers: the same gate; Walking_A at walk_speed / walk_ground_speed; the bubble over the standing head
+	why = []
+	var vscene := load(VILLAGER_SCENE_PATH) as PackedScene
+	for id in TOWNSFOLK_ROLES:
+		var vil = vscene.instantiate()
+		vil.variant_id = id
+		vil.set_physics_process(false)
+		world.add_child(vil)
+		var v: Dictionary = by_id.get(id, {})
+		var want_walk: float = vil.walk_speed / float(v.get("walk_ground_speed", 1.0))
+		var vc: Dictionary = (vil.get_script() as Script).get_script_constant_map()
+		var want_lift: float = float(v.get("head_top", 0.0)) + float(vc.get("BUBBLE_GAP", 0.0)) - PatronSpeechBubble.HEAD_HEIGHT * float(vc.get("BUBBLE_SCALE", 1.0))
+		var shown: Array = RPS.hand_props(vil._model).filter(func(a): return (a as Node3D).visible) if vil._model else ["no body"]
+		if vil.using_fallback or vil.body_look != "realistic" or absf(vil.walk_rate - want_walk) > 0.001 or not shown.is_empty() \
+				or absf(vil.bubble_lift() - want_lift) > 0.001:
+			why.append("%s: fallback %s look '%s' rate %.3f/%.3f shown %d lift %.2f" % [id, vil.using_fallback, vil.body_look, vil.walk_rate, want_walk, shown.size(), vil.bubble_lift()])
+		vil.queue_free()
+	check(why.is_empty(), "villagers: each on its own realistic body, hands empty, Walking_A at walk_speed / its ground speed, the bubble over its head %s" % [why])
+	world.queue_free()
+	await process_frame
 	print("")
 
 

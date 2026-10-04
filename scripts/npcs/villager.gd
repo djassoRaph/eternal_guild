@@ -14,6 +14,7 @@ const GRAVITY := 9.8
 const HEAR_RADIUS := 6.0        # the player overhears within this distance
 const ARRIVE_DIST := 0.3
 const BUBBLE_SCALE := 1.5       # the town camera is about twice as wide as the tavern's; keep the words readable
+const BUBBLE_GAP := 0.45        # (25.31 S2) the scaled text's centre this far over a measured head
 const FALL_LIMIT := 5.0         # this far below where it started = fell through the ground: put it back
 const QUIET_GAP := Vector2(4.0, 8.0)   # seconds of quiet after a bubble ends before anyone speaks again
 const RECENT_BARKS := 6         # lines the whole village avoids repeating
@@ -30,6 +31,10 @@ static var _quiet_left := 0.0   # game-time quiet after the last bubble (ticked 
 static var _quiet_frame := -1
 static var _recent_barks: Array = []
 
+var body_variant: Dictionary = {}   # the townsfolk.json entry the body came from
+var using_fallback := false
+var body_look := ""
+var walk_rate := 1.0                # Walking_A's playback rate on this body (V9)
 var _model: Node3D = null
 var _anim: AnimationPlayer = null
 var _home := Vector3.ZERO
@@ -55,22 +60,40 @@ func _ready() -> void:
 
 func _spawn_model() -> void:
 	var pool := RealisticPatron.townsfolk_pool()
-	var path := ""
+	var variant := {}
 	for v in pool:
 		if str(v.get("id", "")) == variant_id:
-			path = str(v.get("model_path", ""))
-	if path == "" and not pool.is_empty():
-		path = str(pool[0].get("model_path", ""))   # unknown id: any townsperson rather than nobody
-		push_warning("Villager %s: unknown variant '%s', using %s" % [name, variant_id, path.get_file()])
-	var scene = load(path) if path != "" and ResourceLoader.exists(path) else null
-	if not scene is PackedScene:
+			variant = v
+	if variant.is_empty() and not pool.is_empty():
+		variant = pool[0]   # unknown id: any townsperson rather than nobody
+		push_warning("Villager %s: unknown variant '%s', using %s" % [name, variant_id, str(variant.get("model_path", "")).get_file()])
+	# Story 25.31 S2 (AC 12, V11): the patrons' body path: the model, else its fallback; the look gate on its own body
+	# (the toon look, the hand-slot props hidden), Walking_A at walk_speed / walk_ground_speed (V9), the bubble above
+	# the measured head.
+	var body := RealisticPatron.instance_body(variant)
+	if body.node == null:
 		push_warning("Villager %s: no body for variant '%s'" % [name, variant_id])
 		return
-	_model = (scene as PackedScene).instantiate()
+	if body.fallback:
+		push_warning("[Villager] fallback: %s is missing, using '%s'" % [variant.get("model_path", ""), body.path])
+	_model = body.node
 	_model.name = "VillagerModel"
 	add_child(_model)
+	body_variant = variant
+	using_fallback = body.fallback
+	body_look = RealisticPatron.dress_body(_model, variant, using_fallback)
+	walk_rate = RealisticPatron.clip_rate(variant, "walk_ground_speed", walk_speed, using_fallback)
 	var aps := _model.find_children("*", "AnimationPlayer", true, false)
 	_anim = aps[0] as AnimationPlayer if not aps.is_empty() else null
+
+
+## The bubble's lift (parent-local): its scaled text BUBBLE_GAP over the measured standing head, or 0 (the old
+## height) on a fallback / unmeasured body.
+func bubble_lift() -> float:
+	var t = body_variant.get("head_top")
+	if using_fallback or not (t is float or t is int) or not is_finite(float(t)):
+		return 0.0
+	return float(t) + BUBBLE_GAP - BUBBLE_SCRIPT.HEAD_HEIGHT * BUBBLE_SCALE
 
 
 func _physics_process(delta: float) -> void:
@@ -139,7 +162,7 @@ func _play(anim_name: String) -> void:
 	if _anim == null or not _anim.has_animation(anim_name) or _anim.current_animation == anim_name:
 		return
 	_anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
-	_anim.play(anim_name, 0.2)
+	_anim.play(anim_name, 0.2, walk_rate if anim_name == "Walking_A" else 1.0)
 
 
 ## Once per half second: when the player is close, and this villager hasn't spoken to them yet on this
@@ -166,6 +189,7 @@ func _listen_for_player(delta: float) -> void:
 		_recent_barks.pop_front()
 	var bubble = BUBBLE_SCRIPT.new()
 	bubble.scale = Vector3.ONE * BUBBLE_SCALE
+	bubble.position.y = bubble_lift()
 	add_child(bubble)
 	_speaking += 1
 	bubble.tree_exited.connect(_on_bubble_gone)
