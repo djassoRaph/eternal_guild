@@ -397,6 +397,8 @@ func _ready() -> void:
 	if _env and _env.environment:
 		_env.environment = _env.environment.duplicate()
 	reload_config()
+	for l in _group("tavern_candle") + _group("tavern_window"):
+		_base_energy(l)                # the authored energy, once, before any scale is applied
 	today = _snapshot()
 	var gb := get_node_or_null("/root/GameBus")
 	if gb and gb.has_signal("day_phase_changed"):
@@ -546,6 +548,15 @@ func _group(g: String) -> Array:
 	return get_tree().get_nodes_in_group(g).filter(func(n): return n is Light3D and (_scope == null or _scope.is_ancestor_of(n)))
 
 
+## A candle's or window light's base energy: its base_energy metadata; a light saved without one gets its energy at
+## first sight (_ready, before any scale) stored as that metadata. Never the current energy at apply time: a scale of
+## 0 ("today") would zero it for good.
+static func _base_energy(l: Light3D) -> float:
+	if not l.has_meta("base_energy"):
+		l.set_meta("base_energy", l.light_energy)
+	return float(l.get_meta("base_energy"))
+
+
 ## Apply values to the hall's nodes. Never writes the sun's transform, colour or energy (LM-3), nor the fire's
 ## energy or colour (hearth.gd owns them: light_scale only).
 func _apply(v: Dictionary) -> void:
@@ -586,13 +597,13 @@ func _apply(v: Dictionary) -> void:
 		_pillar.glow_energy = float(v.pillar_glow)
 		n += 1
 	for c in _group("tavern_candle"):
-		var e := float(c.get_meta("base_energy", c.light_energy)) * float(v.candle_scale)
+		var e := _base_energy(c) * float(v.candle_scale)
 		c.light_energy = e
 		c.visible = e > 0.0005
 		c.shadow_enabled = false
 		n += 1
 	for w in _group("tavern_window"):
-		var e := float(w.get_meta("base_energy", w.light_energy)) * float(v.window_energy)
+		var e := _base_energy(w) * float(v.window_energy)
 		w.light_energy = e
 		w.light_color = v.window_color
 		w.visible = e > 0.0005

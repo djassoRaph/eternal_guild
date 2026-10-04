@@ -7554,6 +7554,15 @@ func test_light_and_mood() -> void:
 	rig_ok = rig_ok and cand.all(func(c): return c.visible and not c.shadow_enabled and is_equal_approx(c.light_energy, float(c.get_meta("base_energy")) * float(ma.candle_scale)))
 	rig_ok = rig_ok and (rig.window as SpotLight3D).visible and not (rig.window as SpotLight3D).shadow_enabled and (rig.window as SpotLight3D).light_color.is_equal_approx(ma.window_color)
 	check(rig_ok, "moody_a on the rig: the explicit ambient, the sun on layer 20 only, fill/bar/desk at its energies, the hearth's light_scale and hard shadow, candles lit and unshadowed, the window lit")
+	# review 2026-10-04: a light saved without base_energy keeps its authored energy as the base (snapshotted once at
+	# _ready), so "today" (scale 0) can't zero it for good; the rig went through today and every mood x phase above
+	ctl.set_mood("today")
+	ctl.set_mood("moody_a")
+	var bare: OmniLight3D = rig.bare
+	var bare_win: SpotLight3D = rig.bare_win
+	check(bare.visible and is_equal_approx(bare.light_energy, 0.9 * float(ma.candle_scale)) and is_equal_approx(float(bare.get_meta("base_energy", -1.0)), 0.9)
+		and bare_win.visible and is_equal_approx(bare_win.light_energy, 2.0 * float(ma.window_energy)) and is_equal_approx(float(bare_win.get_meta("base_energy", -1.0)), 2.0),
+		"a candle and a window light saved without base_energy keep their authored energy as the base through today (scale 0) and back (candle %.3f, window %.3f)" % [bare.light_energy, bare_win.light_energy])
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
@@ -7734,7 +7743,8 @@ func test_light_and_mood() -> void:
 ## Test 25's fixture rig: the hall's light nodes on the paths TavernLighting expects (SubViewport/TavernNavigation/...),
 ## a real Hearth and a real pillar, two candles and a window. Returns the nodes; free rig.root after.
 ## `shared_env`: the WorldEnvironment uses this Environment (a cached scene's sub-resource, shared by every
-## instance) instead of a new one; `early_mood`: set_mood before _ready (review 2026-10-04).
+## instance) instead of a new one; `early_mood`: set_mood before _ready. The rig also has a candle and a window
+## light saved without base_energy (review 2026-10-04).
 func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, early_mood := "") -> Dictionary:
 	var r := Node3D.new()
 	r.name = "LMRig"
@@ -7800,6 +7810,16 @@ func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, ea
 	win.set_meta("base_energy", 3.0)
 	win.add_to_group("tavern_window")
 	arch.add_child(win)
+	# saved without base_energy: the controller must keep the authored energy as the base
+	var bare: OmniLight3D = mk.call("CandleBare", 0.9, furn)
+	bare.visible = false
+	bare.add_to_group("tavern_candle")
+	var bare_win := SpotLight3D.new()
+	bare_win.name = "WindowBare"
+	bare_win.visible = false
+	bare_win.light_energy = 2.0
+	bare_win.add_to_group("tavern_window")
+	arch.add_child(bare_win)
 	for pn in ["HearthProbe", "BarProbe"]:
 		var p := ReflectionProbe.new()
 		p.name = pn
@@ -7816,7 +7836,7 @@ func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, ea
 	envn.add_child(ctl)
 	root.add_child(r)
 	return {"root": r, "ctl": ctl, "env": we, "sun": sun, "fill": fill, "bar": barl, "desk": deskl, "hearth": hearth, "pillar": pillar,
-		"candles": candles, "window": win}
+		"candles": candles, "window": win, "bare": bare, "bare_win": bare_win}
 
 
 ## True when `needle` appears inside func `fname`'s body in a GDScript source (to the next top-level func).
