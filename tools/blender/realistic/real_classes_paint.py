@@ -63,13 +63,21 @@ def wrap_leather(cv, base, dark, seed, stitch_rows=(0.15, 0.85)):
 
 
 def hair_strands(cv, base="hair", dark="hair_dark", light="hair_light", seed=1201):
-    """Hair as strands along v (the hair shell's rows run up the head, the braid's along its length)."""
+    """Hair as strands along v (the hair shell's rows run up the head, the braid's along its length): fine streaks
+    across u at two scales, lighter strand highlights, darker lowlights and thin dark partings between locks (Stage D 1:
+    the first, one soft streak scale, read as a flat cap in the game)."""
     w, h = cv.pw, cv.ph
-    st = np.asarray(Image.fromarray((fbm(w, 6, 60, 3, (cv.wrap_u, False), seed) * 255).astype(np.uint8)).resize((w, h), Image.BILINEAR),
-                    dtype=float) / 255
-    img = tint(col(base), st, 0.30)
-    img = mix(img, np.clip((st - 0.62) * 4, 0, 1), col(light), 0.6)
-    img = mix(img, np.clip((0.40 - st) * 4, 0, 1), col(dark), 0.6)
+
+    def streaks(cells, s):
+        row = fbm(w, 4, cells, 3, (cv.wrap_u, False), s)
+        return np.asarray(Image.fromarray((row * 255).astype(np.uint8)).resize((w, h), Image.BILINEAR), dtype=float) / 255
+    fine, broad = streaks(90, seed), streaks(18, seed + 1)
+    wav = fbm(w, h, 6, 2, (cv.wrap_u, False), seed + 2)            # the locks wander a little along their length
+    img = tint(col(base), broad, 0.22)
+    img = mix(img, np.clip((fine - 0.58) * 4, 0, 1), col(light), 0.75)
+    img = mix(img, np.clip((0.42 - fine) * 4, 0, 1), col(dark), 0.65)
+    locks = np.clip(1.0 - np.abs(np.sin((np.arange(w)[None, :] / w * 22 + wav * 1.5) * math.pi)) / 0.14, 0, 1)
+    img = mix(img, locks, col(dark), 0.55)
     cv.put(img)
 
 
@@ -289,8 +297,8 @@ def _ranger():
     pal = dict(COMMON, skin=(198, 160, 134), skin_dark=(150, 114, 96), shirt=(62, 88, 60), shirt_dark=(38, 56, 38),
                sleeve_g=(84, 86, 84), sleeve_dark=(54, 56, 54), cowl=(80, 60, 44), cowl_dark=(50, 38, 28),
                cape=(86, 68, 52), cape_dark=(56, 44, 34), trousers=(88, 70, 54), patch=(110, 92, 72),
-               boots=(102, 80, 58), boots_dark=(60, 46, 34), belt=(64, 48, 36), hair=(132, 100, 66), hair_dark=(84, 62, 40),
-               hair_light=(172, 138, 94), quiver=(110, 82, 56), qband=(70, 52, 38), shaft=(130, 104, 74),
+               boots=(102, 80, 58), boots_dark=(60, 46, 34), belt=(64, 48, 36), hair=(150, 114, 74), hair_dark=(96, 70, 44),
+               hair_light=(198, 162, 110), quiver=(110, 82, 56), qband=(70, 52, 38), shaft=(130, 104, 74),
                fletch=(150, 40, 36), bow=(84, 60, 42), apron_dark=(56, 44, 34), apron_edge=(38, 30, 24))
 
     def jerkin(cv):
