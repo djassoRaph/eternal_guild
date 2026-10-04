@@ -400,7 +400,11 @@ func _ready() -> void:
 		var mi := card as MeshInstance3D
 		var m: Material = mi.get_surface_override_material(0)
 		if m:
-			mi.set_surface_override_material(0, m.duplicate())
+			var own: Material = m.duplicate()
+			# no ink on a light card: the editor can drop an unshaded material's saved roughness 0 on a re-save
+			if own is BaseMaterial3D:
+				(own as BaseMaterial3D).roughness = 0.0
+			mi.set_surface_override_material(0, own)
 	reload_config()
 	for l in _group("tavern_candle") + _group("tavern_window"):
 		_base_energy(l)                # the authored energy, once, before any scale is applied

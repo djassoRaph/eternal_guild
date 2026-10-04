@@ -8008,6 +8008,11 @@ func test_light_and_mood() -> void:
 	cards_ok = cards_ok and is_equal_approx((cm0 as StandardMaterial3D).albedo_color.a, 0.3 * float(ma.window_energy)) and is_equal_approx((cm1 as StandardMaterial3D).albedo_color.a, 0.7 * float(ma.window_energy))
 	cards_ok = cards_ok and (cm1 as StandardMaterial3D).blend_mode == BaseMaterial3D.BLEND_MODE_ADD and shared_mat.albedo_color == Color(1, 1, 1, 1) and rig_cards.all(func(q): return q.visible)
 	check(cards_ok, "two window light cards sharing one material: each has its own copy and its own alpha (0.3 and 0.7 x window_energy); the shared material is untouched")
+	# the editor can drop an unshaded card's saved roughness (2026-10-04 re-save): the copies are forced to roughness 0
+	# (no ink) at runtime; the rig's shared material keeps the default 1.0, as such a re-save leaves it
+	check(cm0 is StandardMaterial3D and cm1 is StandardMaterial3D and (cm0 as StandardMaterial3D).roughness == 0.0
+		and (cm1 as StandardMaterial3D).roughness == 0.0 and shared_mat.roughness == 1.0,
+		"window light cards: each copy at roughness 0 (no ink) even when the saved material lost it; the shared material untouched")
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
