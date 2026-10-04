@@ -242,3 +242,32 @@ def arms(ch, body="Base_Body"):
 
 def open_base_as(path, ch=REAL_1, overwrite_ok=False):
     return C.open_base_as(path, overwrite_ok=overwrite_ok, chain=ch)
+
+
+def export_glb(glb, objects, drop_actions=(), overwrite_ok=False):
+    """Route RL's step 11 for every role module (25.31 review P1; Den Fa's export has the same shape): `objects` (the
+    rig first, then the body and its props) to `glb`. Refuses an existing GLB unless overwrite_ok (N5 / V3: every
+    shipped GLB is a live path the data points at; re-exporting one is a decision). Saves the open file first, then
+    drops `drop_actions` (the clip builders' SRC_* sources: the exporter writes every action on the armature), exports,
+    and reverts the file in a finally, so a failed export never leaves the file without its sources for a later save."""
+    if os.path.exists(glb) and not overwrite_ok:
+        raise RuntimeError("export: %s exists (pass overwrite_ok=True to re-export it)" % glb)
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    for o in objects:
+        o.hide_set(False)
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objects[0]
+    os.makedirs(os.path.dirname(glb), exist_ok=True)
+    bpy.ops.wm.save_mainfile()
+    try:
+        for src in drop_actions:
+            if src in bpy.data.actions:
+                bpy.data.actions.remove(bpy.data.actions[src])
+        bpy.ops.export_scene.gltf(filepath=glb, use_selection=True, export_apply=False, export_skins=True,
+                                  export_animations=True, export_yup=True)
+        size = os.path.getsize(glb)
+    finally:
+        bpy.ops.wm.revert_mainfile()
+    print("exported", glb, size)
+    return glb

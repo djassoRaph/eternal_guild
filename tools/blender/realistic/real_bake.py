@@ -4,8 +4,10 @@
 # head material into its own unwrap with the three views BLENDED by the surface normal (w_view = max(0, n.view)^k,
 # normalised), so the hand-over is a soft cross-fade instead of a seam, then puts the baked image and the unwrap on the
 # body's head faces. The body atlas is untouched. Run on the joined <Role>_Body in rest, after build() (own call).
-#   bake_head(body, head_mat, sheet, out_png)    -> the baked PNG (size x size, lossless), the head faces re-UV'd
-# Uses Cycles' EMIT bake (CPU); the scene's engine and the material slot are restored after.
+#   bake_head(body, head_mat, sheet, out_png, overwrite_ok=False)    -> the baked PNG (size x size, lossless), the
+#                                                head faces re-UV'd; re-runnable (it reads the recorded concept source,
+#                                                never its own last bake); refuses an existing PNG unless overwrite_ok
+# Uses Cycles' EMIT bake (CPU); the scene's engine, Cycles' settings and the material slot are restored after.
 import math
 import os
 
@@ -130,94 +132,144 @@ def _bake_material(img_src, img_out, sheet, k):
     return m
 
 
-def bake_head(body_name, head_mat_name, sheet, out_png, size=1024, k=4.0, margin=0.004):
-    arm = C.rig()
+SRC_KEY = "real_bake_src"          # on the head material: the concept crops image the projection reads (its first bake)
+BAKED_KEY = "real_head_bake"       # on the body mesh: the PNG its head faces were last baked to (their UVs are its unwrap)
+
+
+def _abs(path):
+    return C.norm_path(bpy.path.abspath(path))
+
+
+def bake_source(hm, out_png):
+    """The projection's source image path for head material `hm`: the one recorded at its first bake, else the image the
+    material reads now (build() points it at the concept crops). Never the bake's own output: a second bake that read
+    its own result through the concept-sheet UVs wrote garbage over the art (25.31 review P2)."""
+    tex = next(n for n in hm.node_tree.nodes if n.type == "TEX_IMAGE")
+    src = hm.get(SRC_KEY) or (tex.image and tex.image.filepath) or ""
+    src = bpy.path.abspath(src) if src else ""
+    if not src or _abs(src) == _abs(out_png):
+        raise RuntimeError("bake_head: the head material %s reads %r, the bake's own output (baked before the source was "
+                           "recorded): run build() first (it points the material at the concept crops)" % (hm.name, src))
+    if not os.path.exists(src):
+        raise RuntimeError("bake_head: the projection source %s is missing" % src)
+    return src
+
+
+def bake_head(body_name, head_mat_name, sheet, out_png, size=1024, k=4.0, margin=0.004, overwrite_ok=False):
+    """Re-runnable: the projection reads bake_source() (the concept crops, recorded on the material at the first bake),
+    never the material's current image, which is the bake after one run. Refuses an existing out_png unless overwrite_ok
+    (the shipped <role>_headpaint.png). Everything it adds to the file for the bake (the helper UV layers, the bake
+    material, the dummy image nodes, Cycles' samples / device / margin and the engine, edit mode) is undone in a
+    finally; the head faces take the bake's unwrap only when the bake succeeded."""
+    if os.path.exists(out_png) and not overwrite_ok:
+        raise RuntimeError("bake_head: %s exists (pass overwrite_ok=True to re-bake it)" % out_png)
     RT.rest_pose()
     body = bpy.data.objects[body_name]
     me = body.data
     head_idx = next(i for i, m in enumerate(me.materials) if m and m.name == head_mat_name)
     hm = me.materials[head_idx]
-    src = next(n for n in hm.node_tree.nodes if n.type == "TEX_IMAGE").image
-    # the projection per view (continuous per vertex), and the top mapping
+    src_path = bake_source(hm, out_png)
+    src = bpy.data.images.load(src_path, check_existing=True)
     names = ["P_" + v for v in VIEWS] + (["P_top"] if sheet.get("top_from_back") else [])
-    for n in names + ["BK"]:
-        if n in me.uv_layers:
-            me.uv_layers.remove(me.uv_layers[n])
-        me.uv_layers.new(name=n)
-    for v in VIEWS:
-        _face_uvs(me, head_idx, "P_" + v, lambda p, v=v: L.head_uv(v, p.x, p.y, p.z, sheet))
-    if sheet.get("top_from_back"):
-        _face_uvs(me, head_idx, "P_top", _top_uv(sheet))
-    # the bake's unwrap: the head faces alone, smart-projected into BK
-    for o in bpy.context.selected_objects:
-        o.select_set(False)
-    body.select_set(True)
-    bpy.context.view_layer.objects.active = body
-    me.uv_layers.active = me.uv_layers["BK"]
-    bpy.ops.object.mode_set(mode="EDIT")
-    bm = bmesh.from_edit_mesh(me)
-    for f in bm.faces:
-        f.select = f.material_index == head_idx
-    bmesh.update_edit_mesh(me)
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60.0), island_margin=margin, area_weight=0.0, correct_aspect=True,
-                             scale_to_bounds=False)
-    bpy.ops.object.mode_set(mode="OBJECT")
-    # bake
-    img_out = bpy.data.images.new(os.path.basename(out_png).rsplit(".", 1)[0], size, size, alpha=False)
-    tmp = _bake_material(src, img_out, sheet, k)
-    me.materials[head_idx] = tmp
-    # a bake writes into the ACTIVE image node of every material on the object: the other slots' (the body atlas)
-    # must point at a non-image node, or the atlas's pixels in memory are overwritten (and exported)
-    # (making another node active is not enough: the image node keeps its active-texture flag), so each other slot gets
-    # a throwaway image node, active, removed after
-    keep_active = {}
-    dummy = bpy.data.images.new("RT_bake_dummy", 8, 8)
-    for m in me.materials:
-        if m and m is not tmp and m.use_nodes:
-            keep_active[m.name] = m.node_tree.nodes.active
-            dn = m.node_tree.nodes.new("ShaderNodeTexImage")
-            dn.name = "RT_bake_dummy"
-            dn.image = dummy
-            m.node_tree.nodes.active = dn
     sc = bpy.context.scene
-    keep_engine = sc.render.engine
+    keep = {"engine": sc.render.engine}
+    keep_active = {}
+    tmp = dummy = img_out = None
+    done = False
     try:
+        # the projection per view (continuous per vertex), and the top mapping
+        for n in names + ["BK"]:
+            if n in me.uv_layers:
+                me.uv_layers.remove(me.uv_layers[n])
+            me.uv_layers.new(name=n)
+        for v in VIEWS:
+            _face_uvs(me, head_idx, "P_" + v, lambda p, v=v: L.head_uv(v, p.x, p.y, p.z, sheet))
+        if sheet.get("top_from_back"):
+            _face_uvs(me, head_idx, "P_top", _top_uv(sheet))
+        # the bake's unwrap: the head faces alone, smart-projected into BK
+        for o in bpy.context.selected_objects:
+            o.select_set(False)
+        body.select_set(True)
+        bpy.context.view_layer.objects.active = body
+        me.uv_layers.active = me.uv_layers["BK"]
+        bpy.ops.object.mode_set(mode="EDIT")
+        bm = bmesh.from_edit_mesh(me)
+        for f in bm.faces:
+            f.select = f.material_index == head_idx
+        bmesh.update_edit_mesh(me)
+        bpy.ops.uv.smart_project(angle_limit=math.radians(60.0), island_margin=margin, area_weight=0.0, correct_aspect=True,
+                                 scale_to_bounds=False)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        # bake
+        img_out = bpy.data.images.new(os.path.basename(out_png).rsplit(".", 1)[0], size, size, alpha=False)
+        tmp = _bake_material(src, img_out, sheet, k)
+        me.materials[head_idx] = tmp
+        # a bake writes into the ACTIVE image node of every material on the object: the other slots' (the body atlas)
+        # must point at a non-image node, or the atlas's pixels in memory are overwritten (and exported)
+        # (making another node active is not enough: the image node keeps its active-texture flag), so each other slot
+        # gets a throwaway image node, active, removed after
+        dummy = bpy.data.images.new("RT_bake_dummy", 8, 8)
+        for m in me.materials:
+            if m and m is not tmp and m.use_nodes:
+                keep_active[m.name] = m.node_tree.nodes.active
+                dn = m.node_tree.nodes.new("ShaderNodeTexImage")
+                dn.name = "RT_bake_dummy"
+                dn.image = dummy
+                m.node_tree.nodes.active = dn
         sc.render.engine = "CYCLES"
+        keep.update(samples=sc.cycles.samples, device=sc.cycles.device, margin=sc.render.bake.margin)
         sc.cycles.samples = 4
         sc.cycles.device = "CPU"
         sc.render.bake.margin = 8
         bpy.ops.object.bake(type="EMIT", uv_layer="BK", margin=8, use_clear=True)
+        img_out.filepath_raw = out_png
+        img_out.file_format = "PNG"
+        img_out.save()
+        # the baked unwrap becomes the head faces' UVs
+        uv = me.uv_layers["UVMap"].data
+        bk = me.uv_layers["BK"].data
+        for p in me.polygons:
+            if p.material_index == head_idx:
+                for li in p.loop_indices:
+                    uv[li].uv = bk[li].uv
+        done = True
     finally:
+        if body.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
         me.materials[head_idx] = hm
-        bpy.data.materials.remove(tmp)
+        if tmp is not None:
+            bpy.data.materials.remove(tmp)
         for m in me.materials:
             if m and m.name in keep_active:
                 dn = m.node_tree.nodes.get("RT_bake_dummy")
                 if dn:
                     m.node_tree.nodes.remove(dn)
                 m.node_tree.nodes.active = keep_active[m.name]
-        bpy.data.images.remove(dummy)
+        if dummy is not None:
+            bpy.data.images.remove(dummy)
+        if "samples" in keep:
+            sc.cycles.samples, sc.cycles.device, sc.render.bake.margin = keep["samples"], keep["device"], keep["margin"]
         try:
-            sc.render.engine = keep_engine
+            sc.render.engine = keep["engine"]
         except TypeError:
             pass
-    img_out.filepath_raw = out_png
-    img_out.file_format = "PNG"
-    img_out.save()
-    # the baked unwrap becomes the head faces' UVs; the helper layers go
-    uv = me.uv_layers["UVMap"].data
-    bk = me.uv_layers["BK"].data
-    for p in me.polygons:
-        if p.material_index == head_idx:
-            for li in p.loop_indices:
-                uv[li].uv = bk[li].uv
-    me.uv_layers.active = me.uv_layers["UVMap"]
-    for n in names + ["BK"]:
-        me.uv_layers.remove(me.uv_layers[n])
-    # the head material reads the baked image
+        # the helper layers go
+        if "UVMap" in me.uv_layers:
+            me.uv_layers.active = me.uv_layers["UVMap"]
+        for n in names + ["BK"]:
+            if n in me.uv_layers:
+                me.uv_layers.remove(me.uv_layers[n])
+        if img_out is not None:
+            bpy.data.images.remove(img_out)
+    assert done
+    # the head material reads the baked image: one datablock per file (an earlier bake's is replaced, not stacked);
+    # the source stays recorded on the material, and the mesh is stamped with its bake
+    hm[SRC_KEY] = src_path
     tex = next(n for n in hm.node_tree.nodes if n.type == "TEX_IMAGE")
-    bpy.data.images.remove(img_out)
+    for im in [i for i in bpy.data.images if i.filepath and _abs(i.filepath) == _abs(out_png)]:
+        bpy.data.images.remove(im)
     tex.image = bpy.data.images.load(out_png, check_existing=False)
     tex.image.use_fake_user = True
-    print("painted head pass:", out_png, size, "px; views", names)
+    me[BAKED_KEY] = out_png
+    print("painted head pass:", out_png, size, "px; views", names, "source", src_path)
     return out_png

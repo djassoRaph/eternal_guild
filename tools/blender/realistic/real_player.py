@@ -431,9 +431,9 @@ def build():
     return ok, stats
 
 
-def paint_head():
+def paint_head(overwrite_ok=False):
     import real_bake as BK
-    out = BK.bake_head(CFG["body"], "RT_Player_Head", SHEET, CFG["head_paint_png"])
+    out = BK.bake_head(CFG["body"], "RT_Player_Head", SHEET, CFG["head_paint_png"], overwrite_ok=overwrite_ok)
     ok, stats = MG.check(bpy.data.objects[CFG["body"]], props=[bpy.data.objects[n] for n in CFG["props"]], tri_budget=TRI_BUDGET)
     return ok, stats, out
 
@@ -537,25 +537,10 @@ def rate(clip="Running_A"):
 
 # ------------------------------------------------------------------ export
 
-def export():
+def export(overwrite_ok=False):
+    """Rig + body + props to CFG["glb"] (real_chain.export_glb: refuses the existing shipped GLB unless overwrite_ok;
+    the SRC_* clip sources are dropped for the export only, the file reverted in a finally)."""
     assert C.is_open(CFG["blend"])
     RT.rest_pose()
-    arm = C.rig()
-    body = bpy.data.objects[CFG["body"]]
-    props = [bpy.data.objects[n] for n in CFG["props"]]
-    for o in bpy.context.selected_objects:
-        o.select_set(False)
-    for o in [arm, body] + props:
-        o.hide_set(False)
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = arm
-    os.makedirs(os.path.dirname(CFG["glb"]), exist_ok=True)
-    bpy.ops.wm.save_mainfile()
-    for src in RBT.SRC.values():
-        if src in bpy.data.actions:
-            bpy.data.actions.remove(bpy.data.actions[src])
-    bpy.ops.export_scene.gltf(filepath=CFG["glb"], use_selection=True, export_apply=False, export_skins=True,
-                              export_animations=True, export_yup=True)
-    print("exported", CFG["glb"], os.path.getsize(CFG["glb"]))
-    bpy.ops.wm.revert_mainfile()
-    return CFG["glb"]
+    objs = [C.rig(), bpy.data.objects[CFG["body"]]] + [bpy.data.objects[n] for n in CFG["props"]]
+    return RC.export_glb(CFG["glb"], objs, drop_actions=list(RBT.SRC.values()), overwrite_ok=overwrite_ok)

@@ -169,12 +169,12 @@ def build():
     return ok, stats
 
 
-def paint_head():
+def paint_head(overwrite_ok=False):
     """After build() (own call): the painted head pass (real_bake): the three views blended by the normal into the
     head's own unwrap, so no seam where the front view hands over to the side (the first portrait showed a jagged beard
     edge and a second brow line there)."""
     import real_bake as BK
-    out = BK.bake_head(CFG["body"], "RT_Bartender_Head", SHEET, CFG["head_paint_png"])
+    out = BK.bake_head(CFG["body"], "RT_Bartender_Head", SHEET, CFG["head_paint_png"], overwrite_ok=overwrite_ok)
     ok, stats = MG.check(bpy.data.objects[CFG["body"]], props=[bpy.data.objects[n] for n in CFG["props"]], tri_budget=TRI_BUDGET)
     return ok, stats, out
 
@@ -531,31 +531,15 @@ def wipe_reach():
 
 # ------------------------------------------------------------------ export
 
-def export():
+def export(overwrite_ok=False):
+    """Rig + body + props to CFG["glb"] (real_chain.export_glb: refuses the existing shipped GLB unless overwrite_ok).
+    The SRC_* copies are the clip builder's sources, not his clips: the exporter writes every action on the armature,
+    so they are dropped for the export only and the file is reverted in a finally (it is saved with them)."""
     assert C.is_open(CFG["blend"])
     assert "RT_ink" not in bpy.data.materials and "RT_sun" not in bpy.data.objects, "turnaround state in the file: revert it"
     RT.rest_pose()
-    arm = C.rig()
-    body = bpy.data.objects[CFG["body"]]
-    props = [bpy.data.objects[n] for n in CFG["props"]]
-    for o in bpy.context.selected_objects:
-        o.select_set(False)
-    for o in [arm, body] + props:
-        o.hide_set(False)
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = arm
-    os.makedirs(os.path.dirname(CFG["glb"]), exist_ok=True)
-    # the SRC_* copies are the clip builder's sources, not his clips: the exporter writes every action on the armature,
-    # so they go for the export and the file is reverted right after (it is saved with them)
-    bpy.ops.wm.save_mainfile()
-    for src in SRC.values():
-        if src in bpy.data.actions:
-            bpy.data.actions.remove(bpy.data.actions[src])
-    bpy.ops.export_scene.gltf(filepath=CFG["glb"], use_selection=True, export_apply=False, export_skins=True,
-                              export_animations=True, export_yup=True)
-    print("exported", CFG["glb"], os.path.getsize(CFG["glb"]))
-    bpy.ops.wm.revert_mainfile()
-    return CFG["glb"]
+    objs = [C.rig(), bpy.data.objects[CFG["body"]]] + [bpy.data.objects[n] for n in CFG["props"]]
+    return RC.export_glb(CFG["glb"], objs, drop_actions=list(SRC.values()), overwrite_ok=overwrite_ok)
 
 
 # ------------------------------------------------------------------ turnaround renders (EEVEE toon + ink hull)

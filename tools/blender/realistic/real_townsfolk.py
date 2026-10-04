@@ -967,10 +967,10 @@ def open_base_as(v, overwrite_ok=False):
     return RC.open_base_as(c["blend"], c["chain"], overwrite_ok=overwrite_ok)
 
 
-def paint_head(v):
+def paint_head(v, overwrite_ok=False):
     import real_bake as BK
     c = cfg(v)
-    out = BK.bake_head(c["body"], "RT_%s_Head" % c["role"], c["sheet"], c["head_paint_png"])
+    out = BK.bake_head(c["body"], "RT_%s_Head" % c["role"], c["sheet"], c["head_paint_png"], overwrite_ok=overwrite_ok)
     ok, stats = MG.check(bpy.data.objects[c["body"]], props=[bpy.data.objects[n] for n in c["props"]], tri_budget=TRI_BUDGET)
     return ok, stats, out
 
@@ -1159,28 +1159,14 @@ def measure(v):
     return nums
 
 
-def export(v):
+def export(v, overwrite_ok=False):
+    """Rig + body + props to the variant's GLB (real_chain.export_glb: refuses the existing shipped GLB unless
+    overwrite_ok; the SRC_* clip sources are dropped for the export only, the file reverted in a finally)."""
     c = cfg(v)
     assert C.is_open(c["blend"])
     RT.rest_pose()
     arm = C.rig()
     arm.animation_data.action = None
-    body = bpy.data.objects[c["body"]]
-    props = [bpy.data.objects[n] for n in c["props"]]
-    for o in bpy.context.selected_objects:
-        o.select_set(False)
-    for o in [arm, body] + props:
-        o.hide_set(False)
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = arm
-    bpy.ops.wm.save_mainfile()
-    for src in list(RBT.SRC.values()) + [SRC_RUN] + list(SRC_OF.values()):
-        if src in bpy.data.actions:
-            bpy.data.actions.remove(bpy.data.actions[src])
-    if os.path.exists(c["glb"]):
-        print("re-exporting (a new asset of this story):", c["glb"])
-    bpy.ops.export_scene.gltf(filepath=c["glb"], use_selection=True, export_apply=False, export_skins=True,
-                              export_animations=True, export_yup=True)
-    print("exported", c["glb"], os.path.getsize(c["glb"]))
-    bpy.ops.wm.revert_mainfile()
-    return c["glb"]
+    objs = [arm, bpy.data.objects[c["body"]]] + [bpy.data.objects[n] for n in c["props"]]
+    srcs = list(RBT.SRC.values()) + [SRC_RUN] + list(SRC_OF.values())
+    return RC.export_glb(c["glb"], objs, drop_actions=srcs, overwrite_ok=overwrite_ok)

@@ -118,7 +118,14 @@ on screen before use.
   the front weighted up on the face), Cycles EMIT, 1024²; the result (`<id>_headpaint.png`) is the shipped head
   texture. A bake writes into the active image node of EVERY material on the object: the other slots get a throwaway
   node during the bake (else the body atlas's pixels in memory are overwritten and exported). Re-run it after every
-  `build()`.
+  `build()` with `paint_head(overwrite_ok=True)` (it refuses an existing PNG otherwise). It is re-runnable: the
+  projection reads the concept crops recorded on the head material at the first bake (`real_bake_src`), never the
+  material's current image (the bake itself after one run); a head baked before that record refuses until `build()`
+  re-points it. The mesh is stamped `real_head_bake`; the helper UV layers and Cycles' settings are undone in a
+  `finally`.
+- **Export (25.31 review P1):** every role's `export(..., overwrite_ok=False)` goes through `real_chain.export_glb`:
+  it refuses an existing GLB unless `overwrite_ok=True` (N5: the shipped GLBs are live paths), saves, drops the
+  `SRC_*` clip sources, exports, and reverts the file in a `finally`.
 
 ## The S1 characters (25.31)
 
@@ -158,7 +165,8 @@ the Barbarian (G6) on REAL-1, the Rogue (G3), the Healer (G5) and the Ranger (G7
 each: `<art>/blender/g<n>_<class>_real.blend` -> `custom/g<n>_<class>_real.glb`. Steps (one MCP call each):
 `open_base_as(V)`, `build(V)`, `build_clips(V)`, `build(V, props_only=True)` (the hand props aimed from the re-posed
 Idle), `paint_head(V)`, `measure(V)` (+ `robe_check(V)` for the Mage and the Healer), `export(V)`. A later `build(V)`
-keeps the clips; re-run `paint_head` after it.
+keeps the clips; re-run `paint_head(V, overwrite_ok=True)` after it (and `export(V, overwrite_ok=True)` to replace a
+shipped GLB).
 
 - Sheets: `real_layout.CLASS_SHEETS` (eye-line registered); `_crops` widens the head windows for the Rogue's ponytail,
   the Healer's hood and the Barbarian's long beard (300 px). The Healer's hood is a head-material shell projected from
