@@ -166,7 +166,14 @@ const CAT_SCENE_PATH := "res://scenes/game/TheCat.tscn"
 const CAT_SCRIPT_PATH := "res://scripts/game/the_cat.gd"
 const CAT_LOOPS := ["Idle", "Sleep", "Walk"]
 const HEARTH_INTERACT := Vector3(-2.98, 0.13, -9.30)   # the Hearth's interact_point in MainTavern: where the fire is tended
-const DEN_FA_PATH := "res://assets/characters/custom/g9_den_fa.glb"   # Story 25.10
+const DEN_FA_PATH := "res://assets/characters/custom/g9_den_fa_real.glb"   # Story 25.32: realistic, his own rig minus the wings (R-8)
+const DEN_FA_OLD_PATH := "res://assets/characters/custom/g9_den_fa.glb"    # Story 25.10's body: kept on disk (N5), not instanced
+## Story 25.32 (AC 2, R-8): his 30 bones, exactly; no d_wing* bone.
+const DEN_FA_BONES := ["d_root", "d_hips", "d_spine", "d_chest", "d_collar", "d_neck", "d_head", "d_mask",
+	"d_ear1.L", "d_ear2.L", "d_shoulder.L", "d_upperarm.L", "d_forearm.L", "d_hand.L", "d_index.L", "d_thumb.L", "d_thigh.L", "d_shin.L", "d_foot.L",
+	"d_ear1.R", "d_ear2.R", "d_shoulder.R", "d_upperarm.R", "d_forearm.R", "d_hand.R", "d_index.R", "d_thumb.R", "d_thigh.R", "d_shin.R", "d_foot.R"]
+const DEN_FA_TOP := 2.91                 # his ear tips (canon, R-3), ± 0.05
+const DEN_FA_MASK_MAT := "den_fa_mask"   # anime_look.gd KEEP_AS_IMPORTED: the mirror keeps its imported metal (DC-4)
 const DEN_FA_SCENE_PATH := "res://scenes/game/DenFa.tscn"
 const DEN_FA_SCRIPT_PATH := "res://scripts/game/den_fa.gd"
 const DEN_FA_LOOPS := ["Idle", "Sit", "Walk"]
@@ -2913,14 +2920,15 @@ static func _waiting_patron_script() -> GDScript:
 	return gs
 
 # --- Test 18: Den Fa, the Architect (Story 25.10) ---
-# A tall construct on his own rig (ears, mask, four folded bone wings: Story 26.11 animates them), a
+# A tall construct on his own rig (ears and mask; Story 25.32: no bone wings, R-8; restyled realistic on route RL's
+# rules, his mirror mask kept as imported by anime_look), a
 # metallic mirror mask that keeps its ink outline, seated at the Hearth's SitPoint by his own seat
 # convention, talkable (his E opens the dialogue box: Story 10.2, Test 20), a walk to the bar and a point at the
 # pillar, two reflection probes, and one E owner near the hearth (J6: the nearest zone wins, behind a
 # gate decided once per frame so serving a patron can never also talk).
 func test_den_fa() -> void:
 	print("[Test 18] Den Fa")
-	for p in [DEN_FA_PATH, DEN_FA_SCENE_PATH, DEN_FA_SCRIPT_PATH]:
+	for p in [DEN_FA_PATH, DEN_FA_OLD_PATH, DEN_FA_SCENE_PATH, DEN_FA_SCRIPT_PATH]:
 		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
 	if ResourceLoader.exists(DEN_FA_PATH):
 		var inst := (load(DEN_FA_PATH) as PackedScene).instantiate()
@@ -2929,15 +2937,11 @@ func test_den_fa() -> void:
 		if not sks.is_empty():
 			for b in (sks[0] as Skeleton3D).get_bone_count():
 				names.append((sks[0] as Skeleton3D).get_bone_name(b))
-		var needed := ["d_mask", "d_ear1.L", "d_ear2.L", "d_ear1.R", "d_ear2.R"]
-		for w in ["U", "L"]:
-			for i in [1, 2, 3]:
-				for side in ["L", "R"]:
-					needed.append("d_wing%s%d.%s" % [w, i, side])
-		var missing := needed.filter(func(n): return not names.has(n))
-		var unprefixed := names.filter(func(n): return not str(n).begins_with("d_"))
-		check(names.size() >= 40 and missing.is_empty() and unprefixed.is_empty(),
-			"his rig: %d bones, all d_ (not: %s); ears, mask and 12 wing bones (missing: %s)" % [names.size(), unprefixed.slice(0, 3), missing])
+		var missing := DEN_FA_BONES.filter(func(n): return not names.has(n))
+		var extra := names.filter(func(n): return not DEN_FA_BONES.has(n))
+		var wings := names.filter(func(n): return str(n).begins_with("d_wing"))
+		check(names.size() == DEN_FA_BONES.size() and missing.is_empty() and extra.is_empty() and wings.is_empty(),
+			"his rig: exactly the %d d_ bones (ears, mask, index, thumb kept), no d_wing bone (R-8) (%d; missing %s, extra %s, wings %s)" % [DEN_FA_BONES.size(), names.size(), missing, extra.slice(0, 3), wings.slice(0, 3)])
 		var aps := inst.find_children("*", "AnimationPlayer", true, false)
 		var ap: AnimationPlayer = aps[0] if not aps.is_empty() else null
 		var wrong_clips := []
@@ -2948,10 +2952,65 @@ func test_den_fa() -> void:
 			if ap == null or not ap.has_animation(c) or ap.get_animation(c).loop_mode != Animation.LOOP_NONE:
 				wrong_clips.append(c)
 		check(wrong_clips.is_empty(), "Idle, Sit and Walk loop; Point, StandUp and SitDown play once (wrong or missing: %s)" % [wrong_clips])
+		# Story 25.32: route RL's rules on his body (AH-15): one DenFa_Body, <= RL_BODY_SURFACES surfaces (the mask
+		# included), <= RL_TEXTURES textures at <= RL_TEX_SIZE², Lossless with mipmaps and Detect 3D off, no LODs, metal
+		# only on den_fa_mask (DC-4)
+		var meshes := inst.find_children("*", "MeshInstance3D", true, false)
+		var body_mi := inst.find_child("DenFa_Body", true, false) as MeshInstance3D
+		var nsurf: int = body_mi.mesh.get_surface_count() if body_mi and body_mi.mesh else -1
+		var texs := {}
+		var tex_wrong := []
+		var metal := []
+		for mi in meshes:
+			var mesh: Mesh = (mi as MeshInstance3D).mesh
+			for s in (mesh.get_surface_count() if mesh else 0):
+				var m = mesh.surface_get_material(s)
+				if not m is StandardMaterial3D:
+					tex_wrong.append("%s/%d: not a StandardMaterial3D" % [mi.name, s])
+					continue
+				var sm := m as StandardMaterial3D
+				if sm.metallic > 0.01 and sm.resource_name != DEN_FA_MASK_MAT:
+					metal.append(sm.resource_name)
+				if sm.albedo_texture:
+					texs[sm.albedo_texture.resource_path] = sm.albedo_texture
+		for p in texs:
+			var tex: Texture2D = texs[p]
+			var cf := ConfigFile.new()
+			if tex.get_width() > RL_TEX_SIZE or tex.get_height() > RL_TEX_SIZE:
+				tex_wrong.append("%s %dx%d" % [p.get_file(), tex.get_width(), tex.get_height()])
+			if cf.load(p + ".import") != OK or int(cf.get_value("params", "compress/mode", -1)) != 0 \
+					or not bool(cf.get_value("params", "mipmaps/generate", false)) or int(cf.get_value("params", "detect_3d/compress_to", -1)) != 0:
+				tex_wrong.append(p.get_file() + " import keys")
+		var gcf := ConfigFile.new()
+		var lods_off: bool = gcf.load(DEN_FA_PATH + ".import") == OK and not bool(gcf.get_value("params", "meshes/generate_lods", true))
+		check(meshes.size() == 1 and body_mi != null and nsurf >= 1 and nsurf <= RL_BODY_SURFACES and texs.size() >= 1 and texs.size() <= RL_TEXTURES
+			and tex_wrong.is_empty() and lods_off and metal.is_empty(),
+			"g9_den_fa_real.glb: one DenFa_Body (%d meshes) with %d surfaces (≤ %d, the mask included); %d textures (≤ %d at ≤ %d², Lossless, mipmaps, Detect 3D off; wrong %s); no LODs (%s); metal only on den_fa_mask (also: %s)"
+			% [meshes.size(), nsurf, RL_BODY_SURFACES, texs.size(), RL_TEXTURES, RL_TEX_SIZE, tex_wrong, lods_off, metal])
 		inst.free()
 		var st := _mesh_stats(DEN_FA_PATH)
-		check(st.tris > 0 and st.tris <= 6000 and st.glow == 0 and st.wrong.is_empty(),
-			"g9_den_fa.glb: %d tris (≤ 6,000), nothing glows, roughness > 0 (wrong: %s)" % [st.tris, st.wrong])
+		check(st.tris > 0 and st.tris <= RL_TRI_BUDGET and st.glow == 0 and st.wrong.is_empty(),
+			"g9_den_fa_real.glb: %d tris (≤ RL_TRI_BUDGET %d), nothing glows, roughness > 0 (wrong: %s)" % [st.tris, RL_TRI_BUDGET, st.wrong])
+		# KEEP_AS_IMPORTED (AC 6, DC-4): after anime_look.apply the mask keeps its imported mirror; the rest is toned
+		var look = load(ANIME_LOOK_SCRIPT)
+		var toned := (load(DEN_FA_PATH) as PackedScene).instantiate()
+		var keep_ok := false
+		var others_ok := true
+		var keep_list = (look as GDScript).get_script_constant_map().get("KEEP_AS_IMPORTED") if look is GDScript else null
+		if look is GDScript and keep_list is Array:
+			look.apply(toned)
+			for mi in toned.find_children("*", "MeshInstance3D", true, false):
+				var mesh: Mesh = (mi as MeshInstance3D).mesh
+				for s in (mesh.get_surface_count() if mesh else 0):
+					var src := mesh.surface_get_material(s)
+					var drawn: Material = (mi as MeshInstance3D).get_surface_override_material(s)
+					if src is StandardMaterial3D and (src as StandardMaterial3D).resource_name == DEN_FA_MASK_MAT:
+						keep_ok = not drawn is Material and src.next_pass == null and (src as StandardMaterial3D).metallic >= 0.9
+					elif not (drawn is Material and look.is_toon(drawn)):
+						others_ok = false
+		toned.free()
+		check(keep_list is Array and (keep_list as Array).has(&"den_fa_mask") and keep_ok and others_ok,
+			"anime_look KEEP_AS_IMPORTED [den_fa_mask]: his mask draws its imported mirror (no toon copy, no hull; %s), every other surface a toon copy (%s)" % [keep_ok, others_ok])
 		var gnodes := _scene_nodes(DEN_FA_PATH)
 		var top := -INF
 		var mask: StandardMaterial3D = null
@@ -2966,10 +3025,25 @@ func test_den_fa() -> void:
 					mask = m
 		check(top >= KNIGHT_TOP + 0.45 and top <= 3.2,
 			"taller than the whole chibi cast: %.2f m (the Knight's %.3f + 0.45, at most 3.2)" % [top, KNIGHT_TOP])
+		check(absf(top - DEN_FA_TOP) <= 0.05 and top >= float(RL_TOP[1]) + 0.45,
+			"he towers over the realistic cast: ear tips %.3f m (%.2f ± 0.05, ≥ RL_TOP %.2f + 0.45)" % [top, DEN_FA_TOP, RL_TOP[1]])
 		check(mask != null and mask.metallic >= 0.9 and mask.roughness > 0.05 and mask.roughness <= 0.20
 			and not mask.emission_enabled and mask.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED,
 			"the mirror mask is metallic, roughness in (0.05, 0.20] (ink outline), opaque, not glowing (%s)"
 			% ["missing" if mask == null else "metallic %.2f roughness %.2f" % [mask.metallic, mask.roughness]])
+	else:
+		for what in ["his 30 bones, no wings", "his six clips' loop modes", "route RL's rules on DenFa_Body", "≤ RL_TRI_BUDGET tris",
+				"anime_look KEEP_AS_IMPORTED keeps his mask", "his height (2.91 ± 0.05)", "the mirror mask material"]:
+			check(false, "%s: %s not checked (missing)" % [DEN_FA_PATH.get_file(), what])
+	var den_inst: Dictionary = _scene_nodes(DEN_FA_SCENE_PATH).get(".", {}) if ResourceLoader.exists(DEN_FA_SCENE_PATH) else {}
+	check(str(den_inst.get("instance", "")) == DEN_FA_PATH and str(den_inst.get("props", {}).get("look", "")) == "realistic",
+		"DenFa.tscn instances g9_den_fa_real.glb (not the old body: %s) with look = \"realistic\" (%s)"
+		% [str(den_inst.get("instance", "")).get_file(), den_inst.get("props", {}).get("look", "unset")])
+	var sp_data = _read_json(SPEAKERS_PATH)
+	var den_src = sp_data.get("speakers", {}).get("den_fa", {}).get("portrait_source", {}) if sp_data is Dictionary else {}
+	check(den_src is Dictionary and str(den_src.get("model", "")) == DEN_FA_PATH and str(den_src.get("look", "")) == "realistic"
+		and str(den_src.get("bone", "")) == "d_mask",
+		"speakers.json › den_fa.portrait_source: his realistic body, look realistic, aimed at d_mask (%s)" % [den_src])
 
 	var dscene := _scene_nodes(DEN_FA_SCENE_PATH) if ResourceLoader.exists(DEN_FA_SCENE_PATH) else {}
 	var root_script = dscene.get(".", {}).get("props", {}).get("script", null) if dscene.has(".") else null
@@ -3015,6 +3089,21 @@ func test_den_fa() -> void:
 	check(absf(side - 0.48) < 0.02, "seat_root: also 0.48 m to his right, the room side, so he stands up clear of the chimney (%.2f)" % side)
 	var hs := _scene_nodes(HEARTH_SCENE_PATH)
 	check(hs.has("SitPoint") and not (hs.SitPoint.groups as Array).has("patron_seat"), "the SitPoint is not a patron seat")
+	# Story 25.32 (DC-15, the 25.5 review's "two SitPoint sources"): one seat source. The Marker3D his seat_path names
+	# equals the hearth glTF's own sit_point (the Model instance), and composes to the measured world seat.
+	var tav0 := _scene_nodes(TAVERN_SCENE_PATH)
+	var hearth_w := Transform3D.IDENTITY
+	for k in tav0:
+		if tav0[k].instance == HEARTH_SCENE_PATH:
+			hearth_w = tav0[k].world
+	var gl := _scene_nodes(HEARTH_PATH) if ResourceLoader.exists(HEARTH_PATH) else {}
+	var gsp := gl.keys().filter(func(k): return str(k).get_file() == "sit_point")
+	var model_w: Transform3D = hs.get("Model", {}).get("world", Transform3D.IDENTITY)
+	var gl_sit: Transform3D = hearth_w * model_w * (gl[gsp[0]].world as Transform3D) if gsp.size() == 1 else Transform3D()
+	var d_pos := gl_sit.origin.distance_to(sit_world.origin) if gsp.size() == 1 else INF
+	var d_ang := rad_to_deg(gl_sit.basis.get_rotation_quaternion().angle_to(sit_world.basis.get_rotation_quaternion())) if gsp.size() == 1 else INF
+	check(gsp.size() == 1 and d_pos <= 0.001 and d_ang <= 0.5 and sit_world.origin.distance_to(Vector3(-4.540, 0.550, -7.680)) <= 0.002,
+		"one seat source: Hearth/SitPoint equals the glTF's Model/sit_point (%.4f m, %.2f°) and sits at (-4.540, 0.550, -7.680) (%s)" % [d_pos, d_ang, sit_world.origin])
 
 	var tav := _scene_nodes(TAVERN_SCENE_PATH)
 	var dens := tav.keys().filter(func(k): return tav[k].instance == DEN_FA_SCENE_PATH)
@@ -3063,6 +3152,32 @@ func test_den_fa() -> void:
 					why.append("on a stool")
 		check(route.size() >= 3 and stools.size() == 2 and why.is_empty(),
 			"his walk to the bar: on the floor, on the navmesh after the first leg, clear of the basket, between Stool03 and Stool04 %s" % [why.slice(0, 4)])
+		# Story 25.32 (R-3, DC-16): 2.91 m against the 2.30 m lintel: his route never comes within 1.0 m of the front
+		# door's footprint (the FrontDoor's frame meshes, world xz), sampled every 0.25 m
+		var door_rect := []
+		for k in tav:
+			if str(k).ends_with("Shell/FrontDoor/Frame") and tav[k].instance != "":
+				var fr := _scene_nodes(tav[k].instance)
+				var lo := Vector2(INF, INF)
+				var hi := Vector2(-INF, -INF)
+				for fk in fr:
+					var fm = fr[fk].props.get("mesh")
+					if not fm is Mesh:
+						continue
+					var ab: AABB = (tav[k].world as Transform3D) * (fr[fk].world as Transform3D) * (fm as Mesh).get_aabb()
+					lo = Vector2(minf(lo.x, ab.position.x), minf(lo.y, ab.position.z))
+					hi = Vector2(maxf(hi.x, ab.end.x), maxf(hi.y, ab.end.z))
+				if lo.x < INF:
+					door_rect = [[lo.x, hi.x], [lo.y, hi.y]]
+		var near_door := []
+		for i in route.size() - 1:
+			var n2 := maxi(int(ceil(route[i].distance_to(route[i + 1]) / 0.25)), 1)
+			for t in n2 + 1:
+				var q := route[i].lerp(route[i + 1], float(t) / n2)
+				if door_rect.is_empty() or _circle_hits_rect(Vector2(q.x, q.z), 1.0, door_rect):
+					near_door.append(Vector2(q.x, q.z))
+		check(not door_rect.is_empty() and route.size() >= 2 and near_door.is_empty(),
+			"his walk never crosses a door: every bar_route sample ≥ 1.0 m outside the front door's footprint %s (too near: %s)" % [door_rect, near_door.slice(0, 3)])
 		check(str(props.get("pillar_target", "")).ends_with("HourglassPillar/HumAnchor"), "he points at the pillar's HumAnchor")
 		var probes := tav.keys().filter(func(k): return tav[k].type == "ReflectionProbe")
 		var consts: Dictionary = ds.get_script_constant_map() if ds != null else {}
