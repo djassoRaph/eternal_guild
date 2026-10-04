@@ -22,7 +22,8 @@ built on it).
 **The neutral bodies (v2, 2026-10-04).** Each base's `Base_Body` is a clothing-less mannequin built straight on its rig
 from the chain's `body` params (`real_chain.MAN` / `WOMAN`, every height in that rig's metres): REAL-1 an average man
 (flat stomach; hips 0.181, waist 0.160, chest 0.186 half-widths; the spike's boots, so its foot report holds); REAL-2 a
-woman (hips 0.192, waist 0.127, ribs 0.151 half-widths, a modest bust, slimmer arms and legs, hands x 0.86, the head
+woman (v3: hips 0.165 (0.170 at the thighs), waist 0.120, ribs 0.153 half-widths, a full, round bust (two domes,
+`real_body.bust_dome`), a high-cut hip line, slimmer arms and legs, hands x 0.86, the head
 x 0.93 with a narrower jaw and softer brow, a slender neck, smaller ankle boots). The v1 bodies were the spike
 Bartender's (shirt and beer belly; REAL-2 that body reshaped) and read as men. Girth and a belly are a character's own
 params (`belly`, `trunk_scale`), never a base's.

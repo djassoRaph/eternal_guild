@@ -1164,6 +1164,30 @@ def _leg_w(s):
     return fn
 
 
+def bust_dome(p, b):
+    """The bust as two rounded domes (REAL-2 v3, after Raphael's "more female chest"): per side an ellipse on the front
+    of the trunk centred (+-b["x"], b["z"]), radii b["rx"] across and b["rz_up"] / b["rz_down"] above / below (a tighter
+    fold under it), pushed forward by b["amp"] x (1 - r^2)^b["power"] (a power near 1 is a full, round dome; larger
+    is a softer cone); the two sides meet by max(), so the cleavage stays. b["out"] spreads the outer half sideways
+    (x amp x out). Returns (forward push, sideways push) for the vertex p."""
+    best, bdx = 0.0, 0.0
+    for side in (1.0, -1.0):
+        ux = (p.x - side * b["x"]) / b["rx"]
+        dz = p.z - b["z"]
+        uz = dz / (b["rz_up"] if dz > 0 else b["rz_down"])
+        r2 = ux * ux + uz * uz
+        if r2 >= 1.0:
+            continue
+        p_lo = b.get("power", 1.0)
+        p_hi = b.get("power_up", p_lo)                     # a softer edge above and outside (no ledge on the chest)
+        k = K.smoothstep(-0.3, 0.7, max(uz, ux * side) / max(r2 ** 0.5, 1e-6))
+        f = (1.0 - r2) ** (p_lo + (p_hi - p_lo) * k)
+        if f > best:
+            best = f
+            bdx = side * b.get("out", 0.0) * f * K.clamp01(ux * side * 2.0)
+    return b["amp"] * best, b["amp"] * bdx
+
+
 def build_trunk(name, mat, P):
     """The trunk: rings every P["trunk_step"] through P["trunk"] [(z, half-width, front y, back y, n front, n back)]
     (pchip per column), capped at both ends; then the belly and the bust (front vertices pushed forward)."""
@@ -1191,7 +1215,11 @@ def build_trunk(name, mat, P):
         if belly and belly[0]:
             amp, bz, szz, sxx = belly
             d += amp * gauss(p.z - bz, szz) * gauss(p.x, sxx)
-        if bust and bust[0]:
+        dx = 0.0
+        if isinstance(bust, dict):
+            d_b, dx = bust_dome(p, bust)
+            d += d_b
+        elif bust and bust[0]:
             amp, bx, bz, sig_up, sig_down = bust
             g = 0.0
             for side in (1.0, -1.0):
@@ -1199,6 +1227,7 @@ def build_trunk(name, mat, P):
                 g += gauss(p.x - side * bx, sig_up) * gauss(p.z - bz, sg)
             d += amp * min(1.0, g)
         p.y -= d * front
+        p.x += dx * front
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return finish(name, bm, mat, _trunk_w())
 
