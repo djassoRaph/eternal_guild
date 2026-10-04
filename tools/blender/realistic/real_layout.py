@@ -73,6 +73,62 @@ DEALER["crown_rows"] = {"front": 30.0, "side": 31.0, "back": 30.0}
 DEALER["top_from_back"] = {"nz": 0.55, "z_min": 1.66, "y": (-0.17, 0.05), "rows": (40.0, 85.0)}
 DEALER["face_y"] = 0.06            # the front view keeps more of her cheeks (the side view's shading muddied them)
 
+
+
+def sheet_by_eyes(concept, height, eye_z, nose_y, views, win=130.0, side_flip=True):
+    """(25.31 S2, the townsfolk) A sheet registered on the EYE LINE, for picks whose crown is under a hat: views
+    {"front": (face midline px, eye row, sole row), "side": (nose tip px, eye row, sole row), "back": (head midline px,
+    eye row or None (the front's eyes-to-sole), sole row)}. Each view's scale is eye_z / (sole - eye) and its virtual
+    crown row sole - height / scale; the side view's centre column puts the nose tip at nose_y (the head mesh's, rest
+    y). Head crop windows (win px square) frame the head from about 0.48 win above the eyes."""
+    out_v, crops = {}, {}
+    f_eye, f_sole = views["front"][1], views["front"][2]
+    for view in ("front", "side", "back"):
+        px, eye, sole = views[view]
+        if eye is None:
+            eye = sole - (f_sole - f_eye)
+        s = eye_z / (sole - eye)
+        crown = sole - height / s
+        if view == "side":
+            cx = px + nose_y / s if side_flip else px - nose_y / s
+            left = px - 0.88 * win if side_flip else px - 0.12 * win
+        else:
+            cx = px
+            left = px - 0.5 * win
+        out_v[view] = (round(cx, 1), round(crown, 1), float(sole))
+        crops[view] = (round(left, 1), round(eye - 0.48 * win, 1)) + {"front": (0.0, 0.5), "side": (0.5, 0.5), "back": (0.0, 0.0)}[view]
+    sh = make_sheet(concept, height, out_v, crops, head_win=win, side_flip=side_flip)
+    sh["eye_rows"] = {v: views[v][1] for v in views}
+    return sh
+
+
+# The townsfolk's picks (25.31 S2, AC 11; eternal_guild_art/picked/C_G19_<id>.png, 1344 x 768), registered on the eye
+# line (their crowns are under hats): the men on REAL-1 with the player's head (eyes z 1.710, nose tip y -0.213), the
+# old woman on REAL-2 (eyes z 1.5855, nose tip y -0.190). Rows read off 3x crops with a pixel ruler (2026-10-04). The
+# farmer's side view faces image-left (his left side); the others show the right side.
+_PICK = "F:/GAME I AM MAKING/eternal_guild_art/picked/C_G19_%s.png"
+FARMER = sheet_by_eyes(_PICK % "farmer", 1.86, 1.710, -0.213,
+                       {"front": (195.0, 81.7, 752.0), "side": (613.0, 82.0, 757.0), "back": (1130.0, None, 752.0)},
+                       win=140.0, side_flip=False)
+LOCAL = sheet_by_eyes(_PICK % "local", 1.86, 1.710, -0.213,
+                      {"front": (246.7, 81.7, 748.0), "side": (710.0, 80.0, 753.0), "back": (1086.7, None, 748.0)})
+TRAVELLER = sheet_by_eyes(_PICK % "traveller", 1.86, 1.710, -0.213,
+                          {"front": (256.7, 81.7, 746.0), "side": (715.7, 81.7, 745.0), "back": (1083.0, None, 744.0)})
+TRAVELLER["crown_rows"] = {"front": 35.0, "side": 36.0, "back": 35.0}
+TRAVELLER["top_from_back"] = {"nz": 0.55, "z_min": 1.78, "y": (-0.20, 0.06), "rows": (40.0, 80.0)}
+GUARD = sheet_by_eyes(_PICK % "guard", 1.86, 1.710, -0.213,
+                      {"front": (245.0, 96.7, 739.0), "side": (718.3, 95.0, 748.0), "back": (1090.0, None, 739.0)})
+MERCHANT = sheet_by_eyes(_PICK % "merchant", 1.86, 1.710, -0.213,
+                         {"front": (241.7, 83.3, 748.0), "side": (726.7, 81.7, 750.0), "back": (1100.0, None, 744.0)})
+OLD_WOMAN = sheet_by_eyes(_PICK % "old_woman", 1.70, 1.5855, -0.190,
+                          {"front": (250.0, 81.7, 745.0), "side": (741.7, 80.0, 746.0), "back": (1088.0, None, 745.0)},
+                          win=150.0)
+OLD_WOMAN["face_y"] = 0.06
+OLD_WOMAN["crown_rows"] = {"front": 23.0, "side": 27.0, "back": 26.0}
+OLD_WOMAN["top_from_back"] = {"nz": 0.55, "z_min": 1.62, "y": (-0.15, 0.06), "rows": (32.0, 70.0)}   # her scarf's crown
+TOWNSFOLK_SHEETS = {"farmer": FARMER, "local": LOCAL, "traveller": TRAVELLER, "guard": GUARD, "merchant": MERCHANT,
+                    "old_woman": OLD_WOMAN}
+
 CONCEPT = BARTENDER["concept"]
 HEIGHT = BARTENDER["height"]
 VIEWS = BARTENDER["views"]
