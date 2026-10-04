@@ -22,7 +22,14 @@
 # apply() then re-tones a body toned with another preset (from each toon's source material).
 # An EMISSIVE source (AH-3 / V5, Story 25.31 S3: only a prop's own material may emit, the Healer's crystal) gets, in
 # every preset, a StandardMaterial3D copy that keeps its emission at roughness 0 with no outline: light, not ink.
+# KEEP_AS_IMPORTED (Story 25.32, DC-4): a source material whose resource_name is listed is LEFT AS IMPORTED: no toon
+# copy, no outline hull. Den Fa's mirror mask (den_fa_mask) keeps its metal and its reflection probes' warm glints
+# (the toon copy forces "no metal", which would kill the mirror); the screen-space ink pass still outlines it
+# (roughness 0.10 > 0.004). An explicit name list, not a "metallic" rule, so no cast body slips metal through. It lives
+# here, not in den_fa.gd, because the portrait studio calls apply() too.
 extends RefCounted
+
+const KEEP_AS_IMPORTED := [&"den_fa_mask"]
 
 const OUTLINE := preload("res://assets/characters/materials/anime_outline.tres")
 const TOON_SHADER := preload("res://assets/characters/materials/anime_toon.gdshader")
@@ -82,6 +89,8 @@ static func apply(model: Node, preset_name := "") -> int:
 			if _toned_with(cur, look):
 				continue                   # toned already
 			var src := _source_of(cur) if cur != null else mesh.surface_get_material(s)
+			if src != null and KEEP_AS_IMPORTED.has(StringName(src.resource_name)):
+				continue                   # kept as imported (Story 25.32: Den Fa's mirror mask)
 			if not src is StandardMaterial3D:
 				_warn("[Staff] anime look: %s surface %d is not a StandardMaterial3D; left as imported" % [mi.name, s])
 				continue

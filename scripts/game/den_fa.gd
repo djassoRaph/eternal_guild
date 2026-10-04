@@ -10,6 +10,8 @@
 # there for Epic 10's beats (the walk to the bar, the point at the pillar).
 # No autoload, not a patron, no physics body (the bench collider must not push him): a hand-placed
 # scene with one small script (J7), driven by an AnimationTree state machine built here.
+# Story 25.32: his realistic body (g9_den_fa_real.glb: his own rig, no bone wings, R-8) takes the cast's runtime look:
+# `look` "realistic" (or "anime") runs anime_look.apply on him in _ready; anime_look keeps his mirror mask as imported.
 #
 # One E never does two things (J6): while seated he claims his TalkZone with the scene's ZonePromptUI,
 # which gives E and the prompt to the nearest zone the player stands in (the hearth's fire and the cat
@@ -30,9 +32,11 @@ const SEAT_HEIGHT := 0.45         # the bench top above his feet
 const WALK_SPEED := 1.1           # m/s, the Walk clip's stride (about 1.4 m per 1.25 s cycle)
 const TURN_SECONDS := 0.6
 const COOLDOWN := 3.0
-const MASK_SEATED := Vector3(0.145, 1.782, -0.288)   # mask centre from his root (x his left, z forward), Sit
-const MASK_STANDING := Vector3(-0.01, 2.39, 0.172)   # ... Idle (measured on the rig in Blender)
-const BUBBLE_SEATED := 2.35       # height above his root where the fallback prompt label floats (seated)
+const MASK_SEATED := Vector3(0.126, 1.756, -0.28)    # the mask surface's centre from his root (x his left, z forward), Sit
+const MASK_STANDING := Vector3(-0.009, 2.367, 0.196) # ... Idle (Story 25.32: re-measured on the realistic body in Blender)
+const BUBBLE_SEATED := 2.44       # seated head top (the ear tips) + 0.1: where the fallback prompt label floats
+const ANIME_LOOK := "res://scripts/game/anime_look.gd"   # loaded by path (no class_name)
+const LOOKS := ["realistic", "anime"]
 const STATES := ["Sit", "SitDown", "StandUp", "Idle", "Walk", "Point"]
 
 @export var seat_path: NodePath
@@ -41,6 +45,9 @@ const STATES := ["Sit", "SitDown", "StandUp", "Idle", "Walk", "Point"]
 ## His conversation (Story 10.2, 10.3). Titles: first_contact; per state (early, mid, late) an optional
 ## <state>_enter and the openings <state>_1 … <state>_N.
 @export_file("*.dialogue") var dialogue_path := "res://data/dialogue/den_fa.dialogue"
+## His body's runtime look (Story 25.32): "realistic" or "anime" tones him with anime_look.gd; "" keeps the imported
+## materials; anything else warns once and keeps them.
+@export var look := ""
 
 @onready var _anim: AnimationPlayer = $AnimationPlayer
 @onready var _talk: Area3D = $TalkZone
@@ -92,6 +99,7 @@ static func pick_line(count: int, last: int, roll: float) -> int:
 
 
 func _ready() -> void:
+	_apply_look()
 	_talk.body_entered.connect(_on_body_entered)
 	_talk.body_exited.connect(_on_body_exited)
 	_build_tree()
@@ -121,6 +129,19 @@ func _ready() -> void:
 	_prompt_label.position = Vector3(0, BUBBLE_SEATED + 0.2, 0)   # he is only talkable seated
 	_prompt_label.visible = false
 	add_child(_prompt_label)
+
+
+## Story 25.32: the cast's runtime look on his body (anime_look keeps the mirror mask as imported).
+func _apply_look() -> void:
+	if look == "":
+		return
+	if not LOOKS.has(look):
+		push_warning("[DenFa] look '%s' is unknown (known: %s): keeping the imported materials" % [look, LOOKS])
+		return
+	if not ResourceLoader.exists(ANIME_LOOK):
+		push_warning("[DenFa] look '%s': %s is missing: keeping the imported materials" % [look, ANIME_LOOK])
+		return
+	load(ANIME_LOOK).apply(self)
 
 
 func _build_tree() -> void:
