@@ -318,7 +318,9 @@ def build_coat_skirt(name, mat, side, cols=10, rows=10, legs=0.85, front_follow=
     bm = bmesh.new()
     params = RB.grid_slab(bm, grid, 0.007, lambda p: Vector((-p.x, -p.y, 0)).normalized())
     RB.param_uvs(bm, params, "apron")
-    return RB.finish(name, bm, mat, RB.skirt_w(top, hem, front_follow, legs))
+    # the back follows the thighs too (back 0.6): seated, it lies over the stool instead of hanging through it
+    # (hips-dominant, 0.25, it went 0.175 m into the stool)
+    return RB.finish(name, bm, mat, RB.skirt_w(top, hem, front_follow, legs, back=SKIRT_BACK))
 
 
 def build_sleeve(name, mat, s):
@@ -410,6 +412,7 @@ def build_belt(name, mat, z=1.015, h=0.034, segs=24):
     return RB.finish(name, bm, mat, RB._trunk_w())
 
 
+SKIRT_BACK = 0.6
 BOOT = {"length": 0.84, "width": 0.86, "height": 0.88, "girth": 0.82, "top": 0.31, "cuff": True}   # tall, turned-down
 
 

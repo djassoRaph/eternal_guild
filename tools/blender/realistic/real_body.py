@@ -396,12 +396,14 @@ def leg_w(s):
     return fn
 
 
-def skirt_w(top_z, hem_z, front_follow=0.55, legs=0.85):
+def skirt_w(top_z, hem_z, front_follow=0.55, legs=0.85, back=0.25):
+    """back: how much of the legs' share the skirt's back keeps (0.25: hips-dominant, the hem hangs straight down when
+    seated; more and the back follows the thighs forward over the seat, 25.31 S1's dealer)."""
     def fn(co):
         h = K.clamp01((top_z - co.z) / (top_z - hem_z))
         s = K.clamp01(0.5 + co.x / 0.24)
         front = K.clamp01(0.5 - co.y / 0.20)
-        wl = legs * h ** front_follow * (0.25 + 0.75 * front)
+        wl = legs * h ** front_follow * (back + (1.0 - back) * front)
         return {"hips": 1 - wl, "upperleg.l": wl * s, "upperleg.r": wl * (1 - s)}
     return fn
 
