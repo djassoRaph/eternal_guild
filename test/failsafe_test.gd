@@ -166,7 +166,7 @@ const CAT_SCENE_PATH := "res://scenes/game/TheCat.tscn"
 const CAT_SCRIPT_PATH := "res://scripts/game/the_cat.gd"
 const CAT_LOOPS := ["Idle", "Sleep", "Walk"]
 const HEARTH_INTERACT := Vector3(-2.98, 0.13, -9.30)   # the Hearth's interact_point in MainTavern: where the fire is tended
-const DEN_FA_PATH := "res://assets/characters/custom/g9_den_fa_real.glb"   # Story 25.32: realistic, his own rig minus the wings (R-8)
+const DEN_FA_PATH := "res://assets/characters/custom/g9_den_fa_real_v6.glb"   # Story 25.32: realistic, his own rig minus the wings (R-8); v6: broader shoulders and legs (v5 g9_den_fa_real.glb stays on disk)
 const DEN_FA_OLD_PATH := "res://assets/characters/custom/g9_den_fa.glb"    # Story 25.10's body: kept on disk (N5), not instanced
 ## Story 25.32 (AC 2, R-8): his 30 bones, exactly; no d_wing* bone.
 const DEN_FA_BONES := ["d_root", "d_hips", "d_spine", "d_chest", "d_collar", "d_neck", "d_head", "d_mask",
@@ -3018,12 +3018,12 @@ func test_den_fa() -> void:
 		var lods_off: bool = gcf.load(DEN_FA_PATH + ".import") == OK and not bool(gcf.get_value("params", "meshes/generate_lods", true))
 		check(meshes.size() == 1 and body_mi != null and nsurf >= 1 and nsurf <= RL_BODY_SURFACES and texs.size() >= 1 and texs.size() <= RL_TEXTURES
 			and tex_wrong.is_empty() and lods_off and metal.is_empty(),
-			"g9_den_fa_real.glb: one DenFa_Body (%d meshes) with %d surfaces (≤ %d, the mask included); %d textures (≤ %d at ≤ %d², Lossless, mipmaps, Detect 3D off; wrong %s); no LODs (%s); metal only on den_fa_mask (also: %s)"
+			"g9_den_fa_real_v6.glb: one DenFa_Body (%d meshes) with %d surfaces (≤ %d, the mask included); %d textures (≤ %d at ≤ %d², Lossless, mipmaps, Detect 3D off; wrong %s); no LODs (%s); metal only on den_fa_mask (also: %s)"
 			% [meshes.size(), nsurf, RL_BODY_SURFACES, texs.size(), RL_TEXTURES, RL_TEX_SIZE, tex_wrong, lods_off, metal])
 		inst.free()
 		var st := _mesh_stats(DEN_FA_PATH)
 		check(st.tris > 0 and st.tris <= RL_TRI_BUDGET and st.glow == 0 and st.wrong.is_empty(),
-			"g9_den_fa_real.glb: %d tris (≤ RL_TRI_BUDGET %d), nothing glows, roughness > 0 (wrong: %s)" % [st.tris, RL_TRI_BUDGET, st.wrong])
+			"g9_den_fa_real_v6.glb: %d tris (≤ RL_TRI_BUDGET %d), nothing glows, roughness > 0 (wrong: %s)" % [st.tris, RL_TRI_BUDGET, st.wrong])
 		# KEEP_AS_IMPORTED (AC 6, DC-4): after anime_look.apply the mask keeps its imported mirror; the rest is toned
 		var look = load(ANIME_LOOK_SCRIPT)
 		var toned := (load(DEN_FA_PATH) as PackedScene).instantiate()
@@ -3070,7 +3070,7 @@ func test_den_fa() -> void:
 			check(false, "%s: %s not checked (missing)" % [DEN_FA_PATH.get_file(), what])
 	var den_inst: Dictionary = _scene_nodes(DEN_FA_SCENE_PATH).get(".", {}) if ResourceLoader.exists(DEN_FA_SCENE_PATH) else {}
 	check(str(den_inst.get("instance", "")) == DEN_FA_PATH and str(den_inst.get("props", {}).get("look", "")) == "realistic",
-		"DenFa.tscn instances g9_den_fa_real.glb (not the old body: %s) with look = \"realistic\" (%s)"
+		"DenFa.tscn instances g9_den_fa_real_v6.glb (not an old body: %s) with look = \"realistic\" (%s)"
 		% [str(den_inst.get("instance", "")).get_file(), den_inst.get("props", {}).get("look", "unset")])
 	var sp_data = _read_json(SPEAKERS_PATH)
 	var den_src = sp_data.get("speakers", {}).get("den_fa", {}).get("portrait_source", {}) if sp_data is Dictionary else {}
