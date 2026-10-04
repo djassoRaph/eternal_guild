@@ -64,8 +64,8 @@
 [ext_resource type="PackedScene" path="res://scenes/game/QuestDealer.tscn" id="s2513_dealer"]
 [ext_resource type="PackedScene" uid="uid://c1lokiiefq6yc" path="res://assets/environment/custom/b20_cat_basket.gltf" id="s2515_basket"]
 [ext_resource type="PackedScene" path="res://scenes/game/TheCat.tscn" id="s2515_cat"]
-[ext_resource type="Script" path="res://scripts/game/tavern_lighting.gd" id="s2523_light"]
 [ext_resource type="PackedScene" path="res://scenes/game/FloorRuneCue.tscn" id="s2523_cue"]
+[ext_resource type="Script" uid="uid://8g1fspqsu6bv" path="res://scripts/game/tavern_lighting.gd" id="s2523_light"]
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_g0upg"]
 vertices = PackedVector3Array(1.1, 0.417485, -15.5553, 3.1, 0.417485, -15.5553, 3.1, 0.417485, -18.5553, -4.15, 0.417485, -14.0553, 0.849999, 0.417485, -14.0553, -4.15, 0.417485, -18.5553, 14.1, 0.417485, -15.5553, 14.1, 0.417485, -18.5553, -3.4, 0.417485, -6.80526, -4.15, 0.417485, -6.55526, -4.15, 0.417485, -5.55526, -2.9, 0.417485, -5.55526, -2.65, 0.417485, -5.05526, 4.85, 0.417485, -5.80526, 4.1, 0.417485, -7.05526, -4.15, 0.417485, -11.0553, -3.4, 0.417485, -10.8053, 1.1, 0.417485, -13.5553, 4.1, 0.417485, -9.30526, 5.85, 0.417485, -11.5553, 5.85, 0.417485, -13.5553, 7.6, 0.417485, -11.3053, 7.6, 0.417485, -10.0553, 8.35, 0.417485, -11.8053, 7.1, 0.417485, -11.8053, 13.1, 0.417485, -5.30526, 13.35, 0.417485, -4.30526, 14.1, 0.417485, -4.30526, 11.35, 0.417485, -7.05526, 10.1, 0.417485, -5.30526, 11.1, 0.417485, -5.30526, 11.35, 0.417485, -4.80526, 14.1, 0.417485, -13.5553, 10.35, 0.417485, -11.0553, 11.35, 0.417485, -9.55526, 13.1, 0.417485, -3.30526, 14.1, 0.417485, 3.69474, 8.85, 0.417485, 3.69474, 9.1, 0.417485, 4.44474, 10.1, 0.417485, 4.44474, 10.35, 0.417485, 3.69474, 10.1, 0.417485, -3.30526, 8.85, 0.417485, -4.55526, 6.6, 0.417485, -4.55526, 9.85, 0.417485, -5.05526, -2.4, 0.417485, -1.05526, -2.9, 0.417485, -0.555258, -4.15, 0.417485, -0.555258, -4.15, 0.417485, 3.69474, 8.85, 0.167485, 5.19474, 10.35, 0.167485, 5.19474, -4.4, 0.167485, 5.19474, -4.65, 0.167485, 8.19474, 14.6, 0.167485, 8.19474, 14.35, 0.167485, 5.19474)
@@ -129,6 +129,13 @@ points = PackedVector3Array(-1.2, 0.100175, 0, -1.2, -0.332313, 1.2, -1.2, -0.33
 [sub_resource type="BoxShape3D" id="BoxShape3D_s253_door_trigger"]
 size = Vector3(3, 2.5, 4)
 
+[sub_resource type="Environment" id="Environment_kr071"]
+ambient_light_color = Color(0.4, 0.5, 0.7, 1)
+ambient_light_energy = 0.3
+
+[sub_resource type="QuadMesh" id="QuadMesh_s2523_shaft"]
+size = Vector2(1.3, 3.6)
+
 [sub_resource type="Gradient" id="Gradient_s2523_shaft"]
 offsets = PackedFloat32Array(0, 0.15, 1)
 colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0)
@@ -136,7 +143,6 @@ colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0)
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_s2523_shaft"]
 gradient = SubResource("Gradient_s2523_shaft")
 width = 8
-height = 64
 fill_from = Vector2(0.5, 0)
 fill_to = Vector2(0.5, 1)
 
@@ -148,14 +154,6 @@ cull_mode = 2
 shading_mode = 0
 albedo_color = Color(1, 0.95, 0.85, 0.35)
 albedo_texture = SubResource("GradientTexture2D_s2523_shaft")
-roughness = 0.0
-
-[sub_resource type="QuadMesh" id="QuadMesh_s2523_shaft"]
-size = Vector2(1.3, 3.6)
-
-[sub_resource type="Environment" id="Environment_kr071"]
-ambient_light_color = Color(0.4, 0.5, 0.7, 1)
-ambient_light_energy = 0.3
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_in5p4"]
 albedo_texture = ExtResource("3_cwghm")
@@ -1303,8 +1301,8 @@ environment = SubResource("Environment_kr071")
 script = ExtResource("s2523_light")
 
 [node name="BarPool" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
-visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.74, 3, -4.6)
+visible = false
 light_color = Color(1, 0.78, 0.5, 1)
 light_energy = 1.2
 omni_range = 4.5
@@ -1312,33 +1310,30 @@ omni_range = 4.5
 [node name="CandleLights" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
 
 [node name="TorchWestNear" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/CandleLights" groups=["tavern_candle"]]
-visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.25, 2.62, -0.19)
-light_color = Color(1.0, 0.62, 0.32, 1)
-light_energy = 1.0
+visible = false
+light_color = Color(1, 0.62, 0.32, 1)
 omni_range = 3.5
 metadata/base_energy = 1.0
 
 [node name="TorchNorthEast" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/CandleLights" groups=["tavern_candle"]]
-visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.18, 2.62, -13.95)
-light_color = Color(1.0, 0.62, 0.32, 1)
-light_energy = 1.0
+visible = false
+light_color = Color(1, 0.62, 0.32, 1)
 omni_range = 3.5
 metadata/base_energy = 1.0
 
 [node name="TorchWestMid" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/CandleLights" groups=["tavern_candle"]]
-visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.28, 2.97, -4.15)
-light_color = Color(1.0, 0.62, 0.32, 1)
-light_energy = 1.0
+visible = false
+light_color = Color(1, 0.62, 0.32, 1)
 omni_range = 3.5
 metadata/base_energy = 1.0
 
 [node name="CandleThin" type="OmniLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/CandleLights" groups=["tavern_candle"]]
-visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 2.05, -1.68)
-light_color = Color(1.0, 0.75, 0.45, 1)
+visible = false
+light_color = Color(1, 0.75, 0.45, 1)
 light_energy = 0.6
 omni_range = 2.5
 metadata/base_energy = 0.6
@@ -1346,72 +1341,72 @@ metadata/base_energy = 0.6
 [node name="WindowLights" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment"]
 
 [node name="WindowNorthWest" type="SpotLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window"]]
-visible = false
 transform = Transform3D(-1, 0, 0, 0, 0.775562, 0.631271, 0, 0.631271, -0.775562, -2, 3.6, -20.7)
+visible = false
 light_color = Color(1, 0.95, 0.85, 1)
 light_energy = 3.0
 spot_range = 9.0
-spot_angle = 24.0
 spot_attenuation = 0.6
+spot_angle = 24.0
 metadata/base_energy = 3.0
 
 [node name="WindowNorthEast" type="SpotLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window"]]
-visible = false
 transform = Transform3D(-1, 0, 0, 0, 0.775562, 0.631271, 0, 0.631271, -0.775562, 8, 3.6, -20.7)
+visible = false
 light_color = Color(1, 0.95, 0.85, 1)
 light_energy = 3.0
 spot_range = 9.0
-spot_angle = 24.0
 spot_attenuation = 0.6
+spot_angle = 24.0
 metadata/base_energy = 3.0
 
 [node name="WindowWestFar" type="SpotLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window"]]
-visible = false
 transform = Transform3D(0, 0.631271, -0.775562, 0, 0.775562, 0.631271, 1, 0, 0, -6.4, 3.6, -16.21)
+visible = false
 light_color = Color(1, 0.95, 0.85, 1)
 light_energy = 3.0
 spot_range = 9.0
-spot_angle = 24.0
 spot_attenuation = 0.6
+spot_angle = 24.0
 metadata/base_energy = 3.0
 
 [node name="WindowWestNear" type="SpotLight3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window"]]
-visible = false
 transform = Transform3D(0, 0.631271, -0.775562, 0, 0.775562, 0.631271, 1, 0, 0, -6.4, 3.6, -2.42)
+visible = false
 light_color = Color(1, 0.95, 0.85, 1)
 light_energy = 3.0
 spot_range = 9.0
-spot_angle = 24.0
 spot_attenuation = 0.6
+spot_angle = 24.0
 metadata/base_energy = 3.0
 
 [node name="ShaftNorthWest" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window_card"]]
-visible = false
 transform = Transform3D(1, 0, 0, 0, 0.55238, 0.833592, 0, -0.833592, 0.55238, -2, 1.05572, -17.6495)
+visible = false
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
 metadata/base_alpha = 0.22
 
 [node name="ShaftNorthEast" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window_card"]]
-visible = false
 transform = Transform3D(1, 0, 0, 0, 0.55238, 0.833592, 0, -0.833592, 0.55238, 8, 1.05572, -17.6495)
+visible = false
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
 metadata/base_alpha = 0.22
 
 [node name="ShaftWestFar" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window_card"]]
-visible = false
 transform = Transform3D(0, -0.833592, -0.55238, 0, 0.55238, -0.833592, 1, 0, 0, -3.32953, 1.05572, -16.21)
+visible = false
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
 metadata/base_alpha = 0.22
 
 [node name="ShaftWestNear" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window_card"]]
-visible = false
 transform = Transform3D(0, -0.833592, -0.55238, 0, 0.55238, -0.833592, 1, 0, 0, -3.32953, 1.05572, -2.42)
+visible = false
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
