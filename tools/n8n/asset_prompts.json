@@ -59,6 +59,18 @@
       "prompt": "Character turnaround sheet of ONE character shown three times side by side: front view, right side view, back view. Full body, standing upright, arms relaxed about 35 degrees away from the body, orthographic, plain mid-grey background, no text, no labels, no frames. Use the first two attached images only for the proportions, the rendering style and the three-view layout, NOT for their design or colours: REALISTIC adult human proportions (about 7 to 7.5 heads tall, a normal-sized head, normal-sized eyes): NOT anime, NOT chibi, NOT cute, NO big eyes. Grounded, gritty low-fantasy people drawn exactly in the style of the two attached style references: a hand-drawn cel-shaded look with two-tone shading, DEEP hard-edged shadows and thick dark ink outlines, a muted desaturated earthy palette, worn, patched and dirtied clothes, weathered serious faces. A hard world where adventurers die; these people have seen it. The third attached image is this same character's current 3D design (his mask, ears and coat): keep his design but redraw him in the style of the first two images. DEN FA, a mysterious non-human mage who sits by the tavern fire: much TALLER than a human (about 2.9 metres, a head and a half above a tall man), sylphlike and very thin, long-limbed and elegant; tall pointed BAT-LIKE EARS rising from his head; FOUR large ivory BONE WINGS folded down his back like a cloak (bare bone struts, no feathers, no membrane); his face is completely hidden behind a smooth, featureless, mirror-polished metal MASK (no eyes, no mouth, no features at all — it reflects the room); a long deep teal-blue Mages-Guild coat with a high collar and dark trim, worn and old; long gloved hands, empty. Calm, serene, unsettling: he watches like a craftsman watches a tool. Not a demon, not a bat-man; a constructed, otherworldly scholar. Never show what is under the mask."
     },
     {
+      "id": "C_G11_the_cat",
+      "stage": "character",
+      "aspect": "16:9",
+      "variants": 3,
+      "refs": [
+        "refs/style_realistic_local_d2.png",
+        "refs/style_realistic_traveller_d3.png",
+        "refs/the_cat_current.png"
+      ],
+      "prompt": "Animal turnaround sheet of ONE domestic cat shown four times side by side: side view standing (facing right), front view sitting upright, back view sitting, and curled up asleep seen from above at three-quarters. Orthographic, plain mid-grey background, no text, no labels, no frames. Use the first two attached images only for the rendering style, NOT for their design or colours: a hand-drawn cel-shaded look with two-tone shading, DEEP hard-edged shadows and thick dark ink outlines, a muted desaturated earthy palette. REALISTIC cat anatomy and proportions (a real adult house cat: a small head, a long body, long legs, a long tail): NOT anime, NOT chibi, NOT cute, NO big eyes, no human features, no clothes, no collar. The third attached image is this same cat's current 3D design: keep ONLY her markings and colours: a short charcoal-grey coat, a white chest and a white muzzle, four white socks (white paws), pale green eyes, a pink nose. A lean, slightly scruffy tavern cat with a calm, self-possessed look; she was not invited, she stayed. Nothing in the image but the cat."
+    },
+    {
       "id": "C_G19_farmer",
       "stage": "character",
       "aspect": "16:9",
