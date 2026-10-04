@@ -31,6 +31,7 @@ extends Node
 
 const GAME_CONFIG_PATH := "res://data/config/game_config.json"
 const ANIME_LOOK := preload("res://scripts/game/anime_look.gd")
+const EDGE_PASS := preload("res://scripts/game/edge_pass.gd")
 const TODAY := "today"
 const INK_LAYER_MASK := 524288      # render layer 20: the EdgeQuad's alone
 const PHASES := ["morning", "day", "dusk", "evening", "late_night", "dawn"]
@@ -406,6 +407,8 @@ func _ready() -> void:
 				(own as BaseMaterial3D).roughness = 0.0
 			mi.set_surface_override_material(0, own)
 	reload_config()
+	# the screen's edge pass by game_config "edge_pass" (deferred: the hall's camera is made current after this node)
+	_apply_edge_pass.call_deferred()
 	for l in _group("tavern_candle") + _group("tavern_window"):
 		_base_energy(l)                # the authored energy, once, before any scale is applied
 	today = _snapshot()
@@ -722,15 +725,16 @@ func toggle_edge_pass() -> bool:
 	return q.visible
 
 
-## The camera's edge pass quad (its MeshInstance3D on the ink layer), or null.
+## The camera's edge pass quad (drawn with edge_detection.gdshader), or null.
 func edge_pass() -> MeshInstance3D:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	if cam == null:
-		return null
-	for c in cam.get_children():
-		if c is MeshInstance3D and (c as MeshInstance3D).layers == INK_LAYER_MASK:
-			return c
-	return null
+	var qs: Array = EDGE_PASS.quads(cam)
+	return qs[0] if not qs.is_empty() else null
+
+
+func _apply_edge_pass() -> void:
+	if is_inside_tree():
+		EDGE_PASS.apply(get_viewport().get_camera_3d())
 
 
 ## Re-tone every body in the hall with the active shading preset (each toned body's mesh parents).

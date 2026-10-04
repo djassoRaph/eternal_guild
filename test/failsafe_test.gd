@@ -8013,6 +8013,24 @@ func test_light_and_mood() -> void:
 	check(cm0 is StandardMaterial3D and cm1 is StandardMaterial3D and (cm0 as StandardMaterial3D).roughness == 0.0
 		and (cm1 as StandardMaterial3D).roughness == 0.0 and shared_mat.roughness == 1.0,
 		"window light cards: each copy at roughness 0 (no ink) even when the saved material lost it; the shared material untouched")
+	# the screen's edge pass (edge_pass.gd): found by its shader under a camera, hidden or shown by game_config "edge_pass"
+	var EP = load("res://scripts/game/edge_pass.gd")
+	var ep_cam := Camera3D.new()
+	var ep_quad := MeshInstance3D.new()
+	ep_quad.mesh = QuadMesh.new()
+	var ep_mat := ShaderMaterial.new()
+	ep_mat.shader = load(EP.EDGE_SHADER_PATH)
+	ep_quad.set_surface_override_material(0, ep_mat)
+	ep_cam.add_child(ep_quad)
+	var ep_other := MeshInstance3D.new()
+	ep_cam.add_child(ep_other)
+	var ep_cfg = JSON.parse_string(FileAccess.get_file_as_string(EP.GAME_CONFIG_PATH))
+	var ep_n: int = EP.apply(ep_cam, false)
+	var ep_hidden := not ep_quad.visible and ep_other.visible
+	EP.apply(ep_cam, true)
+	check(ep_n == 1 and ep_hidden and ep_quad.visible and ep_cfg is Dictionary and EP.enabled() == bool(ep_cfg.get("edge_pass", true)),
+		"edge_pass.gd: the camera's edge-shader quad (only it) hidden and shown; enabled() follows game_config edge_pass (%s)" % [ep_cfg.get("edge_pass", "absent") if ep_cfg is Dictionary else "no config"])
+	ep_cam.free()
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
