@@ -390,6 +390,11 @@ func _ready() -> void:
 	for n in ["env", "sun", "fill", "bar", "desk", "hearth", "pillar"]:
 		if get("_" + n) == null:
 			push_warning("[TavernLighting] %s not found: its light is left as saved" % n)
+	# MainTavern's Environment is a sub-resource every instance of the cached scene shares: this hall writes only its
+	# own copy, so a reload (Pause -> Load Game -> reload_current_scene) during a dimmed phase still snapshots the
+	# scene's saved light as today (LM-2)
+	if _env and _env.environment:
+		_env.environment = _env.environment.duplicate()
 	reload_config()
 	today = _snapshot()
 	var gb := get_node_or_null("/root/GameBus")

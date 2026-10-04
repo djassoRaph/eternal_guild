@@ -7605,6 +7605,25 @@ func test_light_and_mood() -> void:
 	var rig3 := _lm_rig(TL)
 	check(rig3.ctl.phase == str(cfg.get("tavern_light_phase_default", "day")) and rig3.ctl.mood == TL.configured_mood(), "a fresh rig starts in the configured mood and the default phase")
 	rig3.root.free()
+	# review 2026-10-04 (MEDIUM): MainTavern's Environment is a sub-resource every instance of the cached scene shares.
+	# A reload (Pause -> Load Game -> reload_current_scene) while a dimmed phase is on must still snapshot the scene's
+	# saved light as today: each controller works on its own copy and never writes the shared one
+	var shared_env := Environment.new()
+	shared_env.ambient_light_color = Color(0.4, 0.5, 0.7)
+	shared_env.ambient_light_energy = 0.3
+	var rs1 := _lm_rig(TL, "", shared_env)
+	var today1: Dictionary = (rs1.ctl.today as Dictionary).duplicate(true)
+	rs1.ctl.set_mood("moody_b")
+	rs1.ctl.set_phase("late_night", 0.0)
+	var dimmed: bool = (rs1.env.environment as Environment).ambient_light_source == Environment.AMBIENT_SOURCE_COLOR
+	var rs2 := _lm_rig(TL, "", shared_env)
+	var today2: Dictionary = rs2.ctl.today
+	var untouched: bool = shared_env.ambient_light_source == Environment.AMBIENT_SOURCE_BG and shared_env.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) \
+		and is_equal_approx(shared_env.ambient_light_energy, 0.3) and is_equal_approx(shared_env.tonemap_exposure, 1.0)
+	check(dimmed and today2 == today1 and today2.ambient_background == true and untouched and rs1.env.environment != shared_env and rs2.env.environment != shared_env,
+		"a second controller after a dimmed phase (moody_b, late_night) snapshots the same today (Background ambient %s); the shared Environment is never written (untouched %s)" % [today2.get("ambient_background"), untouched])
+	rs1.root.free()
+	rs2.root.free()
 
 	# the emit sites (one line each)
 	var bed := FileAccess.get_file_as_string(BEDROOM_SCRIPT)
@@ -7708,7 +7727,9 @@ func test_light_and_mood() -> void:
 
 ## Test 25's fixture rig: the hall's light nodes on the paths TavernLighting expects (SubViewport/TavernNavigation/...),
 ## a real Hearth and a real pillar, two candles and a window. Returns the nodes; free rig.root after.
-func _lm_rig(TL: GDScript, early_phase := "") -> Dictionary:
+## `shared_env`: the WorldEnvironment uses this Environment (a cached scene's sub-resource, shared by every
+## instance) instead of a new one (review 2026-10-04).
+func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null) -> Dictionary:
 	var r := Node3D.new()
 	r.name = "LMRig"
 	var navn := Node3D.new()
@@ -7719,9 +7740,12 @@ func _lm_rig(TL: GDScript, early_phase := "") -> Dictionary:
 	navn.add_child(envn)
 	var we := WorldEnvironment.new()
 	we.name = "WorldEnvironment"
-	we.environment = Environment.new()
-	we.environment.ambient_light_color = Color(0.4, 0.5, 0.7)
-	we.environment.ambient_light_energy = 0.3
+	if shared_env:
+		we.environment = shared_env
+	else:
+		we.environment = Environment.new()
+		we.environment.ambient_light_color = Color(0.4, 0.5, 0.7)
+		we.environment.ambient_light_energy = 0.3
 	envn.add_child(we)
 	var sun := DirectionalLight3D.new()
 	sun.name = "Outdoors Light"
