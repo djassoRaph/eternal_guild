@@ -65,9 +65,9 @@
 		"morning": {"ambient_scale": 1.0, "candle_scale": 0.5, "hearth_scale": 1.0, "fill_scale": 1.0, "pillar_glow_scale": 1.0, "window_color": [1.0, 0.9, 0.75], "window_energy": 1.0},
 		"day": {"ambient_scale": 1.0, "candle_scale": 1.0, "hearth_scale": 1.0, "fill_scale": 1.0, "pillar_glow_scale": 1.0, "window_energy": 1.0},
 		"dusk": {"ambient_scale": 0.85, "candle_scale": 1.0, "hearth_scale": 1.0, "fill_scale": 0.8, "pillar_glow_scale": 1.0, "window_color": [1.0, 0.6, 0.35], "window_energy": 0.7},
-		"evening": {"ambient_scale": 0.7, "candle_scale": 1.2, "hearth_scale": 1.1, "fill_scale": 0.6, "pillar_glow_scale": 1.1, "window_color": [0.45, 0.6, 0.85], "window_energy": 0.35},
-		"late_night": {"ambient_scale": 0.55, "candle_scale": 0.8, "hearth_scale": 1.0, "fill_scale": 0.4, "pillar_glow_scale": 1.2, "window_color": [0.35, 0.5, 0.8], "window_energy": 0.2},
-		"dawn": {"ambient_scale": 0.75, "candle_scale": 0.6, "hearth_scale": 0.9, "fill_scale": 0.7, "pillar_glow_scale": 1.0, "window_color": [0.85, 0.7, 0.8], "window_energy": 0.5}
+		"evening": {"ambient_scale": 0.6, "candle_scale": 1.25, "hearth_scale": 1.15, "fill_scale": 0.5, "pillar_glow_scale": 1.1, "window_color": [0.45, 0.6, 0.85], "window_energy": 0.35},
+		"late_night": {"ambient_scale": 0.4, "candle_scale": 0.8, "hearth_scale": 1.0, "fill_scale": 0.25, "pillar_glow_scale": 1.25, "window_color": [0.35, 0.5, 0.8], "window_energy": 0.2},
+		"dawn": {"ambient_scale": 0.65, "candle_scale": 0.6, "hearth_scale": 0.9, "fill_scale": 0.6, "pillar_glow_scale": 1.0, "window_color": [0.85, 0.7, 0.8], "window_energy": 0.5}
 	},
 
 	"profile": "demo",

@@ -16,7 +16,10 @@
 # light_scale: hearth.gd owns the fire's energy and colour (the bands, the flicker), this script never writes them.
 # Warm pools (LM-6): OmniLights at flames the hall already shows, group "tavern_candle", saved hidden with their
 # authored energy as metadata base_energy (energy = base_energy x candle_scale). Window light (LM-7): unshadowed
-# SpotLight3Ds outside the window walls, group "tavern_window" (energy = base_energy x window_energy).
+# SpotLight3Ds outside the window walls, group "tavern_window" (energy = base_energy x window_energy), and additive
+# light cards through the openings, group "tavern_window_card" (the fog-shaft spike failed: an orthographic view
+# renders volumetric fog as a flat haze). The round bar shows no flame: BarPool is a warm light over it with no lamp
+# of its own (bar_pool_energy, today 0), the moody presets' answer to faces at the bar (AC 5).
 #
 # Phase triggers (LM-8): GameBus.day_phase_changed(phase), sent where the loop already turns (the bedroom: evening;
 # sleep: late_night; the new day: morning; the briefing's end: day). "reveal" (Story 24.2's word) is late_night.
@@ -404,7 +407,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _label_left > 0.0:
 		_label_left -= delta
-		if _label_left <= 0.0 and _label:
+		if _label_left <= 0.0 and is_instance_valid(_label):
 			_label.visible = false
 	if _hold_left >= 0.0:
 		_hold_left -= delta
@@ -686,10 +689,14 @@ func retone_cast() -> int:
 
 
 func _show_label() -> void:
-	if _label == null:
+	if _label == null or not is_instance_valid(_label):
+		# on the scene root (the window), not under this node: inside the hall's SubViewport it would draw into the
+		# 3D view's own image
 		var layer := CanvasLayer.new()
 		layer.layer = 101
-		add_child(layer)
+		var host: Node = get_tree().current_scene if get_tree().current_scene else self
+		host.add_child(layer)
+		tree_exiting.connect(layer.queue_free)
 		_label = Label.new()
 		_label.position = Vector2(16, 48)
 		_label.add_theme_font_size_override("font_size", 18)

@@ -1391,7 +1391,7 @@ transform = Transform3D(1, 0, 0, 0, 0.55238, 0.833592, 0, -0.833592, 0.55238, -2
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
-metadata/base_alpha = 0.35
+metadata/base_alpha = 0.22
 
 [node name="ShaftNorthEast" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window_card"]]
 visible = false
@@ -1399,7 +1399,7 @@ transform = Transform3D(1, 0, 0, 0, 0.55238, 0.833592, 0, -0.833592, 0.55238, 8,
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
-metadata/base_alpha = 0.35
+metadata/base_alpha = 0.22
 
 [node name="ShaftWestFar" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window_card"]]
 visible = false
@@ -1407,7 +1407,7 @@ transform = Transform3D(0, -0.833592, -0.55238, 0, 0.55238, -0.833592, 1, 0, 0, 
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
-metadata/base_alpha = 0.35
+metadata/base_alpha = 0.22
 
 [node name="ShaftWestNear" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/TavernNavigation/Environment/WindowLights" groups=["tavern_window_card"]]
 visible = false
@@ -1415,7 +1415,7 @@ transform = Transform3D(0, -0.833592, -0.55238, 0, 0.55238, -0.833592, 1, 0, 0, 
 cast_shadow = 0
 mesh = SubResource("QuadMesh_s2523_shaft")
 surface_material_override/0 = SubResource("StandardMaterial3D_s2523_shaft")
-metadata/base_alpha = 0.35
+metadata/base_alpha = 0.22
 
 [node name="Furniture" type="Node3D" parent="SubViewportContainer/SubViewport/TavernNavigation"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0134249, -0.0343782, 0.00465202)
