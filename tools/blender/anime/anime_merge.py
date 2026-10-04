@@ -51,9 +51,19 @@ def emission_ok(m, bsdf, body_mats):
     """AH-3 / V5 (25.31): emission only on a PROP's own material (never on a body material, never on one the body
     shares: the quill shares the palette, the Healer's crystal has its own), and an emissive material at roughness 0
     (light, not ink: the edge shader leaves roughness 0 un-inked; anime_look keeps it emissive without an outline)."""
-    if bsdf.inputs["Emission Strength"].default_value <= 0.0:
+    if not is_emissive(m, bsdf):
         return True
     return m not in body_mats and bsdf.inputs["Roughness"].default_value == 0.0
+
+
+def is_emissive(m, bsdf):
+    """The material can emit: the BSDF's emission is colour x strength, so it glows when the strength is linked (a
+    texture or a node drives it) or above 0 AND the colour is linked (an emission texture) or not black; an Emission
+    shader node anywhere in the tree also counts. A black colour at strength > 0 is not a glow."""
+    s, c = bsdf.inputs["Emission Strength"], bsdf.inputs["Emission Color"]
+    strength = s.is_linked or s.default_value > 0.0
+    colour = c.is_linked or max(tuple(c.default_value)[:3]) > 0.0
+    return (strength and colour) or any(n.type == "EMISSION" for n in m.node_tree.nodes)
 
 
 def _deform_bones(arm):
