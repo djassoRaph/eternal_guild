@@ -32,11 +32,26 @@ def save_sheet(sheet, path):
         json.dump(sheet, f, indent=1)
 
 
+def _tuplify(v):
+    """JSON's lists back to the tuples a sheet is written with (a round trip compares equal)."""
+    if isinstance(v, list):
+        return tuple(_tuplify(x) for x in v)
+    if isinstance(v, dict):
+        return {k: _tuplify(x) for k, x in v.items()}
+    return v
+
+
 def load_sheet(path):
+    """A saved sheet: make_sheet's keys re-checked through make_sheet, and every other key (crown_rows, top_from_back,
+    face_y, eye_rows, ...) carried over as saved, so save_sheet -> load_sheet paints the same head."""
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
-    return make_sheet(d["concept"], d["height"], d["views"], d["head_crops"], d.get("head_win", 130.0),
-                      d.get("head_skin_uv", (0.75, 0.25)), d.get("side_flip", False))
+    out = make_sheet(d["concept"], d["height"], d["views"], d["head_crops"], d.get("head_win", 130.0),
+                     d.get("head_skin_uv", (0.75, 0.25)), d.get("side_flip", False))
+    for k, v in d.items():
+        if k not in out:
+            out[k] = _tuplify(v)
+    return out
 
 
 BARTENDER = make_sheet(
