@@ -18,6 +18,10 @@ const LOW_FLOOR := 20.0    # = fireplace_zone.gd FUEL_LOW_FLOOR
 @export var preview_fuel := -1.0
 ## -1 = follow GameManager's firewood stock; 0..10 = a fixed stock (LookDev).
 @export var preview_stock := -1
+## Multiplies the fire's light (the hall's mood and day phase, Story 25.23: TavernLighting sets it). The bands,
+## the colour, the flames and the ember glow are untouched; a fire that is out stays dark at any scale.
+## Assigning it applies it at once; a value set before _ready is kept.
+@export var light_scale: float = 1.0: set = set_light_scale
 
 var fuel := 0.0
 var placed_logs := 0
@@ -117,7 +121,7 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	var flicker := 1.0 + 0.07 * sin(_t * 11.0) + 0.04 * sin(_t * 23.7 + 1.3)
-	_light.light_energy = _light_base * flicker * (1.0 + 0.8 * _flash)
+	_light.light_energy = _light_base * flicker * (1.0 + 0.8 * _flash) * light_scale
 
 
 ## Called by fireplace_zone.gd on every fuel change (0..100).
@@ -130,7 +134,7 @@ func set_fire_level(fuel_percent: float) -> void:
 	_light_base = _look.light
 	_light.visible = _look.light > 0.0
 	_light.light_color = _look.color
-	_light.light_energy = _light_base
+	_light.light_energy = _light_base * light_scale
 	_drive(_flames, _look.flames, _look.flame_size)
 	_drive(_sparks, _look.sparks, 1.0)
 	_drive(_smoke, _look.smoke, 1.0)
@@ -139,6 +143,14 @@ func set_fire_level(fuel_percent: float) -> void:
 		(g[0] as StandardMaterial3D).emission_energy_multiplier = float(g[1]) * float(_look.ember_glow)
 		(g[0] as StandardMaterial3D).albedo_color = (g[2] as Color).darkened(0.65 * (1.0 - float(_look.ember_glow)))
 	_show_logs()
+
+
+## The fire light's multiplier (Story 25.23): clamps at 0, NaN/inf -> 1. Before _ready it is only stored
+## (_ready's set_fire_level applies it); after, the light changes at once.
+func set_light_scale(value: float) -> void:
+	light_scale = maxf(value, 0.0) if is_finite(value) else 1.0
+	if is_node_ready() and _light.visible:
+		_light.light_energy = _light_base * light_scale
 
 
 ## Logs placed so far in the open minigame (0 when it closes).
