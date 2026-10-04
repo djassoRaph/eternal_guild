@@ -128,6 +128,31 @@ on screen before use.
 | G1 the player | `real_player.py` | REAL-1 | `g1_player_real.blend` / `custom/g1_player_real.glb` | the Bartender's head x 0.88 / -0.02 m under a hair shell; the coat, vest, collar, lapels, skirt halves (a back vent); the sword a prop on hips; Idle re-posed; `arms_out` keeps Running_A's arms outside the coat; `rate()` measures Running_A's ground speed (player.json) |
 | G13 the Quest Dealer | `real_dealer.py` | REAL-2 | `g13_quest_dealer_real.blend` / `custom/g13_quest_dealer_real.glb` | REAL-2's head (width 0.90, jaw 0.14), a hair cap and a long fall, elf ears, the circlet band; the buttoned coat over the bust (`bust_dome`); the quill a prop on handslot.r; her desk clips; `measure()` = anime_clearcheck's desk report with her config |
 
+## The townsfolk (25.31 S2)
+
+`real_townsfolk.py` (+ `real_townsfolk_paint.py` for the textures, system Python: `python real_townsfolk_paint.py
+<id>|all [--overwrite]`) builds the six townsfolk from `<art>/picked/C_G19_<id>.png`: the farmer, the local, the
+traveller, the guard and the merchant on REAL-1, the old woman on REAL-2. One module, one `.blend` and one GLB per
+variant (V13: actions are file-global): `<art>/blender/g19_<id>_real.blend` -> `custom/g19_<id>_real.glb`. Steps (one
+MCP call each): `open_base_as(id)`, `build(id)`, `paint_head(id)`, `build_clips(id)`, `measure(id)`, `export(id)`.
+
+- Sheets: `real_layout.sheet_by_eyes` registers a pick on its EYE line (their crowns are under hats): per view the face
+  midline / nose tip px, the eye row and the sole row (`real_layout.TOWNSFOLK_SHEETS`).
+- Heads: the player's (x `HEAD_X` per face, -0.02 m); the old woman's REAL-2 head (`OLD_HEAD`). Hats are built round
+  the shaped head (`build_hat`: straw, cap, beret, helmet) on the body atlas; her headscarf and bun are head-material
+  shells (projected).
+- Clips: Idle (hands by the clothes), Walking_A (`WALK_STRIDE`), Running_A as a jog (`JOG_STRIDE`, the sprint's lean
+  halved: patrons run at 2.5 m/s), then `real_player.arms_out` (<= 6 deg) on Running_A, the sit clips, Cheer and
+  Interact. Every rewritten clip starts from a recorded `SRC_*` copy (removed for the export): `build_clips` is repeatable.
+- `measure` gives what townsfolk.json carries: Walking_A / Running_A ground speeds (the villagers' and patrons' playback
+  rates, V9), the standing / seated head tops (bubbles), and the seat (V13: every body within 0.012 m of its base's, so
+  no sit re-fit).
+- R-9: hands empty; worn things on the body or a visible prop on hips (the merchant's purse); the old woman's cane is a
+  prop on handslot.r that `RealisticPatron.dress_body` hides.
+
+The bar stools (25.31 S2.0, R-5) are not a Blender build: `tools/props/make_tall_stool.py` writes
+`b2_bar_stool_tall.gltf` (seat 0.72, the foot ring and footrest 0.45 m under it) from the 25.6 stool's design.
+
 Their clips reuse `real_bartender`'s pose helpers (`stand_tall`, `reach`, `short_walk`; `_SOLES` set to the character's
 own body before a build), each from the base's retargeted clips kept as `SRC_*` copies (removed for the export).
 
@@ -148,4 +173,5 @@ own body before a build), each from the base's retargeted clips kept as `SRC_*` 
   the pose helpers the other characters reuse.
 - `real_bar.py`: the Bartender's bar clearance and body numbers.
 - `real_player.py`, `real_dealer.py`: the player and the Quest Dealer (25.31 S1).
+- `real_townsfolk.py`, `real_townsfolk_paint.py`: the six townsfolk and their textures (25.31 S2).
 - `real_bake.py`: the painted head pass.
