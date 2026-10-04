@@ -7563,6 +7563,16 @@ func test_light_and_mood() -> void:
 	check(bare.visible and is_equal_approx(bare.light_energy, 0.9 * float(ma.candle_scale)) and is_equal_approx(float(bare.get_meta("base_energy", -1.0)), 0.9)
 		and bare_win.visible and is_equal_approx(bare_win.light_energy, 2.0 * float(ma.window_energy)) and is_equal_approx(float(bare_win.get_meta("base_energy", -1.0)), 2.0),
 		"a candle and a window light saved without base_energy keep their authored energy as the base through today (scale 0) and back (candle %.3f, window %.3f)" % [bare.light_energy, bare_win.light_energy])
+	# review 2026-10-04: the window light cards share one material in MainTavern; each gets its own copy so its alpha
+	# (base_alpha x window_energy) is its own, and the shared material is never written
+	var rig_cards: Array = rig.cards
+	var cm0 = (rig_cards[0] as MeshInstance3D).get_surface_override_material(0)
+	var cm1 = (rig_cards[1] as MeshInstance3D).get_surface_override_material(0)
+	var shared_mat: StandardMaterial3D = rig.card_mat
+	var cards_ok: bool = cm0 is StandardMaterial3D and cm1 is StandardMaterial3D and cm0 != cm1 and cm0 != shared_mat and cm1 != shared_mat
+	cards_ok = cards_ok and is_equal_approx((cm0 as StandardMaterial3D).albedo_color.a, 0.3 * float(ma.window_energy)) and is_equal_approx((cm1 as StandardMaterial3D).albedo_color.a, 0.7 * float(ma.window_energy))
+	cards_ok = cards_ok and (cm1 as StandardMaterial3D).blend_mode == BaseMaterial3D.BLEND_MODE_ADD and shared_mat.albedo_color == Color(1, 1, 1, 1) and rig_cards.all(func(q): return q.visible)
+	check(cards_ok, "two window light cards sharing one material: each has its own copy and its own alpha (0.3 and 0.7 x window_energy); the shared material is untouched")
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
@@ -7744,7 +7754,7 @@ func test_light_and_mood() -> void:
 ## a real Hearth and a real pillar, two candles and a window. Returns the nodes; free rig.root after.
 ## `shared_env`: the WorldEnvironment uses this Environment (a cached scene's sub-resource, shared by every
 ## instance) instead of a new one; `early_mood`: set_mood before _ready. The rig also has a candle and a window
-## light saved without base_energy (review 2026-10-04).
+## light saved without base_energy, and two window light cards sharing one material (review 2026-10-04).
 func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, early_mood := "") -> Dictionary:
 	var r := Node3D.new()
 	r.name = "LMRig"
@@ -7820,6 +7830,22 @@ func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, ea
 	bare_win.light_energy = 2.0
 	bare_win.add_to_group("tavern_window")
 	arch.add_child(bare_win)
+	# two light cards sharing one material, as MainTavern saves them (base_alpha 0.3 and 0.7)
+	var card_mat := StandardMaterial3D.new()
+	card_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	card_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	card_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var cards := []
+	for i in 2:
+		var q := MeshInstance3D.new()
+		q.name = "Card%d" % i
+		q.mesh = QuadMesh.new()
+		q.set_surface_override_material(0, card_mat)
+		q.set_meta("base_alpha", 0.3 + 0.4 * i)
+		q.visible = false
+		q.add_to_group("tavern_window_card")
+		arch.add_child(q)
+		cards.append(q)
 	for pn in ["HearthProbe", "BarProbe"]:
 		var p := ReflectionProbe.new()
 		p.name = pn
@@ -7836,7 +7862,7 @@ func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, ea
 	envn.add_child(ctl)
 	root.add_child(r)
 	return {"root": r, "ctl": ctl, "env": we, "sun": sun, "fill": fill, "bar": barl, "desk": deskl, "hearth": hearth, "pillar": pillar,
-		"candles": candles, "window": win, "bare": bare, "bare_win": bare_win}
+		"candles": candles, "window": win, "bare": bare, "bare_win": bare_win, "cards": cards, "card_mat": card_mat}
 
 
 ## True when `needle` appears inside func `fname`'s body in a GDScript source (to the next top-level func).

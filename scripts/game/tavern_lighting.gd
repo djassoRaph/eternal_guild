@@ -391,11 +391,16 @@ func _ready() -> void:
 	for n in ["env", "sun", "fill", "bar", "desk", "hearth", "pillar"]:
 		if get("_" + n) == null:
 			push_warning("[TavernLighting] %s not found: its light is left as saved" % n)
-	# MainTavern's Environment is a sub-resource every instance of the cached scene shares: this hall writes only its
-	# own copy, so a reload (Pause -> Load Game -> reload_current_scene) during a dimmed phase still snapshots the
-	# scene's saved light as today (LM-2)
+	# MainTavern's Environment and the window cards' material are sub-resources every instance of the cached scene
+	# shares: this hall writes only its own copies, so a reload (Pause -> Load Game -> reload_current_scene) during a
+	# dimmed phase still snapshots the scene's saved light as today (LM-2), and each card keeps its own alpha
 	if _env and _env.environment:
 		_env.environment = _env.environment.duplicate()
+	for card in _cards():
+		var mi := card as MeshInstance3D
+		var m: Material = mi.get_surface_override_material(0)
+		if m:
+			mi.set_surface_override_material(0, m.duplicate())
 	reload_config()
 	for l in _group("tavern_candle") + _group("tavern_window"):
 		_base_energy(l)                # the authored energy, once, before any scale is applied
@@ -548,6 +553,13 @@ func _group(g: String) -> Array:
 	return get_tree().get_nodes_in_group(g).filter(func(n): return n is Light3D and (_scope == null or _scope.is_ancestor_of(n)))
 
 
+## The light cards through the window openings (group tavern_window_card) in this hall.
+func _cards() -> Array:
+	if not is_inside_tree():
+		return []
+	return get_tree().get_nodes_in_group("tavern_window_card").filter(func(n): return n is MeshInstance3D and (_scope == null or _scope.is_ancestor_of(n)))
+
+
 ## A candle's or window light's base energy: its base_energy metadata; a light saved without one gets its energy at
 ## first sight (_ready, before any scale) stored as that metadata. Never the current energy at apply time: a scale of
 ## 0 ("today") would zero it for good.
@@ -610,11 +622,9 @@ func _apply(v: Dictionary) -> void:
 		w.shadow_enabled = false
 		n += 1
 	# the light cards through the window openings (V11's fake god rays: additive, unshaded quads): the window
-	# colour, their alpha x window_energy (their saved alpha is metadata base_alpha)
-	for card in (get_tree().get_nodes_in_group("tavern_window_card") if is_inside_tree() else []):
+	# colour, their alpha x window_energy (their saved alpha is metadata base_alpha; each card's own material copy)
+	for card in _cards():
 		var mi := card as MeshInstance3D
-		if mi == null or (_scope != null and not _scope.is_ancestor_of(mi)):
-			continue
 		var m := mi.get_surface_override_material(0) as StandardMaterial3D
 		if m == null:
 			continue
