@@ -10,7 +10,9 @@
 		},
 		"preferred_missions": ["combat", "escort", "defense"],
 		"base_cost": 15,
-		"model_path": "res://assets/characters/models/kaykit_adventurers/Knight.glb"
+		"model_path": "res://assets/characters/custom/g2_fighter_real.glb",
+		"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Knight.glb",
+		"look": "realistic"
 	},
 	"Rogue": {
 		"display_name": "Rogue",
@@ -23,7 +25,9 @@
 		},
 		"preferred_missions": ["stealth", "reconnaissance", "treasure"],
 		"base_cost": 12,
-		"model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb"
+		"model_path": "res://assets/characters/custom/g3_rogue_real.glb",
+		"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+		"look": "realistic"
 	},
 	"Mage": {
 		"display_name": "Mage",
@@ -36,7 +40,9 @@
 		},
 		"preferred_missions": ["magical", "research", "enchanting"],
 		"base_cost": 20,
-		"model_path": "res://assets/characters/models/kaykit_adventurers/Mage.glb"
+		"model_path": "res://assets/characters/custom/g4_mage_real.glb",
+		"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Mage.glb",
+		"look": "realistic"
 	},
 	"Healer": {
 		"display_name": "Healer",
@@ -49,7 +55,9 @@
 		},
 		"preferred_missions": ["support", "rescue", "escort"],
 		"base_cost": 18,
-		"model_path": "res://assets/characters/custom/healer.glb"
+		"model_path": "res://assets/characters/custom/g5_healer_real.glb",
+		"fallback_model_path": "res://assets/characters/custom/healer.glb",
+		"look": "realistic"
 	},
 	"Barbarian": {
 		"display_name": "Barbarian", 
@@ -62,7 +70,9 @@
 		},
 		"preferred_missions": ["combat", "intimidation", "wilderness"],
 		"base_cost": 16,
-		"model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb"
+		"model_path": "res://assets/characters/custom/g6_barbarian_real.glb",
+		"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb",
+		"look": "realistic"
 	},
 	"Ranger": {
 		"display_name": "Ranger",
@@ -75,6 +85,8 @@
 		},
 		"preferred_missions": ["gathering", "escort", "investigation"],
 		"base_cost": 16,
-		"model_path": "res://assets/characters/custom/ranger.glb"
+		"model_path": "res://assets/characters/custom/g7_ranger_real.glb",
+		"fallback_model_path": "res://assets/characters/custom/ranger.glb",
+		"look": "realistic"
 	}
 }

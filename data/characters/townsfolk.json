@@ -1,5 +1,5 @@
 {
-	"_comment": "Story 25.14: patron and villager bodies (catalogue G19, G24). Patrons pick a variant by weight and then an origin label of the same origin_type, so their look matches patron_lines' origin flavours. Decision E1 (2026-09-25): townsfolk take ~80% of the weight; the class bodies stay as travelling adventurers. names = a pool key below, or 'any'. A missing file falls back to RealisticPatron.FALLBACK_MODELS (MOD-6). Story 25.31 S2 (AC 12): the six townsfolk are route RL's realistic bodies (tools/blender/realistic/real_townsfolk.py) with fallback_model_path = the Story 25.14 KayKit-kit GLB and look \"realistic\" (anime_look.gd on its own body; the hand-slot props hidden); walk_ground_speed / run_ground_speed: Walking_A's / Running_A's measured ground speed on that body (villagers walk at walk_speed / it, patrons run at SPEED / it, V9); head_top / sit_head_top: the measured standing and seated head tops (the bubbles and the beer emote sit above them); tankard_scale: the held H1 tankard's size on realistic hands (the KayKit bodies' 1.8).",
+	"_comment": "Story 25.14: patron and villager bodies (catalogue G19, G24). Patrons pick a variant by weight and then an origin label of the same origin_type, so their look matches patron_lines' origin flavours. Decision E1 (2026-09-25): townsfolk take ~80% of the weight; the class bodies stay as travelling adventurers. names = a pool key below, or 'any'. A missing file falls back to RealisticPatron.FALLBACK_MODELS (MOD-6). Story 25.31 S2 (AC 12) and S3 (AC 9): the six townsfolk and the six adventurers (the class bodies, the same files as classes.json; AH-6 retired the hooded Rogue) are route RL's realistic bodies (tools/blender/realistic/real_townsfolk.py, real_classes.py) with fallback_model_path = the body before them (the Story 25.14 KayKit-kit GLB; the class's KayKit or Story 25.9 GLB) and look \"realistic\" (anime_look.gd on its own body; the hand-slot props hidden); walk_ground_speed / run_ground_speed: Walking_A's / Running_A's measured ground speed on that body (villagers walk at walk_speed / it, patrons run at SPEED / it, V9); head_top / sit_head_top: the measured standing and seated head tops (the bubbles and the beer emote sit above them); tankard_scale: the held H1 tankard's size on realistic hands (the KayKit bodies' 1.8).",
 	"variants": [
 		{
 			"id": "farmer",
@@ -98,67 +98,100 @@
 			"tankard_scale": 1.1
 		},
 		{
-			"id": "adventurer_knight",
-			"display_name": "Knight",
+			"id": "adventurer_fighter",
+			"display_name": "Fighter",
 			"role": "adventurer",
-			"model_path": "res://assets/characters/models/kaykit_adventurers/Knight.glb",
+			"model_path": "res://assets/characters/custom/g2_fighter_real.glb",
+			"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Knight.glb",
+			"look": "realistic",
 			"origin_type": "traveler",
 			"weight": 1,
-			"names": "any"
+			"names": "masculine",
+			"walk_ground_speed": 1.207,
+			"run_ground_speed": 2.754,
+			"head_top": 1.831,
+			"sit_head_top": 1.451,
+			"tankard_scale": 1.1
 		},
 		{
 			"id": "adventurer_rogue",
 			"display_name": "Rogue",
 			"role": "adventurer",
-			"model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+			"model_path": "res://assets/characters/custom/g3_rogue_real.glb",
+			"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+			"look": "realistic",
 			"origin_type": "traveler",
 			"weight": 1,
-			"names": "any"
-		},
-		{
-			"id": "adventurer_rogue_hooded",
-			"display_name": "Hooded Rogue",
-			"role": "adventurer",
-			"model_path": "res://assets/characters/models/kaykit_adventurers/Rogue_Hooded.glb",
-			"origin_type": "traveler",
-			"weight": 1,
-			"names": "any"
+			"names": "feminine",
+			"walk_ground_speed": 1.173,
+			"run_ground_speed": 2.778,
+			"head_top": 1.71,
+			"sit_head_top": 1.404,
+			"tankard_scale": 1.1
 		},
 		{
 			"id": "adventurer_mage",
 			"display_name": "Mage",
 			"role": "adventurer",
-			"model_path": "res://assets/characters/models/kaykit_adventurers/Mage.glb",
+			"model_path": "res://assets/characters/custom/g4_mage_real.glb",
+			"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Mage.glb",
+			"look": "realistic",
 			"origin_type": "traveler",
 			"weight": 1,
-			"names": "any"
+			"names": "masculine",
+			"walk_ground_speed": 1.078,
+			"run_ground_speed": 2.703,
+			"head_top": 1.918,
+			"sit_head_top": 1.538,
+			"tankard_scale": 1.1
 		},
 		{
 			"id": "adventurer_barbarian",
 			"display_name": "Barbarian",
 			"role": "adventurer",
-			"model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb",
+			"model_path": "res://assets/characters/custom/g6_barbarian_real.glb",
+			"fallback_model_path": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb",
+			"look": "realistic",
 			"origin_type": "traveler",
 			"weight": 1,
-			"names": "any"
+			"names": "masculine",
+			"walk_ground_speed": 1.175,
+			"run_ground_speed": 2.671,
+			"head_top": 1.836,
+			"sit_head_top": 1.456,
+			"tankard_scale": 1.1
 		},
 		{
 			"id": "adventurer_healer",
 			"display_name": "Healer",
 			"role": "adventurer",
-			"model_path": "res://assets/characters/custom/healer.glb",
+			"model_path": "res://assets/characters/custom/g5_healer_real.glb",
+			"fallback_model_path": "res://assets/characters/custom/healer.glb",
+			"look": "realistic",
 			"origin_type": "traveler",
 			"weight": 1,
-			"names": "any"
+			"names": "feminine",
+			"walk_ground_speed": 1.026,
+			"run_ground_speed": 2.311,
+			"head_top": 1.787,
+			"sit_head_top": 1.481,
+			"tankard_scale": 1.1
 		},
 		{
 			"id": "adventurer_ranger",
 			"display_name": "Ranger",
 			"role": "adventurer",
-			"model_path": "res://assets/characters/custom/ranger.glb",
+			"model_path": "res://assets/characters/custom/g7_ranger_real.glb",
+			"fallback_model_path": "res://assets/characters/custom/ranger.glb",
+			"look": "realistic",
 			"origin_type": "traveler",
 			"weight": 1,
-			"names": "any"
+			"names": "feminine",
+			"walk_ground_speed": 1.173,
+			"run_ground_speed": 2.778,
+			"head_top": 1.711,
+			"sit_head_top": 1.406,
+			"tankard_scale": 1.1
 		}
 	],
 	"names": {

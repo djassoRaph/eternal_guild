@@ -20,6 +20,8 @@
 # outline_ink) as next_pass. A source the shader can't draw (not opaque, or culling its front faces) gets the
 # approved StandardMaterial3D toon instead, no outline when it isn't opaque. set_preset() switches at runtime:
 # apply() then re-tones a body toned with another preset (from each toon's source material).
+# An EMISSIVE source (AH-3 / V5, Story 25.31 S3: only a prop's own material may emit, the Healer's crystal) gets, in
+# every preset, a StandardMaterial3D copy that keeps its emission at roughness 0 with no outline: light, not ink.
 extends RefCounted
 
 const OUTLINE := preload("res://assets/characters/materials/anime_outline.tres")
@@ -226,7 +228,9 @@ static func _toon_of(src: StandardMaterial3D, look: String, owner_name: String) 
 	var toon: Material = cache.get(src)
 	if toon:
 		return toon
-	if look == APPROVED:
+	if src.emission_enabled:
+		toon = _glow_toon(src)             # AH-3 / V5 (25.31): a prop's light, whatever the preset
+	elif look == APPROVED:
 		toon = _standard_toon(src, OUTLINE, owner_name)
 	elif src.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or src.cull_mode == BaseMaterial3D.CULL_FRONT:
 		_warn("[Staff] anime look: %s's material %s can't take the %s shader (not opaque, or culling its front); the approved toon instead" % [owner_name, src.resource_name, look])
@@ -236,6 +240,22 @@ static func _toon_of(src: StandardMaterial3D, look: String, owner_name: String) 
 	toon.set_meta(TOON_META, look)
 	toon.set_meta(SOURCE_META, src)
 	cache[src] = toon
+	return toon
+
+
+## AH-3 / V5 (Story 25.31 S3): an emissive source is light, not ink: its toon copy KEEPS the emission, stays at
+## roughness 0 (the edge shader leaves roughness 0 un-inked) and gets no outline next_pass; toon diffuse, no specular,
+## no metal.
+static func _glow_toon(src: StandardMaterial3D) -> StandardMaterial3D:
+	var toon := src.duplicate() as StandardMaterial3D
+	toon.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	toon.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	toon.metallic = 0.0
+	toon.metallic_specular = 0.0
+	toon.metallic_texture = null
+	toon.roughness = 0.0
+	toon.roughness_texture = null
+	toon.next_pass = null
 	return toon
 
 

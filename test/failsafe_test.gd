@@ -114,8 +114,32 @@ const DEMO_CLASSES := ["Fighter", "Rogue", "Mage", "Healer", "Barbarian", "Range
 const CLASSES_PATH := "res://data/characters/classes.json"
 const CLASS_COLORS_PATH := "res://data/config/class_colors.json"
 const FLAVOR_LINES_PATH := "res://data/reveal/flavor_lines.json"
-const HEALER_MODEL_PATH := "res://assets/characters/custom/healer.glb"
-const RANGER_MODEL_PATH := "res://assets/characters/custom/ranger.glb"
+const HEALER_MODEL_PATH := "res://assets/characters/custom/g5_healer_real.glb"   # Story 25.31 S3 (25.9's healer.glb: its fallback)
+const RANGER_MODEL_PATH := "res://assets/characters/custom/g7_ranger_real.glb"   # (25.9's ranger.glb: its fallback)
+## Story 25.31 S3 (AC 8/9, V4, R-9 refined): the realistic class bodies (route RL, tools/blender/realistic/real_classes.py):
+## the GLB, the mesh prefix, the fallback (the class's body before S3), the props {mesh: the bone it hangs from} (hand
+## slots: carried, hidden by the game; hips / chest: worn, shown), Walking_A / Running_A's measured ground speeds
+## (real_classes.measure; V9) and the patron name pool (each body's pick).
+const CLASS_BODIES := {
+	"Fighter": {"path": "res://assets/characters/custom/g2_fighter_real.glb", "prefix": "Fighter",
+		"fallback": "res://assets/characters/models/kaykit_adventurers/Knight.glb",
+		"props": {"Fighter_Sword": "handslot.r", "Fighter_Shield": "handslot.l"}, "ground": [1.207, 2.754], "names": "masculine"},
+	"Rogue": {"path": "res://assets/characters/custom/g3_rogue_real.glb", "prefix": "Rogue",
+		"fallback": "res://assets/characters/models/kaykit_adventurers/Rogue.glb",
+		"props": {"Rogue_Daggers": "hips"}, "ground": [1.173, 2.778], "names": "feminine"},
+	"Mage": {"path": "res://assets/characters/custom/g4_mage_real.glb", "prefix": "Mage",
+		"fallback": "res://assets/characters/models/kaykit_adventurers/Mage.glb",
+		"props": {"Mage_Staff": "handslot.r"}, "ground": [1.078, 2.703], "names": "masculine"},
+	"Healer": {"path": HEALER_MODEL_PATH, "prefix": "Healer", "fallback": "res://assets/characters/custom/healer.glb",
+		"props": {"Healer_Staff": "handslot.r"}, "ground": [1.026, 2.311], "names": "feminine"},
+	"Barbarian": {"path": "res://assets/characters/custom/g6_barbarian_real.glb", "prefix": "Barbarian",
+		"fallback": "res://assets/characters/models/kaykit_adventurers/Barbarian.glb",
+		"props": {"Barbarian_Axe": "handslot.r"}, "ground": [1.175, 2.671], "names": "masculine"},
+	"Ranger": {"path": RANGER_MODEL_PATH, "prefix": "Ranger", "fallback": "res://assets/characters/custom/ranger.glb",
+		"props": {"Ranger_Bow": "handslot.l", "Ranger_Quiver": "chest"}, "ground": [1.173, 2.778], "names": "feminine"},
+}
+## AH-3 / V5: the only meshes that may glow (a prop's own material at roughness 0): the Healer's crystal staff.
+const CLASS_GLOW := {"Healer": ["Healer_Staff"]}
 const GAME_MANAGER_PATH := "res://scripts/GameManager.gd"
 const CAST_CLIPS := ["Idle", "Walking_A", "Running_A", "Sit_Chair_Down", "Sit_Chair_Idle", "Sit_Chair_StandUp", "Cheer", "Interact"]
 const TOWNSFOLK_PATH := "res://data/characters/townsfolk.json"
@@ -310,6 +334,7 @@ func _initialize() -> void:
 	await test_fire_resume()
 	await test_tankard_upright()
 	await test_townsfolk_runtime()
+	await test_class_runtime()
 	await test_notice_board_live()
 	await test_staff_review_fixes()
 	await test_dialogue()
@@ -1567,6 +1592,7 @@ func test_fire_resume() -> void:
 static func _mesh_stats(scene_path: String) -> Dictionary:
 	var tris := 0
 	var glow := 0
+	var glow_nodes := []
 	var wrong := []
 	var nodes := _scene_nodes(scene_path)
 	for k in nodes:
@@ -1580,9 +1606,10 @@ static func _mesh_stats(scene_path: String) -> Dictionary:
 				continue
 			if m.emission_enabled:
 				glow += 1
+				glow_nodes.append(str(k).get_file())
 			if (m.emission_enabled and m.roughness != 0.0) or (not m.emission_enabled and m.roughness <= 0.0):
 				wrong.append("%s/%s r=%.2f" % [str(k).get_file(), m.resource_name, m.roughness])
-	return {"tris": tris, "glow": glow, "wrong": wrong}
+	return {"tris": tris, "glow": glow, "wrong": wrong, "glow_nodes": glow_nodes}
 
 
 # --- Test 12: The Round Bar and drinks service (Story 25.6) ---
@@ -2055,34 +2082,78 @@ func test_class_roster() -> void:
 		check(ok and bones >= 41 and missing_clips.is_empty(),
 			"%s body %s: %d bones, clips missing %s" % [cls, path.get_file(), bones, missing_clips])
 
-	for spec in [[HEALER_MODEL_PATH, {"Healer_Hood": "head", "Healer_Staff": "handslot.r"}],
-			[RANGER_MODEL_PATH, {"Ranger_Bow": "handslot.l", "Ranger_Quiver": "chest"}]]:
-		var ok := ResourceLoader.exists(spec[0])
-		var st := _mesh_stats(spec[0]) if ok else {"tris": 0, "glow": 0, "wrong": ["missing"]}
-		check(ok and st.tris > 0 and st.tris <= 7000 and st.wrong.is_empty(),
-			"%s: %d tris (≤ 7,000), glow rule (wrong: %s)" % [str(spec[0]).get_file(), st.tris, st.wrong])
-		var slots_ok := ok
+	# Story 25.31 S3 (AC 8/9, AH-3, V4, V5, R-9 refined): every class body is route RL's realistic body, checked on the RL
+	# rules by Test 19's GLB checker (the KayKit rig, the cast's 76 clips with the patrons' loops, none of the staff's
+	# clips, one <Role>_Body of <= 3 surfaces with the head projection, <= 2 textures at <= 1024², <= 10,000 tris with
+	# props, no metal, a top in 1.50-2.25; glow only on the Healer's staff, at roughness 0); its fallback is the class's
+	# body before S3; its props hang from their slots (a BoneAttachment3D on the slot or on an item bone whose parent is
+	# the slot: the glTF import's way); the game hides the carried ones (hand slots) and shows the worn ones.
+	var RPS = load(PATRON_SCRIPT_PATH)
+	for cls in DEMO_CLASSES:
+		var cb: Dictionary = CLASS_BODIES[cls]
+		var entry: Dictionary = classes.get(cls, {}) if classes is Dictionary else {}
+		check(str(entry.get("model_path", "")) == cb.path and str(entry.get("fallback_model_path", "")) == cb.fallback
+			and str(entry.get("look", "")) == "realistic" and ResourceLoader.exists(cb.fallback),
+			"%s: classes.json names its realistic body %s, look realistic, fallback %s (%s, %s, %s)" % [cls, str(cb.path).get_file(),
+			str(cb.fallback).get_file(), str(entry.get("model_path", "")).get_file(), str(entry.get("fallback_model_path", "")).get_file(), entry.get("look", "")])
+		_check_staff_glb(cb.path, [[], str(cb.prefix) + "_", (cb.props as Dictionary).keys(), [], STAFF_CLIPS, CAST_LOOPS, CAST_ONE_SHOTS,
+			RL_TRI_BUDGET, RL_BODY_SURFACES, "realistic", CLASS_GLOW.get(cls, [])])
+		if not ResourceLoader.exists(cb.path):
+			continue
+		var inst := (load(cb.path) as PackedScene).instantiate()
+		var sks := inst.find_children("*", "Skeleton3D", true, false)
+		var sk := sks[0] as Skeleton3D if not sks.is_empty() else null
 		var found := {}
-		var clip_n := 0
-		if ok:
-			var inst := (load(spec[0]) as PackedScene).instantiate()
-			var sks := inst.find_children("*", "Skeleton3D", true, false)
-			var sk := sks[0] as Skeleton3D if not sks.is_empty() else null   # no skeleton: fail, don't crash
-			slots_ok = sk != null
-			for prop in spec[1]:
-				var b := sk.find_bone(prop) if sk else -1
-				var parent := sk.get_bone_name(sk.get_bone_parent(b)) if b >= 0 and sk.get_bone_parent(b) >= 0 else ""
-				found[prop] = parent
-				if parent != spec[1][prop]:
-					slots_ok = false
-			var aps := inst.find_children("*", "AnimationPlayer", true, false)
-			clip_n = (aps[0] as AnimationPlayer).get_animation_list().size() if not aps.is_empty() else 0
-			inst.free()
-		check(slots_ok, "%s props hang from their slots %s" % [str(spec[0]).get_file(), found])
-		# Review 2026-10-03: the custom bodies carry all 76 KayKit clips (AC), and the Healer's staff crystal glows.
-		check(clip_n >= 76, "%s carries all 76 KayKit clips (%d)" % [str(spec[0]).get_file(), clip_n])
-		if spec[0] == HEALER_MODEL_PATH:
-			check(st.glow >= 1, "healer.glb: the staff crystal glows (%d emissive surfaces)" % st.glow)
+		var slots_ok := sk != null
+		for prop in cb.props:
+			var mis := inst.find_children(prop, "MeshInstance3D", true, false)    # (its BoneAttachment3D has the same name)
+			var mi: Node = mis[0] if not mis.is_empty() else null
+			var att: Node = mi.get_parent() if mi else null
+			while att != null and not att is BoneAttachment3D:
+				att = att.get_parent()
+			var bone := str((att as BoneAttachment3D).bone_name) if att else ""
+			var bi := sk.find_bone(bone) if sk and bone != "" else -1
+			var par := sk.get_bone_name(sk.get_bone_parent(bi)) if bi >= 0 and sk.get_bone_parent(bi) >= 0 else ""
+			found[prop] = bone if bone == cb.props[prop] else par
+			if found[prop] != cb.props[prop]:
+				slots_ok = false
+		check(slots_ok, "%s: its props hang from their slots %s (want %s)" % [cls, found, cb.props])
+		# the look gate on its own body (the patron's dress_body): the carried props hidden, the worn ones shown; the
+		# Healer's crystal keeps its glow as a toon copy at roughness 0 with no outline (V5), the body never glows
+		var variant := {"id": cls, "look": "realistic", "model_path": cb.path}
+		RPS.dress_body(inst, variant, false)
+		var shown := []
+		var hidden_worn := []
+		for prop in cb.props:
+			var mi := inst.find_child(prop, true, false) as Node3D
+			var vis := _visible_up(mi)
+			if str(cb.props[prop]).begins_with("handslot") and vis:
+				shown.append(prop)
+			elif not str(cb.props[prop]).begins_with("handslot") and not vis:
+				hidden_worn.append(prop)
+		check(shown.is_empty() and hidden_worn.is_empty(),
+			"%s: empty-handed (R-9): carried props shown %s (none), worn props hidden %s (none)" % [cls, shown, hidden_worn])
+		var glow_wrong := []
+		var glows := 0
+		for mi in inst.find_children("*", "MeshInstance3D", true, false):
+			var mesh: Mesh = (mi as MeshInstance3D).mesh
+			for s in (mesh.get_surface_count() if mesh else 0):
+				var m = (mi as MeshInstance3D).get_surface_override_material(s)
+				if m is BaseMaterial3D and (m as BaseMaterial3D).emission_enabled:
+					glows += 1
+					if not str(mi.name) in CLASS_GLOW.get(cls, []) or (m as BaseMaterial3D).roughness != 0.0 or (m as Material).next_pass != null:
+						glow_wrong.append("%s/%d" % [mi.name, s])
+				elif m is ShaderMaterial and (m as ShaderMaterial).get_shader_parameter("emission_energy") != null:
+					glow_wrong.append("%s/%d shader emission" % [mi.name, s])
+		check(glow_wrong.is_empty() and (glows >= 1) == CLASS_GLOW.has(cls),
+			"%s: after the look, glow only on %s at roughness 0 with no outline (%d glowing, wrong %s)" % [cls, CLASS_GLOW.get(cls, []), glows, glow_wrong])
+		inst.free()
+	# the bodies before S3 stay as fallbacks: 25.9's Healer and Ranger on their old rules (the crystal still glows)
+	for fb in [CLASS_BODIES.Healer.fallback, CLASS_BODIES.Ranger.fallback]:
+		var ok := ResourceLoader.exists(fb)
+		var st := _mesh_stats(fb) if ok else {"tris": 0, "glow": 0, "wrong": ["missing"]}
+		check(ok and st.tris > 0 and st.tris <= 7000 and st.wrong.is_empty() and (st.glow >= 1 or fb != CLASS_BODIES.Healer.fallback),
+			"fallback %s: %d tris (≤ 7,000), glow rule (wrong: %s), the Healer's crystal glows (%d)" % [str(fb).get_file(), st.tris, st.wrong, st.glow])
 	var gm = load(GAME_MANAGER_PATH) as Script
 	var has_bonus: bool = gm != null and gm.get_script_method_list().any(func(m): return m.name == "recruit_class_bonus")
 	check(has_bonus and DEMO_CLASSES.all(func(c): return not gm.recruit_class_bonus(c).is_empty())
@@ -2110,7 +2181,38 @@ func test_class_roster() -> void:
 		and all_w > 0.0 and class_w / all_w < 0.25,
 		"the patron pool still seats Healers and Rangers, as a minority of travelling adventurers (%.0f%%), and every pool model exists"
 		% (100.0 * class_w / maxf(all_w, 0.001)))
+	# Story 25.31 S3 (AC 9, AH-6, V11): six adventurer entries, one per class, on the same realistic files as classes.json
+	# (look realistic, the class's old body as the fallback, the measured speeds, head tops and tankard size); the hooded
+	# Rogue retired; each adventurer's names fit its body
+	var advs := entries.filter(func(v): return str(v.get("role", "")) == "adventurer")
+	var adv_wrong := []
+	for cls in DEMO_CLASSES:
+		var cb: Dictionary = CLASS_BODIES[cls]
+		var hit := advs.filter(func(v): return str(v.get("model_path", "")) == cb.path)
+		if hit.size() != 1:
+			adv_wrong.append("%s: %d entries" % [cls, hit.size()])
+			continue
+		var v: Dictionary = hit[0]
+		var nums_ok := ["walk_ground_speed", "run_ground_speed", "head_top", "sit_head_top", "tankard_scale"].all(
+			func(k): return (v.get(k) is float or v.get(k) is int) and float(v.get(k)) > 0.0)
+		if str(v.get("look", "")) != "realistic" or str(v.get("fallback_model_path", "")) != cb.fallback or str(v.get("names", "")) != cb.names 				or not nums_ok or absf(float(v.get("walk_ground_speed", 0)) - float(cb.ground[0])) > 0.005 				or absf(float(v.get("run_ground_speed", 0)) - float(cb.ground[1])) > 0.005 or str(v.get("origin_type", "")) != "traveler":
+			adv_wrong.append("%s: look '%s' fallback %s names %s speeds %s/%s" % [cls, v.get("look", ""), str(v.get("fallback_model_path", "")).get_file(),
+				v.get("names", ""), v.get("walk_ground_speed"), v.get("run_ground_speed")])
+	check(advs.size() == 6 and adv_wrong.is_empty() and not entries.any(func(v): return str(v.get("model_path", "")).contains("Rogue_Hooded") or str(v.get("id", "")) == "adventurer_rogue_hooded"),
+		"the six adventurers are the class bodies (look realistic, their old bodies as fallbacks, measured speeds, names by body), no hooded Rogue (AH-6): %d %s" % [advs.size(), adv_wrong])
 	print("")
+
+
+## A node and every Node3D above it visible (an instance not in the tree: is_visible_in_tree() can't answer).
+static func _visible_up(n: Node) -> bool:
+	if n == null:
+		return false
+	var cur: Node = n
+	while cur != null:
+		if cur is Node3D and not (cur as Node3D).visible:
+			return false
+		cur = cur.get_parent()
+	return true
 
 
 ## Review 2026-10-03 (Story 25.9): the hire pool survives an empty or malformed class list; the
@@ -2493,6 +2595,65 @@ func test_townsfolk_runtime() -> void:
 			why.append("%s: fallback %s look '%s' rate %.3f/%.3f shown %d lift %.2f" % [id, vil.using_fallback, vil.body_look, vil.walk_rate, want_walk, shown.size(), vil.bubble_lift()])
 		vil.queue_free()
 	check(why.is_empty(), "villagers: each on its own realistic body, hands empty, Walking_A at walk_speed / its ground speed, the bubble over its head %s" % [why])
+	world.queue_free()
+	await process_frame
+	print("")
+
+
+## Test 15, runtime part (Story 25.31 S3, AC 9, V11, AH-7, R-9 refined): each class body as a patron through
+## RealisticPatron itself: its own body (not the fallback), the toon look, the carried props hidden and the worn ones
+## shown, Running_A at SPEED / its measured ground speed, the realistic tankard size; holding the tankard (and
+## dropping it) never shows the right hand's props; an old save's KayKit Knight (no longer in the pool) re-picks a body
+## by origin.
+func test_class_runtime() -> void:
+	print("[Test 15] The class bodies at runtime: look gate, empty hands, rates, the tankard, old saves")
+	var world := Node3D.new()
+	root.add_child(world)
+	var RPS = load(PATRON_SCRIPT_PATH)
+	var pool: Array = RPS.townsfolk_pool()
+	var p = (load("res://scenes/npcs/RealisticPatron.tscn") as PackedScene).instantiate()
+	p.set_physics_process(false)
+	world.add_child(p)
+	await process_frame
+	var why := []
+	for cls in DEMO_CLASSES:
+		var cb: Dictionary = CLASS_BODIES[cls]
+		var hit := pool.filter(func(v): return str(v.get("model_path", "")) == cb.path)
+		if hit.is_empty():
+			why.append("%s: not in the pool" % cls)
+			continue
+		var v: Dictionary = hit[0]
+		p._swap_to_model(cb.path, v)
+		var toned := 0
+		for mi in p.patron_body_mesh.find_children("*", "MeshInstance3D", true, false):
+			for s in ((mi as MeshInstance3D).mesh.get_surface_count() if (mi as MeshInstance3D).mesh else 0):
+				var m = (mi as MeshInstance3D).get_surface_override_material(s)
+				if m is Material and (m as Material).has_meta(&"anime_toon"):
+					toned += 1
+		var want_rate: float = RPS.SPEED / float(v.get("run_ground_speed", 1.0))
+		var shown: Array = RPS.hand_props(p.patron_body_mesh).filter(func(a): return (a as Node3D).visible)
+		var worn_hidden := []
+		for prop in cb.props:
+			if not str(cb.props[prop]).begins_with("handslot") and not _visible_up(p.patron_body_mesh.find_child(prop, true, false)):
+				worn_hidden.append(prop)
+		if p.using_fallback or p.body_look != "realistic" or toned < 2 or absf(p.run_rate - want_rate) > 0.001 or not shown.is_empty() 				or not worn_hidden.is_empty() or p.current_model_path != cb.path or absf(p.tankard_scale - float(v.get("tankard_scale", 0.0))) > 0.001:
+			why.append("%s: fallback %s look '%s' toned %d rate %.3f/%.3f shown %d worn hidden %s" % [cls, p.using_fallback, p.body_look, toned, p.run_rate, want_rate, shown.size(), worn_hidden])
+		if cls == "Fighter":
+			p._hold_tankard(true)
+			var sword: Node = p.patron_body_mesh.find_child("Fighter_Sword", true, false)
+			if p._tankard == null or _visible_up(sword):
+				why.append("Fighter: the tankard %s, the sword shown while drinking %s" % [p._tankard, _visible_up(sword)])
+			p._drop_tankard()
+			if _visible_up(p.patron_body_mesh.find_child("Fighter_Sword", true, false)):
+				why.append("Fighter: dropping the tankard showed his sword")
+	check(why.is_empty(), "patrons: each class on its own realistic body: toon look, carried props hidden and worn ones shown, Running_A at SPEED / its ground speed, its tankard size, the sword stays hidden round the tankard %s" % [why])
+	var save := {"position": [0.0, 0.0, 0.0], "state": RPS.PatronState.SEATED, "name": "Gareth Bold", "origin": "the north road",
+		"origin_type": "traveler", "payment": 8, "model_path": "res://assets/characters/models/kaykit_adventurers/Knight.glb"}
+	p.restore_from_save(save, Vector3.ZERO, Vector3.ZERO, 0, null)
+	var paths := pool.map(func(v): return str(v.get("model_path", "")))
+	check(p.current_model_path in paths and not p.current_model_path.contains("kaykit_adventurers") and not p.using_fallback,
+		"old saves (AH-7): a saved KayKit Knight (not in the pool any more) comes back on a realistic traveller's body (%s)" % p.current_model_path.get_file())
+	p.queue_free()
 	world.queue_free()
 	await process_frame
 	print("")
@@ -3431,6 +3592,7 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 	var tri_budget: int = rule[7]
 	var cap: int = rule[8]
 	var route: String = str(rule[9]) if rule.size() > 9 else "anime"
+	var glow_ok: Array = rule[10] if rule.size() > 10 else []      # AH-3 / V5: the meshes that may glow (props only)
 	var rl := route == "realistic"
 	var tri_cap: int = RL_TRI_CAP if rl else AN_TRI_CAP
 	var want_clips := 76 + own.size()
@@ -3520,8 +3682,11 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 				metal.append(str(m.name))
 	inst.free()
 	var st := _mesh_stats(path)
-	check(st.tris > 0 and st.tris <= tri_budget and st.glow == 0 and st.wrong.is_empty() and metal.is_empty(),
-		"%s: %d tris (≤ %d), nothing glows, roughness > 0, no metal (wrong %s, metal %s)" % [fname, st.tris, tri_budget, st.wrong, metal])
+	var glow_bad: Array = st.glow_nodes.filter(func(n): return not glow_ok.has(n))
+	var glow_missing: Array = glow_ok.filter(func(n): return not st.glow_nodes.has(n))
+	check(st.tris > 0 and st.tris <= tri_budget and glow_bad.is_empty() and glow_missing.is_empty() and st.wrong.is_empty() and metal.is_empty(),
+		"%s: %d tris (≤ %d), glow only on %s (glowing %s), emissive at roughness 0 and the rest > 0, no metal (wrong %s, metal %s)"
+		% [fname, st.tris, tri_budget, glow_ok, st.glow_nodes, st.wrong, metal])
 	var top := -INF
 	var gnodes := _scene_nodes(path)
 	for k in gnodes:
