@@ -699,9 +699,33 @@ func _input(event: InputEvent) -> void:
 			var presets: Array = ANIME_LOOK.preset_names()
 			ANIME_LOOK.set_preset(presets[(presets.find(ANIME_LOOK.preset()) + 1) % presets.size()])
 			retone_cast()
+		KEY_F4:
+			toggle_edge_pass()
 		_:
 			return
 	_show_label()
+
+
+## Dev: show/hide the screen's edge pass (edge_detection.gdshader on the camera's quad, render layer 20) to see the
+## hall without the ink. Returns the new visibility (true when there is no quad).
+func toggle_edge_pass() -> bool:
+	var q := edge_pass()
+	if q == null:
+		push_warning("[TavernLighting] no edge pass quad under the camera")
+		return true
+	q.visible = not q.visible
+	return q.visible
+
+
+## The camera's edge pass quad (its MeshInstance3D on the ink layer), or null.
+func edge_pass() -> MeshInstance3D:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return null
+	for c in cam.get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).layers == INK_LAYER_MASK:
+			return c
+	return null
 
 
 ## Re-tone every body in the hall with the active shading preset (each toned body's mesh parents).
@@ -739,6 +763,7 @@ func _show_label() -> void:
 		_label.add_theme_constant_override("outline_size", 4)
 		layer.add_child(_label)
 	var c := current()
-	_label.text = "mood %s / phase %s / preset %s" % [c.mood, c.phase, c.preset]
+	var q := edge_pass()
+	_label.text = "mood %s / phase %s / preset %s / edges %s" % [c.mood, c.phase, c.preset, "off" if q and not q.visible else "on"]
 	_label.visible = true
 	_label_left = 3.0
