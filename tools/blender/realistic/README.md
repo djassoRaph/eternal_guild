@@ -189,7 +189,10 @@ own body before a build), each from the base's retargeted clips kept as `SRC_*` 
 ## Budgets (AH-15)
 
 `RL_TRI_BUDGET` 10,000 per body with props (14,000 only with re-measured hall and town budgets); <= 3 surfaces on
-`<Role>_Body`; <= 2 textures at <= 1024², mipmaps on; top 1.50–2.25 with headwear (the 2.30 m lintel rule).
+`<Role>_Body`; <= 2 textures at <= 1024², mipmaps on; top 1.50–2.25 with headwear (the 2.30 m lintel rule). The 15
+bodies: 6,522–9,530 tris, 2 surfaces, 2 textures each (120 MiB of textures for the cast). The hall (VISIBLE 196 at 24
+bodies, 0.49 ms) and the first town budget (VISIBLE 200 / SHADOW 500 at 24 bodies under the 4-split sun, 0.78 ms) were
+measured with the full cast at 25.31 T-end: 08 §1, "Budgets".
 
 ## Files
 

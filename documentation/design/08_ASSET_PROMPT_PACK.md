@@ -6,8 +6,8 @@
 > Stage B–C prompts go into Claude Code **on your PC**, with Blender open and a
 > Blender MCP connected. Every size and budget here was measured from files in this
 > repo. If a number and your eye disagree, trust a KayKit model imported next to
-> the new asset. Characters are the exception: they follow the anime character
-> spec in §1 (route AN).
+> the new asset. Characters are the exception: they follow the realistic character
+> spec in §1 (route RL; rewritten by Story 25.31).
 
 ---
 
@@ -39,23 +39,19 @@ An honest check against your own docs:
 
 ## 1. The style rule: environment and characters
 
-> **Interim, 2026-10-04 (sprint-change-proposal-2026-10-04.md):** the cast is REALISTIC now, not anime
-> (R-1). Route RL (`tools/blender/realistic/`, rig REAL-1: 1.86 m, ~7.35 heads, leg ratio 2.154; REAL-2
-> for women, ~1.70 m, a slimmer frame) replaces route AN for every new character; the AN spec below
-> stays valid only for the anime Quest Dealer, her fallback body. Until Story 25.31 rewrites this
-> section, the AN rules apply to RL except: proportions (REAL-1, REAL-2), faces (projected from the
-> picked concept sheet), textures (≤ 2 per body at ≤ 1024², mipmaps on), seats (bar stools ~0.70, R-5)
-> and the look's preset and ink width (picked in Story 25.23). The concept prompts (§1 "Character
-> concepts") are already realistic.
+> **Since 2026-10-04 (sprint-change-proposal-2026-10-04.md, R-1):** the cast is REALISTIC, not anime.
+> Route RL (`tools/blender/realistic/`, rigs REAL-1 for men and REAL-2 for women) replaced route AN;
+> Story 25.31 built the human cast on it and rewrote this section (2026-10-04). The AN spec is kept at
+> the end of the character spec as an appendix: it still governs the anime Quest Dealer, her fallback body.
 
-Since 2026-09-26 the style rule has two halves (decision A-1, Story 25.30):
+The style rule has two halves (A-1, 2026-09-26; the characters' half realistic since R-1, 2026-10-04):
 
 - **Environment** (buildings, rooms, furniture, props, landmarks, tiles): the KayKit box, below.
   Unchanged.
 - **Characters** (the people of the cast: the staff, patrons, adventurers, the player, townsfolk):
-  anime, route AN. The look is summed up under "Characters" below; the rules are the
-  **character spec (route AN)** at the end of this section. Den Fa and the Cat are Story 25.32's
-  (Den Fa keeps his own rig).
+  realistic, route RL. The look is summed up under "Characters" below; the rules are the
+  **character spec (route RL)** after the build contract. Den Fa and the Cat are Story 25.32's
+  (restyled realistic on their own rigs, R-3).
 
 The build contract below holds for both.
 
@@ -90,25 +86,31 @@ this look comes from the edge-detection outlines, the flat atlas colours and har
 from the models, so the modelling rules above don't change. Picked key art: K1 inked v1, K2 =
 style test S2 v1 (it came out inked despite its "pixel" prompt), K3 inked v1.
 
-### Characters: anime (route AN) — added by Story 25.30
+### Characters: realistic (route RL) — rewritten by Story 25.31
 
-Decided 2026-09-26 (GDD decision log, A-1 to A-7). The environment above keeps its look (A-5); the
-cast becomes anime:
+Decided 2026-10-04 (GDD decision log R-1…R-9, reversing A-1's anime for humans; first proved by the
+realistic Bartender spike, `5ae8dc0`). The environment above keeps its models and inked look (A-5;
+25.23 changed only the hall's lights):
 
-- **SD proportions, slim:** about 3.5 heads, top ≤ 2.25 m.
-- **Two-tone toon shading and dark ink outlines,** applied in Godot when the body loads. They are not
-  modelled or painted in.
-- **Painted anime faces** on a face texture. At game zoom only the eyes must read; faces proper are
-  read in the dialogue portraits (A-2). The camera stays at ortho 12.
-- **Flat colours from the body's own small palette atlas,** not the KayKit atlas. Still **no baked
-  lighting**.
-- **Hair as opaque clumps,** never alpha cards.
-- **Under the hood:** the KayKit skeleton (all 41 joints) with its rest pose stretched, so the 76
-  KayKit clips keep working.
-- **References:** Raphael's silver-haired elf
-  (`F:\GAME I AM MAKING\documentation\artwork\use to inspire\b624803154761def2546d2e3207271d0.jpg`)
-  and the approved anime test, `<art>/anime_test/anime_test_report.jpg`.
-- **A demo cast:** Claude builds the Kickstarter demo's cast; after funding, paid 3D artists redo
+- **Realistic adult proportions:** about 7–7.5 heads; men on REAL-1 (1.86 m), women on REAL-2
+  (1.70 m); tops 1.50–2.25 m with headwear (the front door's 2.30 m lintel).
+- **Gritty cel shading with ink outlines,** applied in Godot when the body loads (`anime_look.gd`,
+  the same runtime as the anime dealer's): two toon tones, the ink hull, a muted, desaturated, earthy
+  palette (R-7), worn and patched clothes, weathered faces. Not modelled or painted in.
+- **Faces projected from the picked concept sheet** (no painted anime face presets): each character's
+  turnaround is painted with n8n (AH-2), Raphael picks one, and the head texture is cut from it and
+  baked seamless. At ortho 12 a head is about 11 px tall: faces proper are read in the dialogue
+  portraits (A-2), silhouettes, headwear, beards and coats at game zoom.
+- **Two textures per body:** the projected head and a painted body atlas, ≤ 1024², mipmaps on. Still
+  **no baked lighting**.
+- **Hair as opaque shells and falls,** never alpha cards.
+- **Under the hood:** the KayKit skeleton (all 41 joints) with its rest pose re-proportioned, so the
+  76 KayKit clips keep working (retargeted, the sits re-fitted, one arm pass).
+- **Hands empty (R-9):** carried items (weapons, staves, the quill, the cane) are separate props on
+  their slots, hidden by default and shown by the game only when it makes sense; worn gear shows.
+- **References:** each character's pick, `<art>/picked/C_<id>.png` (the concept jobs: "Character
+  concepts" below); the spike, `<art>/realistic_test/`.
+- **A demo cast:** Claude built the Kickstarter demo's cast; after funding, paid 3D artists may redo
   it to the character spec below, and the bodies swap by data path (A-6). Colours are demo-grade
   and never block anything.
 
@@ -117,8 +119,7 @@ cast becomes anime:
 These sit on top of the style rules above. Every new asset card (Epic 25 / Epic 26 stories)
 assumes them. **They stay in force for characters:** metres, +Y up, origin at bottom-centre on
 0,0,0 (for a character, that is the armature root, between the feet), and a snake_case asset id
-(`g13_quest_dealer_anime`). The character spec at the end of this section adds the character
-rules.
+(`g12_bartender_real`). The character spec after this list adds the character rules.
 
 - **Units and origin:** metres; +Y up in Godot (Z-up in Blender, exported with +Y Up ON); origin
   at bottom-centre on 0,0,0; all transforms applied.
@@ -150,7 +151,8 @@ rules.
   | Hex topper / landmark | ≤ 3,000 | `building_tavern_blue` 2,992 (only a capital earns more: castle 5,659) |
   | Hero interior piece (pillar, hearth, bar) | ≤ 5,000 | — |
   | Walkable exterior building | ≤ 8,000 | — |
-  | Character (route AN, measured 2026-09-27) | ≤ 10,000 per body (`AN_TRI_BUDGET`: the whole GLB, props included) and ≤ 3 surfaces on `<Role>_Body`; the anime Quest Dealer measured 9,459 with her quill (character spec, Budgets) | `Knight.glb` 6,952 in total (≈ 4.6k body + ≈ 2.3k gear across 15 meshes) |
+  | Character (route RL, measured 2026-10-04) | ≤ 10,000 per body (`RL_TRI_BUDGET`: the whole GLB, props included; 14,000 only with re-measured hall and town budgets), ≤ 3 surfaces on `<Role>_Body`, ≤ 2 textures at ≤ 1024²; the 15 RL bodies measured 6,522–9,530 (character spec, Budgets) | `Knight.glb` 6,952 in total (≈ 4.6k body + ≈ 2.3k gear across 15 meshes) |
+  | Character (route AN, the fallback anime dealer) | ≤ 10,000 (`AN_TRI_BUDGET`), ≤ 3 surfaces; she measured 9,459 with her quill | — |
 
 - **Export folders:**
   - Props, buildings, landmarks: `res://assets/environment/custom/<asset_id>.gltf` (glTF Separate, §6.4).
@@ -162,7 +164,308 @@ rules.
 - **Quick check:** `scenes/dev/LookDev.tscn` (tavern or map preset) before the in-scene Stage D
   pass (§6.5).
 
-### Character spec (route AN) — added by Story 25.30
+### Character spec (route RL) — rewritten by Story 25.31
+
+This is the contract every realistic body meets, whoever builds it: Claude through the Blender MCP
+for the demo, or a paid 3D artist after the Kickstarter (A-6). The scripts in
+`tools/blender/realistic/` (their `README.md` lists the chain and every character's steps) are how
+the demo cast was built; they run route AN's generic chain (`tools/blender/anime/`) from their own
+chain configs. An artist may model and paint by hand instead, as long as the body starts from its
+base and passes every rule and check below. Every number here was measured in Story 25.31
+(2026-10-04) on the 15 RL bodies. Where this spec says nothing, the AN appendix below applies
+(weights, normals, export, the import keys): the two routes share the pipeline code and the runtime.
+
+**Where things live:**
+
+| What | Where |
+|---|---|
+| The pipeline scripts (versioned) | `<project>/tools/blender/realistic/` (+ route AN's generic modules in `tools/blender/anime/`) and their `README.md`s |
+| The KayKit source (never modified) | `<art>/blender/g19_g24_townsfolk_kit.blend`: the KayKit rig and its 76 clips |
+| The bases | `<art>/blender/realistic_base.blend` (REAL-1) and `realistic_base_w.blend` (REAL-2), each with its `_kaykit_feet/_sit/_rest.json`, `_foot_report.json` and `_arm_src.json` |
+| A character's file | `<art>/blender/<id>.blend`, a save-as of its base (`open_base_as`; e.g. `g12_bartender_real.blend`) |
+| Its textures | `<art>/textures/realistic/<id>_head.png` (the projection), `<id>_headpaint.png` (the baked head, shipped), `<id>_body.png` (the body atlas) |
+| Its concept pick | `<art>/picked/C_<job id>.png` (e.g. `C_G12_bartender.png`) |
+| The game file | `res://assets/characters/custom/<id>.glb` (the RL bodies end in `_real`) |
+| The look at runtime | `res://scripts/game/anime_look.gd` (it serves both routes), `res://assets/characters/materials/anime_outline.tres`, `anime_toon.gdshader` (the shader presets) |
+
+#### The bodies (the demo cast, 2026-10-04)
+
+| Catalogue | Character | Base | GLB (`custom/`) | Tris (props) | Surfaces | Clips | Top (m) | Fallback body |
+|---|---|---|---|---|---|---|---|---|
+| G1 | the player | REAL-1 | `g1_player_real.glb` | 9,180 (sword 184) | 2 | 76 | 1.86 | KayKit `Rogue.glb` |
+| G12 | the Bartender | REAL-1 | `g12_bartender_real.glb` | 9,082 (cloths 120 + 272) | 2 | 81 | 1.86 | `g12_bartender.glb` (25.13) |
+| G13 | the Quest Dealer | REAL-2 | `g13_quest_dealer_real.glb` | 9,156 (quill 32) | 2 | 79 | 1.72 | `g13_quest_dealer_anime_v2.glb` (route AN, the face-seam fix) |
+| G2 | Fighter | REAL-1 | `g2_fighter_real.glb` | 7,672 (sword, shield) | 2 | 76 | 1.84 | KayKit `Knight.glb` |
+| G3 | Rogue | REAL-2 | `g3_rogue_real.glb` | 7,600 (worn daggers) | 2 | 76 | 1.72 | KayKit `Rogue.glb` |
+| G4 | Mage | REAL-1 | `g4_mage_real.glb` | 8,298 (staff) | 2 | 76 | 1.93 | KayKit `Mage.glb` |
+| G5 | Healer | REAL-2 | `g5_healer_real.glb` | 9,056 (crystal staff) | 2 | 76 | 1.80 | `healer.glb` (25.9) |
+| G6 | Barbarian | REAL-1 | `g6_barbarian_real.glb` | 8,792 (axe) | 2 | 76 | 1.85 | KayKit `Barbarian.glb` |
+| G7 | Ranger | REAL-2 | `g7_ranger_real.glb` | 8,084 (bow, worn quiver) | 2 | 76 | 1.72 | `ranger.glb` (25.9) |
+| G19 | farmer | REAL-1 | `g19_farmer_real.glb` | 6,622 | 2 | 76 | 1.93 | `townsfolk_farmer.glb` (25.14) |
+| G19 | local | REAL-1 | `g19_local_real.glb` | 6,522 | 2 | 76 | 1.90 | `townsfolk_local.glb` |
+| G19 | traveller | REAL-1 | `g19_traveller_real.glb` | 8,000 | 2 | 76 | 1.85 | `townsfolk_traveller.glb` |
+| G19 | guard | REAL-1 | `g19_guard_real.glb` | 7,120 | 2 | 76 | 1.94 | `townsfolk_guard.glb` |
+| G19 | merchant | REAL-1 | `g19_merchant_real.glb` | 9,530 (worn purse 148) | 2 | 76 | 1.93 | `townsfolk_merchant.glb` |
+| G24 | old woman | REAL-2 | `g19_old_woman_real.glb` | 7,568 (cane 68) | 2 | 76 | 1.73 | `townsfolk_old_woman.glb` |
+
+Den Fa (G9) and the Cat (G11) are Story 25.32's, on their own rigs. The KayKit Knight stays in LookDev as the
+scale reference.
+
+#### Proportions: the two bases
+
+- **REAL-1 (men): 1.86 m, about 7.35 heads,** from the spike's concept sheet. **REAL-2 (women):
+  1.70 m,** REAL-1's heights scaled about KayKit's ankle (0.9067), shoulders 0.170 off the midline,
+  hips 0.095, hands × 0.92. Both keep KayKit's bone directions and rolls; only heads and lengths
+  change (`real_chain.REAL_1` / `REAL_2` tables; armature space, metres):
+
+  | Bone | REAL-1 head (x, y, z), length | REAL-2 head (x, y, z), length |
+  |---|---|---|
+  | `hips` | (0, 0, 0.900), 0.170 | (0, 0, 0.8296), 0.1541 |
+  | `spine` | (0, 0, 1.070), 0.250 | (0, 0, 0.9837), 0.2267 |
+  | `chest` | (0, −0.010, 1.320), 0.240 | (0, −0.0091, 1.2104), 0.2176 |
+  | `head` | (0, −0.050, 1.580), 0.240 | (0, −0.0453, 1.4461), 0.2176 |
+  | `upperarm.l` | (0.195, 0, 1.480), 0.300 | (0.170, 0, 1.3555), 0.2720 |
+  | `lowerarm.l` | the upper arm's tail, 0.270 | (0.4416, 0.0156, 1.3555), 0.2448 |
+  | `wrist.l`, `hand.l` | 0.074, 0.112 (KayKit's) | 0.0679, 0.1030 |
+  | `handslot.l` | the palm: 0.080 along the forearm from the wrist, 0.026 palm-side | (0.7595, −0.0014, 1.3315) |
+  | `upperleg.l` | (0.100, 0, 0.950), 0.440 | (0.095, 0, 0.8749), 0.3992 |
+  | `lowerleg.l` | the knee, 0.510 down to KayKit's ankle (0.145) | (0.095, −0.0139, 0.4759), 0.3360 |
+  | `foot.l`, `toes.l` | KayKit's | KayKit's |
+
+- **Leg ratios:** REAL-1 **2.1537**, REAL-2 **1.9527** (thigh + shin over KayKit's 0.3765).
+- **`Base_Body`** on each base is a neutral, clothing-less mannequin (`real_body.build_neutral`,
+  `real_chain.MAN` / `WOMAN`): REAL-1 an average man (flat stomach), REAL-2 a woman (waist, hips, a
+  round bust, slimmer limbs, a smaller head, hands and boots). It is never exported; the sit re-fit,
+  the foot report and the arm pass are measured on it. Girth and a belly are a character's own params
+  (the Bartender's belly, the Barbarian's `burly_ring`), never a base's.
+- **Tops 1.50–2.25 m with headwear** (Test 19's `RL_TOP`; the lintel 2.30 − 0.05). REAL-1's 1.86
+  leaves ~0.39 m for headwear (the Mage's floppy hat tops out at 1.93).
+- **Seated room at the guild desk:** the realistic dealer's seated shoulders are 1.034 m above the
+  root, under 25.30's desk top + 0.20 (1.05); her `hip_back` is 0.45 (her arms reach the ledger
+  from there). Raise the desk stool or lower the desk is Raphael's call (Story 25.31 S1); Test 19
+  holds the measured 1.03 (`RL_SEATED_SHOULDER_MIN_W`) until then.
+
+#### The rig and clip contract
+
+- **The 41 joints, all kept, with KayKit's names** (Godot shows 42: it adds a root), as in the AN
+  appendix.
+- **The retarget** (once per base): the hips and root location keys × the base's leg ratio in all
+  76 clips, each action stamped; never run twice, never scale a character file's clips in place.
+- **The sit re-fit** (`anime_retarget.refit_sit(..., seat_y=0.45)`), iterated (seat solve → foot IK →
+  re-measure) until the error is < 0.002: the hips 0.397 behind the root, the feet planted, the
+  seated hips at **`SIT_HIPS_Y` 0.5124 (REAL-1)** and **0.5164 (REAL-2**, Test 19
+  `RL_SIT_HIPS_Y_W`). Every chair and table spot is 0.45; the **bar stools** are 0.72 with a foot
+  ring and footrest at 0.27 = seat − 0.45 (R-5, `b2_bar_stool_tall.gltf`): `RealisticPatron` lifts
+  the sitter by `SIT_LIFT` 0.27 there (eased in with Sit_Chair_Down), so the planted feet land on the
+  footrest. A body whose seat thickness differs from its base's by more than 0.03 m runs
+  `refit_sit("<Role>_Body")` in its own file; none of the 15 did (every seat within 0.02 of its base's).
+- **The arm pass** (`real_arms.py`, once per base, on Idle, Walking_A, Running_A, the three
+  Sit_Chair clips, Cheer and Interact): KayKit holds the arms 35–60° out from a chibi body; each key's
+  upper arm turns toward the body, 0.03 m clear of `Base_Body`, ≤ 45°. A character wider than its
+  base turns its arms out again with `real_player.arms_out` (≤ 6°; the Barbarian 10°).
+- **The foot report** (73 clips, every contact frame within 0.03 m of the floor) is stamped on each
+  base; squats lock the feet (`squat_planted`).
+- **Clips per role** (N9: one armature per `.blend`, the file holds exactly these actions):
+
+  | Role | Clips in the GLB | Its own clips | Loops | Playback rate |
+  |---|---|---|---|---|
+  | G12 the Bartender (`bartender`) | **81** | Walk_Bar, Wipe, Pour, Serve, Restock (re-posed on his reach; Walk_Bar elbows tucked) | Idle, Walking_A, Walk_Bar, Sit_Chair_Idle, Wipe, Restock | body block speeds (`hall_speed` 1.03, `bar_speed` 0.86) |
+  | G13 the Quest Dealer (`desk_manager`) | **79** | Walk_Bar, Write, Brief | Idle, Walking_A, Walk_Bar, Sit_Chair_Idle, Write, Brief | body block (`hall_speed` 1.17, `bar_speed` 0.80) |
+  | G1 the player | **76** | none (Idle re-posed, Running_A kept: his run plays at 5.0 / 6.996 = **0.715**) | Idle, Running_A | `player.json` `run_ground_speed` |
+  | Patrons, townsfolk, class bodies | **76** | none (Idle re-posed by the clothes, Walking_A at its own stride, Running_A re-posed as a **jog**) | Idle, Walking_A, Running_A, Sit_Chair_Idle (one-shots: Sit_Chair_Down, Sit_Chair_StandUp, Cheer, Interact) | V9: the gameplay speed ÷ the measured ground speed (`walk_ground_speed` 1.03–1.21, `run_ground_speed` 2.00–2.80 m/s) |
+
+  The gameplay speeds never change for a body (player 5.0, patrons `SPEED` 2.5, villagers
+  `walk_speed` 1.2); only the clip's playback rate does, so nothing skates.
+- **Hand slots and props** (R-9 refined): a carried item is its own mesh parented to its slot bone
+  (BONE parent, built with the rig in rest, aimed from Idle's first frame), named with the role's
+  prefix (`Fighter_Sword`, `OldWoman_Cane`). Godot imports it as BoneAttachment3D `<Prop>` on an item
+  bone `<Prop>` under the slot, holding MeshInstance3D `<Prop>`: look the mesh up by class.
+  `RealisticPatron.dress_body` hides every prop on `handslot.l/.r` (or their item bones); worn props
+  (the player's sword and the Rogue's daggers on `hips`, the merchant's purse on `hips`, the Ranger's
+  quiver on `chest`) stay visible. The Bartender's cloths and the dealer's quill show only during
+  their actions.
+
+#### The body and its textures
+
+- **One joined, skinned `<Role>_Body`** with exactly one Armature modifier, ≤ 3 surfaces (every RL
+  body has 2: the head and the body atlas), weights ≤ 4 influences, unsplit smooth normals, scale 1,
+  one `UVMap`: the AN appendix's rules ("The body") hold unchanged; `anime_merge.check` prints them.
+- **The head texture is projected from the pick:** `real_layout` measures the concept sheet (per
+  view the centre column and the crown / eye and sole rows; `sheet_by_eyes` when a hat hides the
+  crown); `real_body.projection_uvs` gives each head face the view its normal faces most;
+  `real_paint.head_texture` cuts the crops; `real_bake.bake_head` blends the three views by the
+  normal and bakes them seamless (Cycles EMIT) into the head's own unwrap: `<id>_headpaint.png`, the
+  shipped head. A bake writes into every material's active image node: give the other slots a
+  throwaway node during it.
+- **The body atlas** (`real_paint.body_texture`): the clothes, skin and hair painted per region
+  (`real_layout.REG`), with worn, patched detail and no baked lighting; the palette muted and earthy
+  (R-7); distinctness: no green except the Ranger and the Rogue's small scarf, no cream except the
+  Healer, nothing near Den Fa's #26587e.
+- **Textures: ≤ 2 per body at ≤ 1024²** (Test 19's `RL_TEXTURES`, `RL_TEX_SIZE`), RGB, imported
+  Lossless with mipmaps and Detect 3D off (the game filters at half resolution, so painted grime
+  shimmers without mips). Each RL body ships two 1024² PNGs.
+- **Hair** as opaque shells (projected or painted) and falls, never cards; the arms must clear it.
+- **Long robes and skirts** (the Mage, the Healer, the old woman, the aprons and coats): the front
+  follows the thighs and, below the knee, the shins (`robe_w`), so check (b) (no thigh poking out,
+  `anime_clearcheck`) reads 0 pokes in Running_A and every sit clip; a seated back hem may hang
+  behind the chair (cloth, not the seat).
+
+#### Materials, glow and ink
+
+- **In Blender:** Principled BSDF, Alpha unlinked at 1.0, backface culling off, Metallic 0,
+  roughness above 0, no emission on any body material or any material the body shares (as the AN
+  appendix).
+- **Props may glow (AH-3, V5):** a prop's OWN material may emit, at roughness exactly 0 (the
+  Healer's crystal: `RT_Healer_Crystal`, base (0.05, 0.30, 0.10), emission (0.20, 1.0, 0.35) × 1.6).
+  `anime_merge.check` (`emission_ok`) fails emission on a body material, on one the body shares, and
+  an emissive material above roughness 0. At load `anime_look.gd` gives an emissive source a glow
+  copy in every preset: it keeps its emission, roughness 0 and **no outline** (light, not ink).
+- **The look at load** (`anime_look.apply`, called by `staff_npc.gd`, `player.gd`,
+  `RealisticPatron.dress_body` and `villager.gd` when the entry's `look` is `"realistic"` or
+  `"anime"`, on the entry's own body only, never on a fallback): every opaque surface gets a toon
+  copy (TOON diffuse, specular off, metallic 0) with the shared ink hull as its `next_pass`; one copy
+  per imported material, shared by every instance.
+- **The preset and the ink width** live in `data/config/game_config.json` ›
+  `anime_look_preset` / `anime_look_presets` (`approved`: `TOON_BAND` 0.12 and `anime_outline.tres`,
+  grow 0.011 m, ink (0.17, 0.09, 0.12); `darker_a`: grow 0.013; `darker_b`: grow 0.015). Today's
+  setting is `approved`. Raphael picks the cast's preset and its thicker ink (R-1) on Story 25.23's
+  D2 sheet in the picked mood; the pick only changes the config (and Test 23).
+- **The dark side** is albedo × the hall's ambient (the mood's, Story 25.23). The characters get no
+  light of their own (A-5).
+
+#### Budgets
+
+- **Per body (AH-15):** **≤ 10,000 tris** with props (`RL_TRI_BUDGET`; up to 14,000 only once the
+  hall and town budgets below are re-measured with it and still pass), **≤ 3 surfaces** on
+  `<Role>_Body` (≤ 6 render elements with the hull; a shown prop adds its surfaces × 2), **≤ 2
+  textures at ≤ 1024²**, mipmaps on. The 15 bodies: 6,522–9,530 tris, 2 surfaces, 2 textures each.
+- **Texture memory, the whole cast (measured 2026-10-04):** 30 unique textures (two per body), each
+  1024² RGB8 with mipmaps as uploaded = 4,194,303 bytes, **120 MiB** for the 15 bodies (read back
+  from the GPU in MainTavern); the hall's whole texture memory read 526 MiB at 24 bodies. Lossless
+  keeps the painted faces clean; VRAM compression (S3TC / BPTC, a third or less of that) is judged
+  by eye if memory ever matters.
+- **The hall (re-measured 2026-10-04 with the full realistic cast; Story 25.31 T-end):** the crowd
+  check (§6.5) in MainTavern, clones of all 15 RL GLBs (raw instances through `anime_look.apply`,
+  their props shown, looping Idle / Walking_A from staggered starts, 6 within the hearth light's
+  6 m), on top of the hall's own 6 (the Bartender, the Quest Dealer, the player, Den Fa, the Cat and
+  one spawned realistic patron); RTX 3080, V-Sync off, 2,900 frames per sample, render times summed
+  over the SubViewport and the root viewport:
+
+  | Bodies | Mood (run) | VISIBLE | SHADOW | GPU (ms) | CPU (ms) | fps |
+  |---|---|---|---|---|---|---|
+  | 6 (the hall's own) | today (1) | 99 | 0 | 0.290 | 0.243 | 1010 |
+  | 22 | today (1) | 187 | 0 | 0.341 | 0.308 | 807 |
+  | 24 | today (1) | 196 | 0 | 0.348 | 0.317 | 807 |
+  | 6 | moody_a (1: the patron seated in the hearth's range) | 101 | 73 | 0.421 | 0.319 | 1007 |
+  | 22 | moody_a (1) | 189 | 101 | 0.481 | 0.401 | 673 |
+  | 24 | moody_a (1) | 197 | 101 | 0.486 | 0.402 | 673 |
+  | 24 | moody_a (1), the hearth's shadow off | 197 | 0 | 0.367 | 0.322 | 806 |
+  | 24 | moody_b (1) | 197 | 101 | 0.490 | 0.404 | 673 |
+  | 6 | moody_a (2: three re-spawns, the patron 8.9–15.1 m away) | 100–101 | 65 | 0.423–0.427 | 0.313–0.317 | 1004–1008 |
+  | 24 | moody_a (2, the same three) | 197 | 93 | 0.489–0.493 | 0.401–0.407 | 672–674 |
+
+  - **VISIBLE ≤ 200 at 24 bodies: passes (196–197).** A realistic body is 2 surfaces + 2 hulls (4
+    VISIBLE); with props shown, the clones here are the worst case. The margin is small: a hall that
+    adds draws (a new prop, a third body surface, a KayKit fallback body with 7–15 surfaces) must be
+    re-measured.
+  - **SHADOW (Story 25.23's budget: 100 at 24 bodies, the hearth's dual paraboloid): 93 on the
+    protocol (6 clones in the hearth's range); 101 when the spawned patron also sat in it.** Each body
+    inside the hearth light's 6 m range adds 8 (4 elements × 2 views). Run 1's 101 is one over the
+    line, at 0.49 ms; the line is a draw-count guard (25.23's 97 rounded up), the pass is the time.
+  - **It passes the time line:** at 24 bodies the larger of the GPU and CPU times is 0.49 ms against
+    **8.3 ms**. No mitigation was needed.
+  - 25.23's S1-cast numbers (VISIBLE 179, SHADOW 97) were taken with the KayKit patrons and three RL
+    bodies; the full RL cast raises VISIBLE (more clones carry visible props) and lowers SHADOW.
+- **The town (measured 2026-10-04, Story 25.31 T-end; the first town budget):** ExteriorWorld (the
+  root viewport, the camera at size 25), the sun shadowed in its default 4-split PSSM (max distance
+  100 m), the six realistic villagers, the player (parked in the square), the Cat, then clones of the
+  RL bodies (all 15 kinds, props shown) standing and walking in the square in view, as a crowd of
+  patrons would; 21 of the 22 people on screen at 24 bodies; RTX 3080, V-Sync off, 2,900 frames per
+  sample:
+
+  | Bodies | Sun shadow | VISIBLE | SHADOW | GPU (ms) | CPU (ms) | fps |
+  |---|---|---|---|---|---|---|
+  | 8 (the town's own) | 4 splits | 91 | 274–278 | 0.676–0.689 | 0.293–0.296 | 808–811 |
+  | 16 | 4 splits | 133 | 360 | 0.718 | 0.359 | 808 |
+  | 24 | 4 splits | 185 | 494 | 0.779 | 0.449 | 674 |
+  | 24 | 2 splits | 183 | 272 | 0.718 | 0.366 | 676 |
+  | 24 | orthogonal | 184 | 212 | 0.698 | 0.337 | 807 |
+  | 24 | off (its share) | 186 | 0 | 0.548 | 0.235 | 813 |
+
+  - **Town budget: VISIBLE 200 and SHADOW 500 at 24 bodies** under the 4-split sun (185 and 494,
+    rounded up to the next 50, the hall's rule). Each body in view adds about 6 VISIBLE and 13–14
+    SHADOW (its elements in the splits that reach it).
+  - **It passes:** 0.78 ms at 24 bodies against **8.3 ms** (the reference machine: RTX 3080). The
+    sun's 4 splits cost 0.23 ms of GPU at 24 bodies; 2 splits halve the SHADOW draws if the town ever
+    needs headroom.
+  - Full numbers: Story 25.31's Debug Log (T-end).
+- **Measure again** when a body exceeds 10,000 tris, a body gains a surface, a hall or town light
+  starts casting, or the cast's count rises past 24 in one view.
+
+#### Export and import
+
+- As the AN appendix's "Export", with the RL file names: the `.blend` at `<art>/blender/<id>.blend`,
+  the GLB at `res://assets/characters/custom/<id>.glb` (`<id>` ending `_real`), a NEW name for every
+  rebuild (N5); the extracted images `<id>_<id>_body.png` and `<id>_<id>_headpaint.png`, each
+  `.png.import` Lossless, mipmaps on, Detect 3D off; the `.glb.import` LODs off and `_subresources`
+  looping exactly the role's loops (the table above). Re-export after every clip change; reimport
+  headless (`--import`, exit 139 is harmless).
+
+#### Data: bodies swap by data path (final, Story 25.31)
+
+Every body the game shows comes from data, with a fallback that exists (MOD-3, MOD-6). `look`:
+`"realistic"` (or `"anime"`, the same code path) tones the entry's own body; a fallback body is
+never toned. Before removing a fallback file, repoint the field in the same commit.
+
+| File | Entry | Fields | Read by |
+|---|---|---|---|
+| `data/characters/player.json` | the player (one man, AH-1) | `model_path`, `fallback_model_path`, `look`, `run_ground_speed` | `player.gd` at `_ready` (FileAccess; then `LAST_RESORT_BODY`, the KayKit Rogue) |
+| `data/characters/staff.json` | `roles.<role>.variants.<variant>` | `model_path`, `fallback_model_path`, `look`, `body` {…} | `staff_npc.gd` (`_load_model`, `_body()`; then `LAST_RESORT_BODY`) |
+| `data/characters/townsfolk.json` | `variants[]` (6 townsfolk + 6 adventurers) | `id`, `display_name`, `role`, `model_path`, `fallback_model_path`, `look`, `origin_type`, `weight`, `names`, `walk_ground_speed`, `run_ground_speed`, `head_top`, `sit_head_top`, `tankard_scale` | `RealisticPatron` (patrons: `_swap_to_model(path, variant)`, `dress_body`, `clip_rate`; `FALLBACK_MODELS` when the file is missing) and `villager.gd` (by `variant_id`) |
+| `data/characters/classes.json` | `<Class>` | `model_path`, `fallback_model_path`, `look` | DataManager (no 3D consumer yet; the adventurer patrons use the same files) |
+
+- **Body blocks** (staff only; every key a number > 0, `seated_front` may be ≤ 0; measured on the
+  skinned body):
+  - the Bartender: `hall_speed` 1.03, `bar_speed` 0.86, `serve_r` 1.92, `restock_r` 1.98, `ring_r`
+    1.80, `keg_r` 1.90, `gap_r` 1.98, `walk_bar_half_low` 0.318, `walk_bar_half_shelf` 0.318,
+    `walk_bar_half_mid` 0.341, `tankard_scale` 1.1 (`real_bar.py`);
+  - the Quest Dealer: `hip_back` 0.45, `stool_pull` 0.47, `seated_front` −0.23,
+    `walk_half_at_desk` 0.295, `idle_front` 0.127, `bubble_seated` 1.51, `hall_speed` 1.17,
+    `bar_speed` 0.80 (`anime_clearcheck` with her config). The keys' meanings: the AN appendix's table.
+- **Patrons and villagers** get no body block: `RealisticPatron`'s seat constants (`SIT_HIP_BACK`
+  0.397, `SIT_CLIP_SEAT` 0.45, `BAR_STOOL_SEAT` 0.72, `SIT_LIFT` 0.27) hold for every RL body; the
+  entry's speeds set the clip rates (V9), its head tops place the bubbles (+ 0.30 / 0.38 seated,
+  + 0.45 for villagers), `tankard_scale` 1.1 sizes the held tankard (KayKit bodies 1.8), and
+  `PatronSpawner.SEAT_ELBOW_ROOM` is 1.17 (the widest seated half-width 0.434 + 0.30).
+- **Old saves (AH-7):** a patron saves its entry's `model_path`; a saved path that is not in the pool
+  any more (a KayKit body) re-picks a body by `origin_type`.
+- The adventurer pool: six entries on the class files (`adventurer_fighter` … `adventurer_ranger`);
+  the hooded Rogue retired (AH-6); townsfolk weight share 0.846 (Test 16: ≤ 0.85).
+
+#### Validation
+
+- **In Blender:** `anime_merge.check` every row OK (with `emission_ok`); the top within 1.50–2.25;
+  the base's foot report and arm pass stamped (`open_base_as` refuses otherwise); for a role at
+  furniture, its clearance report (`real_bar.report` for the Bartender, `anime_clearcheck` for the
+  dealer's desk); check (b) for skirts, robes and aprons (0 pokes in Running_A and the sits); every
+  check shown to report a hit on a deliberately bad pose before its zero is trusted.
+- **In Godot (the failsafe suite, 905 checks on 2026-10-04):** Test 19's GLB checker on the RL rules
+  (`RL_*`: ≥ 41 bones, 76 + the role's own clips, loops and one-shots, the `<Role>_` meshes and
+  listed props, ≤ 3 surfaces, ≤ 2 textures at ≤ 1024² with the import keys, no LODs, ≤ 10,000 tris,
+  glow only on the listed props and at roughness 0, roughness > 0 elsewhere, no metal, top
+  1.50–2.25) for the Bartender and the dealer (and their fallbacks on their own rules); Test 24 (the
+  player: data, fallbacks, the run rate); Test 16 (the six townsfolk: GLBs, speeds, hands, names, as
+  patrons and villagers, the fallback case, AH-7); Test 15 (the six classes: classes.json, GLBs,
+  props on their slots, the glow, as patrons); Test 12 (the stools, the tankard); Test 22 (the
+  portraits' resolves).
+- **Stage D:** §6.5's character variant (six criteria and the crowd check), per slice; the RL sheets:
+  `<art>/shots/staff/real/25-31_s1_sheet.png`, `_s2_sheet.png`, `_s3_sheet.png`.
+
+### Appendix: the character spec (route AN) — the anime Quest Dealer's fallback (Story 25.30)
+
+Kept as written by Story 25.30, with pointers where route RL took over (2026-10-04). It still
+governs `g13_quest_dealer_anime.glb` and its v2 re-export (the realistic dealer's fallback body),
+and its body, export and validation rules are the ones the RL spec above refers to.
 
 This is the contract every anime body meets, whoever builds it: Claude through the Blender MCP for
 the demo, or a paid 3D artist after the Kickstarter (A-6). The scripts in `tools/blender/anime/`
@@ -287,8 +590,8 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
   | Role (catalogue) | Clips in the GLB | Its own clips | Loops |
   |---|---|---|---|
   | G13 Quest Dealer (`desk_manager`) | **79** | Walk_Bar, Write, Brief (re-posed for her proportions with the 25.13 IK method); never the Bartender's Wipe, Pour, Serve, Restock | Idle, Walking_A, Walk_Bar, Sit_Chair_Idle, Write, Brief |
-  | G12 Bartender (`bartender`) | his AN body is 25.31's; his KayKit file has 83 today (it also carries Write and Brief) | Walk_Bar, Wipe, Pour, Serve, Restock | 25.31 |
-  | Patrons, townsfolk, class bodies, the player | 76 on today's KayKit-rig bodies; the AN bodies are 25.31's | none so far | 25.31 |
+  | G12 Bartender (`bartender`) | no AN body: Story 25.31 built him on route RL (81 clips: the RL spec's role table); his 25.13 KayKit fallback has 83 (it also carries Write and Brief) | Walk_Bar, Wipe, Pour, Serve, Restock | the RL spec |
+  | Patrons, townsfolk, class bodies, the player | no AN bodies: route RL since 2026-10-04 (76 clips; the RL spec's role table) | none | the RL spec |
 
 - **Loop rules.** In Blender, key each looping clip's last frame with its t = 0 pose. In Godot, the
   `.glb.import`'s `_subresources` sets `"settings/loop_mode": 1` for exactly the role's loops;
@@ -423,11 +726,13 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
   There is one copy per imported material, shared by every instance, and the imported materials are
   never edited. A surface that isn't a StandardMaterial3D is left as imported, and one that isn't
   opaque gets no outline, each with a warning (Test 19 fails both), so deliver plain opaque
-  materials. `staff_npc.gd` calls it for a variant whose `look` is `"anime"`, and never on a
-  fallback body.
+  materials. `staff_npc.gd` calls it for a variant whose `look` is `"anime"` (or `"realistic"`, the
+  same path since 25.31), and never on a fallback body. Since 25.31 (V5) an emissive PROP material
+  gets a glow copy instead (the RL spec's "Materials, glow and ink").
 - **The ink outline** is `res://assets/characters/materials/anime_outline.tres`: one
   StandardMaterial3D for the whole cast, never duplicated. It is unshaded, `cull_mode` FRONT, `grow`
-  on, **`grow_amount` 0.011** m (the approved test's; recommended at Stage D, pending Raphael's OK),
+  on, **`grow_amount` 0.011** m (the approved test's; the `approved` preset's width; the cast's
+  thicker ink is picked with the preset in Story 25.23's light, see the RL spec),
   **ink colour (0.17, 0.09, 0.12)**, metallic 0, roughness above 0 (the default 1), no emission,
   opaque. At zoom 12, 0.011 m is about 0.5 px on the half-resolution SubViewport (45 px/m), so in
   the hall the edge shader does most of the inking and the hull shows up close. Raphael was shown
@@ -479,8 +784,8 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
 - **Shadows:** the 2026-09-27 hall budget above was measured with no shadow-casting light. The outline
   is an opaque `next_pass`, so under a shadowed light each body surface and its hull are drawn again
   in every shadow view: up to 4 PSSM splits for ExteriorWorld's sun, 2 views for a dual-paraboloid
-  omni, 6 for a cube one. The town gets its own budget, measured with the anime villagers and the
-  player under the sun (25.31).
+  omni, 6 for a cube one. The town's own budget was measured in 25.31 with the realistic villagers
+  and the player under the sun: the RL spec's "Budgets".
 - **The hall under 25.23's lights (re-measured 2026-10-04):** the crowd check with the realistic S1
   bodies (the Bartender's, the player's and the Quest Dealer's GLBs as clones, 6 within the hearth
   light's range), RTX 3080, V-Sync off, 2,900 frames per sample, render times summed over both
@@ -501,6 +806,8 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
     at 24 bodies with the hearth's dual-paraboloid shadow (97 rounded up to the next 50; 250 if cube
     is picked). It passes: 0.49 ms at 24 bodies against 8.3 ms; no mitigation step was needed.
     Full table: `<art>/shots/25-23/25-23_budget.md`.
+  - Re-measured with the full realistic cast in Story 25.31 (T-end): the RL spec's "Budgets" holds
+    the current hall and town numbers.
 
 #### Export
 
@@ -563,15 +870,10 @@ Frames: Blender armature space is front −Y, left +X, up +Z. Godot (x, y, z) = 
 
   - The approach point is not a body number: it stays `APPROACH_LOCAL` (desk geometry) for every
     body.
-- **(b) As they are today** (no anime fields yet):
-  - `data/characters/classes.json`: `<Class>.model_path` (Fighter, Rogue, Mage, Healer, Barbarian,
-    Ranger), read by DataManager, with no per-class fallback.
-  - `data/characters/townsfolk.json`: `variants[].model_path` (the patrons and villagers); a missing
-    or empty `townsfolk.json` falls back to `RealisticPatron.FALLBACK_MODELS`.
-- **(c) Planned, 25.31; the field names are final when 25.31's code reads them:** the `look` gate
-  for classes, townsfolk and the player; the player's data path; any per-entry fallback. Patrons and
-  class bodies get no `body` block: they keep RealisticPatron's seat constants (`SIT_HIP_BACK` 0.40,
-  `SIT_SEAT_HEIGHT` 0.44), which the sit re-fit keeps valid.
+- **(b), (c): final since Story 25.31.** classes.json, townsfolk.json and the new player.json carry
+  `model_path`, `fallback_model_path` and `look` (+ the measured speeds and head tops); the dealer's
+  `silver_elf` points at her realistic body, with this AN body's v2 re-export as the fallback. The
+  field names and their readers: the RL spec's "Data: bodies swap by data path (final)".
 
 #### Validation
 
@@ -619,7 +921,8 @@ The 14 jobs mirror this section. Each job: `stage: "character"`, 16:9, 3 variant
 folder) `refs/anime_dealer_turnaround.png` (the shipped Quest Dealer, front/side/back, Idle pose) and
 `anime_test/anime_test_report.jpg` (the approved anime test), plus the character's own reference from Raphael's
 `documentation/artwork/use to inspire/` copied to `refs/` with a name. They sit first in the job list, in slice
-order (S1, then S2 the townsfolk, then S3 the classes): the 30-image cap takes the first ten jobs in run 1.
+order (S1, then S2 the townsfolk, then S3 the classes); runs are capped at 15 images (`4467833`), taken in file
+order. The picks (2026-10-04) are in `<art>/picked/`; every RL body was built from its pick.
 
 Each prompt is the shared opening, then the character's line, then the palette rules:
 
@@ -652,9 +955,10 @@ Each prompt is the shared opening, then the character's line, then the palette r
 Stage A  Concept image    any image generator            → reference only, never shipped
 Stage B  Model            Route 1: Claude builds it in Blender (default)
                           Route 2: image-to-3D, then Claude cleans it (organic shapes only)
-                          Route AN: anime characters on the stretched KayKit rig (§1 character spec)
+                          Route RL: realistic characters on the re-proportioned KayKit rig (§1 character spec)
+                          Route AN: the anime dealer (her fallback body; §1 appendix)
 Stage C  Atlas + export   Claude in Blender               → assets/environment/custom/<id>.gltf
-                          characters: own palette + face  → assets/characters/custom/<id>.glb
+                          characters: head + body atlas   → assets/characters/custom/<id>.glb
 Stage D  Check in Godot   under the real shader + camera  → keep / redo / kill
 ```
 
@@ -677,7 +981,16 @@ Hyper3D Rodin or Hunyuan3D (both are built into the community Blender MCP), or t
 Then Claude decimates it hard and remaps it onto the atlas (§6.3). Expect to throw away
 about 1 in 2.
 
-**Route AN: anime characters (since 2026-09-26, Story 25.30).** Use it for every character: the
+**Route RL: realistic characters (since 2026-10-04, Story 25.31).** Use it for every human
+character: the staff, patrons, adventurers, the player and townsfolk. It is route AN's chain (below)
+run on a re-proportioned adult rig (REAL-1 for men, REAL-2 for women) from its own chain configs,
+with the head projected from the character's picked concept sheet and a painted body atlas. The
+scripts are in `tools/blender/realistic/` (its `README.md` lists the bases, the chain and each
+character's steps); the rules are the character spec (route RL) in §1. The whole demo cast (15
+bodies) was built on it in Story 25.31.
+
+**Route AN: anime characters (2026-09-26 to 2026-10-04, Story 25.30; now the anime Quest Dealer's
+fallback body only).** It was the route for every character: the
 staff, patrons, adventurers, the player and townsfolk. Claude builds the body in Blender through the
 MCP with Route 1's method (scripted, from primitives), on the KayKit skeleton with its rest pose
 stretched to SD proportions, so the 76 KayKit clips keep working. The scripts are versioned in the
@@ -1127,9 +1440,9 @@ Paste these into Claude Code on your PC with Blender open and the MCP connected.
 `F:/GAME I AM MAKING/eternal_guild_art`. Keep it outside, because Godot tries to import any `.blend` it
 finds inside the project.
 
-**Characters (route AN)** have their own chain: `tools/blender/anime/README.md` and the character
-spec in §1. Of this section, only 6.4's note on rigged characters and 6.5's character variant apply
-to them.
+**Characters (route RL; route AN for the fallback dealer)** have their own chain:
+`tools/blender/realistic/README.md` (and `tools/blender/anime/README.md`) and the character spec in
+§1. Of this section, only 6.4's note on rigged characters and 6.5's character variant apply to them.
 
 ### 6.0 Session setup (once per Blender session)
 
@@ -1208,9 +1521,10 @@ Make it fit the KayKit style:
 
 ### 6.3 Atlas remap: the step that makes it look like KayKit
 
-**Characters don't use this atlas.** Each AN body has its own small palette atlas,
-`<art>/textures/anime/<name>_palette.png` (the character spec in §1, "The atlas"), not
-`hexagons_medieval.png`. This section is for the environment.
+**Characters don't use this atlas.** Each RL body has its own painted body atlas and head texture,
+`<art>/textures/realistic/<id>_body.png` and `<id>_headpaint.png` (the character spec in §1), and
+the AN dealer her small palette atlas; never `hexagons_medieval.png`. This section is for the
+environment.
 
 ```
 Remap <asset_id> onto the KayKit atlas:
@@ -1296,7 +1610,7 @@ Export <asset_id> for Godot:
 **Rigged characters: `export_apply=False`.** A skinned body exports with Apply Modifiers off. Its
 non-Armature modifiers are applied in Blender before the join (the character spec in §1, "The
 body"), so its only modifier left is the Armature, which the exporter writes as the skin. The
-settings used for the route AN bodies, with only `Rig`, `<Role>_Body` and its props selected, in an
+settings used for the route RL and AN bodies, with only `Rig`, `<Role>_Body` and its props selected, in an
 MCP call of its own (never open a file and export in the same call):
 
 ```python
@@ -1328,8 +1642,11 @@ the rig's root at 0,0,0. Then set the import keys in the character spec ("Export
   3. Outlines draw the same way as on KayKit models.
   4. The silhouette reads at game zoom.
   5. Its triangle count is within budget.
-- **Characters (route AN): the character variant** (Story 25.30's Stage D). For an AN body, the six
-  criteria below replace the five above, whose criteria 2 and 3 compare with KayKit.
+- **Characters (routes RL and AN): the character variant** (Story 25.30's Stage D, used for every
+  RL body in 25.31). For a character, the six criteria below replace the five above, whose criteria
+  2 and 3 compare with KayKit. For an RL body read "top 1.50–2.25 m", "headwear, beards and coats"
+  for criterion 3, and "the face reads in the portrait framing" for criterion 4 (a realistic head is
+  about 11 px at zoom 12); the concept pick goes on the sheet beside the 3D turnaround.
   - **Where to test:**
     - **LookDev:** instance the character's own scene so the shipped load path applies the look (the
       dealer: `res://scenes/game/QuestDealer.tscn` with `hired_at_start_override = 1` and autopilot
@@ -1360,7 +1677,7 @@ the rig's root at 0,0,0. Then set the import keys in the character spec ("Export
       - Take the baseline in the same run with the clones freed. Free the clones and restore V-Sync
         in their own eval.
       - It passes if, at 24 bodies, the larger of the GPU and CPU render times is ≤ 8.3 ms. The
-        budget and the 2026-09-27 measurements are in the character spec's "Budgets".
+        budgets (hall and town) and the measurements are in the RL character spec's "Budgets".
     - Keep each run under 4 minutes (the autosave), and grep the run log after every driven E.
   - **It passes if all six hold:**
     1. Scale and height read right beside the Knight and the body it replaces (top ≤ 2.25 m).
@@ -1421,7 +1738,13 @@ This table tracks each finished asset.
 | G9 Den Fa, the Architect | R1 + custom rig | Claude via Blender MCP: a scripted build from primitives on his own 42-bone rig (d_-prefixed; ears, mask and three bones per wing for Story 26.11), six keyframed clips (Idle, Sit, Walk loop; Point, StandUp, SitDown once); the Sit pose solved against the hearth's bench, wall and chimney | 2026-09-25 | **in game**: Stage D passed (LookDev beside the Knight in Idle, Walk, Point and Sit; MainTavern: seated by the lit fire, the mirror mask reflecting the hall through the new HearthProbe, "Press E - Talk to Den Fa" with a placeholder line, E going to the nearest of him, the cat and the fire, the walk to the bar, the point at the pillar, the walk back; the other tavern zones and the town unchanged); 2,546 tris, 2.91 m to the ear tips |
 | G12 The Bartender | RS | Claude via Blender MCP: the Barbarian body as a burly barkeep (bald, a grey beard, rolled sleeves, a knee-length apron, a belt cloth), recoloured by atlas cell, in `g12_g13_staff.blend` (a save-as of the townsfolk kit); five IK-posed clips (Walk_Bar, Wipe, Serve, Pour, Restock) checked for clearance against the counter, the shelf and the kegs | 2026-09-26 | **in game**: Stage D passed (LookDev beside the Knight in every state; MainTavern: wiping at a serve point with patrons seated, serve_toward = pour at the taps then serve at the nearest station with drink_handed, restock at beer 0, fired and re-hired through GuildBus with the front door held open as he passes); 4,473 tris, 83 clips |
 | G13 The Quest Dealer | RS | Claude via Blender MCP: the Mage body with the Rogue head as a silver-haired elf woman after Raphael's reference (ears, long hair, a gold circlet with a red gem, a high collar with gold trim, a plum coat, a quill on `handslot.r`), in the same file; Write and Brief clips (IK) at the guild desk B3 | 2026-09-26 | **in game**: Stage D passed (LookDev on a proxy stool and desk; MainTavern: writing at the desk at load, the stool pulled out and the shuffle in on arrival, AVAILABLE with the player at the desk front, BRIEFING with a bark while E's RecruitmentPopup is open); 4,815 tris, 83 clips; since 2026-09-27 the fallback body of the anime G13 below (`silver_elf.fallback_model_path`) |
-| G13 The Quest Dealer (anime) | AN | Claude via Blender MCP, route AN (`tools/blender/anime/`): the shared base `anime_base.blend` (the KayKit rig stretched to the §1 bone table, its 76 clips retargeted with the sits re-fitted to the 0.44 m seats), then her body after Raphael's silver-haired elf and the approved anime test (long platinum hair, elf ears, a gold circlet with a red gem, painted teal eyes, a high-collared plum coat with gold trim); one `Dealer_Body` (face + palette) and `Dealer_Quill` on `handslot.r`; Walk_Bar, Write and Brief re-posed by IK; desk, stool and self-clip clearance checked; `g13_quest_dealer_anime.glb`, a new file | 2026-09-27 | **in game** (`staff.json` `silver_elf`, `look: "anime"`): Stage D shots all kept against the six character criteria (§6.5: LookDev beside the Knight and the 25.13 dealer; MainTavern at zoom 12 and 8: writing at load, fire and re-hire, AVAILABLE, BRIEFING with a bark; the portrait framing; the zones walk; the crowd check at 24 bodies, 193 draws, 0.368 ms); 9,459 tris with the quill, 2 surfaces, 79 clips, 2.138 m; outline 0.011 (the approved test's; recommended at Stage D, pending Raphael's OK) |
-| P9 Dialogue portraits: Den Fa, the Quest Dealer, the Bartender | — | Claude: in-engine renders by the portrait studio (`scenes/dev/PortraitStudio.tscn`, Story 25.17) from each body's `portrait_source` in `speakers.json`: the game's look (tavern ambient, edge-pass ink at `linePixels` 4, anime_look on the dealer), an omni key in front of the face, an ink light from behind, a warm backdrop, a mirror sky for Den Fa's mask; one bust rule (2.6 head heights, eyes 43% down, yaw −30°) | 2026-10-03 | **in game** (the dialogue box): 512 × 512 PNGs, lossless with mipmaps; the box draws them at 160 with mipmaps; Stage D sheet `<art>/shots/portraits/25-17_sheet.png` (Raphael's verdict 2026-10-03: "Good as they are", the faces turned toward the text). A new PNG's import: `mipmaps/generate=true`, `detect_3d/compress_to=0`. Re-render: the Bartender after 25.31, Den Fa after 25.32; the Elder and the Bard in 25.11 / 25.12 |
+| G13 The Quest Dealer (anime) | AN | Claude via Blender MCP, route AN (`tools/blender/anime/`): the shared base `anime_base.blend` (the KayKit rig stretched to the §1 bone table, its 76 clips retargeted with the sits re-fitted to the 0.44 m seats), then her body after Raphael's silver-haired elf and the approved anime test (long platinum hair, elf ears, a gold circlet with a red gem, painted teal eyes, a high-collared plum coat with gold trim); one `Dealer_Body` (face + palette) and `Dealer_Quill` on `handslot.r`; Walk_Bar, Write and Brief re-posed by IK; desk, stool and self-clip clearance checked; `g13_quest_dealer_anime.glb`, a new file | 2026-09-27 | **in game** (`staff.json` `silver_elf`, `look: "anime"`): Stage D shots all kept against the six character criteria (§6.5: LookDev beside the Knight and the 25.13 dealer; MainTavern at zoom 12 and 8: writing at load, fire and re-hire, AVAILABLE, BRIEFING with a bark; the portrait framing; the zones walk; the crowd check at 24 bodies, 193 draws, 0.368 ms); 9,459 tris with the quill, 2 surfaces, 79 clips, 2.138 m; outline 0.011 (the approved test's); since 2026-10-04 (R-2, Q3) her re-export with the face-seam fix, `g13_quest_dealer_anime_v2.glb`, is the realistic dealer's fallback body |
+| P9 Dialogue portraits: Den Fa, the Quest Dealer, the Bartender | — | Claude: in-engine renders by the portrait studio (`scenes/dev/PortraitStudio.tscn`, Story 25.17) from each body's `portrait_source` in `speakers.json`: the game's look (tavern ambient, edge-pass ink at `linePixels` 4, anime_look on the dealer), an omni key in front of the face, an ink light from behind, a warm backdrop, a mirror sky for Den Fa's mask; one bust rule (2.6 head heights, eyes 43% down, yaw −30°) | 2026-10-03 | **in game** (the dialogue box): 512 × 512 PNGs, lossless with mipmaps; the box draws them at 160 with mipmaps; Stage D sheet `<art>/shots/portraits/25-17_sheet.png` (Raphael's verdict 2026-10-03: "Good as they are", the faces turned toward the text). A new PNG's import: `mipmaps/generate=true`, `detect_3d/compress_to=0`. Re-rendered 2026-10-04 (25.31 S1): the Bartender and the Quest Dealer from their realistic bodies (cameras re-tuned in `speakers.json`); still to come: Den Fa after 25.32, the Elder and the Bard in 25.11 / 25.12 |
+| G12 The Bartender (realistic) | RL | Claude via Blender MCP, route RL (`tools/blender/realistic/real_bartender.py`, `real_bar.py`) on REAL-1, from the spike (`5ae8dc0`) and his pick: burly, bald, grey beard, wine-red shirt with rolled sleeves, a knee-length leather apron with folds, the belt cloth and the hand cloth (props); production hands; the head projected from his pick and baked seamless; his five bar clips re-posed on his reach; the bar clearances re-measured (serve stand r 1.76 → 1.92) | 2026-10-04 | **in game** (`staff.json` `barkeep`, `look: "realistic"`, fallback the 25.13 g12): `g12_bartender_real.glb`, 9,082 tris, 2 surfaces, 81 clips, 1.86 m; Stage D sheet `<art>/shots/staff/real/25-31_s1_sheet.png` (Raphael's verdict pending) |
+| G1 The player | RL | Claude via Blender MCP (`real_player.py`) on REAL-1, from his pick: one man (AH-1), a weathered retired adventurer: hair shell, short beard, a long open coat with a back vent, vest, belt, patched trousers, cuffed boots; the sword sheathed at his hip (a worn prop) | 2026-10-04 | **in game** (`data/characters/player.json`, `player.gd` from data, fallback the KayKit Rogue): `g1_player_real.glb`, 9,180 tris, 2 surfaces, 76 clips; Running_A at 0.715 (V9); same sheet |
+| G13 The Quest Dealer (realistic) | RL | Claude via Blender MCP (`real_dealer.py`) on REAL-2, from her pick (R-2): the silver-haired elf, long ears, the slim circlet, the plum coat with gold trim over dark trousers; the quill a prop shown only while she writes; Walk_Bar, Write and Brief re-posed; the desk report re-measured (hip_back 0.45) | 2026-10-04 | **in game** (`silver_elf`, `look: "realistic"`, fallback the anime v2): `g13_quest_dealer_real.glb`, 9,156 tris, 2 surfaces, 79 clips, 1.72 m; seated shoulders 1.034 (desk height: Raphael's call); same sheet |
+| B2 Tall bar stool | — | Claude, pure Python (`tools/props/make_tall_stool.py`) from the 25.6 stool's design and atlas cells | 2026-10-04 | **in game** (`BarStool.tscn`): `b2_bar_stool_tall.gltf`, seat 0.72, a foot ring and a footrest at 0.27 (R-5); 124 tris; the 25.6 stool untouched |
+| G19 + G24 Townsfolk (realistic: farmer, local, traveller, guard, merchant, old woman) | RL | Claude via Blender MCP (`real_townsfolk.py`, `real_townsfolk_paint.py`), one `.blend` and one GLB each, from their picks; five men on REAL-1, the old woman on REAL-2; hats built round the shaped heads (straw, cap, beret, the guard's morion: AH-9); Idle, Walking_A, a jog for Running_A | 2026-10-04 | **in game** (townsfolk.json, `look: "realistic"`, fallbacks the 25.14 GLBs): patrons in the hall and villagers in the town; 6,522–9,530 tris, 2 surfaces, 76 clips each; hands empty (the old woman's cane a hidden prop); Stage D sheet `<art>/shots/staff/real/25-31_s2_sheet.png` (verdict pending) |
+| G2–G7 Class bodies (realistic: Fighter, Rogue, Mage, Healer, Barbarian, Ranger) | RL | Claude via Blender MCP (`real_classes.py`, `real_classes_paint.py`), one `.blend` and one GLB each, from their picks; Fighter, Mage, Barbarian on REAL-1, Rogue, Healer, Ranger on REAL-2; carried items as hidden hand props (R-9), worn gear visible; the Healer's crystal glows as a prop (AH-3); the robes clear of the thighs (check (b)) | 2026-10-04 | **in game** as the adventurer patrons (townsfolk.json) and in classes.json (`look: "realistic"`, fallbacks the KayKit / 25.9 bodies): 7,600–9,056 tris, 2 surfaces, 76 clips each; Stage D sheet `<art>/shots/staff/real/25-31_s3_sheet.png` (verdict pending). The 25.28 inked reskins were folded into this |
 | D2 Demon Cult Crypt | 1 | | | concept picked (crypt v2) |
 | D3 Dragon's Lair | 1 (+2) | | | Batch 2 |

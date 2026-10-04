@@ -1,9 +1,15 @@
 # Route AN — the anime character pipeline (Stories 25.30, 25.31)
 
-The scripts that build every anime (AN) character of the demo cast in Blender 4.5, and the ones paid artists re-run
-after the Kickstarter. The art-side files live in `F:/GAME I AM MAKING/eternal_guild_art/` (`<art>`; not under git);
-these scripts are the versioned source of truth. The character spec (proportions, rig and clip contract, budgets,
-materials and ink, export, data) is `documentation/design/08_ASSET_PROMPT_PACK.md`.
+> **Since 2026-10-04 the demo cast is realistic (route RL, `tools/blender/realistic/README.md`; R-1).** Route RL runs
+> this folder's generic chain (the chain configs, `anime_retarget`, `anime_merge`, `anime_clearcheck`, `anime_anims`,
+> the garments, hats and hair presets) on its own bases; Story 25.31 built all 15 human bodies that way. Route AN
+> itself now builds only the anime Quest Dealer, the realistic dealer's fallback body (`g13_quest_dealer_anime_v2.glb`).
+> The character spec is 08 §1 (route RL; route AN in its appendix).
+
+The scripts that built the anime (AN) Quest Dealer in Blender 4.5 and hold the generic chain every character route
+runs. The art-side files live in `F:/GAME I AM MAKING/eternal_guild_art/` (`<art>`; not under git); these scripts are
+the versioned source of truth. The character spec (proportions, rig and clip contract, budgets, materials and ink,
+export, data) is `documentation/design/08_ASSET_PROMPT_PACK.md` §1.
 
 ## Running them
 
