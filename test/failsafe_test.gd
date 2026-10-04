@@ -2555,16 +2555,18 @@ func test_townsfolk_runtime() -> void:
 		var v: Dictionary = by_id.get(id, {})
 		p._swap_to_model(str(v.get("model_path", "")), v)
 		var toned := 0
+		var surfaces := 0                     # every surface of the body and its props (the 25.31 review's P13; as Test 24)
 		for mi in p.patron_body_mesh.find_children("*", "MeshInstance3D", true, false):
 			for s in ((mi as MeshInstance3D).mesh.get_surface_count() if (mi as MeshInstance3D).mesh else 0):
+				surfaces += 1
 				var m = (mi as MeshInstance3D).get_surface_override_material(s)
 				if m is Material and (m as Material).has_meta(&"anime_toon"):
 					toned += 1
 		var want_rate: float = RPS.SPEED / float(v.get("run_ground_speed", 1.0))
 		var shown: Array = RPS.hand_props(p.patron_body_mesh).filter(func(a): return (a as Node3D).visible)
-		if p.using_fallback or p.body_look != "realistic" or toned < 2 or absf(p.run_rate - want_rate) > 0.001 or not shown.is_empty() \
+		if p.using_fallback or p.body_look != "realistic" or surfaces < 2 or toned != surfaces or absf(p.run_rate - want_rate) > 0.001 or not shown.is_empty() \
 				or p.current_model_path != str(v.get("model_path", "")) or absf(p.tankard_scale - float(v.get("tankard_scale", 0.0))) > 0.001:
-			why.append("%s: fallback %s look '%s' toned %d rate %.3f/%.3f shown %d" % [id, p.using_fallback, p.body_look, toned, p.run_rate, want_rate, shown.size()])
+			why.append("%s: fallback %s look '%s' toned %d of %d rate %.3f/%.3f shown %d" % [id, p.using_fallback, p.body_look, toned, surfaces, p.run_rate, want_rate, shown.size()])
 	check(why.is_empty(), "patrons: each realistic townsperson on its own body: toon look, hands empty, Running_A at SPEED / its ground speed, its tankard size %s" % [why])
 	# the fallback: a missing model loads the entry's fallback, keeps its imported look and plays at 1.0; the save keeps
 	# the entry's model_path (V11)
@@ -2660,8 +2662,10 @@ func test_class_runtime() -> void:
 		var v: Dictionary = hit[0]
 		p._swap_to_model(cb.path, v)
 		var toned := 0
+		var surfaces := 0                     # every surface of the body and its props (the 25.31 review's P13; as Test 24)
 		for mi in p.patron_body_mesh.find_children("*", "MeshInstance3D", true, false):
 			for s in ((mi as MeshInstance3D).mesh.get_surface_count() if (mi as MeshInstance3D).mesh else 0):
+				surfaces += 1
 				var m = (mi as MeshInstance3D).get_surface_override_material(s)
 				if m is Material and (m as Material).has_meta(&"anime_toon"):
 					toned += 1
@@ -2671,8 +2675,8 @@ func test_class_runtime() -> void:
 		for prop in cb.props:
 			if not str(cb.props[prop]).begins_with("handslot") and not _visible_up(p.patron_body_mesh.find_child(prop, true, false)):
 				worn_hidden.append(prop)
-		if p.using_fallback or p.body_look != "realistic" or toned < 2 or absf(p.run_rate - want_rate) > 0.001 or not shown.is_empty() 				or not worn_hidden.is_empty() or p.current_model_path != cb.path or absf(p.tankard_scale - float(v.get("tankard_scale", 0.0))) > 0.001:
-			why.append("%s: fallback %s look '%s' toned %d rate %.3f/%.3f shown %d worn hidden %s" % [cls, p.using_fallback, p.body_look, toned, p.run_rate, want_rate, shown.size(), worn_hidden])
+		if p.using_fallback or p.body_look != "realistic" or surfaces < 2 or toned != surfaces or absf(p.run_rate - want_rate) > 0.001 or not shown.is_empty() 				or not worn_hidden.is_empty() or p.current_model_path != cb.path or absf(p.tankard_scale - float(v.get("tankard_scale", 0.0))) > 0.001:
+			why.append("%s: fallback %s look '%s' toned %d of %d rate %.3f/%.3f shown %d worn hidden %s" % [cls, p.using_fallback, p.body_look, toned, surfaces, p.run_rate, want_rate, shown.size(), worn_hidden])
 		if cls == "Fighter":
 			p._hold_tankard(true)
 			var sword: Node = p.patron_body_mesh.find_child("Fighter_Sword", true, false)
