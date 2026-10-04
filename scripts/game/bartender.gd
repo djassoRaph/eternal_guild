@@ -1,11 +1,14 @@
 # bartender.gd — the Bartender (Story 25.13, catalogue G12): works the inside of the round bar.
 #
-# Stations: the five serve points (stood at SERVE_R, facing the counter) and the restock station at the
-# kegs (φ 180, RESTOCK_R, facing the island), found by NodePath under bar_path — the B12 marker by a search
+# Stations: the five serve points (stood at serve_r, facing the counter) and the restock station at the
+# kegs (φ 180, restock_r, facing the island), found by NodePath under bar_path — the B12 marker by a search
 # scoped to BackBar, never a global find_child("work_point") (the desk's glTF has one too).
 # Inside the ring he shuffles (Walk_Bar) along arcs round its centre, never straight chords, at a radius
-# that clears the shelf, the kegs and the counter (ring_radius_at: 1.80, 1.90 by the kegs, 1.98 in the
+# that clears the shelf, the kegs and the counter (walk_radius_at: ring_r, keg_r by the kegs, gap_r in the
 # flap gap; measured on his skinned body, Story 25.13 T3). He enters and leaves through the flap.
+# Story 25.31 (F29): the radii, the Walk_Bar half-widths and the held tankard's scale follow the body loaded — his
+# variant's body block in staff.json (serve_r, restock_r, ring_r, keg_r, gap_r, walk_bar_half_low / _shelf / _mid,
+# tankard_scale) read through _body(), with the constants below as the fallback body's (the 25.13 KayKit numbers).
 # States follow Story 16.3's FSM (work_state IDLE / SERVING / RESTOCKING); 16.3 drives him through
 # serve_toward / restock / enter_idle and connects drink_handed to serve_patron(). Until then a cosmetic
 # autopilot keeps him wiping ("rarely stops moving") and restocks when the beer runs out. No game effects.
@@ -16,7 +19,7 @@ extends "res://scripts/game/staff_npc.gd"
 
 signal drink_handed(target: Vector3)
 
-const RING_R := 1.80               # the serve markers' radius
+const RING_R := 1.80               # the serve markers' radius (the constants: the fallback body's numbers)
 const KEG_R := 1.90                # past the kegs (|φ - 180| <= 30°): clears the kegs and the counter
 const KEG_HALF_DEG := 30.0
 const KEG_RAMP_DEG := 12.0
@@ -60,15 +63,34 @@ func _states() -> Dictionary:
 
 func _ready() -> void:
 	_rng.randomize()
-	_resolve_bar()
+	super._ready()                     # _load_model (overridden below) resolves the bar once the body is known
 	_check_route_end()
-	super._ready()
 	var eb := get_node_or_null("/root/EconomyBus")
 	if eb and eb.has_signal("beer_changed"):
 		eb.beer_changed.connect(_on_beer)
 
 
+## The body first (its numbers place the stands), then the bar: before _build_tree and place_at_station.
+func _load_model() -> void:
+	super._load_model()
+	_resolve_bar()
+
+
+## The body's ring radii (staff.json body block; the constants on the fallback body).
+func _radii() -> Array:
+	return [float(_body("ring_r", RING_R)), float(_body("keg_r", KEG_R)), float(_body("gap_r", GAP_R))]
+
+
+## The walk radius at ring angle phi for the body loaded (ring_radius_at with its radii).
+func walk_radius_at(phi: float) -> float:
+	var r := _radii()
+	return ring_radius_at(phi, r[0], r[1], r[2])
+
+
 func _resolve_bar() -> void:
+	_stands = []
+	_stool_roots = []
+	_facing_roots = [[], [], [], [], []]
 	var bar := get_node_or_null(bar_path) as Node3D if not bar_path.is_empty() else null
 	if bar == null:
 		push_warning("[Staff] missing: the Bartender's bar_path does not resolve")
@@ -83,7 +105,7 @@ func _resolve_bar() -> void:
 		var d := sp.global_position - _center
 		var phi := atan2(d.x, d.z)
 		var f := sp.global_basis.z
-		_stands.append({"pos": ring_point(_center, phi, SERVE_R), "yaw": atan2(f.x, f.z), "phi": phi})
+		_stands.append({"pos": ring_point(_center, phi, float(_body("serve_r", SERVE_R))), "yaw": atan2(f.x, f.z), "phi": phi})
 	var back := bar.get_node_or_null("BackBar")
 	var wp := back.find_child("work_point", true, false) as Node3D if back else null
 	var rphi := PI
@@ -95,7 +117,7 @@ func _resolve_bar() -> void:
 		ryaw = atan2(f.x, f.z)
 	else:
 		push_warning("[Staff] fallback: no work_point under %s/BackBar, restocking at φ 180" % bar.get_path())
-	_stands.append({"pos": ring_point(_center, rphi, RESTOCK_R), "yaw": ryaw, "phi": rphi})
+	_stands.append({"pos": ring_point(_center, rphi, float(_body("restock_r", RESTOCK_R))), "yaw": ryaw, "phi": rphi})
 	for n in bar.find_children("SeatPoint", "Node3D", true, false):
 		_stool_roots.append(RealisticPatron.seat_root((n as Node3D).global_transform))
 	var serve_pos := []
@@ -120,20 +142,21 @@ func _check_route_end() -> void:
 
 # ------------------------------------------------------------------ the ring (statics)
 
-## The walk radius at ring angle phi (radians; 0 = +Z): 1.80, swinging out past the kegs and into the flap gap.
-static func ring_radius_at(phi: float) -> float:
+## The walk radius at ring angle phi (radians; 0 = +Z): ring (1.80), swinging out past the kegs (keg) and into the
+## flap gap (gap). The defaults are the fallback body's; walk_radius_at passes the loaded body's.
+static func ring_radius_at(phi: float, ring := RING_R, keg := KEG_R, gap := GAP_R) -> float:
 	var d := absf(rad_to_deg(wrapf(phi - PI, -PI, PI)))
 	if d <= GAP_HALF_DEG:
-		return GAP_R
+		return gap
 	if d <= GAP_RAMP_TO_DEG:
 		var t := (d - GAP_HALF_DEG) / (GAP_RAMP_TO_DEG - GAP_HALF_DEG)
-		return GAP_R + (KEG_R - GAP_R) * 0.5 * (1.0 - cos(PI * t))
+		return gap + (keg - gap) * 0.5 * (1.0 - cos(PI * t))
 	if d <= KEG_HALF_DEG:
-		return KEG_R
+		return keg
 	if d >= KEG_HALF_DEG + KEG_RAMP_DEG:
-		return RING_R
+		return ring
 	var u := (d - KEG_HALF_DEG) / KEG_RAMP_DEG
-	return KEG_R + (RING_R - KEG_R) * 0.5 * (1.0 - cos(PI * u))
+	return keg + (ring - keg) * 0.5 * (1.0 - cos(PI * u))
 
 
 static func ring_point(center: Vector3, phi: float, r: float) -> Vector3:
@@ -141,15 +164,15 @@ static func ring_point(center: Vector3, phi: float, r: float) -> Vector3:
 
 
 ## An arc round the ring from one angle to another, the shorter way, sampled every `step` metres.
-static func ring_arc(center: Vector3, from_phi: float, to_phi: float, step := 0.25) -> PackedVector3Array:
+static func ring_arc(center: Vector3, from_phi: float, to_phi: float, step := 0.25, radii := [RING_R, KEG_R, GAP_R]) -> PackedVector3Array:
 	var out := PackedVector3Array()
 	var span := wrapf(to_phi - from_phi, -PI, PI)
 	if absf(absf(span) - PI) < 1e-6:
 		span = PI
-	var n := maxi(1, int(ceil(absf(span) * KEG_R / step)) + 1)
+	var n := maxi(1, int(ceil(absf(span) * maxf(float(radii[1]), float(radii[2])) / step)) + 1)
 	for i in n + 1:
 		var phi := from_phi + span * float(i) / n
-		out.append(ring_point(center, phi, ring_radius_at(phi)))
+		out.append(ring_point(center, phi, ring_radius_at(phi, radii[0], radii[1], radii[2])))
 	return out
 
 
@@ -289,13 +312,13 @@ func _route_to(index: int) -> PackedVector3Array:
 	var r := Vector2(here.x, here.z).length()
 	var phi := atan2(here.x, here.z)
 	if r > 2.5:                                         # outside the counter: in through the flap first
-		for rr in [FLAP_IN_R, GAP_R]:                   # to where the arc starts: ring_radius_at(PI) == GAP_R
+		for rr in [FLAP_IN_R, _radii()[2]]:             # to where the arc starts: walk_radius_at(PI) == gap_r
 			out.append(ring_point(_center, PI, rr))
 		phi = PI
 	else:
-		out.append(ring_point(_center, phi, ring_radius_at(phi)))
+		out.append(ring_point(_center, phi, walk_radius_at(phi)))
 	var to: Dictionary = _stands[index]
-	for p in ring_arc(_center, phi, to.phi):
+	for p in ring_arc(_center, phi, to.phi, 0.25, _radii()):
 		out.append(p)
 	out.append(to.pos)
 	return out
@@ -330,8 +353,8 @@ func _leave_station(then: Callable) -> void:
 	if Vector2(here.x, here.z).length() > 2.5:          # already on the flap leg (fired on his way in): straight out
 		out.append(ring_point(_center, PI, FLAP_R))
 	else:
-		out.append(ring_point(_center, phi, ring_radius_at(phi)))
-		for p in ring_arc(_center, phi, PI):
+		out.append(ring_point(_center, phi, walk_radius_at(phi)))
+		for p in ring_arc(_center, phi, PI, 0.25, _radii()):
 			out.append(p)
 		for rr in [FLAP_IN_R, FLAP_R]:
 			out.append(ring_point(_center, PI, rr))
@@ -344,7 +367,7 @@ func _leave_station(then: Callable) -> void:
 func _tick_work(delta: float) -> void:
 	_bark_cd = maxf(0.0, _bark_cd - delta)
 	if _tankard and is_instance_valid(_tankard):              # the tankard stays upright every tick
-		_tankard.global_basis = Basis(Vector3.UP, global_rotation.y).scaled(Vector3.ONE * RealisticPatron.TANKARD_HELD_SCALE)
+		_tankard.global_basis = Basis(Vector3.UP, global_rotation.y).scaled(Vector3.ONE * tankard_scale())
 	if not autopilot or _leaving or is_busy() or _stands.size() < 6:
 		return
 	var beer := _beer()
@@ -424,6 +447,11 @@ func play(state: String) -> void:
 
 func _prop_nodes() -> Array:
 	return CLOTH_REST + [CLOTH_HAND]
+
+
+## The held tankard's scale for the body loaded (body.tankard_scale; RealisticPatron's KayKit 1.8 on the fallback).
+func tankard_scale() -> float:
+	return float(_body("tankard_scale", RealisticPatron.TANKARD_HELD_SCALE))
 
 
 func _hold_tankard() -> void:

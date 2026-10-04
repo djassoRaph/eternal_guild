@@ -61,7 +61,7 @@ const SKY_TILT_DEG := 12.0             # the mirror sky's horizon tilts this muc
 const MIN_RUN_MS := 8000               # 4.4.1 can hang on quit while pipelines still compile: quit no sooner
 const SOURCE_KEYS := ["model", "staff_variant", "look", "clip", "time", "bone", "camera"]
 const CAMERA_KEYS := ["eye_offset", "head_height", "yaw_deg", "pitch_deg", "fov"]
-const LOOKS := ["", "anime"]           # a body's runtime look: its imported materials, or anime_look.gd's
+const LOOKS := ["", "anime", "realistic"]   # a body's runtime look: its imported materials, or anime_look.gd's (25.31: "realistic" too)
 
 @onready var _view: SubViewport = %Studio
 @onready var _camera: Camera3D = %Camera3D
@@ -231,7 +231,7 @@ static func plan(args: PackedStringArray, speakers: Dictionary, staff: Dictionar
 			return _refused("%s: %s" % [id, where.error])
 		if not str(where.look) in LOOKS:
 			return _refused("%s: unknown look '%s'" % [id, where.look])
-		if str(where.look) == "anime" and not ResourceLoader.exists(ANIME_LOOK):
+		if str(where.look) in ["anime", "realistic"] and not ResourceLoader.exists(ANIME_LOOK):
 			return _refused("%s: the anime look %s is missing" % [id, ANIME_LOOK])
 		why = body_error(str(where.path), str(src.clip), float(src.get("time", 0.0)), str(src.get("bone", "head")))
 		if why != "":
@@ -383,7 +383,7 @@ func _render(job: Dictionary) -> bool:
 		_fail("%s: '%s' doesn't instantiate a Node3D" % [id, job.body])
 		return false
 	_subject_root.add_child(model)
-	if str(job.look) == "anime":
+	if str(job.look) in ["anime", "realistic"]:
 		var look = load(ANIME_LOOK)
 		if not look is Script:
 			_fail("%s: the anime look %s doesn't load" % [id, ANIME_LOOK])

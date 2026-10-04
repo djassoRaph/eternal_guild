@@ -382,9 +382,140 @@ BARTENDER_PAINTERS = [
 ]
 
 
-def body_texture(out, painters=None, palette=None, ground="apron_dark", flat_cells=True):
+# ------------------------------------------------------------------ the player (25.31 S1, catalogue G1; his pick
+# C_G1_player.png): the regions keep real_layout.REG's boxes with his own garments in them:
+#   shirt (wraps)  the dark leather vest over the grey shirt (the laced V at the front)
+#   bib            the long coat's body (open at the front)          apron     the coat's skirt (the frayed hem)
+#   straps         its collar and lapels                             sleeve    the coat's sleeves (wrap)
+#   roll           the coat's turned cuffs (wrap both)                trousers  worn trousers with knee patches (wrap)
+#   cloth          the sword's scabbard (a steel chape and throat)    hand / boots / belt / seat as the Bartender's
+PLAYER_PALETTE = {
+    "shirt": (66, 51, 44), "shirt_dark": (44, 34, 29), "undershirt": (86, 84, 82), "undershirt_dark": (52, 50, 50),
+    "apron": (88, 70, 55), "apron_dark": (56, 44, 35), "apron_edge": (40, 31, 26),
+    "trousers": (68, 64, 56), "patch": (110, 96, 80), "boots": (86, 72, 59), "boots_dark": (50, 42, 36),
+    "skin": (190, 148, 124), "skin_dark": (140, 104, 88), "hair": (50, 42, 36),
+    "belt": (58, 46, 36), "buckle": (128, 120, 104), "scabbard": (54, 41, 32), "steel": (122, 120, 114),
+}
+
+
+def vest(cv):
+    """The vest: dark leather, worn, a seam down the front; the grey shirt's laced V at the neck (u 0.5 = his front)."""
+    w, h = cv.pw, cv.ph
+    n = fbm(w, h, 6, 4, (True, False), 211)
+    img = tint(col("shirt"), n, 0.12)
+    img = mix(img, np.clip((fbm(w, h, 9, 3, (True, False), 212) - 0.6) * 3, 0, 1), col("shirt_dark"), 0.6)
+    img = mix(img, lines_layer(w, h, fold_strokes(w, h, 14, h * 0.12, True, 0.5, 213, (0.1, 0.9)), 2.0, True, 0.7), col("ink"), 0.4)
+    cx = 0.5 * w
+    top, bot = 0.0, h * 0.30
+    tri = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(tri).polygon([(cx - 0.06 * w, top), (cx + 0.06 * w, top), (cx, bot)], fill=255)
+    tri = np.asarray(tri.filter(ImageFilter.GaussianBlur(0.8)), dtype=float) / 255
+    img = mix(img, tri, col("undershirt"), 1.0)
+    lace = Image.new("L", (w, h), 0)
+    dl = ImageDraw.Draw(lace)
+    for i in range(3):
+        y = top + (bot - top) * (0.25 + 0.22 * i)
+        hw = 0.05 * w * (1 - (y - top) / (bot - top)) + 3
+        dl.line([(cx - hw, y), (cx + hw, y + 6)], fill=255, width=3)
+        dl.line([(cx + hw, y), (cx - hw, y + 6)], fill=255, width=3)
+    dl.polygon([(cx - 0.06 * w, top), (cx, bot), (cx + 0.06 * w, top)], outline=255, width=2)
+    img = mix(img, np.asarray(lace, dtype=float) / 255, col("laces"), 1.0)
+    seam = lines_layer(w, h, [([(cx, bot), (cx + 2, h)], 1.0)], 2, True, 0.4)
+    img = mix(img, seam, col("ink"), 0.6)
+    cv.put(img)
+
+
+def coat_sleeve(cv):
+    w, h = cv.pw, cv.ph
+    n = fbm(w, h, 5, 4, (True, False), 221)
+    img = tint(col("apron"), n, 0.13)
+    img = mix(img, np.clip((fbm(w, h, 9, 3, (True, False), 222) - 0.6) * 3, 0, 1), col("apron_dark"), 0.55)
+    creases = fold_strokes(w, h, 18, w * 0.35, False, 0.5, 223, (0.30, 0.75))        # bunching at the elbow
+    img = mix(img, lines_layer(w, h, creases, 2.0, True, 0.6), col("ink"), 0.5)
+    yy = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
+    img = mix(img, np.clip(0.12 - yy, 0, 1) * 6, col("apron_dark"), 0.4)               # dark under the shoulder seam
+    cv.put(img)
+
+
+def coat_cuff(cv):
+    w, h = cv.pw, cv.ph
+    n = fbm(w, h, 8, 3, (True, True), 231)
+    img = tint(col("apron") * 0.9, n, 0.12)
+    bands = lines_layer(w, h, [([(x, h * k / 3 + 3 * math.sin(x * 0.05 + k)) for x in np.linspace(0, w, 30)], 1.0) for k in range(3)], 2.4, True, 0.6)
+    img = mix(img, bands, col("ink"), 0.5)
+    cv.put(img)
+
+
+def patched_trousers(cv):
+    """trousers() and a stitched patch over each knee (u 0: the ring's front)."""
+    trousers(cv)
+    w, h = cv.pw, cv.ph
+    sub = cv.img[cv.y0:cv.y0 + h, cv.x0:cv.x0 + w].astype(float)
+    pm = np.zeros((h, w))
+    yc, hh, hw = int(h * 0.30), int(h * 0.075), int(w * 0.11)         # row 0 is the hem (v 1): the knee is ~0.3 down
+    for x0 in (0, w):
+        pm[yc - hh:yc + hh, max(0, x0 - hw):min(w, x0 + hw)] = 1
+    pm = np.asarray(Image.fromarray((pm * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.0)), dtype=float) / 255
+    tile = tint(col("patch"), fbm(w, h, 10, 3, (True, False), 242), 0.10)
+    sub = sub * (1 - pm[..., None]) + tile * pm[..., None]
+    st = np.zeros((h, w))
+    for x0 in (0, w):
+        for y in (yc - hh, yc + hh - 1):
+            st[y, max(0, x0 - hw):min(w, x0 + hw):4] = 1
+        for x in (x0 - hw, x0 + hw - 1):
+            if 0 <= x < w:
+                st[yc - hh:yc + hh:4, x] = 1
+    sub = mix(sub, st, col("ink"), 0.8)
+    cv.put(sub)
+
+
+def scabbard(cv):
+    """The sword's scabbard along v (0 the tip, 1 the throat): dark leather, a steel chape at the tip, a steel throat."""
+    w, h = cv.pw, cv.ph
+    n = fbm(w, h, 4, 4, (False, False), 251)
+    img = tint(col("scabbard"), n, 0.15)
+    yy = np.linspace(1, 0, h)[:, None] * np.ones((1, w))
+    img = mix(img, ((yy < 0.10) | (yy > 0.92)).astype(float), col("steel"), 1.0)
+    img = mix(img, (((yy > 0.10) & (yy < 0.115)) | ((yy > 0.905) & (yy < 0.92))).astype(float), col("ink"), 0.9)
+    img = mix(img, lines_layer(w, h, fold_strokes(w, h, 8, h * 0.2, True, 0.1, 252), 1.5, False, 0.4), col("apron_edge"), 0.6)
+    cv.put(img)
+
+
+def player_misc(img):
+    """The flat cells: buckle, laces (the grip's wrap), sole, stitch, strap_dark, knot, metal_dark (the guard and the
+    pommel: steel), skin."""
+    u0, v0, u1, v1 = L.REG["misc"]
+    N = img.shape[0]
+    names = {"buckle": "buckle", "laces": "laces", "sole": "sole", "stitch": "apron_edge", "strap_dark": "apron_dark",
+             "knot": "apron_dark", "metal_dark": "steel", "skin": "skin"}
+    cw = (u1 - u0) * N / 4
+    for i, key in enumerate(L.MISC_CELLS):
+        cx = u0 * N + cw * (i % 4)
+        cy = (1 - v0) * N - cw * (i // 4 + 1)
+        img[int(cy):int(cy + cw), int(cx):int(cx + cw)] = col(names[key])
+
+
+PLAYER_PAINTERS = [
+    ("shirt", True, False, vest),
+    ("bib", False, False, lambda cv: leather(cv, seed=261, hem=False, edges=True, stitch=True)),
+    ("apron", False, False, lambda cv: leather(cv, seed=262, hem=True, edges=True, stitch=True)),
+    ("straps", False, False, lambda cv: leather(cv, base="apron_dark", seed=263, hem=False, edges=True, stitch=False)),
+    ("sleeve", True, False, coat_sleeve),
+    ("roll", True, True, coat_cuff),
+    ("forearm", True, False, lambda cv: skin(cv, hairy=False, seed=271)),
+    ("hand", False, False, hands),
+    ("trousers", True, False, patched_trousers),
+    ("seat", True, False, lambda cv: trousers(cv, seat=True)),
+    ("boots", True, False, boots),
+    ("belt", True, True, belt),
+    ("cloth", False, False, scabbard),
+]
+
+
+def body_texture(out, painters=None, palette=None, ground="apron_dark", flat_cells=True, misc_fn=None):
     """The body atlas: each (region, wrap_u, wrap_v, painter) paints its real_layout.REG region (periodic on a
-    wrapping axis); misc's flat cells last. palette: {name: (r, g, b)} over real_layout.PALETTE's keys (a recolour)."""
+    wrapping axis); misc's flat cells last (misc_fn: the role's own, default the Bartender's). palette: {name: (r, g,
+    b)} over real_layout.PALETTE's keys (a recolour) and any new keys the role's painters read."""
     global PAL
     keep = PAL
     PAL = dict(L.PALETTE, **(palette or {}))
@@ -394,7 +525,7 @@ def body_texture(out, painters=None, palette=None, ground="apron_dark", flat_cel
         for region, wu, wv, fn in (painters or BARTENDER_PAINTERS):
             fn(Canvas(img, region, wu, wv))
         if flat_cells:
-            misc(img)
+            (misc_fn or misc)(img)
         Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB").save(out)
     finally:
         PAL = keep

@@ -13,14 +13,18 @@
 import json
 
 
-def make_sheet(concept, height, views, head_crops, head_win=130.0, head_skin_uv=(0.75, 0.25)):
+def make_sheet(concept, height, views, head_crops, head_win=130.0, head_skin_uv=(0.75, 0.25), side_flip=False):
     """views: {"front"|"side"|"back": (centre px x (front/back: the head's midline; side: the ankle line), crown row,
     sole row)}; head_crops: {view: (window left px, window top px, quadrant u0, quadrant v0)} with square windows of
-    head_win px (quadrants of the head texture; the fourth is skin at head_skin_uv)."""
+    head_win px (quadrants of the head texture; the fourth is skin at head_skin_uv). side_flip: the side view shows
+    his RIGHT side (his front image-right; 25.31 S1, the player's sheet), not his left."""
     assert set(views) == {"front", "side", "back"} and set(head_crops) <= set(views)
-    return {"concept": concept, "height": float(height), "views": {k: tuple(v) for k, v in views.items()},
-            "head_crops": {k: tuple(v) for k, v in head_crops.items()}, "head_win": float(head_win),
-            "head_skin_uv": tuple(head_skin_uv)}
+    out = {"concept": concept, "height": float(height), "views": {k: tuple(v) for k, v in views.items()},
+           "head_crops": {k: tuple(v) for k, v in head_crops.items()}, "head_win": float(head_win),
+           "head_skin_uv": tuple(head_skin_uv)}
+    if side_flip:
+        out["side_flip"] = True
+    return out
 
 
 def save_sheet(sheet, path):
@@ -32,13 +36,29 @@ def load_sheet(path):
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
     return make_sheet(d["concept"], d["height"], d["views"], d["head_crops"], d.get("head_win", 130.0),
-                      d.get("head_skin_uv", (0.75, 0.25)))
+                      d.get("head_skin_uv", (0.75, 0.25)), d.get("side_flip", False))
 
 
 BARTENDER = make_sheet(
     "F:/GAME I AM MAKING/eternal_guild_art/realistic_test/ref_bartender_concept.png", 1.86,
     {"front": (262.3, 32.0, 746.0), "side": (713.0, 36.0, 743.0), "back": (1092.3, 34.0, 735.0)},
     {"front": (262.3 - 65.0, 27.0, 0.0, 0.5), "side": (618.0, 31.0, 0.5, 0.5), "back": (1092.3 - 65.0, 29.0, 0.0, 0.0)})
+
+# The player's pick (25.31 S1, catalogue G1): eternal_guild_art/picked/C_G1_player.png (1344 x 768). Crown (the hair's
+# top) and sole rows read off the figure masks; the front and back centres are the face's / the head's midline; the side
+# view shows his RIGHT side, its centre placed so his nose tip (px 714, row 103) and the back of his hair (px ~619) land on
+# the head mesh (real_player: the Bartender's head narrowed and lowered under the hair). The side view draws his eyes 5 px
+# higher than the front view does: its crown row (22.3, not the hair's 31) registers its eye line on the front's (z 1.710),
+# or the two projections meet in a step across the cheek.
+PLAYER = make_sheet(
+    "F:/GAME I AM MAKING/eternal_guild_art/picked/C_G1_player.png", 1.86,
+    {"front": (258.0, 27.0, 745.0), "side": (633.0, 22.3, 746.0), "back": (1062.0, 30.0, 744.0)},
+    {"front": (258.0 - 65.0, 22.0, 0.0, 0.5), "side": (600.0, 26.0, 0.5, 0.5), "back": (1062.0 - 65.0, 25.0, 0.0, 0.0)},
+    side_flip=True)
+PLAYER["crown_rows"] = {"front": 27.0, "side": 31.0, "back": 30.0}   # the drawn hair's top per view: the crown samples
+                                                                     # 3 px under it (above is the bleed, streaked)
+PLAYER["top_from_back"] = {"nz": 0.55, "z_min": 1.80, "y": (-0.20, 0.06), "rows": (38.0, 78.0)}   # the crown (above the
+                                                                     # hairline, never the face or the ears): the back view's hair laid flat
 
 CONCEPT = BARTENDER["concept"]
 HEIGHT = BARTENDER["height"]
@@ -62,8 +82,8 @@ def to_px(view, x, y, z, sheet=None):
     py = top + (sheet["height"] - z) / s
     if view == "front":
         return cx + x / s, py
-    if view == "side":                     # his left side: his front is image-left
-        return cx + y / s, py
+    if view == "side":                     # his left side: his front is image-left (side_flip: his right, front image-right)
+        return (cx - y / s if sheet.get("side_flip") else cx + y / s), py
     return cx - x / s, py                  # back: his left is image-left
 
 
@@ -73,6 +93,8 @@ def head_uv(view, x, y, z, sheet=None):
     px, py = to_px(view, x, y, z, sheet)
     wx, wy, u0, v0 = sheet["head_crops"][view]
     win = sheet["head_win"]
+    if "crown_rows" in sheet:                  # (25.31 S1, the player) never sample above the drawn crown (the bleed)
+        py = max(py, sheet["crown_rows"][view] + 3.0)
     return u0 + 0.5 * (px - wx) / win, v0 + 0.5 * (1.0 - (py - wy) / win)
 
 

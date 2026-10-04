@@ -29,17 +29,28 @@ import real_chain as RC
 import real_layout as L
 
 ART = C.ART
+# The production Bartender (25.31 S1): REAL-1's finished base saved as his own file, his GLB under a new name (N5).
+# The spike's files (realistic_bartender_test.blend, custom/tests/g12_bartender_realtest.glb, commit 5ae8dc0) stay.
 CFG = {
-    "role": "bartender_realtest",
-    "blend": C.BLEND + "realistic_bartender_test.blend",
-    "head_png": ART + "textures/realistic/g12_bartender_realtest_head.png",
-    "body_png": ART + "textures/realistic/g12_bartender_realtest_body.png",
-    "glb": "F:/GAME I AM MAKING/shiningsun/assets/characters/custom/tests/g12_bartender_realtest.glb",
+    "role": "bartender",
+    "blend": C.BLEND + "g12_bartender_real.blend",
+    "head_png": ART + "textures/realistic/g12_bartender_real_head.png",          # the projection's source crops
+    "head_paint_png": ART + "textures/realistic/g12_bartender_real_headpaint.png",   # the painted pass (shipped)
+    "body_png": ART + "textures/realistic/g12_bartender_real_body.png",
+    "glb": "F:/GAME I AM MAKING/shiningsun/assets/characters/custom/g12_bartender_real.glb",
     "body": "Bartender_Body",
     "props": ["Bartender_ClothHand", "Bartender_ClothBelt"],
 }
+PICK = ART + "picked/C_G12_bartender.png"      # Raphael's pick (= the spike's ref_bartender_concept.png, re-encoded)
+SHEET = L.make_sheet(PICK, L.BARTENDER["height"], L.BARTENDER["views"], L.BARTENDER["head_crops"])
 TRI_BUDGET = 10000
-HAND_SCALE = 1.12           # the sheet's hands are big working hands (the first pass read small next to the concept)
+HAND_SCALE = 1.06           # build_hand_real is a man's full-size hand; his are big working hands (the concept)
+# the apron's folds (real_body.apron_folds): two ripples and three deep troughs, front-left, centre-right and the side
+APRON_FOLDS = {"ripples": [(0.011, 5.0, 0.6), (0.007, 11.0, 1.9)], "power": 0.75,
+               "troughs": [(-38.0, 0.008, 7.0), (14.0, 0.007, 6.0), (72.0, 0.006, 8.0)], "ease": 0.025}
+# how the hem follows the thighs (real_body.skirt_w): the spike's 0.85 / 0.55 kicked it forward like a board (0.18 m up
+# in Walk_Bar); less and his thighs show through it mid-stride (scratch apron_poke: legs in front of the apron)
+APRON_LEGS, APRON_FOLLOW = 0.75, 0.35
 
 
 def open_base_as_bartender(overwrite_ok=False):
@@ -70,18 +81,23 @@ def _prop(name, bm, mat, bone):
 def build_cloth_belt(mat):
     """The off-white cloth tucked under the belt at his left hip, folded over it, hanging to mid-thigh."""
     bm = bmesh.new()
-    cols, rows = 4, 6
+    cols, rows = 6, 6
     grid = []
     for j in range(rows + 1):
         z = 1.060 - (1.060 - 0.810) * j / rows
+        t = j / rows
         row = []
         for i in range(cols + 1):
             th = math.radians(52 + 34 * i / cols)                    # round the hip, front-left
             w, yf, yb = RB.apron_ring(min(z, 1.03))
-            x = (w + 0.030) * RB.se(math.sin(th), 2.2)
-            y = (yf + yb) / 2 - ((yb - yf) / 2 + 0.030) * RB.se(math.cos(th), 2.2)
-            sway = 0.010 * math.sin(i * 1.9 + j * 0.8) + 0.004 * j
-            row.append(Vector((x + sway * 0.5, y - sway, z - (0.012 if i in (1, 3) and j == rows else 0.0))))
+            # pleats (25.31 S1): alternate columns stand out, deeper toward the hem; the cloth gathers under the belt
+            pleat = (0.004 + 0.012 * t) * (1.0 if i % 2 else -0.6)
+            g = 0.030 + pleat
+            x = (w + g) * RB.se(math.sin(th), 2.2)
+            y = (yf + yb) / 2 - ((yb - yf) / 2 + g) * RB.se(math.cos(th), 2.2)
+            sway = 0.010 * math.sin(i * 1.3 + j * 0.8) + 0.004 * j
+            hem = (0.014 if i in (1, 4) else 0.004 * (i % 2)) if j == rows else 0.0
+            row.append(Vector((x + sway * 0.5, y - sway, z - hem)))
         grid.append(row)
     params = RB.grid_slab(bm, grid, 0.006, lambda p: Vector((-p.x, -p.y, 0)).normalized())
     # the fold over the belt: a short lip at the top, in front of the belt
@@ -133,14 +149,16 @@ def build():
     old = [o.name for o in bpy.data.objects if o.type == "MESH" and o.name.startswith(("RB_", "RT_", "Bartender_"))]
     K.remove(old)
     head, body = _materials()
-    parts = [RB.build_head("RT_Head", head), RB.build_beard("RT_Beard", head), RB.build_ears("RT_Ears", head),
-             RB.build_neck("RT_Neck", head), RB.build_torso("RT_Shirt", body), RB.build_collar("RT_Collar", body),
-             RB.build_pelvis("RT_Seat", body), RB.build_apron_skirt("RT_Apron", body), RB.build_bib("RT_Bib", body),
-             RB.build_pocket("RT_Pocket", body), RB.build_straps("RT_Strap", body), RB.build_ties("RT_Ties", body),
-             RB.build_belt("RT_Belt", body)]
+    parts = [RB.build_head("RT_Head", head, sheet=SHEET), RB.build_beard("RT_Beard", head, sheet=SHEET),
+             RB.build_ears("RT_Ears", head, sheet=SHEET), RB.build_neck("RT_Neck", head, sheet=SHEET),
+             RB.build_torso("RT_Shirt", body), RB.build_collar("RT_Collar", body),
+             RB.build_pelvis("RT_Seat", body), RB.build_apron_skirt("RT_Apron", body, cols=24, folds=APRON_FOLDS,
+                                                                       legs=APRON_LEGS, front_follow=APRON_FOLLOW),
+             RB.build_bib("RT_Bib", body), RB.build_pocket("RT_Pocket", body), RB.build_straps("RT_Strap", body),
+             RB.build_ties("RT_Ties", body), RB.build_belt("RT_Belt", body)]
     for s in ("l", "r"):
         parts += [RB.build_sleeve("RT_Sleeve_" + s, body, s), RB.build_roll("RT_Roll_" + s, body, s),
-                  RB.build_forearm("RT_Forearm_" + s, body, s), RB.build_hand("RT_Hand_" + s, body, s, scale=HAND_SCALE),
+                  RB.build_forearm("RT_Forearm_" + s, body, s), RB.build_hand_real("RT_Hand_" + s, body, s, scale=HAND_SCALE),
                   RB.build_trouser_leg("RT_Leg_" + s, body, s), RB.build_boot("RT_Boot_" + s, body, s)]
     counts = {p.name: sum(len(f.vertices) - 2 for f in p.data.polygons) for p in parts}
     props = [build_cloth_hand(body), build_cloth_belt(body)]
@@ -149,6 +167,16 @@ def build():
     ok, stats = MG.check(out, props=props, tri_budget=TRI_BUDGET)
     print("parts (tris):", sorted(counts.items(), key=lambda kv: -kv[1]))
     return ok, stats
+
+
+def paint_head():
+    """After build() (own call): the painted head pass (real_bake): the three views blended by the normal into the
+    head's own unwrap, so no seam where the front view hands over to the side (the first portrait showed a jagged beard
+    edge and a second brow line there)."""
+    import real_bake as BK
+    out = BK.bake_head(CFG["body"], "RT_Bartender_Head", SHEET, CFG["head_paint_png"])
+    ok, stats = MG.check(bpy.data.objects[CFG["body"]], props=[bpy.data.objects[n] for n in CFG["props"]], tri_budget=TRI_BUDGET)
+    return ok, stats, out
 
 
 # ------------------------------------------------------------------ his clips (the 25.13 method on his reach)
@@ -248,7 +276,8 @@ def pose_idle(t):
               AN.in_frame_of("chest", (IDLE_POLE[0] * sx, IDLE_POLE[1], IDLE_POLE[2])), (-sx, 0.15, 0.0))   # palms to his thighs
 
 
-WALK_STRIDE = 0.74          # Walking_A's leg swing kept (toward Idle): KayKit's full stride on his legs is 1.72 m/s
+WALK_STRIDE = 0.55          # Walking_A's leg swing kept (toward Idle): KayKit's knee lift is a chibi's (the spike's 0.74
+                            # lifted his thigh near level, through the apron); 1.03 m/s on his legs, a heavy man's amble
 BAR_STRIDE = 0.45           # Walk_Bar's (25.13's shuffle)
 
 
@@ -299,32 +328,142 @@ def pose_walk(t):
         reach(s, AN.in_frame_of("chest", hand), AN.in_frame_of("chest", (0.70 * sx, 0.55, 1.20)), (-sx, 0.15, 0.0))
 
 
-WIPE_LEAN = 18.0
-WIPE_C, WIPE_R, WIPE_Z = (-0.12, -0.585), 0.035, 1.168     # the cloth's circle on the counter top (edge 0.55 ahead)
+# ---- the work clips at the bar (25.31 S1). The serve stand moved toward the counter: the spike wiped from 25.13's
+# r 1.76 (the counter's inner face 0.59 m ahead), leaning 18 degrees to reach a top a real barman stands at. SERVE_R is
+# his body block's serve_r (staff.json, measured by real_bar.report): his belly ~0.29 m ahead in Idle, the counter
+# face (r 2.35, top 1.12) EDGE ahead. Every target below is in his rest frame (front -Y, his left +X, up Z).
+COUNTER_FACE, COUNTER_TOP = 2.35, 1.12
+SERVE_R = 1.92
+EDGE = COUNTER_FACE - SERVE_R            # 0.43: the counter's inner face ahead of his root at a serve stand
+RESTOCK_R = 1.98                          # the restock station (25.13's; his Walk_Bar front 0.43 keeps him off the kegs)
+TAP = (-0.255, -(RESTOCK_R - 1.47), 0.30)  # the right tap ahead of him at the restock station (taps r 1.47, y 0.30)
+TANKARD_SCALE = 1.1                       # his body block's tankard_scale: the H1 tankard drawn x 1.1 (true size 0.19 m)
+TANKARD_BELOW, TANKARD_ABOVE, TANKARD_R = 0.085, 0.105, 0.056     # the H1 tankard about its grip (true size)
+
+WIPE_LEAN = 10.0
+WIPE_R, WIPE_Z = 0.035, 1.19           # the palm and the cloth on the top (1.168: 1.7 cm into it)
+WIPE_C = (-0.12, -(EDGE + 0.12))           # the cloth's circle on the counter top, 0.09-0.16 m past its edge
 
 
 def pose_wipe(t, period=2 * AN.IDLE_S):
-    """At a serve point, facing the counter (its inner edge 0.55 m ahead, top 1.12 m up): he leans in, the right hand
-    circles the cloth on the top 0.56-0.66 m ahead, the left hand rests on the counter's edge; a look down."""
+    """At a serve stand, facing the counter (its face EDGE ahead, top 1.12 up): he leans in a little, the right hand
+    circles the cloth on the top, the left hand rests on its edge; a look down."""
     AN.base_pose(SRC["Idle"], t)
     stand_tall()
     AN.lean(WIPE_LEAN)
-    AN.turn_head(pitch=12.0)
+    AN.turn_head(pitch=14.0)
     a = 2 * math.pi * t / period
     right = Vector((WIPE_C[0] + WIPE_R * math.cos(a), WIPE_C[1] + WIPE_R * math.sin(a), WIPE_Z))
-    reach("r", right, Vector((-0.75, 0.10, 1.35)), (0.0, 0.0, -1.0), level=True)          # flat on the counter, on the cloth
-    reach("l", Vector((0.24, -0.565, WIPE_Z)), Vector((0.75, 0.10, 1.35)), (0.0, 0.0, -1.0), level=True)    # resting
+    reach("r", right, Vector((-0.75, 0.10, 1.30)), (0.0, 0.0, -1.0), level=True)          # flat on the counter, on the cloth
+    reach("l", Vector((0.25, -(EDGE + 0.04), WIPE_Z)), Vector((0.75, 0.10, 1.30)), (0.0, 0.0, -1.0), level=True)
+
+
+def _sm(x):
+    return 0.5 * (1 - math.cos(math.pi * min(1.0, max(0.0, x))))
+
+
+def squat_planted(drop):
+    """anime_anims.squat with the feet locked: the leg IK places each foot's joint but turns the foot with the shin
+    (the toes went 0.15 m into the floor at Pour's depth), so each foot gets its pre-squat world rotation back."""
+    keep = {s: RT.pm("foot." + s).copy() for s in ("l", "r")}
+    AN.squat(drop)
+    for s in ("l", "r"):
+        now = RT.pm("foot." + s)
+        RT.set_pm("foot." + s, Matrix.Translation(now.translation) @ keep[s].to_3x3().to_4x4())
+
+
+SERVE_S = 1.2
+SERVE_GRIP_DOWN = COUNTER_TOP + TANKARD_BELOW * TANKARD_SCALE + 0.004     # the tankard's base on the counter top
+
+
+def serve_target(k):
+    """The right slot's path through Serve (k 0..1): from his belly up (the tankard's base clears the top), over the
+    counter, down onto it (the release at k 0.6), back. Also the test of where the tankard is (counter_report)."""
+    start = Vector((-0.17, -0.30, 1.00))
+    up = Vector((-0.15, -0.36, COUNTER_TOP + 0.20))
+    over = Vector((-0.10, -(EDGE + 0.18), COUNTER_TOP + 0.20))
+    down = Vector((-0.10, -(EDGE + 0.18), SERVE_GRIP_DOWN))
+    if k < 0.25:
+        return start.lerp(up, _sm(k / 0.25))
+    if k < 0.5:
+        return up.lerp(over, _sm((k - 0.25) / 0.25))
+    if k < 0.6:
+        return over.lerp(down, _sm((k - 0.5) / 0.1))
+    if k < 0.75:
+        return down.lerp(over, _sm((k - 0.6) / 0.15))
+    if k < 0.88:                                               # back over the edge before dropping (no diagonal through it)
+        return over.lerp(up, _sm((k - 0.75) / 0.13))
+    return up.lerp(start, _sm((k - 0.88) / 0.12))
+
+
+def pose_serve(t, length=SERVE_S):
+    """At a serve stand: the tankard lifted from his belly, over the counter and set down on its top ~0.18 m past the
+    edge (released at k 0.6, SERVE_RELEASE_AT), then the hand back; the left hand on the counter's edge."""
+    AN.base_pose(SRC["Idle"], t)
+    stand_tall()
+    k = t / length
+    put = _sm(k / 0.5) * (1 - _sm((k - 0.7) / 0.3))
+    AN.lean(6.0 * put)
+    AN.turn_head(pitch=8.0 * put)
+    reach("r", serve_target(k), Vector((-0.75, 0.15, 1.10)), (0.85, 0.0, -0.5))     # the grip: palm in, round the handle
+    reach("l", Vector((0.25, -(EDGE + 0.04), WIPE_Z)), Vector((0.75, 0.10, 1.30)), (0.0, 0.0, -1.0), level=True)
+
+
+POUR_S = 2.0
+POUR_DROP, POUR_LEAN = 0.46, 24.0     # the taps are 0.30 up: a deep squat (0.34 / 16 left the hand 0.12 short)
+POUR_GRIP = Vector((TAP[0] + 0.03, TAP[1] + 0.10, 0.40))     # the tankard in front of the tap, its base ~0.30 up
+POUR_HANDLE = Vector((0.10, -(RESTOCK_R - 1.49) + 0.03, 0.57))  # the left hand steadying on the keg's top (y 0.49)
+
+
+def pose_pour(t, length=POUR_S):
+    """At the restock station, facing the island (the taps 0.51 m ahead, 0.30 up): a deep squat with a lean, the
+    tankard held in front of the right tap, the left hand steadying on the keg's top; hold; rise."""
+    AN.base_pose(SRC["Idle"], t)
+    stand_tall()
+    k = t / length
+    s = _sm(k / 0.3) * (1 - _sm((k - 0.7) / 0.3))
+    squat_planted(POUR_DROP * s)
+    AN.lean(POUR_LEAN * s)
+    AN.turn_head(pitch=18.0 * s)
+    stand_r = Vector((-0.17, -0.34, 1.00))
+    stand_l = Vector((0.17, -0.34, 1.00))
+    reach("r", stand_r.lerp(POUR_GRIP, s), Vector((-0.70, 0.10, 0.80 - 0.3 * s)), (0.85, 0.0, -0.5))
+    reach("l", stand_l.lerp(POUR_HANDLE, s), Vector((0.70, 0.10, 0.80 - 0.3 * s)), (0.0, 0.3, -1.0))
+
+
+RESTOCK_S = 3.2
+RESTOCK_SQUAT, RESTOCK_LEAN = 0.26, 44.0   # the shelf is 0.77 m off past the kegs: 0.16 / 34 fell 0.11 short
+SHELF = Vector((0.0, -(RESTOCK_R - 1.165 - 0.11), 0.70))     # the middle tier (r <= 1.165, y 0.6-0.9): the slot 11 cm
+                                                               # short, so the fingers (and the bottle) meet its face
+KEG = Vector((0.0, -(RESTOCK_R - 1.49 - 0.02), 0.62))         # over the kegs' tops (r <= 1.49, y <= 0.49)
+
+
+def pose_restock(t, length=RESTOCK_S):
+    """At the restock station: down to the keg tops for a bottle, then up and over them to set it on the shelf's middle
+    tier, a small nod, and back (a loop). The reach to the shelf takes a lean and a slight squat (the kegs keep him
+    0.49 m off)."""
+    AN.base_pose(SRC["Idle"], t)
+    stand_tall()
+    k = t / length
+    phase = 0.5 * (1 - math.cos(2 * math.pi * k))            # 0 at the shelf, 1 down at the keg tops
+    squat_planted(RESTOCK_SQUAT + 0.06 * phase)
+    AN.lean(RESTOCK_LEAN - 6.0 * phase)
+    AN.turn_head(pitch=4.0 + 14.0 * phase)
+    for s, sx in (("l", 1), ("r", -1)):
+        tgt = (SHELF + Vector((0.09 * sx, 0, 0))).lerp(KEG + Vector((0.13 * sx, 0, 0)), phase)
+        reach(s, tgt, Vector((0.65 * sx, 0.10, 0.55)), (0.0, 0.2, -1.0))
 
 
 CLIPS = [("Idle", AN.IDLE_S, pose_idle, True), ("Walking_A", AN.WALKING_A_S, pose_walk, True),
          ("Walk_Bar", AN.WALKING_A_S, pose_walk_bar, True),
-         ("Wipe", 2 * AN.IDLE_S, pose_wipe, True)]
+         ("Wipe", 2 * AN.IDLE_S, pose_wipe, True), ("Serve", SERVE_S, pose_serve, False),
+         ("Pour", POUR_S, pose_pour, False), ("Restock", RESTOCK_S, pose_restock, True)]
 
 
 def build_clips(names=None):
     assert C.is_open(CFG["blend"])
     ensure_sources()
-    order = ["Walk_Bar", "Wipe", "Idle", "Walking_A"]
+    order = ["Walk_Bar", "Wipe", "Serve", "Pour", "Restock", "Idle", "Walking_A"]
     clips = sorted([c for c in CLIPS if not names or c[0] in names], key=lambda c: order.index(c[0]))
     out = AN.build_clips(clips)
     for a in bpy.data.actions:

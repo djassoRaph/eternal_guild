@@ -141,7 +141,8 @@ const FIRE_ANCHOR := Vector3(-2.970, 0.100, -9.300)   # the Hearth's interact_po
 const CAT_WORLD := Vector3(-2.937, 0.160, -6.895)
 const BAR_SPOT := Vector3(3.95, 0.10, -7.55)            # between Stool03 and Stool04
 const STAFF_DATA_PATH := "res://data/characters/staff.json"          # Story 25.13
-const BARTENDER_PATH := "res://assets/characters/custom/g12_bartender.glb"
+const BARTENDER_PATH := "res://assets/characters/custom/g12_bartender_real.glb"       # Story 25.31: the realistic body (route RL)
+const BARTENDER_FALLBACK_PATH := "res://assets/characters/custom/g12_bartender.glb"   # the 25.13 KayKit-rig Bartender: his fallback
 const DEALER_PATH := "res://assets/characters/custom/g13_quest_dealer_anime.glb"       # Story 25.30: the anime body
 const DEALER_FALLBACK_PATH := "res://assets/characters/custom/g13_quest_dealer.glb"     # the 25.13 KayKit dealer: her fallback
 const BARTENDER_SCENE := "res://scenes/game/Bartender.tscn"
@@ -175,6 +176,21 @@ const AN_BODY_SURFACES := 3            # surfaces on <Role>_Body (props counted 
 const AN_TRI_BUDGET := 10000           # min(10000, ceil(9,459 measured x 1.15 / 500) x 500) = the cap (T3); the same number as 08
 const AN_SIT_HIPS_Y := 0.450           # the re-fitted Sit_Chair_Idle hips height (model-local): T2's SIT_HIPS_Y (Base_Body; her seat within 0.03)
 const AN_SEATED_SHOULDER_MIN := 1.05   # seated upperarm heads, root-local: the desk top 0.85 + 0.20 (N2)
+# Story 25.31: the realistic cast (route RL; AH-15). The AN rules stay for the anime dealer (her fallback since R-2).
+const RL_TRI_CAP := 10000              # per body, props included (14,000 only with re-measured hall and town budgets)
+const RL_TRI_BUDGET := 10000
+const RL_BODY_SURFACES := 3            # surfaces on <Role>_Body (props apart)
+const RL_TEXTURES := 2                 # textures per body (the head projection + the body atlas), each <= RL_TEX_SIZE
+const RL_TEX_SIZE := 1024
+const RL_TOP := [1.50, 2.25]           # rest top with headwear (the lintel rule kept)
+## The Bartender's own clips on route RL (N9: clips per role) and his loops (V12).
+const BARTENDER_CLIPS := ["Walk_Bar", "Wipe", "Pour", "Serve", "Restock"]
+const BARTENDER_EXCLUDED := ["Write", "Brief"]
+const BARTENDER_LOOPS := ["Idle", "Walking_A", "Walk_Bar", "Sit_Chair_Idle", "Wipe", "Restock"]
+const BARTENDER_ONE_SHOTS := ["Pour", "Serve", "Sit_Chair_Down", "Sit_Chair_StandUp", "Interact"]
+## His body block (staff.json bartender › barkeep), measured by tools/blender/realistic/real_bar.py (V14).
+const BARTENDER_BODY_KEYS := ["hall_speed", "bar_speed", "serve_r", "restock_r", "ring_r", "keg_r", "gap_r",
+	"walk_bar_half_low", "walk_bar_half_shelf", "walk_bar_half_mid", "tankard_scale"]
 const DIALOGUE_DIR := "res://data/dialogue/"                       # Story 10.2
 const DEN_FA_DIALOGUE := "res://data/dialogue/den_fa.dialogue"
 const SPEAKERS_PATH := "res://data/dialogue/speakers.json"
@@ -2881,7 +2897,7 @@ func test_den_fa_e() -> void:
 func test_staff() -> void:
 	print("[Test 19] The Bartender and the Quest Dealer")
 	_t19_ms = Time.get_ticks_msec()
-	for p in [BARTENDER_PATH, DEALER_PATH, DEALER_FALLBACK_PATH, BARTENDER_SCENE, DEALER_SCENE, STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT,
+	for p in [BARTENDER_PATH, BARTENDER_FALLBACK_PATH, DEALER_PATH, DEALER_FALLBACK_PATH, BARTENDER_SCENE, DEALER_SCENE, STAFF_BASE_SCRIPT, BARTENDER_SCRIPT, DEALER_SCRIPT,
 			ANIME_LOOK_SCRIPT, ANIME_OUTLINE]:
 		check(ResourceLoader.exists(p), "exists: %s" % p.get_file())
 	check(FileAccess.file_exists(STAFF_DATA_PATH), "exists: staff.json")
@@ -2889,10 +2905,11 @@ func test_staff() -> void:
 	var data = _read_json(STAFF_DATA_PATH) if FileAccess.file_exists(STAFF_DATA_PATH) else null
 	var roles: Dictionary = data.get("roles", {}) if data is Dictionary else {}
 	# the GLB checks run on the bodies staff.json loads (every variant of each role), not on fixed paths. Per role:
-	# [mesh allowlist, prefix, props, own clips, excluded clips, loops, one-shots, tri budget, surface cap (-1: none)]
-	var glb_rules := {"bartender": [BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"],
-			STAFF_CLIPS, [], STAFF_LOOPS, STAFF_ONE_SHOTS, 7000, -1],
-		"desk_manager": [[], "Dealer_", ["Dealer_Quill"], DEALER_CLIPS, DEALER_EXCLUDED, DEALER_LOOPS, DEALER_ONE_SHOTS, AN_TRI_BUDGET, AN_BODY_SURFACES]}
+	# [mesh allowlist, prefix, props, own clips, excluded clips, loops, one-shots, tri budget, surface cap (-1: none),
+	# route ("anime" / "realistic"; 25.31: the RL rules - two textures at <= 1024, a head projection, top 1.50-2.25)]
+	var glb_rules := {"bartender": [[], "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"],
+			BARTENDER_CLIPS, BARTENDER_EXCLUDED, BARTENDER_LOOPS, BARTENDER_ONE_SHOTS, RL_TRI_BUDGET, RL_BODY_SURFACES, "realistic"],
+		"desk_manager": [[], "Dealer_", ["Dealer_Quill"], DEALER_CLIPS, DEALER_EXCLUDED, DEALER_LOOPS, DEALER_ONE_SHOTS, AN_TRI_BUDGET, AN_BODY_SURFACES, "anime"]}
 	for role in glb_rules:
 		var rv = roles.get(role)
 		var vs = rv.get("variants", {}) if rv is Dictionary else {}
@@ -2904,6 +2921,8 @@ func test_staff() -> void:
 	# Review 2026-10-03: a custom fallback body (the 25.13 KayKit-rig dealer behind the anime one) is a staff body
 	# too and gets the same checks under its own rule (a stock KayKit fallback, the Bartender's Barbarian, does not).
 	var fallback_rules := {"desk_manager": [DEALER_MESH_ALLOW, "Dealer_", ["Dealer_Quill", "Dealer_Ears"],
+			STAFF_CLIPS, [], STAFF_LOOPS, STAFF_ONE_SHOTS, 7000, -1],
+		"bartender": [BARTENDER_MESH_ALLOW, "Bartender_", ["Bartender_ClothBelt", "Bartender_ClothHand"],
 			STAFF_CLIPS, [], STAFF_LOOPS, STAFF_ONE_SHOTS, 7000, -1]}
 	for role in fallback_rules:
 		var fvs = roles.get(role, {}).get("variants", {}) if roles.get(role) is Dictionary else {}
@@ -2923,6 +2942,40 @@ func test_staff() -> void:
 	check(se is Dictionary and str(se.get("look", "")) == "anime" and str(se.get("model_path", "")) == DEALER_PATH
 		and str(se.get("fallback_model_path", "")) == DEALER_FALLBACK_PATH and bad_keys.is_empty(),
 		"staff.json silver_elf: the anime body (look anime), the 25.13 KayKit dealer as its fallback, and every body number (missing or bad %s)" % [bad_keys])
+	# the realistic Bartender's data (Story 25.31, V14, F29): look "realistic", the 25.13 g12 as his fallback, every
+	# body number; his ring (ring_r / keg_r / gap_r) clears the shelf, the kegs and the counter for his own Walk_Bar
+	# half-widths (Test 19's 25.13 rules), he serves between the ring and the counter, the tankard drawn x 1.0-1.8
+	var bk = roles.get("bartender", {}).get("variants", {}).get("barkeep") if roles.get("bartender") is Dictionary and roles.bartender.get("variants") is Dictionary else null
+	var bk_body = bk.get("body") if bk is Dictionary else null
+	var bk_bad := BARTENDER_BODY_KEYS.filter(func(k): return not (bk_body is Dictionary and (bk_body.get(k) is float or bk_body.get(k) is int)
+		and float(bk_body.get(k)) > 0.0))
+	check(bk is Dictionary and str(bk.get("look", "")) == "realistic" and str(bk.get("model_path", "")) == BARTENDER_PATH
+		and str(bk.get("fallback_model_path", "")) == BARTENDER_FALLBACK_PATH and bk_bad.is_empty(),
+		"staff.json barkeep: the realistic body (look realistic), the 25.13 g12 Bartender as its fallback, and every body number (missing or bad %s)" % [bk_bad])
+	var bkd: Dictionary = bk_body if bk_body is Dictionary and bk_bad.is_empty() else {}
+	var bscript = load(BARTENDER_SCRIPT) if ResourceLoader.exists(BARTENDER_SCRIPT) else null
+	var bk_why := []
+	if bkd.is_empty() or bscript == null:
+		bk_why.append("no body block or script")
+	else:
+		for deg in 360:
+			var r: float = bscript.ring_radius_at(deg_to_rad(float(deg)), float(bkd.ring_r), float(bkd.keg_r), float(bkd.gap_r))
+			if r - float(bkd.walk_bar_half_shelf) < 1.28:
+				bk_why.append("the shelf at %d°" % deg)
+				break
+			if absf(float(deg) - 180.0) <= 30.0 and r - float(bkd.walk_bar_half_low) < 1.49:
+				bk_why.append("the kegs at %d°" % deg)
+				break
+			if absf(float(deg) - 180.0) > 16.8 and r + float(bkd.walk_bar_half_mid) > 2.355:
+				bk_why.append("the counter at %d°" % deg)
+				break
+		if float(bkd.serve_r) < float(bkd.ring_r) - 0.05 or float(bkd.serve_r) > 2.35 - 0.25:
+			bk_why.append("serve_r %.2f" % float(bkd.serve_r))
+		if float(bkd.restock_r) < 1.49 + float(bkd.walk_bar_half_low) or float(bkd.restock_r) > 2.35:
+			bk_why.append("restock_r %.2f" % float(bkd.restock_r))
+		if float(bkd.tankard_scale) < 1.0 or float(bkd.tankard_scale) > 1.8:
+			bk_why.append("tankard_scale %.2f" % float(bkd.tankard_scale))
+	check(bk_why.is_empty(), "his body block: the ring clears the shelf, the kegs and the counter for his Walk_Bar, he serves between the ring and the counter (its face 0.25 m past his belly at most), the restock stand clears the kegs, the tankard x 1.0-1.8 (wrong: %s)" % [bk_why])
 	var why := []
 	if not (data is Dictionary and str(data.get("_note", "")).length() > 10):
 		why.append("no _note")
@@ -3126,7 +3179,9 @@ static func _dealer_seated_root(ds, wp: Transform3D, hip_back: float) -> Vector3
 ## loops set), its own mesh nodes and props, the tri budget and the glow rule, no metal, under the door lintel.
 ## An anime body (a surface cap ≥ 0) also has one <prefix>Body within the cap, Lossless face and palette textures
 ## that Detect 3D cannot switch, and no LODs. rule = [allow, prefix, props, clips, excluded, loops, one_shots,
-## tri_budget, surface_cap].
+## tri_budget, surface_cap, route]. Story 25.31: route "realistic" (RL, AH-15) checks the same, with the head
+## projection's texture (*_head) as the face, at most RL_TEXTURES textures of at most RL_TEX_SIZE², the RL_TRI_CAP and
+## a top in RL_TOP; route "anime" (the default) keeps 25.30's rules.
 func _check_staff_glb(path: String, rule: Array) -> void:
 	var allow: Array = rule[0]
 	var prefix: String = rule[1]
@@ -3137,6 +3192,9 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 	var one_shots: Array = rule[6]
 	var tri_budget: int = rule[7]
 	var cap: int = rule[8]
+	var route: String = str(rule[9]) if rule.size() > 9 else "anime"
+	var rl := route == "realistic"
+	var tri_cap: int = RL_TRI_CAP if rl else AN_TRI_CAP
 	var want_clips := 76 + own.size()
 	var fname := path.get_file()
 	if not ResourceLoader.exists(path):
@@ -3178,6 +3236,7 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 		var tex_wrong := []
 		var tex_n := 0
 		var has_face := false
+		var face_key := "_head" if rl else "_face"
 		for s in (nsurf if nsurf > 0 else 0):
 			var mat = body_mi.mesh.surface_get_material(s)
 			var tex: Texture2D = (mat as BaseMaterial3D).albedo_texture if mat is BaseMaterial3D else null
@@ -3185,8 +3244,10 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 				tex_wrong.append("surface %d: no albedo texture" % s)   # every body surface reads a texture (face or palette)
 				continue
 			tex_n += 1
-			if str(mat.resource_name).to_lower().ends_with("_face") or tex.resource_path.get_file().to_lower().contains("_face"):
+			if str(mat.resource_name).to_lower().ends_with(face_key) or tex.resource_path.get_file().to_lower().contains(face_key):
 				has_face = true
+			if rl and (tex.get_width() > RL_TEX_SIZE or tex.get_height() > RL_TEX_SIZE):
+				tex_wrong.append("%s %dx%d" % [tex.resource_path.get_file(), tex.get_width(), tex.get_height()])
 			var cf := ConfigFile.new()
 			if cf.load(tex.resource_path + ".import") != OK:
 				tex_wrong.append(tex.resource_path.get_file() + ": no .import")
@@ -3201,11 +3262,17 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 		for mk in (mesh_subs if mesh_subs is Dictionary else {}):
 			if mesh_subs[mk] is Dictionary and int(mesh_subs[mk].get("generate/lods", 0)) == 1:
 				lods_off = false
-		check(body_mi != null and nsurf >= 1 and nsurf <= cap and tex_n == nsurf and has_face and tex_wrong.is_empty() and lods_off,
-			"%s: one %sBody with %d surfaces (≤ %d), each textured, the face among them (%s); its %d textures Lossless with mipmaps and Detect 3D off (wrong %s); no LODs, per mesh too (%s)" % [fname, prefix, nsurf, cap, has_face, tex_n, tex_wrong, lods_off])
+		var distinct_tex := {}
+		for s in (nsurf if nsurf > 0 else 0):
+			var mt = body_mi.mesh.surface_get_material(s)
+			if mt is BaseMaterial3D and (mt as BaseMaterial3D).albedo_texture:
+				distinct_tex[(mt as BaseMaterial3D).albedo_texture.resource_path] = true
+		var tex_ok: bool = not rl or distinct_tex.size() <= RL_TEXTURES
+		check(body_mi != null and nsurf >= 1 and nsurf <= cap and tex_n == nsurf and has_face and tex_wrong.is_empty() and lods_off and tex_ok,
+			"%s: one %sBody with %d surfaces (≤ %d), each textured, the %s among them (%s); its %d textures (%s) Lossless with mipmaps and Detect 3D off (wrong %s); no LODs, per mesh too (%s)" % [fname, prefix, nsurf, cap, "head projection" if rl else "face", has_face, distinct_tex.size(), ("≤ %d at ≤ %d²" % [RL_TEXTURES, RL_TEX_SIZE]) if rl else "any", tex_wrong, lods_off])
 		var an_st := _mesh_stats(path)
-		check(tri_budget <= AN_TRI_CAP and an_st.tris > 0 and an_st.tris <= AN_TRI_CAP,
-			"%s: %d tris under the AN hard cap (%d, props included; budget %d)" % [fname, an_st.tris, AN_TRI_CAP, tri_budget])
+		check(tri_budget <= tri_cap and an_st.tris > 0 and an_st.tris <= tri_cap,
+			"%s: %d tris under the %s hard cap (%d, props included; budget %d)" % [fname, an_st.tris, "RL" if rl else "AN", tri_cap, tri_budget])
 	var metal := []
 	for m in inst.find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = (m as MeshInstance3D).mesh
@@ -3223,7 +3290,10 @@ func _check_staff_glb(path: String, rule: Array) -> void:
 		var mesh = gnodes[k].props.get("mesh")
 		if mesh is Mesh:
 			top = maxf(top, ((gnodes[k].world as Transform3D) * (mesh as Mesh).get_aabb()).end.y)
-	check(top > 1.8 and top <= LINTEL_Y - 0.05, "%s: %.2f m tall, under the door lintel (%.2f)" % [fname, top, LINTEL_Y])
+	if rl and cap >= 0:
+		check(top >= RL_TOP[0] and top <= RL_TOP[1], "%s: %.2f m tall, in the RL range %.2f-%.2f (under the door lintel %.2f)" % [fname, top, RL_TOP[0], RL_TOP[1], LINTEL_Y])
+	else:
+		check(top > 1.8 and top <= LINTEL_Y - 0.05, "%s: %.2f m tall, under the door lintel (%.2f)" % [fname, top, LINTEL_Y])
 
 
 ## The staff in the real tavern (Test 19): their routes (on the navmesh except the listed legs, clear of
@@ -3460,11 +3530,14 @@ func test_staff_runtime() -> void:
 	first.door_path = door.get_path()
 	world.add_child(first)
 	first.tick(dt)
-	var s01: Vector3 = RING_CENTER + Vector3(0, 0, 1.76)          # the geometry table's serve radius, not the script's SERVE_R
+	# the serve radius from staff.json read here (his body's serve_r, Story 25.31), not from the script's accessor
+	var bk_spec = staff_roles.get("bartender", {}).get("variants", {}).get(str(staff_roles.get("bartender", {}).get("default_variant", "")), {})
+	var bk_serve_r: float = float(bk_spec.get("body", {}).get("serve_r", 1.76)) if bk_spec is Dictionary and bk_spec.get("body") is Dictionary else 1.76
+	var s01: Vector3 = RING_CENTER + Vector3(0, 0, bk_serve_r)
 	check(first.visible and first.global_position.distance_to(s01) < 0.02 and first.anim_state() == "Wipe"
 		and first._stands.size() == 6 and absf(wrapf(float(first._stands[first.RESTOCK_INDEX].phi) - PI, -PI, PI)) < 0.01,
 		"hired at start: he is at serve_point_01 wiping (at %s, %s); five serve stations and the restock station at φ 180 (%d stations)" % [first.global_position, first.anim_state(), first._stands.size()])
-	_check_staff_body(first, "the Bartender", _staff_model_path(staff_roles, "bartender"))
+	_check_staff_body(first, "the Bartender", _staff_model_path(staff_roles, "bartender"), str(bk_spec.get("look", "")) in ["anime", "realistic"] if bk_spec is Dictionary else false)
 	var bt_name: String = first.display_name
 	first.set_autopilot(false)
 	var cloth_hand: Node3D = first.model.find_child("Bartender_ClothHand", true, false) as Node3D if first.model else null
@@ -3660,7 +3733,7 @@ func test_staff_runtime() -> void:
 	bt.enter_idle()
 	gm.beer_stock = 0
 	eb.beer_changed.emit(0)
-	var restock_spot: Vector3 = RING_CENTER + Vector3(0, 0, -float(bt.RESTOCK_R))
+	var restock_spot: Vector3 = RING_CENTER + Vector3(0, 0, -float(bt._body("restock_r", bt.RESTOCK_R)))
 	n = 0
 	while n < 2400 and not (bt.work_state() == "RESTOCKING" and bt.global_position.distance_to(restock_spot) < 0.05 and bt.anim_state() == "Restock"):
 		bt.tick(dt)
@@ -3909,8 +3982,11 @@ func test_staff_runtime() -> void:
 	bt.place_at_station()                                  # back at serve_point_01 for the walk-out below
 	arrived[0] = false
 	gb.staff_fired.emit("t_bar", "bartender")
-	for i in 240:                                          # 8 s into the walk-out: still inside the ring
+	var start_out: Vector3 = bt.global_position
+	for i in 240:                                          # into the walk-out, still inside the ring (his speed is his body's)
 		bt.tick(dt)
+		if bt.global_position.distance_to(start_out) > 1.0:
+			break
 	var in_ring_d := Vector2(bt.global_position.x - RING_CENTER.x, bt.global_position.z - RING_CENTER.z).length()
 	gb.staff_hired.emit("t_bar", "bartender")
 	var crossed := false
@@ -6198,7 +6274,14 @@ static func _bar_walk_why(bt, route: PackedVector3Array, why: Array) -> void:
 	if d.length() < 3.0:
 		var phi := rad_to_deg(atan2(d.x, d.y))
 		var on_flap := absf(absf(phi) - 180.0) <= 2.0
-		if not on_flap and absf(d.length() - float(bt.ring_radius_at(deg_to_rad(phi)))) > 0.05:
+		# Story 25.31: his serve stands sit past the ring (his body's serve_r): the last leg runs out along the stand's angle
+		var on_leg := false
+		for i in mini(5, bt._stands.size()):
+			var sphi := rad_to_deg(float(bt._stands[i].phi))
+			var sr: float = Vector2(bt._stands[i].pos.x - RING_CENTER.x, bt._stands[i].pos.z - RING_CENTER.z).length()
+			if absf(wrapf(phi - sphi, -180.0, 180.0)) <= 1.0 and d.length() <= maxf(sr, float(bt.walk_radius_at(deg_to_rad(phi)))) + 0.05:
+				on_leg = true
+		if not on_flap and not on_leg and absf(d.length() - float(bt.walk_radius_at(deg_to_rad(phi)))) > 0.05:
 			why.append("off the arc at %.0f° r %.2f" % [phi, d.length()])
 	if d.length() < 3.2 and bt.is_walking() and bt.anim_state() != "WalkBar":
 		why.append("walking in %s inside the ring" % bt.anim_state())
@@ -6215,7 +6298,10 @@ static func _tankard_wrong(bt) -> String:
 	if not (att is BoneAttachment3D and (att as BoneAttachment3D).bone_name == "handslot.r"):
 		return "not on handslot.r"
 	var tilt := rad_to_deg((tk as Node3D).global_basis.y.normalized().angle_to(Vector3.UP))
-	return "tilted %.1f°" % tilt if tilt > 5.0 else ""
+	if tilt > 5.0:
+		return "tilted %.1f°" % tilt
+	var sc: float = (tk as Node3D).global_basis.get_scale().y
+	return "scale %.2f (want %.2f)" % [sc, float(bt.tankard_scale())] if absf(sc - float(bt.tankard_scale())) > 0.02 else ""
 
 
 ## The flat angle (degrees) between where a staff member faces and the centre of the stool's mesh (Test 19).
@@ -6532,8 +6618,8 @@ func test_dialogue_portraits() -> void:
 		"every staff speaker's portrait_source names its staff_variant, not a raw model (%s; wrong: %s)" % [staff_speakers, off_variant])
 	if studio_ok and sp.get("bartender") is Dictionary and sp.bartender.get("portrait_source") is Dictionary:
 		var bt: Dictionary = studio.resolve_source(sp.bartender.portrait_source, staff)
-		check(str(bt.get("path", "")) == "res://assets/characters/custom/g12_bartender.glb" and str(bt.get("look", "?")) == "" and str(bt.get("error", "?")) == "",
-			"the Bartender's variant resolves to the body his accepted portrait shows: g12_bartender.glb, its imported look (%s)" % [bt])
+		check(str(bt.get("path", "")) == BARTENDER_PATH and str(bt.get("look", "?")) == "realistic" and str(bt.get("error", "?")) == "",
+			"the Bartender's variant resolves to his realistic body (Story 25.31): g12_bartender_real.glb, look realistic (%s)" % [bt])
 	if studio_ok:
 		_check_portrait_source_errors(studio, sp)
 		_check_portrait_studio_plan(studio, sp, staff)
@@ -6919,3 +7005,4 @@ func test_anime_look_presets() -> void:
 	m1.free()
 	m2.free()
 	print("")
+

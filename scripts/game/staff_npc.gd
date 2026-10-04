@@ -6,7 +6,8 @@
 # at load). The model is loaded from data/characters/staff.json by role and variant, with a KayKit body as
 # the fallback (MOD-3/MOD-6). Story 25.30: a variant whose look is "anime" gets anime_look.gd's toon look and
 # ink outline, and its body block's measured numbers (read through _body()) replace the script's KayKit
-# constants — only while its own body is loaded. Everything that moves happens in tick(delta) — the walk, the turns, the
+# constants — only while its own body is loaded. Story 25.31 (Q5): "realistic" (route RL's bodies) is the same
+# code path as "anime"; the data says which kind of body it is (LOOKS). Everything that moves happens in tick(delta) — the walk, the turns, the
 # timers, the door hold, the AnimationTree (callback mode MANUAL) — so tests can step it by hand
 # (manual_tick). Visuals only: no GameManager writes, no E, no physics body, no autoload.
 # bartender.gd and quest_dealer.gd extend this script by path (no class_name).
@@ -17,6 +18,8 @@ signal left_tavern
 
 const STAFF_DATA := "res://data/characters/staff.json"
 const ANIME_LOOK := "res://scripts/game/anime_look.gd"      # Story 25.30: the toon look for variants whose look is "anime"
+## The looks anime_look.gd tones (Story 25.31, Q5: one code path; the data names the body's kind).
+const LOOKS := ["anime", "realistic"]
 ## The last body to try when a variant's model and its fallback are both missing (a stock KayKit body, so
 ## the role is never invisible). Story 25.30 review.
 const LAST_RESORT_BODY := "res://assets/characters/models/kaykit_adventurers/Mage.glb"
@@ -201,7 +204,7 @@ func _load_model() -> void:
 			if model.find_child(str(p), true, false) == null:
 				push_warning("[Staff] missing: prop %s on %s's body '%s'" % [p, role, path])
 		var look := str(spec.get("look", ""))
-		if look == "anime":
+		if look in LOOKS:
 			var look_script = load(anime_look_path) if ResourceLoader.exists(anime_look_path) else null
 			if look_script is Script and (look_script as Script).get_script_method_list().any(func(m): return m.name == "apply"):
 				look_script.apply(model)

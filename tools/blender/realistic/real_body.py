@@ -203,11 +203,28 @@ def projection_uvs(bm, under_front_y=-0.10, sheet=None):
         c = f.calc_center_median()
         # the face zone (forward of y -0.10) keeps the front view round the cheeks: there the side view shows the
         # eye and brow in profile, and taking it gave a second brow on the temple at three-quarters
-        face = K.clamp01((-c.y - 0.10) / 0.04)
+        fy = sheet.get("face_y", 0.10) if sheet else 0.10       # 25.31 S1: a sheet may move the front view's zone back
+        face = K.clamp01((-c.y - fy) / 0.04)
         score = {"front": -n.y + 0.45 * face, "side": abs(n.x) * 1.08, "back": n.y}
         view = max(score, key=score.get)
         if n.z < -0.75:
             view = "front" if c.y < under_front_y else "back"
+        top = sheet.get("top_from_back") if sheet else None
+        if top and n.z > top["nz"] and c.z > top["z_min"]:
+            # (25.31 S1, the player's hair) a face looking up has no view of its own: the front / side projections
+            # squeeze it into the drawing's top rows (streaks). It takes the back view's hair instead, laid flat:
+            # x across as the back view sees it, y (front to back) over the rows top["rows"]
+            counts["top"] = counts.get("top", 0) + 1
+            y0, y1 = top["y"]
+            r0, r1 = top["rows"]
+            for l in f.loops:
+                p = l.vert.co
+                px, _ = L.to_px("back", p.x, p.y, p.z, sheet)
+                py = r0 + (r1 - r0) * K.clamp01((p.y - y0) / (y1 - y0))
+                wx, wy, u0, v0 = sheet["head_crops"]["back"]
+                win = sheet["head_win"]
+                l[lay].uv = (u0 + 0.5 * (px - wx) / win, v0 + 0.5 * (1.0 - (py - wy) / win))
+            continue
         counts[view] += 1
         for l in f.loops:
             p = l.vert.co
@@ -391,7 +408,15 @@ def skirt_w(top_z, hem_z, front_follow=0.55, legs=0.85):
 
 # ------------------------------------------------------------------ the parts
 
-def build_head(name, mat, sheet=None, face=None):
+def _reshape(bm, shape):
+    """shape(Vector) -> Vector on every vertex (25.31 S1: one head mesh fitted to another character's sheet), before
+    the normals and the projection."""
+    if shape is not None:
+        for v in bm.verts:
+            v.co = shape(v.co.copy())
+
+
+def build_head(name, mat, sheet=None, face=None, shape=None):
     bm = bmesh.new()
     segs = HEAD_SEGS
     rings = []
@@ -407,6 +432,7 @@ def build_head(name, mat, sheet=None, face=None):
     for k in range(segs):
         bm.faces.new((top, rings[0][k], rings[0][(k + 1) % segs]))
         bm.faces.new((bot, rings[-1][(k + 1) % segs], rings[-1][k]))
+    _reshape(bm, shape)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     counts = projection_uvs(bm, sheet=sheet)
     print("head views", counts)
@@ -491,7 +517,7 @@ def build_beard(name, mat, cols=40, rows=9, sheet=None):
     return finish(name, bm, mat, head_w)
 
 
-def build_ears(name, mat, sheet=None):
+def build_ears(name, mat, sheet=None, shape=None):
     bm = bmesh.new()
     for sx in (1, -1):
         c = Vector((0.090 * sx, -0.058, 1.726))
@@ -503,16 +529,18 @@ def build_ears(name, mat, sheet=None):
                 rr = math.sqrt((q.y / 0.027) ** 2 + (q.z / 0.041) ** 2)
                 q.x -= sx * 0.006 * max(0.0, 1 - rr * 1.3)
             v.co = c + R @ q
+    _reshape(bm, shape)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     print("ear views", projection_uvs(bm, sheet=sheet))
     return finish(name, bm, mat, head_w)
 
 
-def build_neck(name, mat, sheet=None):
+def build_neck(name, mat, sheet=None, shape=None, rings=None):
     bm = bmesh.new()
-    rings = [(1.47, 0.080, -0.125, 0.045, 2.2, 2.2), (1.54, 0.074, -0.118, 0.026, 2.2, 2.2), (1.60, 0.070, -0.112, 0.022, 2.2, 2.2),
-             (1.66, 0.064, -0.10, 0.018, 2.2, 2.2)]
+    rings = rings or [(1.47, 0.080, -0.125, 0.045, 2.2, 2.2), (1.54, 0.074, -0.118, 0.026, 2.2, 2.2),
+                      (1.60, 0.070, -0.112, 0.022, 2.2, 2.2), (1.66, 0.064, -0.10, 0.018, 2.2, 2.2)]
     loft(bm, rings, 14)
+    _reshape(bm, shape)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     print("neck views", projection_uvs(bm, sheet=sheet))
     return finish(name, bm, mat, neck_w)
@@ -699,6 +727,103 @@ def build_hand(name, mat, s, scale=1.0):
     return finish(name, bm, mat, K.chain(["lowerarm." + s, "wrist." + s, "hand." + s], 0.03))
 
 
+# The production hand (25.31 S1; the spike's build_hand stays for the bases' mannequins): a palm lofted from the wrist
+# to the knuckles (narrow at the wrist, widest across the knuckles, a padded heel and a thenar mound under the thumb),
+# four three-jointed fingers fanned a little and curled at rest (index to little: offset toward the thumb, length,
+# radius, spread in degrees), and a thumb that leaves the palm's side near the wrist. Sizes are a 1.86 m man's
+# (hand length ~0.19 m at k 1.0). Rest: the T-pose arm, palm down (-Z), thumb forward (-Y).
+HAND_REAL = {
+    "palm": [(-0.006, 0.030, 0.016), (0.020, 0.036, 0.017), (0.045, 0.041, 0.017), (0.070, 0.044, 0.016),
+             (0.090, 0.045, 0.014), (0.102, 0.043, 0.012)],      # (t along the forearm, half-width, half-thickness)
+    "fingers": [(0.030, 0.073, 0.0098, -5.0), (0.010, 0.082, 0.0100, -1.5), (-0.010, 0.077, 0.0096, 2.0),
+                (-0.029, 0.061, 0.0086, 6.5)],
+    "curl": (8.0, 16.0, 12.0),       # each finger joint's bend toward the palm, degrees (relaxed, open enough to read)
+    "phalanx": (0.46, 0.30, 0.24),   # the three segments' shares of a finger's length
+    "thumb": [(0.046, 0.0165), (0.036, 0.0140), (0.028, 0.0118)],    # (segment length, radius at its start)
+    "sides": 10,
+}
+
+
+def _bend(v, axis_hint, toward, ang):
+    """v turned by ang (radians) toward `toward` in the plane they span."""
+    ax = v.cross(toward)
+    if ax.length < 1e-6:
+        return v
+    return (Matrix.Rotation(ang, 3, ax.normalized()) @ v).normalized()
+
+
+def build_hand_real(name, mat, s, scale=1.0, P=None):
+    """The production hand (HAND_REAL, x scale): a lofted palm, three-jointed fingers and a thumb, skinned to the
+    forearm, wrist and hand bones like build_hand; UVs in the "hand" region (the palm by its rings, the fingers
+    u 0.8, the thumb u 0.15)."""
+    P = dict(HAND_REAL, **(P or {}))
+    S, E, W = arm_frame(s)
+    sx = 1 if s == "l" else -1
+    d = (W - E).normalized()
+    side = Vector((0, -1, 0))                                  # toward the thumb (front)
+    side = (side - d * side.dot(d)).normalized()
+    down = d.cross(side).normalized() * (1 if sx > 0 else -1)
+    if down.z > 0:
+        down = -down
+    k = scale
+    bm = bmesh.new()
+    params = {}
+    n = P["sides"]
+    rings = []
+    rows = P["palm"]
+    for j, (t, hw, ht) in enumerate(rows):
+        ring = []
+        for i in range(n):
+            a = 2 * math.pi * i / n
+            cs, sn = math.cos(a), math.sin(a)                  # cs: across (+ the thumb side), sn: + the palm side
+            x_ = hw * se(cs, 3.0)
+            y_ = ht * se(sn, 2.6)
+            if sn > 0:                                         # the palm's padded heel and the thenar mound
+                y_ += 0.004 * sn * gauss(t - 0.025, 0.03)
+                y_ += 0.006 * max(0.0, cs) * sn * gauss(t - 0.035, 0.025)
+            else:                                              # the back of the hand: flatter, knuckles at the far end
+                y_ *= 0.85
+                if t > 0.085:
+                    y_ -= 0.002 * (0.5 + 0.5 * math.cos(4 * a))
+            v = bm.verts.new(W + d * (t * k) + side * (x_ * k) + down * ((y_ + 0.002) * k))
+            params[v] = (0.05 + 0.6 * j / (len(rows) - 1), i / n)
+            ring.append(v)
+        rings.append(ring)
+    for a_, b_ in zip(rings[:-1], rings[1:]):
+        for i in range(n):
+            bm.faces.new((a_[i], a_[(i + 1) % n], b_[(i + 1) % n], b_[i]))
+    bm.faces.new(list(reversed(rings[0])))
+    bm.faces.new(rings[-1])
+    t_end = rows[-1][0]
+    cu = [math.radians(c) for c in P["curl"]]
+    for off, ln, r, spread in P["fingers"]:
+        base = W + d * ((t_end - 0.010) * k) + side * (off * k) + down * (0.001 * k)
+        dirv = (Matrix.Rotation(math.radians(spread) * sx, 3, down) @ d).normalized()
+        if spread and dirv.dot(side) * spread > 0:             # + spread fans away from the thumb, whichever hand
+            dirv = (Matrix.Rotation(-math.radians(spread) * sx, 3, down) @ d).normalized()
+        pts, p = [base], base
+        for seg, share in enumerate(P["phalanx"]):
+            dirv = _bend(dirv, None, down, cu[seg])
+            p = p + dirv * (ln * share * k)
+            pts.append(p)
+        rads = [(r * k * 0.92, r * k), (r * k * 0.88, r * k * 0.95), (r * k * 0.82, r * k * 0.88), (r * k * 0.74, r * k * 0.78)]
+        pp, _ = tube(bm, pts, rads, 6, up=lambda p_, d_: down, cap0=False, cap1=True)
+        for v in pp:
+            params[v] = (0.80, 0.2 + 0.6 * pp[v][1])
+    tb = W + d * (0.022 * k) + side * (0.030 * k) + down * (0.010 * k)
+    dirs = [(d * 0.50 + side * 0.72 + down * 0.48), (d * 0.78 + side * 0.42 + down * 0.40), (d * 0.86 + side * 0.18 + down * 0.48)]
+    tpts, p = [tb], tb
+    for (ln, _r), dv in zip(P["thumb"], dirs):
+        p = p + dv.normalized() * (ln * k)
+        tpts.append(p)
+    tr = [(r * k * 0.9, r * k) for _ln, r in P["thumb"]] + [(P["thumb"][-1][1] * k * 0.75, P["thumb"][-1][1] * k * 0.8)]
+    pp, _ = tube(bm, tpts, tr, 6, up=lambda p_, d_: down, cap0=False, cap1=True)
+    for v in pp:
+        params[v] = (0.15, 0.2 + 0.6 * pp[v][1])
+    param_uvs(bm, params, "hand")
+    return finish(name, bm, mat, K.chain(["lowerarm." + s, "wrist." + s, "hand." + s], 0.03))
+
+
 PELVIS = [(0.810, 0.120, -0.060, 0.070, 2.2, 2.2), (0.860, 0.190, -0.125, 0.122, 2.2, 2.3), (0.915, 0.205, -0.152, 0.140, 2.2, 2.3),
           (0.985, 0.205, -0.165, 0.130, 2.2, 2.3), (1.065, 0.200, -0.170, 0.112, 2.2, 2.3)]
 
@@ -826,7 +951,19 @@ def apron_ring(z):
             _interp([(0.455, 0.162), (0.75, 0.170), (0.90, 0.170), (1.038, 0.142)], z))
 
 
-def build_apron_skirt(name, mat, cols=18, rows=11):
+def apron_folds(th, t, folds):
+    """The apron's hanging folds (25.31 S1): [(amplitude m, frequency, phase)] ripples plus [(angle deg, depth m,
+    width deg)] deep troughs, all growing toward the hem (t 1) from a flat waist (t 0)."""
+    rip = sum(a * math.sin(th * f + ph) for a, f, ph in folds["ripples"]) * t ** folds.get("power", 0.8)
+    for ang, depth, wid in folds.get("troughs", ()):
+        rip -= depth * gauss(math.degrees(th) - ang, wid) * t ** 0.7
+    rip += folds.get("ease", 0.0) * t * max(0.0, math.cos(th)) ** 2      # the front hangs off the belly, clear of the knees
+    return rip
+
+
+def build_apron_skirt(name, mat, cols=18, rows=11, folds=None, legs=0.85, front_follow=0.55):
+    """folds: apron_folds' dict (None: the spike's single 0.013 m ripple, vertex-identical); legs / front_follow:
+    skirt_w's (the spike's 0.85 swings the hem forward with the thigh like a board: 0.18 m up in Walk_Bar)."""
     grid = []
     for j in range(rows + 1):
         z = APRON_TOP + (APRON_HEM - APRON_TOP) * (j / rows)
@@ -840,7 +977,7 @@ def build_apron_skirt(name, mat, cols=18, rows=11):
             # hanging folds: vertical ripples that deepen toward the hem (the sheet's apron is never a flat board:
             # the ripples break its silhouette and give the toon band folds to catch)
             t = j / rows
-            rip = 0.013 * math.sin(th * 7.0 + 0.6) * t ** 0.8
+            rip = 0.013 * math.sin(th * 7.0 + 0.6) * t ** 0.8 if folds is None else apron_folds(th, t, folds)
             rr = math.hypot(x, y - cy) or 1.0
             x += x / rr * rip
             y += (y - cy) / rr * rip
@@ -853,7 +990,7 @@ def build_apron_skirt(name, mat, cols=18, rows=11):
     bm = bmesh.new()
     params = grid_slab(bm, grid, 0.008, lambda p: Vector((-p.x, -(p.y - 0.0), 0)).normalized())
     param_uvs(bm, params, "apron")
-    return finish(name, bm, mat, skirt_w(APRON_TOP, APRON_HEM))
+    return finish(name, bm, mat, skirt_w(APRON_TOP, APRON_HEM, front_follow, legs))
 
 
 def build_bib(name, mat, cols=8, rows=8):
