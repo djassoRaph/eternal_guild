@@ -186,6 +186,35 @@ The bar stools (25.31 S2.0, R-5) are not a Blender build: `tools/props/make_tall
 Their clips reuse `real_bartender`'s pose helpers (`stand_tall`, `reach`, `short_walk`; `_SOLES` set to the character's
 own body before a build), each from the base's retargeted clips kept as `SRC_*` copies (removed for the export).
 
+## Custom rigs: Den Fa and the Cat (25.32)
+
+A character outside KayKit's 41-joint contract keeps its own rig and runs route RL's generic helpers with its own
+weights and checks. Add `tools/blender/realistic/den_fa` (or `cat`) to the runner's `sys.path`; the module names start
+with `real_`, so the fresh-import loop reloads them.
+
+**Den Fa** (`den_fa/`, `<art>/blender/g9_den_fa_real.blend` -> `custom/g9_den_fa_real.glb`; R-8: no wings):
+
+| Step | Call | What it does |
+|---|---|---|
+| 0 | `DA.record_shipped(DF.RECORD)` with the shipped `g9_den_fa.blend` OPEN (never saved) | 25.10's rest and actions -> `<art>/blender/g9_den_fa_25_10_record.json` |
+| 1 | `DF.new_file()` | an empty file saved as `g9_den_fa_real.blend` (refuses an existing file) |
+| 2 | `DF.build_rig()` | `DenFa_Rig`, the 30 `d_` bones (25.10's minus the 12 wing bones) |
+| 3 | `DF.build_clips()` | the six clips from `real_den_fa_anims` (25.10's pose functions, the wing tuck dropped), stashed on muted NLA tracks; `compare()` proves the rest and every F-curve on the kept bones against the record (0.0 on 2026-10-04) |
+| 4 | `python den_fa/real_den_fa_paint.py [--overwrite]` (system Python) | the body atlas over `real_layout.REG` (his garments in the boxes; the coat base #26587e under slate grime) |
+| 5 | `DF.build()` | `DenFa_Body` (the parts joined; the rig in rest first) and `DF.check()`: RL budgets, metal only on `den_fa_mask` |
+| 6 | `CK.proofs()` then `CK.clearance()`, `CK.log_hits("Sit", t)`, `CK.self_clips()`, `CK.numbers()` | each check reports on a bad pose first (asserted), then the clips: world clearance at `seat_root`, the 10-log sightline, self-clips (a)-(c); `numbers()` gives `MASK_SEATED` / `MASK_STANDING` / `BUBBLE_SEATED` for `den_fa.gd` |
+| 7 | `DF.export(overwrite_ok=...)` | `DenFa_Rig` + `DenFa_Body` to the NEW GLB (refuses an existing one unless asked), save first, revert in a finally |
+
+Then `--headless --import`, the `.glb.import` loops (`_subresources` animations) and `generate_lods=false`, and the
+extracted PNG's `detect_3d/compress_to=0`. The coat's skirt is two halves lapping at the front (the right over the
+left, the side placket) and at the back vent (the left over the right); below the hips both follow the thighs and,
+below the knee, the shins: seated, only 0.17 m separate his thigh axis from the bench top, so the back stays within
+0.15 m of the thighs. `CK.walk_route_clearance()` samples his walk off the seat (a finding: his walk to the bar
+brushes the chimney corner with the 25.10 body too; logged in deferred-work). The mask is his own material
+`den_fa_mask` (metallic 1.0, roughness 0.10, #d8dde3): `anime_look.gd` › `KEEP_AS_IMPORTED` leaves it as imported.
+
+**The Cat** (`cat/`): planned in 25.32 from her concept pick (`C_G11_the_cat`); not built yet.
+
 ## Budgets (AH-15)
 
 `RL_TRI_BUDGET` 10,000 per body with props (14,000 only with re-measured hall and town budgets); <= 3 surfaces on
@@ -209,3 +238,5 @@ measured with the full cast at 25.31 T-end: 08 §1, "Budgets".
 - `real_townsfolk.py`, `real_townsfolk_paint.py`: the six townsfolk and their textures (25.31 S2).
 - `real_classes.py`, `real_classes_paint.py`: the six class bodies and their textures (25.31 S3).
 - `real_bake.py`: the painted head pass.
+- `den_fa/real_den_fa.py`, `real_den_fa_anims.py`, `real_den_fa_check.py`, `real_den_fa_paint.py`: Den Fa on his own
+  rig (25.32).
