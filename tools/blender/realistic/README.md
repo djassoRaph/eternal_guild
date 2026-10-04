@@ -107,6 +107,29 @@ on screen before use.
   overrides `real_layout.PALETTE`'s colours. Two textures per body at <= 1024², mipmaps on (AH-15).
 - The spike's PNGs (`<art>/textures/realistic/g12_bartender_realtest_*.png`) repaint pixel-identical through these
   functions (25.31 S1.0).
+- **Sheet options (25.31 S1):** `side_flip` (the side view shows his RIGHT side, front image-right: the player's and
+  the dealer's picks); `crown_rows` (never sample above the drawn crown: the bleed is streaked there); `top_from_back`
+  (faces looking up, above `z_min`, take the back view's hair laid flat: no view sees a crown); `face_y` (how far back
+  the front view keeps the cheeks). A sheet's side view may be drawn at another scale than its front: register it by
+  its crown row so the eye lines meet (the player's: 22.3).
+- **The painted head pass (`real_bake.bake_head`, 25.31 S1):** the projection gives each face ONE view, so the front
+  and side drawings meet in a step (a jagged beard, a second brow). After `build()` (its own call), `paint_head()`
+  bakes the head material into the head faces' own unwrap with the views blended by the normal (`w = max(0, n.v)^4`,
+  the front weighted up on the face), Cycles EMIT, 1024²; the result (`<id>_headpaint.png`) is the shipped head
+  texture. A bake writes into the active image node of EVERY material on the object: the other slots get a throwaway
+  node during the bake (else the body atlas's pixels in memory are overwritten and exported). Re-run it after every
+  `build()`.
+
+## The S1 characters (25.31)
+
+| Character | Module | Base | File / GLB | Notes |
+|---|---|---|---|---|
+| G12 the Bartender | `real_bartender.py` (+ `real_bar.py`) | REAL-1 | `g12_bartender_real.blend` / `custom/g12_bartender_real.glb` | the spike's body with `build_hand_real`, apron folds (`APRON_FOLDS`, `skirt_w` 0.75 / 0.35), his five bar clips; `real_bar.report` checks every clip at its stations against the 25.13 bar geometry with his body block's radii, `halves` gives the Walk_Bar half-widths |
+| G1 the player | `real_player.py` | REAL-1 | `g1_player_real.blend` / `custom/g1_player_real.glb` | the Bartender's head x 0.88 / -0.02 m under a hair shell; the coat, vest, collar, lapels, skirt halves (a back vent); the sword a prop on hips; Idle re-posed; `arms_out` keeps Running_A's arms outside the coat; `rate()` measures Running_A's ground speed (player.json) |
+| G13 the Quest Dealer | `real_dealer.py` | REAL-2 | `g13_quest_dealer_real.blend` / `custom/g13_quest_dealer_real.glb` | REAL-2's head (width 0.90, jaw 0.14), a hair cap and a long fall, elf ears, the circlet band; the buttoned coat over the bust (`bust_dome`); the quill a prop on handslot.r; her desk clips; `measure()` = anime_clearcheck's desk report with her config |
+
+Their clips reuse `real_bartender`'s pose helpers (`stand_tall`, `reach`, `short_walk`; `_SOLES` set to the character's
+own body before a build), each from the base's retargeted clips kept as `SRC_*` copies (removed for the export).
 
 ## Budgets (AH-15)
 
@@ -121,5 +144,8 @@ on screen before use.
 - `real_arms.py`: the arm pass and its clearance report.
 - `real_layout.py`: concept sheets and the body atlas layout (pure Python).
 - `real_paint.py`: the head and body textures (system Python: numpy + Pillow).
-- `real_bartender.py`: the 2026-10-04 spike's Bartender (a test, `custom/tests/g12_bartender_realtest.glb`); S1
-  promotes it onto the finished REAL-1 base.
+- `real_bartender.py`: the production Bartender (25.31 S1; the spike's test GLB and blend stay, commit 5ae8dc0) and
+  the pose helpers the other characters reuse.
+- `real_bar.py`: the Bartender's bar clearance and body numbers.
+- `real_player.py`, `real_dealer.py`: the player and the Quest Dealer (25.31 S1).
+- `real_bake.py`: the painted head pass.
