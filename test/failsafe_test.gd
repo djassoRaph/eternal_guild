@@ -213,6 +213,19 @@ const PLAYER_FALLBACK_PATH := "res://assets/characters/models/kaykit_adventurers
 const PLAYER_MISSING_FIXTURE := "res://test/fixtures/player_missing_body.json"
 const PLAYER_RUN_GROUND_SPEED := 6.996     # Running_A's ground speed on his body (real_player.rate(), m/s): V9's measure
 const PLAYER_SPEED := 5.0                  # the gameplay speed (V9: unchanged)
+## Test 25 (Story 25.23): the hall's light and mood, the day phases, the fireplace's floor rune.
+const TAVERN_LIGHTING_SCRIPT := "res://scripts/game/tavern_lighting.gd"
+const RUNE_CUE_SCENE := "res://scenes/game/FloorRuneCue.tscn"
+const RUNE_CUE_SCRIPT := "res://scripts/game/floor_rune_cue.gd"
+const CAMERA_SCRIPT := "res://scripts/camera/camera_3d.gd"
+const BEDROOM_SCRIPT := "res://scenes/bedroom_popup.gd"
+const BRIEFING_SCRIPT := "res://scenes/ui/script/morning_briefing.gd"
+const INK_LAYER_MASK := 524288             # render layer 20: the EdgeQuad's alone (LM-3)
+const TAVERN_ENV := "SubViewportContainer/SubViewport/TavernNavigation/Environment/"
+const TAVERN_EDGE_QUAD := "SubViewportContainer/SubViewport/TavernNavigation/Camera3D/MeshInstance3D"
+const LM_PHASES := ["morning", "day", "dusk", "evening", "late_night", "dawn"]
+## The hall's light as saved on 2026-10-04 (the story's table): "today" is this, snapshotted at _ready (LM-2).
+const LM_SUN_XF := Transform3D(Basis(Vector3(0.766044, 0, 0.642788), Vector3(0.45452, 0.707107, -0.541675), Vector3(-0.45452, 0.707107, 0.541675)), Vector3(9, 3, 8.01709))
 const PORTRAIT_DIR := "res://assets/characters/portraits/npc/"          # Story 25.17
 const PORTRAIT_STUDIO_SCENE := "res://scenes/dev/PortraitStudio.tscn"
 const PORTRAIT_STUDIO_SCRIPT := "res://scripts/dev/portrait_studio.gd"
@@ -291,6 +304,7 @@ func _initialize() -> void:
 	test_dialogue_portraits()
 	test_anime_look_presets()
 	await test_player_body()
+	await test_light_and_mood()
 
 	_finish()
 
@@ -1312,6 +1326,15 @@ func _check_pillar_glow_setter() -> void:
 	var floored: bool = p.glow_energy == 0.0 and glow.all(func(pair): return (pair[0] as StandardMaterial3D).emission_energy_multiplier == 0.0)
 	check(scaled and floored, "pillar: setting glow_energy scales its %d emissive materials (2.5x), negatives floor at 0" % glow.size())
 	p.free()
+	# Story 25.23: the hall's lighting may set the glow before the pillar is ready (node order); it must be kept.
+	var q: Node3D = (load(PILLAR_SCENE_PATH) as PackedScene).instantiate()
+	q.reveal_stage_override = 4
+	q.glow_energy = 1.7
+	root.add_child(q)
+	var early: bool = q._glow.size() >= 3 and q._glow.all(func(pair): return is_equal_approx(
+		(pair[0] as StandardMaterial3D).emission_energy_multiplier, float(pair[1]) * 1.7))
+	check(early, "pillar: a glow_energy set before its _ready is applied when it readies (Story 25.23's lighting may come first)")
+	q.free()
 
 
 # --- Test 11: The Hearth and firewood (Story 25.5) ---
@@ -1440,6 +1463,43 @@ func _check_hearth_early_calls() -> void:
 	h.set_fire_level(70.0)
 	check(faded, "hearth: an ignition flash fades while the light is hidden (no stale flash when it relights)")
 	h.free()
+	# Story 25.23: light_scale (the hall's mood and phase) multiplies the fire's light only; set before _ready it is kept.
+	var g: Node3D = (load(HEARTH_SCENE_PATH) as PackedScene).instantiate()
+	var has_scale: bool = "light_scale" in g
+	if not has_scale:
+		check(false, "hearth.gd has light_scale (Story 25.23)")
+		g.free()
+		return
+	g.light_scale = 1.6
+	g.set_fire_level(70.0)
+	root.add_child(g)
+	var gl := g.get_node("FireLight") as OmniLight3D
+	var look70: Dictionary = g.fire_look(70.0)
+	var col_ok: bool = gl.light_color == look70.color
+	var e1: float = gl.light_energy
+	check(g.light_scale == 1.6 and is_equal_approx(e1, float(look70.light) * 1.6) and col_ok,
+		"hearth: a light_scale set before _ready is kept and multiplies the light (%.3f = %.3f x 1.6), the colour as the band's" % [e1, look70.light])
+	g._flash = 0.0
+	g._t = 0.0
+	g._process(0.0)
+	var flick: float = 1.0 + 0.07 * sin(0.0) + 0.04 * sin(1.3)
+	var proc_ok: bool = is_equal_approx(gl.light_energy, float(look70.light) * flick * 1.6)
+	var flames := g.get_node("FireParticles") as GPUParticles3D
+	var ratio := flames.amount_ratio
+	var logs := (g.get_node("LogPile") as Node3D).get_children().filter(func(n): return n.visible).size()
+	g.light_scale = 0.5
+	var after_ok: bool = is_equal_approx(gl.light_energy, float(look70.light) * 0.5) and flames.amount_ratio == ratio \
+		and (g.get_node("LogPile") as Node3D).get_children().filter(func(n): return n.visible).size() == logs and gl.light_color == look70.color
+	g.light_scale = -2.0
+	var floored: bool = g.light_scale == 0.0
+	g.light_scale = NAN
+	var nan_ok: bool = g.light_scale == 1.0
+	g.light_scale = 3.0
+	g.set_fire_level(0.0)
+	g._process(0.1)
+	check(proc_ok and after_ok and floored and nan_ok and not gl.visible and gl.light_energy == 0.0,
+		"hearth: the flicker carries light_scale; assigning it changes only the light (flames, logs, colour untouched); negatives floor at 0, NaN -> 1; a fire that is out stays dark at any scale")
+	g.free()
 
 
 ## Review 2026-10-03: the zone's fire state comes from a fuel level with the state machine's own bands,
@@ -6709,6 +6769,10 @@ func test_dialogue_portraits() -> void:
 		and _edge_line_pixels_widened("shader_parameter/linePixels = 2\n") and _edge_line_pixels_widened("linePixels = nope\n")
 		and not _edge_line_pixels_widened("shader_parameter/lineAlpha = 0.7\n"),
 		"the linePixels scan passes the default 1.0 and fails a widened (1.5, 2) or unreadable value")
+	# Story 25.23 (AC 8): the EdgeQuad sits at the far plane; under fog it would be fogged. If any of its scenes turns
+	# fog on, the shader carries fog_disabled.
+	var fogged := users.filter(func(p): return FileAccess.get_file_as_string(p).contains("volumetric_fog_enabled = true") or FileAccess.get_file_as_string(p).contains("\nfog_enabled = true"))
+	check(fogged.is_empty() or shader_src.contains("fog_disabled"), "the edge shader is fog_disabled wherever a scene of it turns fog on (fogged scenes: %s)" % [fogged])
 	var edge_ok := false
 	var directional := -1
 	if ps is PackedScene:
@@ -6963,8 +7027,14 @@ func test_anime_look_presets() -> void:
 	var cfg = _read_json(GAME_CONFIG_PATH)
 	var look = load(ANIME_LOOK_SCRIPT)
 	var outline = load(ANIME_OUTLINE)
-	check(cfg is Dictionary and cfg.get("anime_look_preset") == "approved" and look.reload() == "approved" and look.preset() == "approved",
-		"the default look preset is \"approved\" (game_config anime_look_preset = %s)" % [cfg.get("anime_look_preset") if cfg is Dictionary else "?"])
+	# Story 25.23 (AC 11): the default is Raphael's pick from the D2 sheet ("approved" until he picks), and it resolves
+	# without a warning (an unknown name would fall back to approved and warn).
+	var pick = cfg.get("anime_look_preset") if cfg is Dictionary else null
+	look.last_warning = ""
+	var resolved: String = look.reload()
+	check(pick is String and resolved == pick and look.preset() == pick and str(look.last_warning) == "",
+		"the default look preset is game_config's pick and resolves without a warning (anime_look_preset = %s -> %s)" % [pick, resolved])
+	look.set_preset("approved")
 	check(ResourceLoader.exists(ANIME_TOON_SHADER) and load(ANIME_TOON_SHADER) is Shader, "exists: anime_toon.gdshader")
 
 	# approved = today's materials, property by property: the Story 25.30 recipe applied to a copy of the source.
@@ -7148,3 +7218,417 @@ func test_player_body() -> void:
 	world.queue_free()
 	await process_frame
 	print("")
+
+
+# --- Test 25: Light and mood (Story 25.23) ---
+# The hall's light is data: a MOOD (today = the scene as saved, moody_a, moody_b) and a PHASE (morning ... dawn; day =
+# the identity) from game_config.json, combined and applied by scripts/game/tavern_lighting.gd (static helpers, no
+# class_name). The ink rule (LM-3): the one DirectionalLight keeps its transform, colour and energy in every mood and
+# phase; only its cull mask moves (all layers, or the EdgeQuad's layer 20). Shadows only on the lights a mood lists
+# (candles never). The phases blend; GameBus.day_phase_changed drives them. The fireplace's floor rune shows while the
+# fire owns E. Headless: no rendering; a fixture rig of stand-in lights, a Hearth and a pillar instance.
+func test_light_and_mood() -> void:
+	print("[Test 25] Light and mood")
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var moods = cfg.get("tavern_light_moods") if cfg is Dictionary else null
+	var phases = cfg.get("tavern_light_phases") if cfg is Dictionary else null
+	var cfg_ok: bool = cfg is Dictionary and cfg.get("tavern_light_mood") is String and moods is Dictionary and phases is Dictionary \
+		and moods.get("moody_a") is Dictionary and moods.get("moody_b") is Dictionary and str(moods.get("_comment", "")).length() > 40 \
+		and LM_PHASES.all(func(p): return phases.get(p) is Dictionary) and str(phases.get("_comment", "")).length() > 40 \
+		and str(cfg.get("tavern_light_phase_default", "")) in LM_PHASES \
+		and (cfg.get("tavern_light_blend_seconds") is float or cfg.get("tavern_light_blend_seconds") is int) and float(cfg.get("tavern_light_blend_seconds", 0)) > 0.0 \
+		and (cfg.get("tavern_light_morning_hold_seconds") is float or cfg.get("tavern_light_morning_hold_seconds") is int) and float(cfg.get("tavern_light_morning_hold_seconds", 0)) > 0.0
+	check(cfg_ok, "game_config: tavern_light_mood, the moods (moody_a, moody_b, a _comment), the six phases (a _comment), the default phase, the blend and morning-hold seconds")
+	var TL = load(TAVERN_LIGHTING_SCRIPT) if ResourceLoader.exists(TAVERN_LIGHTING_SCRIPT) else null
+	var src := FileAccess.get_file_as_string(TAVERN_LIGHTING_SCRIPT)
+	var api := ["mood_names", "resolve_mood", "mood_params", "phase_params", "combine", "blend", "reload_config", "load_config", "resolve_phase", "set_mood", "set_phase", "current"]
+	var missing := api.filter(func(m): return TL == null or not TL.get_script_method_list().any(func(x): return x.name == m))
+	check(TL is GDScript and missing.is_empty() and not src.begins_with("class_name") and not src.contains("\nclass_name"),
+		"tavern_lighting.gd loads by path (no class_name) with its API (missing: %s)" % [missing])
+	if TL == null or not missing.is_empty():
+		print("")
+		return
+	TL.reload_config()
+	var names: Array = TL.mood_names()
+	check(names.size() >= 3 and names[0] == "today" and names.has("moody_a") and names.has("moody_b") and not names.any(func(n): return str(n).begins_with("_")),
+		"mood names: today first, then the config's (%s); _comment skipped" % [names])
+	check(TL.configured_mood() == str(cfg.get("tavern_light_mood")) or (str(cfg.get("tavern_light_mood")) == "today" and TL.configured_mood() == "today"),
+		"the configured mood resolves: %s" % TL.configured_mood())
+
+	# fallbacks
+	TL.last_warning = ""
+	check(TL.resolve_mood("candlelit_nope") == "today" and str(TL.last_warning).contains("candlelit_nope"),
+		"an unknown mood -> today, with a warning (%s)" % TL.last_warning)
+	TL.last_warning = ""
+	TL.load_config({"tavern_light_moods": {"today": {"fill_energy": 9.0}, "t25": {"fill_energy": -1, "ambient_color": [0.1, 0.2], "bar_energy": "x",
+		"ambient_energy": 0.5, "sun_lights_hall": false, "desk_energy": 1.0, "hearth_scale": 1.2, "candle_scale": 1.0, "window_color": [1, 1, 1],
+		"window_energy": 1.0, "shadow_lights": ["hearth", "candles"], "omni_shadow_mode": "dual_paraboloid", "pillar_glow": 1.0}}})
+	var today_warn: String = TL.last_warning
+	var names2: Array = TL.mood_names()
+	TL.last_warning = ""
+	var t25: Dictionary = TL.mood_params("t25", TL.TODAY_VALUES)
+	var w25: String = TL.last_warning
+	check(today_warn.contains("today") and names2 == ["today", "t25"], "a config entry named today is ignored, with a warning (%s)" % today_warn)
+	check(is_equal_approx(float(t25.fill_energy), float(TL.TODAY_VALUES.fill_energy)) and (t25.ambient_color as Color).is_equal_approx(TL.TODAY_VALUES.ambient_color)
+		and is_equal_approx(float(t25.bar_energy), float(TL.TODAY_VALUES.bar_energy)) and is_equal_approx(float(t25.exposure), float(TL.TODAY_VALUES.exposure))
+		and t25.shadow_lights == ["hearth"] and is_equal_approx(float(t25.ambient_energy), 0.5) and w25 != "",
+		"a bad number (negative energy, a 2-number colour, a string), a missing key and a shadowed candle fall back per key to today's, with a warning (%s)" % w25)
+	TL.last_warning = ""
+	check(TL.resolve_phase("reveal") == "late_night" and TL.resolve_phase("teatime") == "" and str(TL.last_warning).contains("teatime"),
+		"phases: \"reveal\" is late_night (24.2's name), an unknown one resolves to nothing, with a warning")
+	TL.reload_config()
+
+	# today pinned to the scene as saved (2026-10-04)
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var sun: Dictionary = tav.get(TAVERN_ENV + "Outdoors Light", {})
+	var fill: Dictionary = tav.get(TAVERN_ENV + "TavernLight", {})
+	var bar: Dictionary = tav.get(TAVERN_ENV + "BarLight", {})
+	var we: Dictionary = tav.get(TAVERN_ENV + "WorldEnvironment", {})
+	var envr = we.get("props", {}).get("environment")
+	var sp: Dictionary = sun.get("props", {})
+	var fp: Dictionary = fill.get("props", {})
+	var bp: Dictionary = bar.get("props", {})
+	var pinned: bool = sun.get("type") == "DirectionalLight3D" and (sp.get("transform", Transform3D()) as Transform3D).is_equal_approx(LM_SUN_XF)
+	pinned = pinned and (sp.get("light_color", Color()) as Color).is_equal_approx(Color(1, 0.8, 0.5)) and is_equal_approx(float(sp.get("light_energy", 0)), 1.5)
+	pinned = pinned and not sp.has("light_cull_mask") and not sp.get("shadow_enabled", false)
+	pinned = pinned and (fp.get("transform", Transform3D()) as Transform3D).origin.is_equal_approx(Vector3(14.0983, 4.10605, -13.4522))
+	pinned = pinned and (fp.get("light_color", Color()) as Color).is_equal_approx(Color(0.6, 0.8, 1)) and is_equal_approx(float(fp.get("light_energy", 0)), 2.0)
+	pinned = pinned and is_equal_approx(float(fp.get("omni_range", 0)), 15.0) and not fp.get("shadow_enabled", false)
+	pinned = pinned and (bp.get("transform", Transform3D()) as Transform3D).origin.is_equal_approx(Vector3(-3.06924, 2.08058, -3.57674))
+	pinned = pinned and (bp.get("light_color", Color()) as Color).is_equal_approx(Color(1, 0.9, 0.6)) and is_equal_approx(float(bp.get("light_energy", 0)), 1.5)
+	pinned = pinned and is_equal_approx(float(bp.get("omni_range", 0)), 4.0) and not bp.get("shadow_enabled", false)
+	pinned = pinned and envr is Environment and (envr as Environment).ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7))
+	pinned = pinned and is_equal_approx((envr as Environment).ambient_light_energy, 0.3) and (envr as Environment).ambient_light_source == Environment.AMBIENT_SOURCE_BG
+	pinned = pinned and (envr as Environment).background_mode == Environment.BG_CLEAR_COLOR and is_equal_approx((envr as Environment).tonemap_exposure, 1.0)
+	var hs := _scene_nodes(HEARTH_SCENE_PATH)
+	var fl: Dictionary = hs.get("FireLight", {}).get("props", {})
+	pinned = pinned and is_equal_approx(float(fl.get("omni_range", 0)), 6.0) and not fl.get("shadow_enabled", false) and fl.get("light_color", Color()) == Color(1, 0.6, 0, 1)
+	var ds := _scene_nodes(DESK_SCENE_PATH)
+	var dl: Dictionary = ds.get("DeskLight", {}).get("props", {})
+	pinned = pinned and (dl.get("transform", Transform3D()) as Transform3D).origin.is_equal_approx(Vector3(0.76, 1.4, -0.22))
+	pinned = pinned and (dl.get("light_color", Color()) as Color).is_equal_approx(Color(1, 0.9, 0.6)) and is_equal_approx(float(dl.get("light_energy", 0)), 1.5)
+	pinned = pinned and is_equal_approx(float(dl.get("omni_range", 0)), 4.0) and not dl.get("shadow_enabled", false) and ds.get("DeskLight", {}).get("groups", []).is_empty()
+	var tt: Dictionary = TL.TODAY_VALUES
+	pinned = pinned and is_equal_approx(float(tt.fill_energy), 2.0) and is_equal_approx(float(tt.bar_energy), 1.5) and is_equal_approx(float(tt.desk_energy), 1.5)
+	pinned = pinned and tt.ambient_background == true and tt.sun_lights_hall == true and float(tt.candle_scale) == 0.0 and float(tt.window_energy) == 0.0
+	pinned = pinned and tt.shadow_lights == [] and float(tt.hearth_scale) == 1.0 and float(tt.pillar_glow) == 1.0 and float(tt.exposure) == 1.0
+	check(pinned, "today pinned: MainTavern's sun, TavernLight, BarLight, Environment (Background ambient, no source set), the hearth's FireLight (range 6, no shadow) and the desk's DeskLight are the 2026-10-04 values, and TODAY matches them")
+
+	# the ink rule in the scene
+	var dirs := tav.keys().filter(func(k): return tav[k].type == "DirectionalLight3D")
+	var quad: Dictionary = tav.get(TAVERN_EDGE_QUAD, {}).get("props", {})
+	var on20 := tav.keys().filter(func(k): return k != TAVERN_EDGE_QUAD and int(tav[k].props.get("layers", 1)) & INK_LAYER_MASK != 0)
+	check(dirs.size() == 1 and int(quad.get("layers", 1)) == INK_LAYER_MASK and int(quad.get("cast_shadow", 1)) == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and on20.is_empty(),
+		"the ink light: one DirectionalLight in MainTavern (%d), the EdgeQuad on layer 20 alone with cast_shadow off, no other node on layer 20 (%s)" % [dirs.size(), on20])
+	var cam := Camera3D.new()
+	cam.set_script(load(CAMERA_SCRIPT))
+	root.add_child(cam)
+	var cmask := cam.cull_mask
+	cam.free()
+	check(cmask & INK_LAYER_MASK != 0 and cmask & 3 == 3, "the tavern camera sees layers 1, 2 and the EdgeQuad's 20 (cull mask %d)" % cmask)
+	var svp: Dictionary = tav.get("SubViewportContainer/SubViewport", {}).get("props", {})
+	check(int(svp.get("positional_shadow_atlas_size", 0)) == 4096, "the hall's SubViewport has a positional shadow atlas set (%s; 0 renders no omni shadow)" % [svp.get("positional_shadow_atlas_size")])
+
+	# blends, the identity day, the glow floor, the ink mask, over every mood x phase
+	var a := {"x": 1.0, "c": Color(0, 0, 0), "b": true, "s": ["hearth"]}
+	var b := {"x": 3.0, "c": Color(1, 0.5, 0), "b": false, "s": []}
+	var mid: Dictionary = TL.blend(a, b, 0.5)
+	check(TL.blend(a, b, 0.0) == a and TL.blend(a, b, 1.0) == b and is_equal_approx(float(mid.x), 2.0) and (mid.c as Color).is_equal_approx(Color(0.5, 0.25, 0))
+		and mid.b == true and mid.s == ["hearth"], "blend: t 0 is a, t 1 is b, t 0.5 halves numbers and colours (switches hold until the end)")
+	var bad := []
+	for m in TL.mood_names():
+		var mp: Dictionary = TL.mood_params(m, TL.TODAY_VALUES)
+		if TL.combine(mp, TL.phase_params("day")) != mp:
+			bad.append("%s x day is not %s" % [m, m])
+		for ph in LM_PHASES:
+			var c: Dictionary = TL.combine(mp, TL.phase_params(ph))
+			if float(c.pillar_glow) < 0.6 or float(c.pillar_glow) > 2.0:
+				bad.append("%s/%s glow %.2f" % [m, ph, c.pillar_glow])
+			if float(c.hearth_scale) <= 0.0:
+				bad.append("%s/%s hearth %.2f" % [m, ph, c.hearth_scale])
+			if int(TL.sun_mask(c, 4294967295)) & INK_LAYER_MASK == 0:
+				bad.append("%s/%s sun mask" % [m, ph])
+			if not (c.shadow_lights as Array).all(func(n): return str(n) in ["hearth", "bar", "desk", "fill"]):
+				bad.append("%s/%s shadows %s" % [m, ph, c.shadow_lights])
+	check(bad.is_empty(), "every mood x phase (%d x %d): day is the identity, pillar glow in 0.6..2.0, hearth scale > 0, the sun keeps layer 20, shadows only on hearth/bar/desk/fill (wrong: %s)" % [TL.mood_names().size(), LM_PHASES.size(), bad])
+	for m in ["moody_a", "moody_b"]:
+		var mp: Dictionary = TL.mood_params(m, TL.TODAY_VALUES)
+		check(not mp.ambient_background and mp.sun_lights_hall == false and float(mp.fill_energy) < float(TL.TODAY_VALUES.fill_energy) and float(mp.candle_scale) > 0.0
+			and float(mp.hearth_scale) > 1.0 and mp.shadow_lights.has("hearth"), "%s: a dim explicit ambient, the sun off the hall, the cold fill low, candles lit, the hearth up and shadowed" % m)
+	var ev_p: Dictionary = TL.phase_params("evening")
+	var ln_p: Dictionary = TL.phase_params("late_night")
+	check((ev_p.window_color as Color).b > (ev_p.window_color as Color).r and (ln_p.window_color as Color).b > (ln_p.window_color as Color).r
+		and float(ev_p.window_energy) < 1.0 and float(ln_p.window_energy) < float(ev_p.window_energy) and float(ev_p.candle_scale) > 1.0,
+		"evening and late night: cold blue-teal windows, dimmer; the candles rise at evening (amber inside, teal outside)")
+
+	# the fixture rig: apply moods and phases to stand-in lights, a Hearth and a pillar
+	var rig := _lm_rig(TL)
+	var ctl = rig.ctl
+	var sunl: DirectionalLight3D = rig.sun
+	var fire: OmniLight3D = rig.hearth.get_node("FireLight")
+	var sun_xf := sunl.transform
+	var ink_bad := []
+	for m in TL.mood_names():
+		ctl.set_mood(m)
+		for ph in LM_PHASES:
+			ctl.set_phase(ph, 0.0)
+			if sunl.transform != sun_xf or sunl.light_color != Color(1, 0.8, 0.5) or sunl.light_energy != 1.5 or sunl.light_cull_mask & INK_LAYER_MASK == 0:
+				ink_bad.append("%s/%s" % [m, ph])
+			var want_glow: float = float(TL.combine(TL.mood_params(m, ctl.today), TL.phase_params(ph)).pillar_glow)
+			if not is_equal_approx(rig.pillar.glow_energy, want_glow):
+				ink_bad.append("%s/%s glow %.2f != %.2f" % [m, ph, rig.pillar.glow_energy, want_glow])
+	check(ink_bad.is_empty() and ctl.applied_count >= 8, "the rig over every mood x phase: the sun's transform, colour and energy never change, its mask keeps layer 20; the pillar's glow is mood x phase (wrong: %s; %d applied)" % [ink_bad, ctl.applied_count])
+	ctl.set_phase("day", 0.0)
+	ctl.set_mood("moody_a")
+	var ma: Dictionary = TL.mood_params("moody_a", ctl.today)
+	var envn: Environment = rig.env.environment
+	var cand := rig.candles as Array
+	var rig_ok: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_COLOR and envn.ambient_light_color.is_equal_approx(ma.ambient_color)
+	rig_ok = rig_ok and sunl.light_cull_mask == INK_LAYER_MASK and is_equal_approx(rig.fill.light_energy, float(ma.fill_energy))
+	rig_ok = rig_ok and is_equal_approx(rig.bar.light_energy, float(ma.bar_energy)) and is_equal_approx(rig.desk.light_energy, float(ma.desk_energy))
+	rig_ok = rig_ok and is_equal_approx(rig.hearth.light_scale, float(ma.hearth_scale)) and fire.shadow_enabled and fire.shadow_blur == 0.0 and fire.light_size == 0.0
+	rig_ok = rig_ok and not rig.fill.shadow_enabled and not rig.bar.shadow_enabled and not rig.desk.shadow_enabled
+	rig_ok = rig_ok and cand.all(func(c): return c.visible and not c.shadow_enabled and is_equal_approx(c.light_energy, float(c.get_meta("base_energy")) * float(ma.candle_scale)))
+	rig_ok = rig_ok and (rig.window as SpotLight3D).visible and not (rig.window as SpotLight3D).shadow_enabled and (rig.window as SpotLight3D).light_color.is_equal_approx(ma.window_color)
+	check(rig_ok, "moody_a on the rig: the explicit ambient, the sun on layer 20 only, fill/bar/desk at its energies, the hearth's light_scale and hard shadow, candles lit and unshadowed, the window lit")
+	ctl.set_mood("today")
+	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
+	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
+	back = back and rig.hearth.light_scale == 1.0 and not fire.shadow_enabled and fire.shadow_blur == 1.0 and cand.all(func(c): return not c.visible)
+	back = back and not (rig.window as SpotLight3D).visible and rig.pillar.glow_energy == 1.0 and is_equal_approx(envn.tonemap_exposure, 1.0)
+	check(back, "back to today on the rig: every value exactly as the rig was saved (Background ambient, the sun on all layers, no shadow, candles and windows off)")
+	# phases blend: GameBus drives them, a new phase mid-blend starts from the blended values
+	var gb = root.get_node_or_null("GameBus")
+	check(gb != null and gb.has_signal("day_phase_changed"), "GameBus has day_phase_changed(phase)")
+	ctl.set_mood("moody_b")
+	var mb: Dictionary = TL.mood_params("moody_b", ctl.today)
+	if gb and gb.has_signal("day_phase_changed"):
+		gb.day_phase_changed.emit("evening")
+	var secs := float(TL.blend_seconds())
+	ctl._process(secs * 0.5)
+	var half: float = rig.fill.light_energy
+	var want_half: float = lerpf(float(mb.fill_energy), float(mb.fill_energy) * float(TL.phase_params("evening").fill_scale), 0.5)
+	ctl.set_phase("late_night")
+	var no_jump: bool = is_equal_approx(rig.fill.light_energy, half)
+	ctl._process(secs + 0.1)
+	var end_ok: bool = ctl.phase == "late_night" and is_equal_approx(rig.fill.light_energy, float(mb.fill_energy) * float(TL.phase_params("late_night").fill_scale))
+	check(is_equal_approx(half, want_half) and no_jump and end_ok, "GameBus.day_phase_changed(evening) blends over %.1f s (half way %.3f); late_night mid-blend starts from there (no jump) and ends exactly there" % [secs, half])
+	ctl.set_phase("teatime")
+	check(ctl.phase == "late_night" and str(TL.last_warning).contains("teatime"), "an unknown phase: the light stays, with a warning")
+	var gm = root.get_node_or_null("GameManager")
+	var had_brief = gm.get("has_pending_briefing") if gm else null
+	if gm and gb:
+		gm.set("has_pending_briefing", false)
+		gb.day_phase_changed.emit("morning")
+		ctl._process(float(TL.morning_hold_seconds()) - 0.5)
+		var held: bool = ctl.phase == "morning"
+		ctl._process(1.0)
+		ctl._process(secs + 0.1)
+		check(held and ctl.phase == "day", "morning (the signal) without a briefing turns to day after the hold (%.0f s)" % TL.morning_hold_seconds())
+		gm.set("has_pending_briefing", true)
+		gb.day_phase_changed.emit("morning")
+		ctl._process(float(TL.morning_hold_seconds()) + 1.0)
+		check(ctl.phase == "morning", "morning with a briefing pending waits for it (the briefing's end sends day)")
+		gb.day_phase_changed.emit("day")
+		ctl._process(secs + 0.1)
+		check(ctl.phase == "day", "the briefing's day ends the morning")
+	if gm:
+		gm.set("has_pending_briefing", had_brief)
+	rig.root.free()
+	# set before _ready is kept; a fresh scene starts in the default phase
+	var rig2 := _lm_rig(TL, "evening")
+	check(rig2.ctl.phase == "evening", "set_phase before _ready is kept (%s)" % rig2.ctl.phase)
+	rig2.root.free()
+	var rig3 := _lm_rig(TL)
+	check(rig3.ctl.phase == str(cfg.get("tavern_light_phase_default", "day")) and rig3.ctl.mood == TL.configured_mood(), "a fresh rig starts in the configured mood and the default phase")
+	rig3.root.free()
+
+	# the emit sites (one line each)
+	var bed := FileAccess.get_file_as_string(BEDROOM_SCRIPT)
+	var brief := FileAccess.get_file_as_string(BRIEFING_SCRIPT)
+	check(_lm_in_func(bed, "open_bedroom", "day_phase_changed.emit(\"evening\")") and _lm_in_func(bed, "start_sleep_sequence", "day_phase_changed.emit(\"late_night\")")
+		and _lm_in_func(bed, "_on_fade_complete", "day_phase_changed.emit(\"morning\")") and brief.count("day_phase_changed.emit(\"day\")") == 2,
+		"the phase signal is sent where the loop already turns: the bedroom (evening), sleep (late_night), the new day (morning), the briefing's two ends (day)")
+
+	# the candle, torch and window lights
+	var board := _scene_nodes(NOTICE_SCENE_PATH)
+	var lights := []
+	for sc in [tav, board]:
+		for k in sc:
+			if sc[k].groups.has("tavern_candle") or sc[k].groups.has("tavern_window"):
+				lights.append([k, sc[k]])
+	var cn := lights.filter(func(e): return e[1].groups.has("tavern_candle"))
+	var wn := lights.filter(func(e): return e[1].groups.has("tavern_window"))
+	var lbad := []
+	for e in lights:
+		var pr: Dictionary = e[1].props
+		if pr.get("visible", true) or pr.get("shadow_enabled", false) or float(pr.get("metadata/base_energy", 0.0)) <= 0.0 \
+				or (e[1].groups.has("tavern_candle") and float(pr.get("omni_range", 9)) > 3.5):
+			lbad.append(e[0])
+	check(cn.size() >= 6 and wn.size() >= 4 and lbad.is_empty(),
+		"%d candle/torch lights (board sconces, torches, the thin candle) and %d window lights: saved hidden, unshadowed, a base_energy, candles' range <= 3.5 m (wrong: %s)" % [cn.size(), wn.size(), lbad])
+	var tln: Dictionary = tav.get(TAVERN_ENV + "TavernLighting", {})
+	check(tln.get("props", {}).get("script") is GDScript and (tln.props.script as GDScript).resource_path == TAVERN_LIGHTING_SCRIPT, "MainTavern runs TavernLighting under its Environment")
+	# the round bar's warm pool (no flame there: a light with no lamp, today off) and the window light cards (V11)
+	var bpool: Dictionary = tav.get(TAVERN_ENV + "BarPool", {}).get("props", {})
+	check(tav.get(TAVERN_ENV + "BarPool", {}).get("type") == "OmniLight3D" and bpool.get("visible", true) == false and not bpool.get("shadow_enabled", false)
+		and float(TL.TODAY_VALUES.bar_pool_energy) == 0.0, "the bar's warm pool (BarPool): saved hidden, unshadowed; today 0")
+	var cards := tav.keys().filter(func(k): return tav[k].groups.has("tavern_window_card"))
+	var card_bad := []
+	for k in cards:
+		var pr: Dictionary = tav[k].props
+		var cm = pr.get("surface_material_override/0")
+		if pr.get("visible", true) or int(pr.get("cast_shadow", 1)) != 0 or not cm is StandardMaterial3D or float(pr.get("metadata/base_alpha", 0.0)) <= 0.0:
+			card_bad.append(k)
+		elif (cm as StandardMaterial3D).shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED or (cm as StandardMaterial3D).roughness != 0.0 \
+				or (cm as StandardMaterial3D).blend_mode != BaseMaterial3D.BLEND_MODE_ADD or (cm as StandardMaterial3D).render_priority < 1:
+			card_bad.append(k)
+	check(cards.size() >= 4 and card_bad.is_empty(), "%d window light cards (fog shafts rejected by the spike): saved hidden, additive, unshaded, roughness 0, render_priority >= 1, no shadow (wrong: %s)" % [cards.size(), card_bad])
+	# LookDev follows the hall's mood (LM-12): "today" changes nothing; a moody mood moves its ambient, sun and fills
+	var ld: Node = (load("res://scenes/dev/LookDev.tscn") as PackedScene).instantiate()
+	root.add_child(ld)
+	var ldenv: Environment = (ld.get_node("SubViewportContainer/SubViewport/WorldEnvironment") as WorldEnvironment).environment
+	var ldsun := ld.get_node("SubViewportContainer/SubViewport/OutdoorsLight") as DirectionalLight3D
+	var ldquad := ld.get_node("SubViewportContainer/SubViewport/Camera3D/EdgeQuad") as VisualInstance3D
+	var ld_today: bool = TL.configured_mood() != "today" or (ldenv.ambient_light_source == Environment.AMBIENT_SOURCE_BG and ldsun.light_cull_mask == 4294967295 and ldquad.layers == 1)
+	ld._follow_hall_mood("moody_a")
+	var mav: Dictionary = TL.mood_params("moody_a")
+	var ld_moody: bool = ldenv.ambient_light_source == Environment.AMBIENT_SOURCE_COLOR and ldenv.ambient_light_color.is_equal_approx(mav.ambient_color) \
+		and ldsun.light_cull_mask == INK_LAYER_MASK and ldquad.layers == INK_LAYER_MASK and ldsun.light_energy == 1.5 \
+		and is_equal_approx((ld.get_node("SubViewportContainer/SubViewport/CoolFill") as OmniLight3D).light_energy, float(mav.fill_energy))
+	ld.free()
+	ldenv.ambient_light_source = Environment.AMBIENT_SOURCE_BG
+	check(ld_today and ld_moody, "LookDev's tavern preset follows the hall's mood: today changes nothing; moody_a moves the ambient, the sun to an ink light (EdgeQuad on layer 20, energy kept), the cool fill")
+
+	# the floor rune cue
+	var cue_scene = load(RUNE_CUE_SCENE) if ResourceLoader.exists(RUNE_CUE_SCENE) else null
+	var cue: Node3D = (cue_scene as PackedScene).instantiate() if cue_scene is PackedScene else null
+	var ring: MeshInstance3D = cue.find_child("Ring", true, false) as MeshInstance3D if cue else null
+	var rm = ring.get_surface_override_material(0) if ring and ring.mesh else null
+	if ring and rm == null and ring.mesh:
+		rm = ring.mesh.surface_get_material(0)
+	var cue_ok: bool = cue != null and cue.get_script() is GDScript and (cue.get_script() as GDScript).resource_path == RUNE_CUE_SCRIPT and ring != null and not ring.visible
+	cue_ok = cue_ok and rm is StandardMaterial3D and (rm as StandardMaterial3D).shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED and (rm as StandardMaterial3D).roughness == 0.0
+	cue_ok = cue_ok and (rm as StandardMaterial3D).transparency != BaseMaterial3D.TRANSPARENCY_DISABLED and (rm as StandardMaterial3D).render_priority >= 1
+	cue_ok = cue_ok and not (rm as StandardMaterial3D).no_depth_test and ring.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	check(cue_ok, "FloorRuneCue.tscn: hidden by default; unshaded, roughness 0 (no ink), transparent, render_priority >= 1, depth-tested, no shadow")
+	if cue_ok:
+		var standin := RefCounted.new()
+		var sgd := GDScript.new()
+		sgd.source_code = "extends RefCounted\nvar owner_zone = null\nfunc owns_e(z) -> bool:\n\treturn z != null and z == owner_zone\n"
+		sgd.reload()
+		standin.set_script(sgd)
+		var z := Area3D.new()
+		var w := Node3D.new()
+		root.add_child(w)
+		w.add_child(z)
+		cue.zone = z
+		cue.prompt_ui = standin
+		w.add_child(cue)
+		standin.owner_zone = z
+		cue._process(1.0)
+		var shown: bool = ring.visible
+		var other := Area3D.new()
+		w.add_child(other)
+		standin.owner_zone = other
+		cue._process(1.0)
+		var hid: bool = not ring.visible
+		check(shown and hid, "the cue shows while its zone owns E and hides when another takes E (shown %s, hidden %s)" % [shown, hid])
+		w.free()
+	elif cue:
+		cue.free()
+	var cues := tav.keys().filter(func(k): return tav[k].instance == RUNE_CUE_SCENE)
+	check(cues.size() == 1 and str(tav[cues[0]].props.get("zone_path", "")).ends_with("FireplaceArea") and str(tav[cues[0]].props.get("hearth_path", "")).ends_with("Hearth"),
+		"MainTavern has one floor rune cue, for the fireplace's zone at the hearth (%s)" % [cues])
+	print("")
+
+
+## Test 25's fixture rig: the hall's light nodes on the paths TavernLighting expects (SubViewport/TavernNavigation/...),
+## a real Hearth and a real pillar, two candles and a window. Returns the nodes; free rig.root after.
+func _lm_rig(TL: GDScript, early_phase := "") -> Dictionary:
+	var r := Node3D.new()
+	r.name = "LMRig"
+	var navn := Node3D.new()
+	navn.name = "TavernNavigation"
+	r.add_child(navn)
+	var envn := Node3D.new()
+	envn.name = "Environment"
+	navn.add_child(envn)
+	var we := WorldEnvironment.new()
+	we.name = "WorldEnvironment"
+	we.environment = Environment.new()
+	we.environment.ambient_light_color = Color(0.4, 0.5, 0.7)
+	we.environment.ambient_light_energy = 0.3
+	envn.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.name = "Outdoors Light"
+	sun.transform = LM_SUN_XF
+	sun.light_color = Color(1, 0.8, 0.5)
+	sun.light_energy = 1.5
+	envn.add_child(sun)
+	var mk := func(n: String, e: float, parent: Node) -> OmniLight3D:
+		var l := OmniLight3D.new()
+		l.name = n
+		l.light_energy = e
+		parent.add_child(l)
+		return l
+	var fill: OmniLight3D = mk.call("TavernLight", 2.0, envn)
+	var barl: OmniLight3D = mk.call("BarLight", 1.5, envn)
+	var furn := Node3D.new()
+	furn.name = "Furniture"
+	navn.add_child(furn)
+	var desk := Node3D.new()
+	desk.name = "GuildDesk"
+	furn.add_child(desk)
+	var deskl: OmniLight3D = mk.call("DeskLight", 1.5, desk)
+	var hearth: Node3D = (load(HEARTH_SCENE_PATH) as PackedScene).instantiate()
+	hearth.name = "Hearth"
+	hearth.preview_fuel = 80.0
+	hearth.preview_stock = 0
+	furn.add_child(hearth)
+	var arch := Node3D.new()
+	arch.name = "Architecture"
+	navn.add_child(arch)
+	var pillar: Node3D = (load(PILLAR_SCENE_PATH) as PackedScene).instantiate()
+	pillar.name = "HourglassPillar"
+	pillar.reveal_stage_override = 4
+	arch.add_child(pillar)
+	var candles := []
+	for i in 2:
+		var c: OmniLight3D = mk.call("Candle%d" % i, 0.8 + 0.2 * i, furn)
+		c.visible = false
+		c.set_meta("base_energy", c.light_energy)
+		c.add_to_group("tavern_candle")
+		candles.append(c)
+	var win := SpotLight3D.new()
+	win.name = "Window"
+	win.visible = false
+	win.light_energy = 3.0
+	win.set_meta("base_energy", 3.0)
+	win.add_to_group("tavern_window")
+	arch.add_child(win)
+	for pn in ["HearthProbe", "BarProbe"]:
+		var p := ReflectionProbe.new()
+		p.name = pn
+		p.ambient_mode = ReflectionProbe.AMBIENT_DISABLED
+		r.add_child(p)
+	var ctl := Node.new()
+	ctl.name = "TavernLighting"
+	ctl.set_script(TL)
+	ctl.dev_keys = false
+	if early_phase != "":
+		ctl.set_phase(early_phase, 0.0)
+	envn.add_child(ctl)
+	root.add_child(r)
+	return {"root": r, "ctl": ctl, "env": we, "sun": sun, "fill": fill, "bar": barl, "desk": deskl, "hearth": hearth, "pillar": pillar,
+		"candles": candles, "window": win}
+
+
+## True when `needle` appears inside func `fname`'s body in a GDScript source (to the next top-level func).
+static func _lm_in_func(src: String, fname: String, needle: String) -> bool:
+	var at := src.find("func %s(" % fname)
+	if at < 0:
+		return false
+	var end := src.find("\nfunc ", at + 1)
+	var body := src.substr(at, (end - at) if end > 0 else -1)
+	return body.contains(needle)
