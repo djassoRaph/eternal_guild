@@ -497,7 +497,10 @@ def shots(folder, prefix="25-32_denfa", clip=None, t=0.0, views=((0, 0, "front")
     arm, ob = _rig_body()
     place(arm, False)
     DF.rest(arm)
-    if clip:
+    if clip == "Turnaround":                 # the pick's sheet pose: the arms ~30 deg out (for side-by-side compares)
+        DA.apply_pose(arm, {'d_upperarm.L': {'r': [('Y', -30)]}, 'd_upperarm.R': {'r': [('Y', 30)]}})
+        bpy.context.view_layer.update()
+    elif clip:
         _clip_at(arm, clip, t)
     if markers:
         _marker("REF_Knight_2315", 2.315, 1.0, (0.55, 0.55, 0.6, 1))

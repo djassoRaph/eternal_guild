@@ -25,13 +25,15 @@ import real_paint as RP  # noqa: E402
 OUT = "F:/GAME I AM MAKING/eternal_guild_art/textures/realistic/g9_den_fa_real_body.png"
 
 PALETTE = {
-    "coat": (38, 88, 126), "coat_dark": (22, 52, 76), "coat_light": (62, 112, 146), "coat_edge": (18, 36, 52),
-    "dirt": (52, 50, 44),
+    # Stage D 1 (2026-10-04): an olive-brown grime on the canon blue read GREEN under the hall's amber light (the
+    # 25.10 lesson again); the grime and wear are slate now, the mud only at the very hem
+    "coat": (38, 88, 126), "coat_dark": (22, 50, 78), "coat_light": (60, 102, 142), "coat_edge": (16, 32, 50),
+    "dirt": (30, 40, 56), "mud": (48, 44, 42),
     "cuff": (46, 46, 50), "cuff_dark": (28, 28, 32),
     "glove": (60, 60, 64), "glove_dark": (36, 36, 40),
-    "trousers": (40, 39, 44), "boots": (92, 70, 52), "boots_dark": (54, 41, 32), "sole": (30, 24, 20),
+    "trousers": (40, 39, 44), "boots": (80, 62, 48), "boots_dark": (48, 37, 30), "sole": (30, 24, 20),
     "skin": (64, 64, 70), "skin_dark": (42, 42, 48), "hair": (40, 40, 44),
-    "ear": (146, 110, 122), "ear_dark": (92, 62, 78),
+    "ear": (126, 96, 108), "ear_dark": (80, 56, 70),
     "apron_dark": (22, 52, 76), "apron": (38, 88, 126), "apron_edge": (18, 36, 52),
     "button": (24, 26, 30), "ink": (20, 20, 26),
 }
@@ -50,6 +52,9 @@ def _wool(w, h, seed, wrap, folds=14, vertical=True, curl=0.4, fold_len=0.25):
     img = mix(img, np.clip((fbm(w, h, 11, 3, (wrap, False), seed + 2) - 0.66) * 4, 0, 1), col("coat_light"), 0.30)   # worn, faded
     st = fold_strokes(w, h, folds, (h if vertical else w) * fold_len, vertical, curl, seed + 3, (0.05, 0.95))
     img = mix(img, lines_layer(w, h, st, 1.8, wrap, 0.7), col("ink"), 0.35)
+    # Stage D 2 (LookDev): the toon look lifts the clean canon blue to a cyan beside the muted cast: an old coat's
+    # all-over slate grime (the base stays #26587e under it)
+    img = mix(img, 0.6 + 0.4 * fbm(w, h, 7, 3, (wrap, False), seed + 9), col("dirt"), 0.40)
     return img
 
 
@@ -87,6 +92,7 @@ def coat_skirt(cv):
     xx = np.ones((h, 1)) * np.linspace(0, 1, w)[None, :]
     dirt = np.clip((0.40 - yy) / 0.40, 0, 1) ** 1.6 * (0.6 + 0.4 * fbm(w, h, 9, 3, (False, False), 412))
     img = mix(img, dirt, col("dirt"), 0.75)
+    img = mix(img, np.clip((0.10 - yy) / 0.10, 0, 1) * fbm(w, h, 14, 3, (False, False), 415), col("mud"), 0.5)
     fib = (fbm(w, h, 60, 2, (False, False), 413) > 0.5) * np.clip((0.05 - yy) / 0.05, 0, 1)
     img = mix(img, fib, col("coat_edge"), 0.9)
     rng = np.random.default_rng(414)
@@ -96,8 +102,9 @@ def coat_skirt(cv):
         tears.append(([(x, h), (x + rng.normal() * 3, h - h * (0.03 + 0.05 * rng.random()))], 1.0 + rng.random()))
     img = mix(img, lines_layer(w, h, tears, 2.0, False, 0.3), col("ink"), 0.9)
     img = mix(img, np.clip((0.012 - yy) / 0.012, 0, 1), col("ink"), 1.0)
-    edge = np.clip((0.03 - np.minimum(xx, 1 - xx)) / 0.03, 0, 1)
-    img = mix(img, edge, col("coat_edge"), 0.8)
+    edge = np.clip((0.05 - np.minimum(xx, 1 - xx)) / 0.05, 0, 1)
+    img = mix(img, edge, col("coat_edge"), 0.85)
+    img = mix(img, (np.minimum(xx, 1 - xx) < 0.012).astype(float), col("ink"), 1.0)   # the black front edge (the pick)
     cv.put(img)
 
 
@@ -108,8 +115,12 @@ def collar(cv):
     img = mix(img, ((yy > 0.70) & (yy < 0.76)).astype(float), col("ink"), 0.7)        # the top edge's fold (outer wall top)
     img = mix(img, (yy > 0.76).astype(float), col("coat_dark"), 0.6)                    # the lip inside, in shadow
     xp = 0.545 * w
-    pl = lines_layer(w, h, [([(xp, 0), (xp, h * 0.72)], 1.0)], 2.4, True, 0.4)
-    img = mix(img, pl, col("coat_edge"), 0.8)
+    pl = lines_layer(w, h, [([(xp, h * 0.25), (xp, h)], 1.0)], 3.0, True, 0.4)
+    img = mix(img, pl, col("ink"), 0.9)
+    yy_i, xx_i = np.mgrid[0:h, 0:w]
+    for v in (0.42, 0.62):                                       # the two buttons on the collar's placket (the pick)
+        m = ((xx_i - (xp - 0.02 * w)) ** 2 + (yy_i - (1 - v) * h) ** 2) < 26
+        img[m] = col("button")
     cv.put(img)
 
 

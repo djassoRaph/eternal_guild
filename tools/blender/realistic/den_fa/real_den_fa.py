@@ -265,21 +265,23 @@ def contour(rx, yf, yb, n, th):
 
 
 # the coat's body (z, rx, y_front, y_back, n_front, n_back): broad in the chest, square shoulders (the pick), sylphlike
-COAT_TORSO = [
-    (1.16, 0.150, -0.118, 0.112, 2.2, 2.2),
-    (1.24, 0.184, -0.146, 0.132, 2.3, 2.3),
-    (1.36, 0.180, -0.142, 0.128, 2.3, 2.3),
-    (1.52, 0.184, -0.142, 0.128, 2.4, 2.3),
-    (1.68, 0.202, -0.150, 0.136, 2.5, 2.3),
-    (1.82, 0.222, -0.150, 0.138, 2.4, 2.3),
-    (1.92, 0.228, -0.136, 0.130, 2.4, 2.3),
-    (1.985, 0.206, -0.112, 0.110, 2.4, 2.4),
-    (2.020, 0.150, -0.096, 0.094, 2.2, 2.2),
-    (2.035, 0.090, -0.084, 0.080, 2.0, 2.0),
+COAT_TORSO = [   # v4 (the coordinator's read of v3 vs the pick): a fitted waist, a fuller chest, sloped round shoulders
+    (1.16, 0.140, -0.112, 0.108, 2.2, 2.2),
+    (1.24, 0.166, -0.138, 0.126, 2.3, 2.3),
+    (1.36, 0.162, -0.140, 0.124, 2.3, 2.3),
+    (1.52, 0.178, -0.152, 0.130, 2.3, 2.3),
+    (1.68, 0.210, -0.168, 0.142, 2.3, 2.3),
+    (1.80, 0.228, -0.170, 0.146, 2.3, 2.3),
+    (1.88, 0.234, -0.160, 0.142, 2.2, 2.2),
+    (1.94, 0.218, -0.140, 0.128, 2.1, 2.1),
+    (1.985, 0.186, -0.118, 0.110, 2.1, 2.1),
+    (2.020, 0.130, -0.098, 0.092, 2.0, 2.0),
+    (2.035, 0.085, -0.084, 0.078, 2.0, 2.0),
 ]
-# the skirt (z, rx, y_front, y_back): an A-line flare (the pick), the back within 0.15 m of the thigh axes (the bench)
-SKIRT = [(1.32, 0.192, -0.152, 0.140), (1.20, 0.200, -0.158, 0.146), (1.00, 0.232, -0.176, 0.150),
-         (0.80, 0.262, -0.198, 0.150), (0.62, 0.290, -0.218, 0.150), (0.46, 0.318, -0.236, 0.150)]
+# the skirt (z, rx, y_front, y_back): an A-line flare from the fitted waist (hem ~1.9x the waist's half-width, the
+# pick), the back within 0.15 m of the thigh axes (the bench)
+SKIRT = [(1.32, 0.174, -0.150, 0.136), (1.20, 0.188, -0.156, 0.142), (1.00, 0.228, -0.178, 0.150),
+         (0.80, 0.264, -0.200, 0.150), (0.62, 0.296, -0.220, 0.150), (0.46, 0.326, -0.238, 0.150)]
 SKIRT_N = 2.4
 HEM = 0.46
 
@@ -290,8 +292,8 @@ def skirt_gap(z, over):
     0.62 m both open into the split front hem (the pick). The lap keeps the thighs covered when the halves part in
     Walk (check (b))."""
     if over:
-        return interp([(0.46, 0.045), (0.62, 0.0), (0.76, -0.035), (1.32, -0.035)], z)[0]
-    return interp([(0.46, 0.045), (0.62, 0.0), (1.32, 0.0)], z)[0]
+        return interp([(0.46, 0.080), (0.66, 0.0), (0.80, -0.035), (1.32, -0.035)], z)[0]
+    return interp([(0.46, 0.080), (0.66, 0.0), (1.32, 0.0)], z)[0]
 
 
 def build_torso(name, mat):
@@ -341,9 +343,9 @@ def build_collar(name, mat, segs=24):
             (2.080, 0.098, -0.094, 0.088, 2.2, 2.2)]
     bm = bmesh.new()
     rings, params = RB.loft(bm, rows, segs, cap_top=False, cap_bottom=False)
-    for k in range(segs):                       # the top edge dips in front: 2.25 at the back, 2.17 under the chin
+    for k in range(segs):                       # the top edge dips in front: 2.25 at the back, 2.21 under the chin
         th = 2 * math.pi * k / segs
-        dip = 0.08 * max(0.0, math.cos(th)) ** 1.5
+        dip = 0.04 * max(0.0, math.cos(th)) ** 1.5         # v4: up to the mask's jaw in front too (the pick)
         for ri in (2, 3):
             rings[ri][k].co.z -= dip
     # close the lip's lower edge to the outer wall's foot so the collar is one closed shell
@@ -355,9 +357,12 @@ def build_collar(name, mat, segs=24):
 
 
 def build_sleeve(name, mat, s, sx):
-    pts = [Vector((sx * 0.212, 0.0, 2.000)), Vector((sx * 0.236, 0.0, 1.900)), Vector((sx * 0.258, 0.0, 1.700)),
-           Vector((sx * 0.278, 0.0, 1.500)), Vector((sx * 0.292, -0.010, 1.300)), Vector((sx * 0.303, -0.015, 1.160))]
-    rads = [(0.088, 0.082), 0.084, 0.078, 0.076, 0.080, 0.084]
+    # v4: a round deltoid cap (the first ring small, inside the shoulder), wide at the shoulder, tapering to the cuff
+    pts = [Vector((sx * 0.214, 0.0, 2.030)), Vector((sx * 0.226, 0.0, 2.008)), Vector((sx * 0.238, 0.0, 1.975)),
+           Vector((sx * 0.246, 0.0, 1.925)), Vector((sx * 0.252, 0.0, 1.850)), Vector((sx * 0.262, 0.0, 1.700)),
+           Vector((sx * 0.276, 0.0, 1.520)), Vector((sx * 0.290, -0.010, 1.330)), Vector((sx * 0.302, -0.015, 1.170))]
+    # (front-back, lateral) radii: the cap's lateral reach kept off the chimney face in StandUp / SitDown (AC 5)
+    rads = [(0.034, 0.030), (0.068, 0.058), (0.088, 0.075), (0.097, 0.083), (0.098, 0.086), (0.090, 0.082), (0.080, 0.077), 0.078, 0.078]
     bm = bmesh.new()
     params, rings = RB.tube(bm, pts, rads, 14, up=lambda p, d: Vector((0, -1, 0)), cap0=True, cap1=True)
     RB.param_uvs(bm, params, "sleeve", wrap_u=True)
@@ -370,12 +375,15 @@ def build_cuff(name, mat, s, sx):
     b = Vector((sx * 0.311, -0.021, 1.055))
     pts = [a, a.lerp(b, 0.5), b]
     bm = bmesh.new()
-    params, rings = RB.tube(bm, pts, [0.098, 0.104, 0.106], 14, up=lambda p, d: Vector((0, -1, 0)), cap0=True, cap1=True)
+    params, rings = RB.tube(bm, pts, [0.104, 0.110, 0.113], 14, up=lambda p, d: Vector((0, -1, 0)), cap0=True, cap1=True)
     # the open end: the cap pushed inward into a shallow cup (the glove comes out of it)
     for v in rings[-1]:
         v.co = v.co.lerp(b, 0.25)
     RB.param_uvs(bm, params, "roll", wrap_u=True)
     return RB.finish(name, bm, mat, lambda co: {'d_forearm.' + s: 1.0})
+
+
+GLOVE_SCALE = 1.10          # v4: larger gloves; 1.35, 1.22 and 1.15 put the seated right hand in a wood-store log's sightline
 
 
 def build_glove(name, mat, s, sx):
@@ -395,13 +403,15 @@ def build_glove(name, mat, s, sx):
         a = Vector((sx * 0.323, dy - 0.006, 0.945))
         b = a + Vector((sx * 0.004, -0.010, -ln))
         before = set(bm.verts)
-        RB.tube(bm, [a, a.lerp(b, 0.5), b], [0.0115, 0.0105, 0.0090], 6, cap0=True, cap1=True)
+        RB.tube(bm, [a, a.lerp(b, 0.5), b], [0.0125, 0.0115, 0.0100], 6, cap0=True, cap1=True)   # v4: a little thicker
         parts.append((set(bm.verts) - before, (lambda co, bone=bone: {bone: 1.0})))
     a = HEAD['d_thumb.' + s] + Vector((sx * 0.004, 0.006, 0.010))
     b = TAIL['d_thumb.' + s]
     before = set(bm.verts)
-    RB.tube(bm, [a, a.lerp(b, 0.5), b], [0.0135, 0.012, 0.010], 6, cap0=True, cap1=True)
+    RB.tube(bm, [a, a.lerp(b, 0.5), b], [0.0165, 0.015, 0.0125], 6, cap0=True, cap1=True)
     parts.append((set(bm.verts) - before, lambda co: {'d_thumb.' + s: 1.0}))
+    for v in bm.verts:                       # v4: full-size gloves that read at the game camera (x GLOVE_SCALE, the wrist)
+        v.co = w0 + (v.co - w0) * GLOVE_SCALE
     params = {}
     for v in bm.verts:
         params[v] = (clamp01(0.5 + sx * (v.co.y + 0.02) * 4.0), clamp01((v.co.z - 0.82) / 0.28))
@@ -443,11 +453,12 @@ def build_boot(name, mat, s, sx):
     bm = bmesh.new()
     pts = [Vector((sx * 0.121, 0.004, 0.575)), Vector((sx * 0.121, 0.010, 0.45)), Vector((sx * 0.121, 0.018, 0.25)),
            Vector((sx * 0.121, 0.022, 0.12))]
-    p1, r1 = RB.tube(bm, pts, [(0.082, 0.080), 0.074, 0.064, 0.060], 12, up=lambda p, d: Vector((0, -1, 0)))
+    # v4: chunky, a little slouched at the top (the pick)
+    p1, r1 = RB.tube(bm, pts, [(0.100, 0.098), 0.090, 0.078, 0.070], 12, up=lambda p, d: Vector((0, -1, 0)))
     shaft = set(bm.verts)
     # the foot: rings along y from the heel to the toe (z, half-width, height above the sole)
-    foot = [(0.085, 0.040, 0.085), (0.060, 0.050, 0.140), (0.000, 0.053, 0.120), (-0.080, 0.054, 0.095),
-            (-0.150, 0.050, 0.075), (-0.200, 0.040, 0.058), (-0.226, 0.022, 0.040)]
+    foot = [(0.095, 0.046, 0.085), (0.068, 0.060, 0.150), (0.000, 0.063, 0.130), (-0.090, 0.064, 0.100),
+            (-0.165, 0.060, 0.080), (-0.220, 0.048, 0.062), (-0.248, 0.026, 0.044)]
     segs = 12
     frings = []
     for y, hw, h in foot:
@@ -486,7 +497,7 @@ def build_neck(name, mat):
 
 
 SKULL_C, SKULL_R = Vector((0.0, 0.004, 2.405)), Vector((0.128, 0.150, 0.172))
-MASK_C, MASK_R = Vector((0.0, -0.018, 2.398)), Vector((0.138, 0.168, 0.198))
+MASK_C, MASK_R = Vector((0.0, -0.020, 2.395)), Vector((0.140, 0.172, 0.218))   # v4: taller than wide
 
 
 def build_skull(name, mat):
@@ -501,13 +512,18 @@ def build_skull(name, mat):
 
 
 def mask_point(th, ph, grow=0.0):
-    """The mask's dome: th round from the front (+ his left), ph the polar angle from the top."""
-    return Vector((MASK_C.x + (MASK_R.x + grow) * math.sin(ph) * math.sin(th),
-                   MASK_C.y - (MASK_R.y + grow) * math.sin(ph) * math.cos(th),
-                   MASK_C.z + (MASK_R.z + grow) * math.cos(ph)))
+    """The mask's shell: th round from the front (+ his left), ph the polar angle from the top. v4 (the pick): an
+    elongated shell, the chin narrowed, a soft vertical ridge down the front (slightly pointed)."""
+    z = MASK_C.z + (MASK_R.z + grow) * math.cos(ph)
+    low = K.smoothstep(MASK_C.z + 0.02, MASK_C.z - 0.21, z)
+    x = (MASK_R.x + grow) * math.sin(ph) * math.sin(th) * (1.0 - 0.32 * low)
+    y = -(MASK_R.y + grow) * math.sin(ph) * math.cos(th) * (1.0 - 0.10 * low)
+    if math.cos(th) > 0:
+        y -= 0.014 * math.cos(th) ** 6 * math.sin(ph)
+    return Vector((MASK_C.x + x, MASK_C.y + y, z))
 
 
-def build_mask(name, mat, cols=16, rows=10, th_max=84.0, ph0=14.0, ph1=150.0, thick=0.016):
+def build_mask(name, mat, cols=18, rows=12, th_max=96.0, ph0=10.0, ph1=150.0, thick=0.016):
     """The featureless mirror mask (den_fa_mask): one smooth full-face dome from above the brow to under the chin, the
     sides stopping in front of the ears. Never a face: no features, nothing painted (DC-5)."""
     grid = []
@@ -527,11 +543,12 @@ def build_mask(name, mat, cols=16, rows=10, th_max=84.0, ph0=14.0, ph1=150.0, th
 def build_ear(name, mat, s, sx):
     """A tall bat ear (muted mauve, the inner darker: painted on the front half of the ring), rising from the side of
     the skull above and behind the mask's edge to the 2.91 m tip."""
-    base = Vector((sx * 0.092, 0.030, 2.500))
-    mid = Vector((sx * 0.140, 0.040, 2.700))
-    tip = Vector((sx * 0.192, 0.050, 2.910))
+    # v4 (the pick): from the SIDE of the skull behind the mask's edge, angled ~21 deg outward; the tip at 2.91 (canon)
+    base = Vector((sx * 0.112, 0.036, 2.455))
+    mid = Vector((sx * 0.200, 0.044, 2.680))
+    tip = Vector((sx * 0.290, 0.052, 2.910))
     pts = [base, base.lerp(mid, 0.5), mid, mid.lerp(tip, 0.45), mid.lerp(tip, 0.80), tip]
-    rads = [(0.060, 0.034), (0.060, 0.030), (0.052, 0.024), (0.038, 0.019), (0.020, 0.012), (0.0, 0.0)]
+    rads = [(0.064, 0.034), (0.066, 0.030), (0.056, 0.024), (0.040, 0.019), (0.021, 0.012), (0.0, 0.0)]
     bm = bmesh.new()
     # up = +X on both sides, so the ring's u 0.75 is the front (the inner bowl) on both ears (the painter's rule)
     params, rings = RB.tube(bm, pts, rads, 10, up=lambda p, d: Vector((1.0, 0.0, 0.0)), cap0=True, pole_tip=True)
