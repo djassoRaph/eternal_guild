@@ -300,12 +300,17 @@ def _desk_report(nums, cfg):
 
 
 def proof(nums, cfg=None):
-    """A deliberately bad placement must report hits (else a zero proves nothing)."""
+    """A deliberately bad placement must report hits (else a zero proves nothing). Raises when it does not (AC 2 of
+    25.31: a check is proven before its zero is trusted); returns True."""
     cfg = _cfg(cfg)
     try:
-        return _proof(nums, cfg)
+        ok = _proof(nums, cfg)
     finally:
         _rest()
+    if not ok:
+        raise RuntimeError("proof (%s): the desk / stool checks report nothing on a deliberately bad placement: their "
+                           "zeros prove nothing" % cfg.get("role"))
+    return True
 
 
 def _proof(nums, cfg):
@@ -567,12 +572,27 @@ def _self_clips(cfg):
 def proof_self_clips(cfg=None):
     """Each self-clip check shown to report a hit on a deliberately bad pose (else its zero proves nothing): (a) the
     left hand reaching into the back hair, (b) the left thigh swung out and up through the skirt, (c) the left wrist
-    dislocated 5 cm forward out of its cuff. Returns {check: hits}; every value must be > 0."""
+    dislocated 5 cm forward out of its cuff. Returns {check: hits} (plus "<check>_detail" tuples); raises when no check
+    ran (the body has none of the selections) or a check reports 0 hits (its zero would prove nothing)."""
     cfg = _cfg(cfg)
     try:
-        return _proof_self_clips(cfg)
+        out = _proof_self_clips(cfg)
     finally:
         _rest()
+    proof_counts(out, cfg.get("role"))
+    return out
+
+
+def proof_counts(out, role=None):
+    """The hit counts of a proof_self_clips result (the "_detail" tuples left out); raises on none or on a 0."""
+    counts = {k: v for k, v in out.items() if not k.endswith("_detail")}
+    if not counts:
+        raise RuntimeError("proof_self_clips (%s): no self-clip check ran (no back hair, covered thighs or cuffs selected)" % role)
+    zero = sorted(k for k, v in counts.items() if not v > 0)
+    if zero:
+        raise RuntimeError("proof_self_clips (%s): %s report no hit on the deliberately bad pose: their zeros prove nothing (%s)"
+                           % (role, zero, counts))
+    return counts
 
 
 def _proof_self_clips(cfg):

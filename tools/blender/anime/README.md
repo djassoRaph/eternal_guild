@@ -93,7 +93,8 @@ regression rebuild).
 - Self-clip checks (`anime_clearcheck`): (a) hair vs the arm capsules; (b) for every thigh vertex the skirt covers at
   rest, the ray from the upper leg's axis through it must hit the skirt at or beyond it (pokes, open misses, and
   misses that leave downward under the hem, reported apart); (c) the hand's skin inside the cuff ring's axial span
-  stays within its inner radius, the Sit_Chair clips included. `proof_self_clips(cfg)` shows each one reporting.
+  stays within its inner radius, the Sit_Chair clips included. `proof_self_clips(cfg)` shows each one reporting, and
+  raises when one reports 0 on its bad pose or no check ran; the desk `proof(nums, cfg)` raises the same way.
 - Faces: `anime_kit.build_head` decides the face UVs per face (front faces projected, the others one skin texel at
   their side's edge), so no face mixes projected and fallback corners (the dealer's shipped head smears eye, blush and
   lip texels across her left cheek; 25.31 S0).

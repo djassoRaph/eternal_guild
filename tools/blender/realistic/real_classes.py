@@ -1446,7 +1446,9 @@ def robe_check(v, clips=("Idle", "Walking_A", "Running_A", "Sit_Chair_Down", "Si
         ck = {"keys": {"legs": "legs", "skirt": "skirt"}, "thigh_band": (0.62, 0.84), "thigh_pad": 0.0,
               "skirt_below": 0.90, "thigh_clips": list(clips), "hair_clips": [], "cuff_clips": []}
         conf = {"body": c["body"], "props": c["props"], "check": ck, "role": v}
-        proof = CC.proof_self_clips(conf)
+        proof = CC.proof_self_clips(conf)          # raises when a check reports 0 on the bad pose (or none ran)
+        if "thighs_vs_skirt" not in proof:
+            raise RuntimeError("robe_check(%s): check (b) did not run (no covered thighs selected): its report proves nothing" % v)
         rep = CC.self_clips(conf)
     finally:
         CC.verts_of, K.Z = keep, keep_z

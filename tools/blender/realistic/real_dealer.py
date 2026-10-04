@@ -615,6 +615,7 @@ def measure():
     import anime_clearcheck as CC
     cfg = check_cfg()
     nums = CC.measure(cfg=cfg)
+    CC.proof(nums, cfg=cfg)            # the desk / stool checks report on a bad placement first (raises otherwise)
     rep = CC.desk_report(nums, cfg=cfg)
     # her seated shoulders (25.30 N2: >= the desk top + 0.20 = 1.05 root-local)
     arm = C.rig()
