@@ -10,7 +10,8 @@
 # there for Epic 10's beats (the walk to the bar, the point at the pillar).
 # No autoload, not a patron, no physics body (the bench collider must not push him): a hand-placed
 # scene with one small script (J7), driven by an AnimationTree state machine built here.
-# Story 25.32: his realistic body (g9_den_fa_real.glb: his own rig, no bone wings, R-8) takes the cast's runtime look:
+# Story 25.32: his realistic body (g9_den_fa_real_v6.glb: his own rig, no bone wings, R-8; v6 has broader shoulders and
+# legs on the same rig and clips, so the seat and mask constants below hold) takes the cast's runtime look:
 # `look` "realistic" (or "anime") runs anime_look.apply on him in _ready; anime_look keeps his mirror mask as imported.
 #
 # One E never does two things (J6): while seated he claims his TalkZone with the scene's ZonePromptUI,
