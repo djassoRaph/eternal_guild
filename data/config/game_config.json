@@ -51,6 +51,9 @@
 		"darker_b": {"band_threshold": 0.3, "band_softness": 0.04, "lit_gain": 0.6, "shadow_level": 0.35, "shadow_fill": 0.3, "shadow_tint": [0.7, 0.66, 0.9], "shadow_desaturate": 0.3, "outline_grow": 0.015, "outline_ink": [0.08, 0.04, 0.06]}
 	},
 
+	"_edge_pass_comment": "edge_pass: the screen's edge/ink pass (assets/shaders/edge_detection.gdshader on the camera's quad) in MainTavern and ExteriorWorld; false hides it at load (Raphael, 2026-10-04). Dev key 4 in the hall toggles it live.",
+	"edge_pass": false,
+
 	"tavern_light_mood": "today",
 	"tavern_light_phase_default": "day",
 	"tavern_light_blend_seconds": 4.0,
