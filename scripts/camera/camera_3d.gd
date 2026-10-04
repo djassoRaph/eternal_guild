@@ -26,8 +26,9 @@ func _ready() -> void:
 	# Set rotation for isometric view (should already be set in editor, but ensure it)
 	# rotation_degrees = Vector3(-30, 45, 0)  # Uncomment if needed
 	
-	# Set cull mask to see player (layer 1) and patrons (layer 2)
-	cull_mask = 3  # Binary: 0b11 = layers 1 and 2
+	# Set cull mask to see player (layer 1) and patrons (layer 2), and layer 20: the EdgeQuad's alone (the ink pass;
+	# Story 25.23 moved it there so the one DirectionalLight can ink without lighting the hall).
+	cull_mask = 3 | (1 << 19)
 	print("Interior Camera: Cull mask set to ", cull_mask)
 	
 	# Find player

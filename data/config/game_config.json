@@ -51,6 +51,25 @@
 		"darker_b": {"band_threshold": 0.3, "band_softness": 0.04, "lit_gain": 0.6, "shadow_level": 0.35, "shadow_fill": 0.3, "shadow_tint": [0.7, 0.66, 0.9], "shadow_desaturate": 0.3, "outline_grow": 0.015, "outline_ink": [0.08, 0.04, 0.06]}
 	},
 
+	"tavern_light_mood": "today",
+	"tavern_light_phase_default": "day",
+	"tavern_light_blend_seconds": 4.0,
+	"tavern_light_morning_hold_seconds": 20.0,
+	"tavern_light_moods": {
+		"_comment": "The hall's base light (scripts/game/tavern_lighting.gd, Story 25.23). tavern_light_mood: 'today' (the scene as saved: MainTavern's lights snapshotted at load; it can't be defined here) or one of these presets. An unknown name falls back to today with a warning; a missing or bad value takes today's, with a warning. ambient_color [r,g,b] 0..1 x ambient_energy 0..4: the explicit ambient (today renders the project's clear colour, 0.3 grey); sun_lights_hall: false = the one DirectionalLight only inks (its direction, colour and energy never change: the edge pass multiplies by it); fill_energy 0..8 (TavernLight, the cold NE fill; today 2.0), bar_energy / desk_energy 0..8 (BarLight, the desk's DeskLight; today 1.5); bar_pool_energy 0..8 (BarPool, a warm light over the round bar with no lamp of its own: the bar shows no flame; today 0 = off; the phase's candle_scale scales it); hearth_scale 0.05..4 (x the fire's light, hearth.gd light_scale); candle_scale 0..4 (x each tavern_candle light's base_energy: the board sconces, the torches, the thin candle; today 0 = off); window_color [r,g,b] / window_energy 0..8 (the tavern_window spot lights outside the north and west windows; today 0 = off); shadow_lights: which lights cast (hearth, bar, desk, fill; candles and windows never do); omni_shadow_mode: dual_paraboloid (2 views) or cube (6 views); pillar_glow 0.6..2.0 (the Hourglass Pillar's emission); exposure 0.25..4 (tonemap_exposure, Linear tonemap kept).",
+		"moody_a": {"ambient_color": [0.46, 0.42, 0.52], "ambient_energy": 1.0, "sun_lights_hall": false, "fill_energy": 1.8, "bar_energy": 1.4, "desk_energy": 1.4, "bar_pool_energy": 1.4, "hearth_scale": 1.4, "candle_scale": 1.0, "window_color": [1.0, 0.95, 0.85], "window_energy": 1.0, "shadow_lights": ["hearth"], "omni_shadow_mode": "dual_paraboloid", "pillar_glow": 1.0, "exposure": 1.0},
+		"moody_b": {"ambient_color": [0.27, 0.27, 0.36], "ambient_energy": 1.0, "sun_lights_hall": false, "fill_energy": 0.9, "bar_energy": 1.1, "desk_energy": 1.1, "bar_pool_energy": 1.1, "hearth_scale": 1.6, "candle_scale": 0.9, "window_color": [1.0, 0.95, 0.85], "window_energy": 0.7, "shadow_lights": ["hearth"], "omni_shadow_mode": "dual_paraboloid", "pillar_glow": 1.2, "exposure": 1.0}
+	},
+	"tavern_light_phases": {
+		"_comment": "The day phases on top of the mood (Story 25.23). Each scale multiplies the mood's value: ambient_scale (the ambient energy), candle_scale, hearth_scale, fill_scale (TavernLight), pillar_glow_scale (keep mood x phase glow within 0.6..2.0), window_energy (x the mood's window_energy); window_color [r,g,b] replaces the mood's (absent = the mood's). 'day' is the identity (every scale 1, no window colour): the picked mood is what play shows. A phase change blends every number over tavern_light_blend_seconds; the moods switch at once. Sent by GameBus.day_phase_changed: evening (the bedroom opens), late_night (sleep; 'reveal' is an alias), morning (the new day), day (the briefing ends, or tavern_light_morning_hold_seconds after a morning with no briefing). dusk and dawn have no trigger yet (the dev keys reach them: F7).",
+		"morning": {"ambient_scale": 1.0, "candle_scale": 0.5, "hearth_scale": 1.0, "fill_scale": 1.0, "pillar_glow_scale": 1.0, "window_color": [1.0, 0.9, 0.75], "window_energy": 1.0},
+		"day": {"ambient_scale": 1.0, "candle_scale": 1.0, "hearth_scale": 1.0, "fill_scale": 1.0, "pillar_glow_scale": 1.0, "window_energy": 1.0},
+		"dusk": {"ambient_scale": 0.85, "candle_scale": 1.0, "hearth_scale": 1.0, "fill_scale": 0.8, "pillar_glow_scale": 1.0, "window_color": [1.0, 0.6, 0.35], "window_energy": 0.7},
+		"evening": {"ambient_scale": 0.7, "candle_scale": 1.2, "hearth_scale": 1.1, "fill_scale": 0.6, "pillar_glow_scale": 1.1, "window_color": [0.45, 0.6, 0.85], "window_energy": 0.35},
+		"late_night": {"ambient_scale": 0.55, "candle_scale": 0.8, "hearth_scale": 1.0, "fill_scale": 0.4, "pillar_glow_scale": 1.2, "window_color": [0.35, 0.5, 0.8], "window_energy": 0.2},
+		"dawn": {"ambient_scale": 0.75, "candle_scale": 0.6, "hearth_scale": 0.9, "fill_scale": 0.7, "pillar_glow_scale": 1.0, "window_color": [0.85, 0.7, 0.8], "window_energy": 0.5}
+	},
+
 	"profile": "demo",
 	"demo_start_staff": ["bartender", "desk_manager"],
 

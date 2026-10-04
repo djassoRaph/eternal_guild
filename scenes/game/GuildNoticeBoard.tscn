@@ -7,3 +7,19 @@
 script = ExtResource("1_script")
 
 [node name="Model" parent="." instance=ExtResource("2_board")]
+
+[node name="SconceLightLeft" type="OmniLight3D" parent="." groups=["tavern_candle"]]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.68, 2.55, 0.3)
+light_color = Color(1, 0.75, 0.45, 1)
+light_energy = 0.8
+omni_range = 3.0
+metadata/base_energy = 0.8
+
+[node name="SconceLightRight" type="OmniLight3D" parent="." groups=["tavern_candle"]]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.68, 2.55, 0.3)
+light_color = Color(1, 0.75, 0.45, 1)
+light_energy = 0.8
+omni_range = 3.0
+metadata/base_energy = 0.8
