@@ -255,6 +255,7 @@ const PLAYER_SCRIPT := "res://scripts/player/player.gd"
 const PLAYER_BODY_PATH := "res://assets/characters/custom/g1_player_real.glb"
 const PLAYER_FALLBACK_PATH := "res://assets/characters/models/kaykit_adventurers/Rogue.glb"
 const PLAYER_MISSING_FIXTURE := "res://test/fixtures/player_missing_body.json"
+const PLAYER_MISSING_BOTH_FIXTURE := "res://test/fixtures/player_missing_both.json"   # the model and the fallback missing (P14)
 const PLAYER_RUN_GROUND_SPEED := 6.996     # Running_A's ground speed on his body (real_player.rate(), m/s): V9's measure
 const PLAYER_SPEED := 5.0                  # the gameplay speed (V9: unchanged)
 ## Test 25 (Story 25.23): the hall's light and mood, the day phases, the fireplace's floor rune.
@@ -7783,22 +7784,35 @@ func test_player_body() -> void:
 			why.append("Idle at %.3f" % (ap.get_playing_speed() if ap else -1.0))
 	check(why.is_empty(), "Player.tscn: his body from player.json, the old yaw (172.07°) at the capsule's foot, the realistic look on every surface, Running_A at speed / run_ground_speed (the feet slide at 5.0 m/s: no skating), Idle at 1.0 (wrong: %s)" % [why])
 	pl.queue_free()
-	# the fallback: his model missing -> the KayKit Rogue, its imported look, Running_A at 1.0
-	var fb = load(PLAYER_SCRIPT).new()
-	fb.data_path = PLAYER_MISSING_FIXTURE
-	var cap := CollisionShape3D.new()
-	cap.name = "CollisionShape3D"
-	cap.shape = CapsuleShape3D.new()
-	(cap.shape as CapsuleShape3D).height = 1.5
-	fb.add_child(cap)
-	world.add_child(fb)
-	var fwhy := []
-	if fb.body_model == null or fb.body_path != PLAYER_FALLBACK_PATH or not fb.using_fallback or fb.body_look != "" or fb.run_rate != 1.0:
-		fwhy.append("%s, fallback %s, look '%s', rate %s" % [fb.body_path, fb.using_fallback, fb.body_look, fb.run_rate])
-	elif fb.body_model.find_children("*", "MeshInstance3D", true, false).any(func(m): return (m as MeshInstance3D).get_surface_override_material(0) != null):
-		fwhy.append("the fallback body toned")
-	check(fwhy.is_empty(), "his model missing: the fallback (the KayKit Rogue) with its imported look and Running_A at 1.0 (wrong: %s)" % [fwhy])
-	fb.queue_free()
+	# the fallback: his model missing -> the KayKit Rogue, its imported look, Running_A at 1.0; and V10's third step (the
+	# 25.31 review's P14): the model AND the fallback missing -> LAST_RESORT_BODY, the same way. Every surface untoned.
+	var last_resort := str((load(PLAYER_SCRIPT) as Script).get_script_constant_map().get("LAST_RESORT_BODY", ""))
+	for case in [[PLAYER_MISSING_FIXTURE, PLAYER_FALLBACK_PATH, "his model missing: the fallback (the KayKit Rogue)"],
+			[PLAYER_MISSING_BOTH_FIXTURE, last_resort, "his model and its fallback missing: LAST_RESORT_BODY (the old Rogue)"]]:
+		var fb = load(PLAYER_SCRIPT).new()
+		fb.data_path = case[0]
+		var cap := CollisionShape3D.new()
+		cap.name = "CollisionShape3D"
+		cap.shape = CapsuleShape3D.new()
+		(cap.shape as CapsuleShape3D).height = 1.5
+		fb.add_child(cap)
+		world.add_child(fb)
+		var fwhy := []
+		if case[1] == "" or not ResourceLoader.exists(str(case[1])):
+			fwhy.append("no such body %s" % case[1])
+		if fb.body_model == null or fb.body_path != case[1] or not fb.using_fallback or fb.body_look != "" or fb.run_rate != 1.0:
+			fwhy.append("%s, fallback %s, look '%s', rate %s" % [fb.body_path, fb.using_fallback, fb.body_look, fb.run_rate])
+		else:
+			var fsurf := 0
+			for mi in fb.body_model.find_children("*", "MeshInstance3D", true, false):
+				for s in ((mi as MeshInstance3D).mesh.get_surface_count() if (mi as MeshInstance3D).mesh else 0):
+					fsurf += 1
+					if (mi as MeshInstance3D).get_surface_override_material(s) != null:
+						fwhy.append("%s/%d toned" % [mi.name, s])
+			if fsurf < 2:
+				fwhy.append("only %d surfaces inspected" % fsurf)
+		check(fwhy.is_empty(), "%s with its imported look on every surface and Running_A at 1.0 (wrong: %s)" % [case[2], fwhy.slice(0, 4)])
+		fb.queue_free()
 	world.queue_free()
 	await process_frame
 	print("")
