@@ -7629,6 +7629,30 @@ func test_anime_look_presets() -> void:
 	look.set_preset("approved")
 	check(look.apply(m1) == 1 and mi1.get_surface_override_material(0) == ap, "back to approved: the body is re-toned with the same approved copy")
 
+	# Story 25.31 review P10: only a source that really emits is light (V5's glow toon: roughness 0, no ink). An inert
+	# emission flag from import (black colour, or energy 0, no texture) is a body surface: the ink toon, outlined.
+	var glow_why := []
+	for case in [["black", Color(0, 0, 0), 1.0, false], ["energy 0", Color(0.2, 1.0, 0.35), 0.0, false],
+			["green", Color(0.2, 1.0, 0.35), 1.6, true]]:
+		var es := src.duplicate() as StandardMaterial3D
+		es.resource_name = "t23_emit_" + str(case[0])
+		es.emission_enabled = true
+		es.emission = case[1]
+		es.emission_energy_multiplier = case[2]
+		var n := Node3D.new()
+		var emi := MeshInstance3D.new()
+		emi.mesh = BoxMesh.new()
+		(emi.mesh as BoxMesh).material = es
+		n.add_child(emi)
+		look.apply(n)
+		var t = emi.get_surface_override_material(0)
+		var glow_ok: bool = t is StandardMaterial3D and t.emission_enabled and t.roughness == 0.0 and t.next_pass == null
+		var ink_ok: bool = t is StandardMaterial3D and is_equal_approx(t.roughness, 0.12) and t.next_pass == outline
+		if (case[3] and not glow_ok) or (not case[3] and not ink_ok):
+			glow_why.append("%s -> %s" % [case[0], "rough %s, outline %s" % [t.roughness, t.next_pass == outline] if t is StandardMaterial3D else str(t)])
+		n.free()
+	check(glow_why.is_empty(), "an emissive source is light only when it emits (colour x energy): an inert emission flag (black, energy 0) gets the ink toon (wrong: %s)" % [glow_why])
+
 	# bad numbers in a preset: the approved defaults, with a warning
 	look._presets["t23_bad"] = {"lit_gain": -1, "shadow_tint": [0, 0, 0], "outline_grow": "x", "band_softness": 0.3}
 	look.last_warning = ""

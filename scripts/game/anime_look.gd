@@ -22,6 +22,7 @@
 # apply() then re-tones a body toned with another preset (from each toon's source material).
 # An EMISSIVE source (AH-3 / V5, Story 25.31 S3: only a prop's own material may emit, the Healer's crystal) gets, in
 # every preset, a StandardMaterial3D copy that keeps its emission at roughness 0 with no outline: light, not ink.
+# Emissive means emits() (25.31 review P10): the colour x energy (or an added texture), not the bare emission flag.
 # KEEP_AS_IMPORTED (Story 25.32, DC-4): a source material whose resource_name is listed is LEFT AS IMPORTED: no toon
 # copy, no outline hull. Den Fa's mirror mask (den_fa_mask) keeps its metal and its reflection probes' warm glints
 # (the toon copy forces "no metal", which would kill the mirror); the screen-space ink pass still outlines it
@@ -237,7 +238,7 @@ static func _toon_of(src: StandardMaterial3D, look: String, owner_name: String) 
 	var toon: Material = cache.get(src)
 	if toon:
 		return toon
-	if src.emission_enabled:
+	if emits(src):
 		toon = _glow_toon(src)             # AH-3 / V5 (25.31): a prop's light, whatever the preset
 	elif look == APPROVED:
 		toon = _standard_toon(src, OUTLINE, owner_name)
@@ -250,6 +251,16 @@ static func _toon_of(src: StandardMaterial3D, look: String, owner_name: String) 
 	toon.set_meta(SOURCE_META, src)
 	cache[src] = toon
 	return toon
+
+
+## The source really emits (Story 25.31 review P10): emission on, energy > 0, and a colour that isn't black or an emission
+## texture added to it (BaseMaterial3D: ADD = (colour + texture) x energy, MULTIPLY = colour x texture x energy). An inert
+## emission flag from import (black, or energy 0) is a body surface: the ink toon, not the glow.
+static func emits(src: BaseMaterial3D) -> bool:
+	if src == null or not src.emission_enabled or src.emission_energy_multiplier <= 0.0:
+		return false
+	var c := src.emission
+	return maxf(c.r, maxf(c.g, c.b)) > 0.0 or (src.emission_texture != null and src.emission_operator == BaseMaterial3D.EMISSION_OP_ADD)
 
 
 ## AH-3 / V5 (Story 25.31 S3): an emissive source is light, not ink: its toon copy KEEPS the emission, stays at
