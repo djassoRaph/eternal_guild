@@ -7591,7 +7591,12 @@ func test_light_and_mood() -> void:
 	var half: float = rig.fill.light_energy
 	var want_half: float = lerpf(float(mb.fill_energy), float(mb.fill_energy) * float(TL.phase_params("evening").fill_scale), 0.5)
 	ctl.set_phase("late_night")
-	var no_jump: bool = is_equal_approx(rig.fill.light_energy, half)
+	# one small tick into the new blend (review 2026-10-04: before any tick nothing is applied, so a compare there
+	# always passed): the fill has moved from the half-way value toward late_night's, not jumped
+	var ln_fill: float = float(mb.fill_energy) * float(TL.phase_params("late_night").fill_scale)
+	var tick := secs * 0.02
+	ctl._process(tick)
+	var no_jump: bool = absf(rig.fill.light_energy - lerpf(half, ln_fill, 0.02)) < 0.0005 and ctl.current().blending
 	ctl._process(secs + 0.1)
 	var end_ok: bool = ctl.phase == "late_night" and is_equal_approx(rig.fill.light_energy, float(mb.fill_energy) * float(TL.phase_params("late_night").fill_scale))
 	check(is_equal_approx(half, want_half) and no_jump and end_ok, "GameBus.day_phase_changed(evening) blends over %.1f s (half way %.3f); late_night mid-blend starts from there (no jump) and ends exactly there" % [secs, half])
@@ -7614,6 +7619,8 @@ func test_light_and_mood() -> void:
 		gb.day_phase_changed.emit("day")
 		ctl._process(secs + 0.1)
 		check(ctl.phase == "day", "the briefing's day ends the morning")
+	else:
+		check(false, "the morning-hold checks need the GameManager and GameBus autoloads (review 2026-10-04: never skip silently)")
 	if gm:
 		gm.set("has_pending_briefing", had_brief)
 	rig.root.free()
