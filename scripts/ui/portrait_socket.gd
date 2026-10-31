@@ -94,6 +94,13 @@ static func card_config() -> Dictionary:
 				_card_config = data
 	return _card_config
 
+## A Tarot card's height for `width` at tarot_card.json's aspect (width / height; 0.6 when it has none or a bad one).
+## Every card size comes from here (Story 4.2 review P3): the hire desk's cards and the roster's thumbnails.
+static func card_height(width: float) -> float:
+	var a = card_config().get("aspect", 0.6)
+	var aspect := float(a) if ((a is int or a is float) and float(a) > 0.05) else 0.6
+	return round(width / aspect)
+
 ## Tests: use `cfg` as the card config (null: read the file again next time) and forget the once-a-session warnings.
 static func set_card_config(cfg) -> void:
 	_card_config_loaded = cfg is Dictionary
