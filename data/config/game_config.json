@@ -101,8 +101,12 @@
 		"missed_days_to_leave": 3
 	},
 	"staff_automation": {
-		"_comment": "Epic 16: how the hall's staff work by themselves (their LimboAI brains, scripts/game/staff_ai.gd). Story 16.3: the Bartender serves a patron on one of the round bar's stools once they have waited bartender_react_seconds (the player's E can still serve them first; table patrons stay the player's). A bad or missing value falls back with a warning.",
-		"bartender_react_seconds": 3.0
+		"_comment": "Epic 16: how the hall's staff work by themselves (their LimboAI brains, scripts/game/staff_ai.gd). Story 16.3: the Bartender serves a patron on one of the round bar's stools once they have waited bartender_react_seconds (the player's E can still serve them first; table patrons stay the player's). Story 16.4: each morning the Quest Dealer waits desk_round_delay_seconds after the reports, then sends up to desk_auto_per_day READY Minor Arcana on open solo contracts of tier <= desk_auto_max_tier, only at a success estimate of desk_auto_min_chance percent or better (Major Arcana and party contracts stay the player's); 0 a day turns her round off. A bad or missing value falls back with a warning.",
+		"bartender_react_seconds": 3.0,
+		"desk_round_delay_seconds": 4.0,
+		"desk_auto_per_day": 1,
+		"desk_auto_max_tier": 1,
+		"desk_auto_min_chance": 70
 	},
 
 	"reputation_tiers": [

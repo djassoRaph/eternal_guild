@@ -21,7 +21,9 @@
 					"look": "realistic",
 					"body": {"hip_back": 0.45, "stool_pull": 0.47, "seated_front": -0.23, "walk_half_at_desk": 0.295, "idle_front": 0.127, "bubble_seated": 1.51, "hall_speed": 1.17, "bar_speed": 0.8}}
 			},
-			"barks": ["The contract requires a signature. Two, if you're feeling lucky.", "I'll need three days. Four, if they're honest.", "Terms first. Heroics after.", "Sign here. And here. Mind the ink."]
+			"barks": ["The contract requires a signature. Two, if you're feeling lucky.", "I'll need three days. Four, if they're honest.", "Terms first. Heroics after.", "Sign here. And here. Mind the ink."],
+			"_round_barks_note": "Story 16.4: DRAFT lines for her morning round, {name} = the adventurer she sent, {mission} = the contract. Raphael rewrites them with the Quest Dealer Setup (Epic 10).",
+			"round_barks": ["{name} takes {mission}. Contract's signed.", "I sent {name}. {mission}. The terms were fair, mostly.", "{mission}: {name}. I'll want them back in one piece."]
 		}
 	}
 }
