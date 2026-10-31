@@ -16,3 +16,11 @@ signal tax_demand_triggered(amount: int, due_day: int)
 signal tax_paid(amount: int)
 ## A morning the tax couldn't be paid, while the grace lasts: the mornings left before the guild falls (bankruptcy).
 signal tax_overdue(days_remaining: int)
+
+# Staff wages (Story 16.5). GameManager emits them: each morning from apply_staff_wages() (right after the adventurers'
+# wages), at a hire (the first day's wage) and when a striker's back wage is paid. staff_id is "<role>/<variant>".
+## A staff member was paid through spend_gold (gold_changed has already gone out).
+signal staff_wage_paid(staff_id: String, amount: int)
+## A morning a hired staff member's wage wasn't paid (the first one puts them on strike). The record already holds the
+## count (missed_days): NotificationManager words its banner from it. They leave after staff_wages.missed_days_to_leave.
+signal staff_wage_unpaid(staff_id: String)

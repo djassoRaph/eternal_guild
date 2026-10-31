@@ -47,8 +47,40 @@ func _ready() -> void:
 		EconomyBus.tax_warning.connect(func(days_left: int, amount: int): show_banner(tax_warning_text(days_left, amount)))
 		EconomyBus.tax_paid.connect(func(amount: int): show_banner(tax_paid_text(amount)))
 		EconomyBus.tax_overdue.connect(func(days_remaining: int): show_banner(tax_overdue_text(days_remaining)))
+		EconomyBus.staff_wage_unpaid.connect(_on_staff_wage_unpaid)   # Story 16.5: an event each, no cooldown
+	if GuildBus:
+		GuildBus.staff_strike_changed.connect(_on_staff_strike_changed)
 	if GameBus:
 		GameBus.game_over_triggered.connect(func(_cause: String): clear_banners())   # Story 13.4 review P8
+
+
+## Story 16.5: a staff wage unpaid this morning, worded from the record GameManager has already updated.
+func _on_staff_wage_unpaid(staff_id: String) -> void:
+	var rec: Dictionary = GameManager.staff_record_by_id(staff_id)
+	if not rec.is_empty():
+		show_banner(staff_unpaid_text(str(rec.get("name", "?")), int(rec.get("missed_days", 1)), GameManager.staff_missed_days_to_leave()))
+
+## Story 16.5: a strike ended for a member still hired (the back wage paid). A dismissal or a leaving ends one too, with
+## the record already not hired: no banner (the leaving had its own).
+func _on_staff_strike_changed(staff_id: String, on_strike: bool) -> void:
+	var rec: Dictionary = GameManager.staff_record_by_id(staff_id)
+	if not on_strike and rec.get("hired") == true:
+		show_banner("%s is back to work." % _cap(str(rec.get("name", "?"))))
+
+## Story 16.5: the unpaid-wage banner. `missed`: unpaid mornings in a row; `leave_after`: staff_wages.missed_days_to_leave.
+## DRAFT (Raphael rewrites).
+static func staff_unpaid_text(staff_name: String, missed: int, leave_after: int) -> String:
+	var who := _cap(staff_name)
+	if missed >= leave_after:
+		return "%s has left the guild, unpaid." % who
+	if missed <= 1:
+		return "%s hasn't been paid — on strike.%s" % [who, " Leaves tomorrow if unpaid." if leave_after == 2 else ""]
+	if missed == leave_after - 1:
+		return "%s leaves tomorrow if unpaid." % who
+	return "%s is still unpaid (%d days)." % [who, missed]
+
+static func _cap(s: String) -> String:
+	return s.substr(0, 1).to_upper() + s.substr(1)
 
 
 ## Frees every banner (Story 13.4 review P8: the fall's pause froze them, and they played out over the main menu).
