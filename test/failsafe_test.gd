@@ -10164,13 +10164,18 @@ func test_hiring() -> void:
 
 	_check_t29_pool(gm, ab)
 	_check_t29_traits(gm, dm)
+	_check_t29_trait_effects(gm, capture)
 	_check_t29_hire(gm, ab, eb, capture)
 	_check_t29_ids(gm, ss)
+	_check_t29_heal_rekey(gm, ss)
 	_check_t29_death_status(gm, ss)
+	_check_t29_deck(gm, capture)
 	_check_t29_card_data(dm)
 	_check_t29_card_art()
 	_check_t29_card_view(dm)
+	_check_t29_modal()
 	_check_t29_panel(gm)
+	await _check_t29_live_refresh(gm)
 	await process_frame   # the panel's rebuilt nodes are freed
 
 	dm.character_traits = traits_before
@@ -10212,6 +10217,20 @@ func _check_t29_pool(gm, ab) -> void:
 	gm.daily_recruits = []
 	var hired_out: bool = gm.ensure_hire_pool()
 	check(not hired_out and gm.daily_recruits.is_empty() and spy[0] == 1, "hired out on the same day: the pool stays empty until the next morning")
+	# Review P1: a pool carried over from yesterday (advance_day keeps a pool two days), hired out today: no second pool.
+	gm.current_day = 7
+	gm.recruit_refresh_day = 6
+	gm.gold = 500
+	gm.max_adventurers = 8
+	gm.adventurers = []
+	gm.daily_recruits = [_t29_applicant(7050, "Carry", "Rogue", 10, "", "")]
+	var hired: bool = gm.hire_adventurer(gm.daily_recruits[0])
+	var again_carry: bool = gm.ensure_hire_pool()
+	var gm_src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(hired and gm.recruit_refresh_day == 7 and not again_carry and gm.daily_recruits.is_empty() and spy[0] == 1
+		and _func_body(gm_src, "advance_day").contains("daily_recruits.size() == 0"),
+		"yesterday's pool hired out today: the refresh day becomes today, no second pool today; the next morning refills an empty pool (review P1)")
+	gm.adventurers = []
 	ab.recruitment_pool_changed.disconnect(on_pool)
 	var src := FileAccess.get_file_as_string(RECRUITMENT_POPUP_PATH)
 	check(_func_body(src, "open_recruitment_desk").contains("GameManager.ensure_hire_pool()"), "the hire desk asks for the day's pool when it opens")
@@ -10382,6 +10401,180 @@ func _check_t29_hire(gm, ab, eb, capture: Node) -> void:
 
 
 ## DH-8: ids are never reused, the codex's fallen heroes included (a fixture codex, never Raphael's).
+## Review P2: the traits do what the desk says. Reckless comes back hurt from some successes (and never keeps an
+## `injured` flag), Lucky and Greedy add their bonus to a party share too, and the bonus line names the trait.
+func _check_t29_trait_effects(gm, capture: Node) -> void:
+	var S = AdventurerStatus.Status
+	var m := {"name": "Easy Job", "danger": -3, "reward_range": [40, 40], "duration_days": 1, "category": "delivery"}
+	var hurt := {"": 0, "reckless": 0}
+	var flagged := 0
+	seed(42)
+	for p in ["", "reckless"]:
+		for i in 40:
+			var a := _t29_applicant(7600 + i, "R%d" % i, "Fighter", 0, p, "")
+			a["status"] = S.ON_MISSION
+			gm.complete_mission(a, m.duplicate(true), true, false)
+			if a.status == S.WOUNDED:
+				hurt[p] += 1
+			if a.has("injured"):
+				flagged += 1
+	check(hurt[""] == 0 and hurt.reckless > 0 and flagged == 0,
+		"Reckless: some successes come back WOUNDED (%d of 40), a plain adventurer never (%d); no record keeps an `injured` flag" % [hurt.reckless, hurt[""]])
+	var old := _t29_applicant(7690, "Old", "Fighter", 0, "", "")
+	old["injured"] = true
+	gm._normalize_adventurer_ints(old)
+	check(not old.has("injured"), "an old save's `injured` flag is dropped when the record is loaded or hired")
+	capture.lines.clear()
+	var lucky := _t29_applicant(7691, "Lu", "Fighter", 0, "lucky", "")
+	var plain := _t29_applicant(7692, "Pl", "Mage", 0, "", "")
+	var greedy := _t29_applicant(7694, "Gr", "Rogue", 0, "greedy", "")
+	var with_lucky: int = gm.complete_party_mission([lucky, plain], m.duplicate(true), true, false)
+	var without: int = gm.complete_party_mission([_t29_applicant(7693, "Pa", "Mage", 0, "", ""), _t29_applicant(7695, "Pb", "Mage", 0, "", "")],
+		m.duplicate(true), true, false)
+	var solo_greedy: int = gm.complete_mission(greedy, m.duplicate(true), true, false)
+	check(with_lucky == 44 and without == 40 and int(lucky.gold_earned) == 24 and int(plain.gold_earned) == 20,
+		"a Lucky party member adds 20 %% of their share to the party's reward (40 -> 44, their share 24); a plain party 40 (it was solo-only) %s" % [[with_lucky, without]])
+	var bonus_lines: Array = capture.lines.filter(func(l): return l.contains("bonus") or l.contains("luck"))
+	check(solo_greedy == 44 and bonus_lines.has("Lu (Lucky): +4 bonus gold.") and bonus_lines.has("Gr (Greedy): +4 bonus gold.")
+		and not bonus_lines.any(func(l): return l.contains("luck paid off")),
+		"the bonus line names the trait, no 'luck' for a Greedy one %s" % [bonus_lines])
+	check(not gm.get_trait_data("lucky").has("crit_chance"), "Lucky's unused crit_chance is gone from traits.json (its description says what it does)")
+
+
+## Review P9 and P10: an old save's applicants: a capitalised trait word gets its key and its wage, ids someone else
+## holds get new ones; a codex record is the same hero only by id, name and hire day (the redirected codex).
+func _check_t29_heal_rekey(gm, ss) -> void:
+	var greedy := {"id": 1, "personality": "Greedy", "daily_wage": 2}
+	var cautious := {"id": 2, "personality": "Cautious", "daily_wage": 2}
+	var fresh := {"id": 3, "personality": "greedy", "daily_wage": 3}
+	var none := {"id": 4, "daily_wage": 1}
+	var changed := [gm.heal_applicant_trait(greedy), gm.heal_applicant_trait(cautious), gm.heal_applicant_trait(fresh), gm.heal_applicant_trait(none)]
+	check(changed == [true, false, false, false] and greedy.personality == "greedy" and int(greedy.daily_wage) == 3
+		and cautious.personality == "Cautious" and int(fresh.daily_wage) == 3,
+		"an old save's 'Greedy' applicant becomes greedy with its x1.5 wage (2 -> 3); a word with no trait and a post-4.2 key stay as they are %s" % [changed])
+	var load_body := _func_body(FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH), "load_save_data")
+	check(load_body.contains("heal_applicant_trait(rec)") and load_body.contains("_rekey_colliding_applicants()"),
+		"load_save_data heals the saved applicants' traits and re-keys colliding ids")
+	gm.adventurers = [{"id": 10, "name": "Roster"}]
+	gm.active_missions = []
+	gm.daily_recruits = [{"id": 10.0, "name": "SameAsRoster"}, {"id": 11, "name": "SameAsFallen"}, {"id": 12, "name": "Free"}]
+	ss.codex_data = {"fallen_heroes": [{"id": 11, "name": "Gone", "hire_day": 2}], "artifacts_found": []}
+	gm.next_adventurer_id = 1
+	var n: int = gm._rekey_colliding_applicants()
+	var ids: Array = gm.daily_recruits.map(func(r): return gm._id_key(r.id))
+	check(n == 2 and ids[2] == 12 and ids[0] > 12 and ids[1] > 12 and ids[0] != ids[1],
+		"re-keyed: the applicant sharing the roster's id and the one sharing a fallen hero's id get new ids; the free one keeps 12 %s" % [ids])
+	var same := [ss.same_fallen_hero({"id": 2, "name": "Nina", "hire_day": 3}, {"id": 2.0, "name": "Nina", "hire_day": 3.0}),
+		ss.same_fallen_hero({"id": 2, "name": "Nina", "hire_day": 3}, {"id": 2, "name": "Bram", "hire_day": 9}),
+		ss.same_fallen_hero({"id": 2, "name": "Nina", "hire_day": 3}, {"id": 2, "name": "Nina", "hire_day": 5}),
+		ss.same_fallen_hero({"id": "nina", "name": "Nina"}, {"id": "nina", "name": "Nina"}), ss.same_fallen_hero("junk", {"id": 2})]
+	check(same == [true, false, false, true, false], "same_fallen_hero: the id (2 = 2.0), the name and the hire day all match %s" % [same])
+	ss.codex_data = {"fallen_heroes": [{"id": 2, "name": "Nina", "hire_day": 3}], "artifacts_found": []}
+	ss.record_fallen_hero({"id": 2, "name": "Bram", "class": "Mage", "hire_day": 9})
+	ss.record_fallen_hero({"id": 2.0, "name": "Nina", "class": "Rogue", "hire_day": 3.0})
+	var heroes: Array = ss.codex_data.fallen_heroes.map(func(h): return h.get("name"))
+	check(heroes == ["Nina", "Bram"] and ss.codex_path.begins_with(T29_DIR),
+		"a new death sharing an old hero's id is recorded; the same hero twice isn't (the codex is a redirected copy) %s" % [heroes])
+	gm.daily_recruits = []
+	gm.adventurers = []
+	ss.codex_data = {"fallen_heroes": [], "artifacts_found": []}
+
+
+## Review P8: the whole deck dealt: no "seeking" line over an empty pool, the desk says so, and an empty roster with
+## nobody to hire is the guild's end whatever its gold (Story 13.4's soft-lock rule gains the clause).
+func _check_t29_deck(gm, capture: Node) -> void:
+	var dm = root.get_node("DataManager")
+	gm.adventurers = []
+	gm.daily_recruits = []
+	gm.hired_tarot_cards = dm.get_all_tarot_ids().duplicate()
+	capture.lines.clear()
+	gm.generate_daily_recruits(4)
+	check(gm.deck_exhausted() and gm.daily_recruits.is_empty() and not capture.lines.any(func(l): return l.contains("seeking employment")),
+		"every card dealt: deck_exhausted(), the morning's pool is empty and no 'seeking employment' line is logged")
+	var popup = load(RECRUITMENT_POPUP_PATH).new()
+	var box := VBoxContainer.new()
+	popup.build_hire_content(box)
+	var line = box.find_child("NoApplicants", true, false)
+	check(line is Label and line.text == "Every card has been dealt. No one new will come.", "the desk says every card has been dealt (not 'come back tomorrow')")
+	popup.free()
+	box.free()
+	var locked := [gm.is_soft_locked(0, 500, 0, 8, true), gm.is_soft_locked(0, 500, 0, 8, false), gm.is_soft_locked(1, 0, 0, 8, true),
+		gm.is_soft_locked(0, 500, 1, 8, true), gm.is_soft_locked(0, 3, 0, 8)]
+	check(locked == [true, false, false, false, true],
+		"is_soft_locked: the deck dealt + nobody alive + nobody hireable = the end with 500 gold; otherwise the gold rule as before %s" % [locked])
+	check(_func_body(FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH), "_check_soft_lock").contains("deck_exhausted()"),
+		"the morning's soft-lock check passes deck_exhausted()")
+	gm.hired_tarot_cards = []
+	check(not gm.deck_exhausted(), "a fresh deck isn't exhausted")
+
+
+## Review P4/P6: one rule for "a panel is open" (ZonePromptUI.modal_open): it closes the E gate, so the zone prompt
+## ("Press E - Recruit Adventurers") hides, and the hall hides its event log while it holds.
+func _check_t29_modal() -> void:
+	var zp_script = load("res://scripts/game/ZonePromptUI.gd")
+	var before: bool = zp_script.modal_open(self)
+	var panel := Control.new()
+	panel.add_to_group("blocks_player")
+	root.add_child(panel)
+	panel.visible = true
+	var open_now: bool = zp_script.modal_open(self)
+	panel.visible = false
+	var closed: bool = zp_script.modal_open(self)
+	var zp = zp_script.new()
+	root.add_child(zp)
+	var player := Node3D.new()
+	root.add_child(player)
+	panel.visible = true
+	var gate_with_panel: bool = zp._gate_open(player)
+	panel.visible = false
+	var gate_without: bool = zp._gate_open(player)
+	check(not before and open_now and not closed and not gate_with_panel and gate_without,
+		"modal_open() follows a visible blocks_player panel; while one is open the E gate is closed (the prompt hides) %s" % [[before, open_now, closed, gate_with_panel, gate_without]])
+	var mt := FileAccess.get_file_as_string("res://scripts/game/main_tavern.gd")
+	check(_func_body(mt, "_process").contains("log_area.visible = not ZONE_PROMPT_UI.modal_open(get_tree())")
+		and _func_body(mt, "_process").contains("\"GameUI/MainArea\""),
+		"the hall hides its event log and its panel (GameUI/MainArea) while a panel is open (main_tavern._process, the same rule)")
+	zp.free()
+	player.free()
+	panel.free()
+
+
+## Review P7: the open desk follows the game: changes rebuild it once, at the end of the frame, keeping the pick; a closed
+## desk doesn't rebuild.
+func _check_t29_live_refresh(gm) -> void:
+	var popup = load(RECRUITMENT_POPUP_PATH).new()
+	root.add_child(popup)   # its _ready connects GameManager's gold / roster / pool signals
+	var box := VBoxContainer.new()
+	gm.adventurers = []
+	gm.max_adventurers = 8
+	gm.gold = 10
+	gm.current_day = 9
+	gm.recruit_refresh_day = 9
+	gm.daily_recruits = [_t29_applicant(7801, "Dear", "Mage", 30, "", ""), _t29_applicant(7802, "Cheap", "Rogue", 5, "", "")]
+	popup.visible = true
+	popup.build_hire_content(box)
+	(box.find_child("Applicant_7802", true, false).find_child("HireButton", true, false) as Button).pressed.emit()
+	var dear_before: bool = (box.find_child("Applicant_7801", true, false).find_child("HireButton", true, false) as Button).disabled
+	gm.add_gold(25)
+	gm.add_gold(5)
+	var queued: bool = popup._refresh_queued
+	var same_frame := (box.find_child("StatusLine", true, false) as Label).text
+	await process_frame
+	var after := (box.find_child("StatusLine", true, false) as Label).text
+	var dear_after: bool = (box.find_child("Applicant_7801", true, false).find_child("HireButton", true, false) as Button).disabled
+	check(popup.visible and dear_before and queued and same_frame == "Gold 10 · Roster 0/8" and after == "Gold 40 · Roster 0/8" and not dear_after
+		and popup.selected_id == 7802 and box.find_child("ConfirmBar", true, false) != null,
+		"open: two gold changes queue one rebuild at the frame's end; then Gold 40, 'Dear' hireable, the pick and its bar kept %s" % [[same_frame, after, popup.visible]])
+	popup.visible = false
+	gm.add_gold(1)
+	await process_frame
+	check((box.find_child("StatusLine", true, false) as Label).text == "Gold 40 · Roster 0/8" and not popup._refresh_queued,
+		"closed: a change doesn't rebuild the desk")
+	popup.queue_free()
+	box.free()
+	await process_frame
+
+
 ## D3 review P0: a death sets the adventurer DEAD, so the morning report says so through the real resolver: a solo
 ## report's `alive` is false, a party's `casualties` hold the dead and their member `fate` is "dead" (the Reveal's death
 ## beat, Story 7.3, keys on exactly these), and the fallen hero is written to the codex SaveSystem points at (here a
@@ -10506,6 +10699,14 @@ func _check_t29_card_data(dm) -> void:
 		sscript.plan(PackedStringArray(["classes=all", "out=relative/dir"]), classes_json, cfg).error, sscript.plan(PackedStringArray(["nope"]), classes_json, cfg).error]
 	check(str(plan_ok.error) == "" and plan_ok.jobs.size() == classes.size() and plan_bad.all(func(e): return str(e) != ""),
 		"the studio plans all six from the data and refuses no classes, an unknown class, a relative out= and an unknown argument %s" % [plan_bad])
+	# Review P12: the job says when it renders the fallback body; every body's clip can be checked before the first write.
+	var fixture_classes := {"Fighter": {"model_path": "res://assets/characters/custom/t29_missing_body.glb",
+		"fallback_model_path": str(classes_json.get("Fighter", {}).get("fallback_model_path", ""))}}
+	var fb_plan: Dictionary = sscript.plan(PackedStringArray(["classes=all"]), fixture_classes, cfg)
+	var real_body := str(plan_ok.jobs[0].body) if not plan_ok.jobs.is_empty() else ""
+	check(str(fb_plan.error) == "" and fb_plan.jobs.size() == 1 and fb_plan.jobs[0].fallback == true and plan_ok.jobs.all(func(j): return j.fallback == false)
+		and sscript.clip_error(real_body, "Idle") == "" and sscript.clip_error(real_body, "T29NoSuchClip") != "",
+		"a missing model_path plans the fallback body with fallback = true (the studio warns); clip_error checks a body's clip before any write")
 
 
 ## DH-5/DH-9: the card art resolver: the painting, else the class silhouette (tinted), else the plate; never null.
@@ -10550,8 +10751,9 @@ func _check_t29_card_view(dm) -> void:
 	card.set_card(chariot, PortraitSocket.resolve_card_art({"class": "Fighter"}))
 	var s: Dictionary = card.shown()
 	check(s.header == "VII" and s.name == "The Chariot" and s.art is Texture2D and not s.frame_fallback and s.frame is Texture2D
-		and (s.frame as Texture2D).resource_path == str(cfg.get("frame")),
-		"a Major card: its numeral (VII) on the frame's band, its name below, the configured frame %s" % [[s.header, s.name]])
+		and (s.frame as Texture2D).resource_path == str(cfg.get("frame"))
+		and (s.header_color as Color).is_equal_approx(Color(str(cfg.get("numeral_color", "?")))),
+		"a Major card: its numeral (VII) in numeral_color on the frame's band, its name below, the configured frame %s" % [[s.header, s.name]])
 	card.set_card(four, PortraitSocket.resolve_card_art({"class": "Rogue"}))
 	s = card.shown()
 	check(s.header == "Cups" and (s.header_color as Color).is_equal_approx(Color(str(cfg.suits.cups.color))) and s.name == "Four of Cups",
@@ -10650,6 +10852,36 @@ func _check_t29_panel(gm) -> void:
 	gm.daily_recruits = []
 	popup.build_hire_content(box)
 	check(box.find_child("NoApplicants", true, false) is Label and box.find_children("Applicant_*", "", true, false).is_empty(), "no applicants: the empty line")
+	# Review P13: the pick is highlighted, and a new pick moves the highlight. Review P6: the confirm bar's row is there
+	# with or without a pick, at one height, so the desk never grows when the bar appears.
+	gm.gold = 100
+	gm.daily_recruits = [_t29_applicant(7111, "Hi", "Fighter", 10, "", ""), _t29_applicant(7112, "Lo", "Mage", 10, "", "")]
+	popup.selected_id = null
+	popup.build_hire_content(box)
+	var row_before = box.find_child("ConfirmRow", true, false)
+	var row_h_before: float = row_before.custom_minimum_size.y if row_before else -1.0
+	var edge := func(id): return ((box.find_child("Applicant_%d" % id, true, false) as PanelContainer).get_theme_stylebox("panel") as StyleBoxFlat).border_color
+	var gold_edge: Color = popup_script.GOLD
+	(box.find_child("Applicant_7111", true, false).find_child("HireButton", true, false) as Button).pressed.emit()
+	var first := [edge.call(7111), edge.call(7112)]
+	var row_after = box.find_child("ConfirmRow", true, false)
+	(box.find_child("Applicant_7112", true, false).find_child("HireButton", true, false) as Button).pressed.emit()
+	var second := [edge.call(7111), edge.call(7112)]
+	check(first[0] == gold_edge and first[1] != gold_edge and second[0] != gold_edge and second[1] == gold_edge,
+		"the picked column is edged in gold; a new pick moves the edge (review P13)")
+	check(row_before != null and row_after != null and row_h_before == popup_script.CONFIRM_ROW_HEIGHT and row_after.custom_minimum_size.y == row_h_before
+		and row_before.find_child("ConfirmBar", true, false) == null and row_after.find_child("ConfirmBar", true, false) != null,
+		"the confirm bar's row is kept, empty without a pick, at one height: the desk doesn't grow when the bar appears (review P6)")
+	# Review P3: every card size comes from tarot_card.json's aspect.
+	var tall: Dictionary = PortraitSocket.card_config().duplicate(true)
+	tall["aspect"] = 0.5
+	PortraitSocket.set_card_config(tall)
+	popup.build_hire_content(box)
+	var tall_card = box.find_child("Applicant_7111", true, false).find_child("Card", true, false)
+	check(tall_card != null and (tall_card.custom_minimum_size as Vector2).is_equal_approx(Vector2(170, 340)) and PortraitSocket.card_height(64) == 128.0,
+		"aspect 0.5 in tarot_card.json: a desk card is 170 x 340, a 64-wide thumbnail 128 tall (it was read nowhere)")
+	PortraitSocket.set_card_config(null)
+	check(PortraitSocket.card_height(170) == 283.0, "the shipped aspect 0.6: a 170-wide card is 283 tall")
 	popup.free()
 	box.free()
 
@@ -10740,6 +10972,25 @@ func _check_t30_wage_drink(gm, dm, ps) -> void:
 	check(dm.get_config("drink_preferences", []).all(func(d): return labels is Dictionary and labels.has(d)), "every drink preference has a label")
 	var rec: Dictionary = gm.deployment_record([{"id": 1}], {"duration_days": 3}, "", 10)
 	check(int(rec.return_day) - 10 == 3, "6.5's record: return_day - the dispatch day = the days a mission takes (what the countdown counts down)")
+	var hired := {"id": 1, "name": "Wa", "class": "Mage", "status": AdventurerStatus.Status.READY, "daily_wage": 2, "drink_preference": "mead"}
+	var line_before: String = ps.entry_view(hired, {"wage": gm.wage_of(hired), "drink": gm.drink_text(hired)}).wage_line
+	var cfg_keep = dm.game_config.duplicate(true)
+	dm.game_config["adventurer_wage_min"] = 7
+	dm.game_config["adventurer_wage_max"] = 9
+	var line_after: String = ps.entry_view(hired, {"wage": gm.wage_of(hired), "drink": gm.drink_text(hired)}).wage_line
+	dm.game_config = cfg_keep
+	check(line_before == "2 gold a day · Drinks mead" and line_after == line_before,
+		"a wage range change in game_config never changes a hired adventurer's wage line (the record's daily_wage) (review P13)")
+	var me := {"id": 9501, "name": "Me"}
+	var stale := {"party": [{"id": 9501, "name": "Me"}], "mission": {}, "days_remaining": 5, "return_day": 30}
+	var mine := {"adventurer": me, "mission": {}, "days_remaining": 2, "return_day": 27}
+	gm.current_day = 25
+	gm.active_missions = [stale, mine]
+	var held: int = gm.return_day_for(me)
+	var by_id: int = gm.return_day_for({"id": 9501.0, "name": "Me"})
+	gm.active_missions = []
+	check(held == 27 and by_id == 30,
+		"return_day_for with two entries holding one id: the entry holding the dictionary itself wins (27); an id-only match takes the first (30) (review P13) %s" % [[held, by_id]])
 
 
 ## The panel on a minimal tree, fed by GameManager: one card per adventurer with the lines, the thumbnail, the badge.
@@ -10788,12 +11039,13 @@ func _check_t30_panel(gm, ps) -> void:
 		var thumb = c.get_node_or_null("CardContent/ArtSlot/Card")
 		var s: Dictionary = thumb.shown() if thumb else {}
 		thumbs_ok = thumbs_ok and s.get("art") is Texture2D and s.get("name", "x") == "" and s.get("header", "x") == "" \
-			and (thumb.size as Vector2).is_equal_approx(Vector2(64, 106)) and thumb.get_global_rect().end.y <= c.get_global_rect().end.y + 0.5 \
+			and (thumb.size as Vector2).is_equal_approx(ps.art_size()) and thumb.get_global_rect().end.y <= c.get_global_rect().end.y + 0.5 \
 			and thumb.get_global_rect().end.x <= c.get_global_rect().end.x + 0.5   # the thumbnail's size, inside its card (a Stage D find)
 		got[id] = {"name": (info.get_node("NameLabel") as Label).text, "class": (info.get_node("ClassLabel") as Label).text,
 			"status": (info.get_node("StatusLabel") as Label).text, "card": (info.get_node("CardLabel") as Label).text if info.get_node("CardLabel").visible else "",
 			"wage": (info.get_node("WageLabel") as Label).text, "badge": c.get_node("CardContent/ArtSlot/DeployedBadge").visible,
-			"dim": c.modulate != Color.WHITE, "art_grey": thumb.modulate != Color.WHITE if thumb else false,
+			"dim": (info.get_node("NameLabel") as Label).modulate != Color.WHITE and c.modulate == Color.WHITE,
+			"status_full": (info.get_node("StatusLabel") as Label).modulate == Color.WHITE, "art_grey": thumb.modulate != Color.WHITE if thumb else false,
 			"art": (s.art as Texture2D).resource_path if s.get("art") is Texture2D else "?"}
 	var a: Dictionary = got[9301]
 	check(a.name == "Ada" and a["class"] == "Fighter · Level 1 · Brave" and a.status == "Ready" and a.card == "The Chariot"
@@ -10803,7 +11055,9 @@ func _check_t30_panel(gm, ps) -> void:
 	var b: Dictionary = got[9302]
 	check(b.status == "Deployed · returns in 2 days" and b.badge and b.dim and b.art_grey and b.card == "Four of Cups" and b.wage == "2 gold a day · Drinks beer"
 		and b["class"] == "Mage · Level 2",
-		"Bo (out, back day 22, today 20): 'Deployed · returns in 2 days', the Deployed badge, his art greyed, the card dimmed %s" % [b])
+		"Bo (out, back day 22, today 20): 'Deployed · returns in 2 days', the Deployed badge, his art greyed, his lines dimmed %s" % [b])
+	check(got.values().all(func(g): return g.status_full) and got[9302].dim and got[9305].dim and not got[9301].dim,
+		"a non-Ready entry dims its art and lines but never its status line, the news (review P14)")
 	var c3: Dictionary = got[9303]
 	check(c3.status == "Deployed · returns in 1 day" and c3.badge and c3.wage == "1 gold a day · Doesn't drink" and c3["class"] == "Healer · Level 1 · Greedy",
 		"Cy (a loaded save's label and float id, out with a party saved before 6.5: today + days left): 'returns in 1 day' %s" % [c3])
@@ -10811,9 +11065,17 @@ func _check_t30_panel(gm, ps) -> void:
 		and got[9305].status == "Wounded · available in 3 days" and got[9305].card == "Seven of Swords" and not got[9305].badge,
 		"Di resting 1 day, Ed wounded 3 days (his card's name kept on the record): dimmed, no badge %s" % [[got[9304], got[9305]]])
 	check(got[9306].card == "" and got[9306].wage == "1 gold a day" and got[9306].art != "?" and thumbs_ok,
-		"Fy (an unknown class, no card, no wage on the record): the class plate, no card line, '1 gold a day'; every thumbnail a compact 64 x 106 card with a texture, inside its entry")
+		"Fy (an unknown class, no card, no wage on the record): the class plate, no card line, '1 gold a day'; every thumbnail a compact card at the card's aspect (64 x 107), with a texture, inside its entry")
 	check(cards[9301].get("adventurer_id") == 9301 and cards[9301].get_node_or_null("CardContent/InfoContainer/NameLabel") != null,
 		"the drag source's adventurer_id and NameLabel are where adventurer_card.gd reads them")
+	# Review F10: an entry's lines can't widen it past the panel (350 px; it grows to the left, into view, when they do).
+	var long_view: Dictionary = ps.entry_view({"name": "Bartholomew-Maximilian of the Seven Northern Holds", "class": "Barbarian",
+		"status": S.ON_MISSION}, {"level": 6, "return_day": 30, "today": 20, "card": {"name": "The Hierophant of the Long Road"},
+		"trait": {"name": "Experienced"}, "wage": 12, "drink": "Drinks the strongest mead in the valley"})
+	ps.fill_card(cards[9301], ada, long_view)
+	await process_frame
+	var min_w: float = (cards[9301] as Control).get_combined_minimum_size().x
+	check(min_w <= 350.0, "an entry with very long lines stays narrower than the panel (%.0f px <= 350): the panel never slides into view at rest" % min_w)
 	panel.queue_free()
 	await process_frame
 
