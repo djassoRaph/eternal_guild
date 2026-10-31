@@ -342,6 +342,10 @@ func _process_cooldown(delta):
 # ===== DAY CYCLE INTEGRATION =====
 func _on_day_changed(new_day: int):
 	"""Reset fireplace state on new day — fire goes out overnight"""
+	# A load re-emits day_changed (to refresh displays): it isn't a night passing, and the save's fuel stands
+	# (Story 11.2 review: a Load from the hall's pause menu used to put the saved fire out).
+	if SaveSystem.load_in_progress:
+		return
 	print("New day - Fire has gone out overnight")
 
 	# Reset all state
