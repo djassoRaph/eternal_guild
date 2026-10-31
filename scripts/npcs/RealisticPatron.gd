@@ -603,6 +603,10 @@ func can_be_served_by(player_position: Vector3) -> bool:
 	var distance = global_position.distance_to(player_position)
 	return distance <= 3.0
 
+## Waiting for a drink and not served yet, wherever the server stands (Story 16.3: the Bartender's brain asks).
+func is_waiting_for_service() -> bool:
+	return current_state == PatronState.WAITING_SERVICE and not has_been_served
+
 func serve_patron():
 	if current_state != PatronState.WAITING_SERVICE:
 		print("Patron is not waiting for service.")

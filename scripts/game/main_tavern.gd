@@ -36,6 +36,8 @@ func _ready():
 	_init_zone_prompts()
 	log_message("Game started successfully!")
 	add_to_group("main_tavern")
+	# Epic 16 (Stories 16.3, 16.4): the hall's staff work by themselves (their brains); elsewhere they stay cosmetic
+	get_tree().call_group("staff", "enable_automation")
 	# Allow this node to process input even when paused
 	process_mode = Node.PROCESS_MODE_ALWAYS
 		
