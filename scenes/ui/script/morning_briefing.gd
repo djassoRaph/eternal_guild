@@ -24,6 +24,7 @@ var group_row: HBoxContainer
 
 func _ready():
 	layer = 100
+	add_to_group("morning_briefing")   # Story 13.4: a fall's screen waits until the briefing closes
 	_build_ui()
 
 func _build_ui():

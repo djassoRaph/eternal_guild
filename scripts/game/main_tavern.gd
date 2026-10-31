@@ -29,7 +29,7 @@ func _ready():
 	GameManager.gold_changed.connect(_on_gold_changed)
 	GameManager.beer_changed.connect(_on_beer_changed)
 	GameManager.day_changed.connect(_on_day_changed)
-	GameManager.game_over_triggered.connect(_on_game_over_triggered)
+	GameBus.game_over_triggered.connect(_on_game_over_triggered)   # Story 13.4: the fall, by its cause key
 	
 	GameManager.firewood_changed.connect(_on_firewood_changed)
 	GameManager.fireplace_fuel_changed.connect(_on_fuel_changed)
@@ -145,8 +145,9 @@ func update_beer(change: int):
 
 # === INPUT HANDLING ===
 func _input(event):
+	if GameManager.game_over_active: return   # Story 13.4 (DG-8): the fall screen owns the keys (no pause menu, no F9/F10)
 	# A conversation is open (Story 10.2): the dialogue box reads Esc/E/Space first and ends the conversation
-	# itself. Nothing here acts meanwhile: Esc never toggles the pause menu, and the debug keys (B, F9, F10)
+	# itself. Nothing here acts meanwhile: Esc never toggles the pause menu, and the debug keys (F9, F10)
 	# stand down (F10 would wipe the run mid-conversation). Only a mission screen that opened over the box
 	# still closes on Esc.
 	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():
@@ -192,10 +193,7 @@ func _input(event):
 		elif event.keycode == KEY_F10:
 			GameManager.reset_game_state()
 			print("Game state reset!")
-		
-		elif event.keycode == KEY_B:
-			print("Testing Game Over Screen...")
-			GameManager.trigger_game_over("test_game_over", "TEST: Manual game over triggered with B key")
+		# (Story 13.4: the B key's test game over is gone: a fall now ends the run for real. F12 > Failures has them.)
 
 func toggle_pause_menu():
 	pause_menu.visible = !pause_menu.visible
@@ -245,7 +243,7 @@ func log_message(message: String):
 			vbar.value = vbar.max_value
 
 func _on_game_over_triggered(reason: String):
-	"""Handle game over event"""
+	"""The guild fell (Story 13.4): `reason` is the cause key; the screen shows 'The Guild Falls'."""
 	var game_over_screen = get_node("GameOverScreen")  # Changed path
 	if game_over_screen:
 		game_over_screen.show_game_over(reason)
