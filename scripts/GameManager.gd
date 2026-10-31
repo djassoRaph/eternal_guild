@@ -380,8 +380,9 @@ func dispatch_adventurers(adventurer_ids: Array, mission: Dictionary, hex_id: St
 		var on_hex = hex.get("active_mission")
 		if hex.is_empty() or not (on_hex is Dictionary and (is_same(on_hex, mission) or on_hex == mission)):
 			return "That contract is gone."
-		if hex.get("locked", false):
+		if is_hex_taken(hex):
 			return "Someone is already out on this contract."
+		hex.erase("locked")   # review P6: a stale lock (a debug reset cleared the entries, not the locks)
 	if need == 1:
 		send_on_mission(party[0], mission, hex_id)
 	else:
@@ -555,6 +556,12 @@ func _hex_record(hex_id: String) -> Dictionary:
 		if hex is Dictionary and str(hex.get("id", "")) == hex_id:
 			return hex
 	return {}
+
+
+## Whether someone is out on this hex: it is locked AND an active entry is there. A lock with no entry is stale (the
+## F10 / debug resets clear active_missions, not the locks) and doesn't count (review P6).
+func is_hex_taken(hex: Dictionary) -> bool:
+	return hex.get("locked", false) and not deployment_for_hex(str(hex.get("id", ""))).is_empty()
 
 
 ## Review P1: a resolved entry gives its contract up: its hex is unlocked and loses the mission (when it still holds this

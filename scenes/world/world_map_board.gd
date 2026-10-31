@@ -319,7 +319,7 @@ func _show_bubble(rec: Dictionary, mouse_pos: Vector2) -> void:
 		_bubble_mission.visible = false
 		_bubble_danger.visible = false
 	elif mission != null:
-		if rec.get("locked", false):
+		if GameManager.is_hex_taken(rec):
 			# Story 6.5 (DD-8): who is out here, and when they're back.
 			var info: Dictionary = GameManager.deployment_info(str(rec.get("id", "")))
 			_bubble_mission.text = out_text(info.get("names", []), int(info.get("return_day", -1)))
@@ -455,7 +455,7 @@ func _build_markers() -> void:
 		)
 
 		var hex_id := str(rec.get("id", ""))
-		var locked: bool = rec.get("locked", false)
+		var locked: bool = GameManager.is_hex_taken(rec)   # review P6: a stale lock (nobody out) is an open contract
 		_markers.append({"hex_id": hex_id, "pos": screen_pos})
 		_spawn_marker(screen_pos, locked)
 		if locked:
@@ -682,7 +682,7 @@ func _open_detail_panel(rec: Dictionary) -> void:
 		return
 	_panel_mission = mission
 	_panel_rec = rec  # the World Map record (its id is the dispatch's hex)
-	if rec.get("locked", false):
+	if GameManager.is_hex_taken(rec):
 		_open_deployed_scroll(rec)
 		return
 
