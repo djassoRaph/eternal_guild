@@ -363,6 +363,7 @@ func _initialize() -> void:
 	await test_staff_records()
 	await test_staff_panel()
 	await test_bartender_serves()
+	await test_quest_dealer_works()
 
 	_finish()
 
@@ -8398,7 +8399,7 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"hired_tarot_cards", "adventurers_hired_this_run", "deaths_this_run", "dialogue_flags", "den_fa_state",
 	"_den_fa_tier_warnings", "saved_player_scene", "restored_patrons", "game_over_active", "pending_new_game_save",
 	"gold_peak", "last_run_summary", "_tax_warnings",   # Stories 13.1 / 13.4: the reset writes these too
-	"staff"]   # Story 16.1: the staff records
+	"staff", "desk_round_day"]   # Story 16.1: the staff records; Story 16.4: the day of the Quest Dealer's last round
 
 
 func test_load_and_resume() -> void:
@@ -13051,3 +13052,316 @@ func _check_t35_limbo() -> bool:
 	check(ok, "a LimboHSM built in code, MANUAL: update(delta) runs the state's callback with the delta, dispatch moves it %s" % [seen])
 	agent.free()
 	return ok
+
+
+# --- Test 36: The Quest Dealer at work (Story 16.4) ---
+# Her FSM (IDLE, BRIEFING, AVAILABLE) on staff_ai.gd's LimboHSM: BRIEFING while a screen is up or her morning round
+# runs, AVAILABLE while the player stands at the desk, else IDLE (writing). The morning round (FR-65): once a day she
+# sends a READY Minor Arcana on a solo tier-1 contract they are likely to win, through GameManager.dispatch_adventurers;
+# Major Arcana, party contracts and long odds are the player's. When she isn't working, the morning reports wait at the
+# desk (briefing_waits_at_desk). Nothing here resolves a mission or writes a save or the codex.
+const DEALER_AI_SCRIPT := "res://scripts/game/quest_dealer_ai.gd"
+const ZONE_SCRIPT := "res://scripts/game/zone_interactions.gd"
+const T36_SLIME := {"id": "slime_extermination", "name": "Clear Slime Infestation", "tier": 1, "danger": 1, "required_adventurers": 1,
+	"party_required": false, "duration_days": 1, "success_factors": ["strength", "endurance"], "reward_range": [3, 8]}
+const T36_ESCORT := {"id": "merchant_escort_short", "name": "Short Merchant Escort", "tier": 2, "danger": 2, "required_adventurers": 1,
+	"party_required": false, "duration_days": 1, "success_factors": ["strength", "endurance"], "reward_range": [5, 10]}
+const T36_CARAVAN := {"id": "missing_caravan", "name": "Find the Missing Caravan", "tier": 1, "danger": 1, "required_adventurers": 2,
+	"party_required": true, "duration_days": 2, "success_factors": ["strength", "endurance"], "reward_range": [8, 14]}
+
+
+func test_quest_dealer_works() -> void:
+	print("[Test 36] The Quest Dealer at work (Story 16.4)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GameBus")
+	var ab = root.get_node_or_null("AdventurerBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	if gm == null or not gm.has_method("desk_round") or not ResourceLoader.exists(DEALER_AI_SCRIPT):
+		check(false, "GameManager.desk_round and scripts/game/quest_dealer_ai.gd")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
+	ss.run_active = false
+	ss.save_path = "user://failsafe_t36/eternal_guild_save.json"
+	ss.codex_path = "user://failsafe_t36/codex.dat"
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	gm.staff = gm._seeded_staff()
+	_check_t36_pure(gm, dm)
+	_check_t36_round(gm, wm, ab, capture)
+	_check_t36_briefing(gm)
+	await _check_t36_brain(gm, wm, gb)
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	ss.codex_data = ss_saved[3]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas and not FileAccess.file_exists("user://failsafe_t36/codex.dat"),
+		"Test 36 never touched the real save or codex and wrote none")
+	print("")
+
+
+static func _t36_adv(id: int, adv_name: String, card: String, strength: int, status := 0) -> Dictionary:
+	return {"id": id, "name": adv_name, "class": "Fighter", "status": status, "tarot_card": card, "strength": strength,
+		"endurance": strength, "dexterity": 5, "intelligence": 5, "missions_completed": 0, "personality": "", "daily_wage": 1}
+
+
+static func _t36_hex(hex_id: String, mission, locked := false) -> Dictionary:
+	return {"id": hex_id, "coord": Vector2i(int(hex_id.get_slice("_", 1)), 0), "biome": "grass", "active_mission": mission, "locked": locked}
+
+
+## AC 2, 7 (16.4): the pure parts and the config.
+func _check_t36_pure(gm, dm) -> void:
+	var recs := [_t36_hex("hex_1", T36_SLIME.duplicate(true)), _t36_hex("hex_2", T36_ESCORT.duplicate(true), true), _t36_hex("hex_3", null),
+		"junk", _t36_hex("hex_4", T36_CARAVAN.duplicate(true))]
+	var open: Array = gm.open_map_contracts_in(recs)
+	check(open.size() == 2 and open[0].hex_id == "hex_1" and open[1].hex_id == "hex_4" and open[0].mission.id == "slime_extermination",
+		"open_map_contracts_in: hexes holding a contract nobody is out on, in map order %s" % [open.map(func(c): return c.hex_id)])
+	var lookup := func(id): return {"wands_02_two": {"arcana": "minor"}, "major_00_the_fool": {"arcana": "major"}}.get(id, {})
+	check(gm.is_minor_arcana(_t36_adv(1, "a", "wands_02_two", 5), lookup) and not gm.is_minor_arcana(_t36_adv(2, "b", "major_00_the_fool", 5), lookup)
+		and not gm.is_minor_arcana(_t36_adv(3, "c", "", 5), lookup) and not gm.is_minor_arcana(_t36_adv(4, "d", "nope", 5), lookup)
+		and gm.is_minor_arcana(_t36_adv(5, "e", "wands_02_two", 5), func(id): return dm.get_tarot_card(id))
+		and not gm.is_minor_arcana(_t36_adv(6, "f", "major_00_the_fool", 5), func(id): return dm.get_tarot_card(id)),
+		"is_minor_arcana: the card's arcana (an empty or unknown card is not), with an injected lookup and the real deck")
+	var cfg := {"per_day": 1, "max_tier": 1, "min_chance": 75}
+	var est := func(a, m): return int(a.strength) * 9
+	var strong := _t36_adv(10, "Nina", "wands_02_two", 10)       # 90
+	var good := _t36_adv(11, "Bram", "wands_02_two", 9)          # 81
+	var weak := _t36_adv(12, "Lysa", "wands_02_two", 8)          # 72: under 75
+	var c_slime := {"hex_id": "hex_1", "mission": T36_SLIME}
+	var c_slime2 := {"hex_id": "hex_5", "mission": T36_SLIME}
+	var c_escort := {"hex_id": "hex_2", "mission": T36_ESCORT}
+	var c_party := {"hex_id": "hex_4", "mission": T36_CARAVAN}
+	var rows := [
+		gm.desk_contract_picks([strong], [c_slime], cfg, est).map(func(p): return [p.id, p.hex_id, p.chance]),
+		gm.desk_contract_picks([weak], [c_slime], cfg, est).size(),
+		gm.desk_contract_picks([strong], [c_escort, c_party], cfg, est).size(),
+		gm.desk_contract_picks([good, strong], [c_slime], cfg, est).map(func(p): return p.id),
+		gm.desk_contract_picks([strong, good], [c_slime, c_slime2], cfg.merged({"per_day": 2}, true), est).map(func(p): return [p.id, p.hex_id]),
+		gm.desk_contract_picks([strong, good], [c_slime, c_slime2], cfg, est).size(),
+		gm.desk_contract_picks([strong], [c_escort], cfg.merged({"max_tier": 2}, true), est).size(),
+		gm.desk_contract_picks([], [c_slime], cfg, est).size(),
+		gm.desk_contract_picks([strong], [], cfg, est).size(),
+	]
+	check(rows == [[[10, "hex_1", 90]], 0, 0, [10], [[10, "hex_1"], [11, "hex_5"]], 1, 1, 0, 0],
+		"desk_contract_picks: solo contracts up to max_tier only, chance at least min_chance, the best chance first, each adventurer and contract once, per_day at most %s" % [rows])
+	var w: Array = []
+	var bad: Dictionary = gm.desk_config_from({"desk_auto_per_day": -1, "desk_auto_max_tier": "x", "desk_auto_min_chance": 2.5}, w)
+	var good_cfg: Dictionary = gm.desk_config_from(dm.get_config("staff_automation", {}), [])
+	check(bad == {"per_day": 1, "max_tier": 1, "min_chance": 70} and w.size() == 3 and good_cfg == {"per_day": 1, "max_tier": 1, "min_chance": 70}
+		and int(dm.get_config("dispatch_strong_fit_min_chance", -1)) == 70,
+		"desk_config_from: the config's desk_auto_* (1 a day, tier 1, 70%%: the World Map's Good fit line); bad values fall back, one warning each %s" % [good_cfg])
+	var sa = dm.get_config("staff_automation", {})
+	check(sa is Dictionary and (sa.get("desk_round_delay_seconds") is float or sa.get("desk_round_delay_seconds") is int),
+		"game_config.json staff_automation.desk_round_delay_seconds")
+	var roles: Dictionary = gm.staff_roles()
+	var barks = roles.get("desk_manager", {}).get("round_barks", [])
+	check(barks is Array and barks.size() >= 3 and barks.all(func(b): return str(b).contains("{name}") and str(b).contains("{mission}")),
+		"staff.json desk_manager.round_barks: at least 3 lines, each naming {name} and {mission}")
+
+
+## AC 3 (16.4): desk_round on the live GameManager with a fixture map and roster.
+func _check_t36_round(gm, wm, ab, capture) -> void:
+	var nina := _t36_adv(901, "Nina", "wands_02_two", 10)
+	var fool := _t36_adv(902, "Odo", "major_00_the_fool", 10)
+	var weak := _t36_adv(903, "Lysa", "wands_03_three", 1)
+	gm.adventurers = [fool, weak, nina]
+	gm.active_missions = []
+	wm.world_map = [_t36_hex("hex_1", T36_SLIME.duplicate(true)), _t36_hex("hex_2", T36_SLIME.duplicate(true)), _t36_hex("hex_4", T36_CARAVAN.duplicate(true))]
+	gm.current_day = 7
+	gm.desk_round_day = 0
+	var sent_sig := []
+	var spy := func(a, m, h): sent_sig.append([a.size(), m.get("id"), h])
+	ab.mission_dispatched.connect(spy)
+	capture.lines.clear()
+	var sent: Array = gm.desk_round()
+	var nina_now: Dictionary = gm.find_adventurer(901)
+	var locked: bool = gm._hex_record("hex_1").get("locked") == true
+	check(sent.size() == 1 and sent[0].name == "Nina" and sent[0].mission == "Clear Slime Infestation" and sent[0].hex_id == "hex_1"
+		and sent_sig == [[1, "slime_extermination", "hex_1"]] and gm.not_ready_reason(nina_now) != "" and locked and gm.active_missions.size() == 1
+		and gm.not_ready_reason(gm.find_adventurer(902)) == "" and gm.not_ready_reason(gm.find_adventurer(903)) == ""
+		and gm.desk_round_day == 7 and capture.lines.any(func(l): return str(l).begins_with("[GameManager] desk: Nina -> Clear Slime Infestation (hex_1), chance"))
+		and capture.lines.has("The Quest Dealer sent Nina on Clear Slime Infestation."),
+		"desk_round: the Minor Arcana with the best odds goes out on the solo tier-1 contract through dispatch_adventurers (one mission_dispatched, out, the hex locked); the Major Arcana and the long odds stay home %s %s" % [sent, sent_sig])
+	sent_sig.clear()
+	var again: Array = gm.desk_round()
+	check(again.is_empty() and sent_sig.is_empty(), "a second round the same day sends nobody")
+	gm.current_day = 8
+	gm.find_adventurer(903).strength = 10
+	gm.find_adventurer(903).endurance = 10
+	var rec: Dictionary = gm.staff_record("desk_manager")
+	rec.on_strike = true
+	var strike: Array = gm.desk_round()
+	var day_kept: bool = gm.desk_round_day == 7
+	rec.on_strike = false
+	rec.hired = false
+	var absent: Array = gm.desk_round()
+	rec.hired = true
+	var next: Array = gm.desk_round()
+	check(strike.is_empty() and day_kept and absent.is_empty() and next.size() == 1 and next[0].name == "Lysa" and next[0].hex_id == "hex_2",
+		"on strike or not hired: no round (the day not spent); the next working morning runs again (Lysa -> hex_2) %s" % [next])
+	ab.mission_dispatched.disconnect(spy)
+	# the round's day is saved with the staff
+	gm.desk_round_day = 12
+	var saved: Dictionary = gm._staff_save_data()
+	gm.desk_round_day = 0
+	gm._load_staff_data(JSON.parse_string(JSON.stringify(saved)))
+	var loaded: int = gm.desk_round_day
+	gm._load_staff_data({"staff": saved.staff, "desk_round_day": "x"})
+	var junk: int = gm.desk_round_day
+	gm._reset_staff_state()
+	check(loaded == 12 and junk == 0 and gm.desk_round_day == 0 and D1_GM_FIELDS.has("desk_round_day"),
+		"desk_round_day is saved with the staff (junk 0), New Game 0, in Test 26's field list")
+
+
+## AC 5 (16.4): the morning reports wait at the desk while she isn't working.
+func _check_t36_briefing(gm) -> void:
+	var rec: Dictionary = gm.staff_record("desk_manager")
+	var a: bool = gm.briefing_waits_at_desk()
+	rec.on_strike = true
+	var b: bool = gm.briefing_waits_at_desk()
+	rec.on_strike = false
+	rec.hired = false
+	var c: bool = gm.briefing_waits_at_desk()
+	rec.hired = true
+	check(not a and b and c, "briefing_waits_at_desk: false while she works; true on strike or not hired")
+	var bed := FileAccess.get_file_as_string(BEDROOM_SCRIPT)
+	var fade := _func_body(bed, "_on_fade_complete")
+	var zone := _func_body(FileAccess.get_file_as_string(ZONE_SCRIPT), "open_recruitment_desk")
+	var mb := FileAccess.get_file_as_string("res://scenes/ui/script/morning_briefing.gd")
+	check(fade.contains("briefing_waits_at_desk()") and fade.contains("wait at the guild desk") and zone.contains("has_pending_briefing")
+		and zone.contains(".present(") and _func_body(bed, "_show_morning_briefing").contains(".present(") and mb.contains("static func present("),
+		"the bedroom shows the reports only while she works (else they wait at the desk); E at the desk shows waiting reports; one shared present()")
+
+
+## AC 1, 4 (16.4): the brain in a small world: the states, the screens, the player at the desk, the round.
+func _check_t36_brain(gm, wm, gb) -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	var desk = (load(DESK_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(desk)
+	desk.global_position = DESK_WORLD
+	var zone := Area3D.new()
+	var zs := CollisionShape3D.new()
+	zs.shape = BoxShape3D.new()
+	(zs.shape as BoxShape3D).size = Vector3(2.4, 2.0, 1.4)
+	zone.add_child(zs)
+	world.add_child(zone)
+	zone.global_position = DESK_WORLD + Vector3(0, 1.0, 1.4)
+	var qd = (load(DEALER_SCENE) as PackedScene).instantiate()
+	qd.manual_tick = true
+	qd.hired_at_start_override = 1
+	qd.desk_path = desk.get_path()
+	qd.recruitment_zone_path = zone.get_path()
+	world.add_child(qd)
+	var dt := 1.0 / 30.0
+	for i in 3:
+		qd.tick(dt)
+	gm.adventurers = [_t36_adv(901, "Nina", "wands_02_two", 10)]
+	gm.active_missions = []
+	wm.world_map = [_t36_hex("hex_1", T36_SLIME.duplicate(true))]
+	gm.current_day = 20
+	gm.desk_round_day = 20                 # today's round already ran: setup does not arm
+	qd.enable_automation()
+	var brain = qd.brain
+	var names := []
+	if brain and brain.hsm:
+		for c in brain.hsm.get_children():
+			if c.get_class() == "LimboState":
+				names.append(str(c.name))
+	check(names == ["IDLE", "BRIEFING", "AVAILABLE"] and brain.state() == "IDLE", "her brain: a LimboHSM with exactly IDLE, BRIEFING, AVAILABLE, starting IDLE %s" % [names])
+	for i in 10:
+		qd.tick(dt)
+	check(brain.state() == "IDLE" and qd.work_state() == "IDLE" and qd.anim_state() == "Write" and not qd.autopilot,
+		"working and seated: IDLE (Write), her autopilot off (%s, %s)" % [qd.work_state(), qd.anim_state()])
+	var board := Control.new()
+	board.add_to_group("mission_board")
+	world.add_child(board)
+	for i in 3:
+		qd.tick(dt)
+	var briefing: bool = brain.state() == "BRIEFING" and qd.work_state() == "BRIEFING"
+	board.visible = false
+	for i in 3:
+		qd.tick(dt)
+	check(briefing and brain.state() == "IDLE", "a screen up (a mission_board member): BRIEFING (Brief); hidden: IDLE")
+	var body := CharacterBody3D.new()
+	var cap := CollisionShape3D.new()
+	cap.shape = CapsuleShape3D.new()
+	body.add_child(cap)
+	body.add_to_group("player")
+	world.add_child(body)
+	body.global_position = zone.global_position
+	for i in 6:
+		await physics_frame
+	for i in 3:
+		qd.tick(dt)
+	var avail: bool = brain.state() == "AVAILABLE" and qd.work_state() == "AVAILABLE"
+	body.global_position = DESK_WORLD + Vector3(0, 1, 8)
+	for i in 6:
+		await physics_frame
+	for i in 3:
+		qd.tick(dt)
+	check(avail and brain.state() == "IDLE", "the player at the desk front: AVAILABLE; gone: IDLE")
+	# the morning round: day_changed arms it; it waits for the screens, then runs once
+	gm.current_day = 21
+	gb.day_changed.emit(21)
+	board.visible = true
+	var t := 0.0
+	while t < brain.round_delay + 2.0:
+		qd.tick(dt)
+		t += dt
+	var held: bool = gm.desk_round_day == 20 and gm.active_missions.is_empty()
+	board.visible = false
+	var seen_brief := false
+	t = 0.0
+	while t < brain.round_delay + 4.0 and gm.desk_round_day != 21:
+		qd.tick(dt)
+		t += dt
+	seen_brief = brain.state() == "BRIEFING"
+	var bubble := ""
+	for c in qd.get_children():
+		if c is PatronSpeechBubble:
+			for l in c.find_children("*", "Label3D", true, false):
+				bubble = (l as Label3D).text.replace("\n", " ")   # the bubble wraps its lines
+	var waited := t
+	t = 0.0
+	while t < 5.0 and brain.state() != "IDLE":
+		qd.tick(dt)
+		t += dt
+	check(held and gm.desk_round_day == 21 and gm.active_missions.size() == 1 and seen_brief and bubble.contains("Nina")
+		and bubble.contains("Clear Slime Infestation") and brain.state() == "IDLE" and waited >= brain.round_delay - 0.1,
+		"day_changed arms the round; a screen up holds it; then after %.1f s she briefs, sends Nina (one contract), says so ('%s'), and goes back to writing" % [waited, bubble])
+	# a brain set up on a morning whose round hasn't run runs it without a day_changed
+	qd.brain.queue_free()
+	qd.brain = null
+	await process_frame
+	gm.adventurers = [_t36_adv(905, "Kael", "wands_04_four", 10)]
+	gm.active_missions = []
+	wm.world_map = [_t36_hex("hex_7", T36_SLIME.duplicate(true))]
+	gm.current_day = 22
+	qd.enable_automation()
+	brain = qd.brain
+	t = 0.0
+	while t < brain.round_delay + 3.0 and gm.desk_round_day != 22:
+		qd.tick(dt)
+		t += dt
+	var armed_at_setup: bool = gm.desk_round_day == 22 and gm.active_missions.size() == 1
+	# on strike: no round, her autopilot back on
+	gm.staff_record("desk_manager").on_strike = true
+	gm.current_day = 23
+	gb.day_changed.emit(23)
+	for i in int((brain.round_delay + 2.0) / dt):
+		qd.tick(dt)
+	var strike_ok: bool = gm.desk_round_day == 22 and qd.autopilot and brain.state() == "IDLE"
+	gm.staff_record("desk_manager").on_strike = false
+	check(armed_at_setup and strike_ok, "a brain set up on a morning whose round hasn't run runs it; on strike no round and the cosmetic autopilot is back")
+	var pos0: Vector3 = qd.global_position
+	var st0: String = brain.state()
+	qd.tick(0.0)
+	check(qd.global_position == pos0 and brain.state() == st0, "tick(0.0) changes nothing")
+	world.queue_free()
+	await process_frame
