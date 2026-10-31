@@ -8407,11 +8407,24 @@ func test_load_and_resume() -> void:
 	_d1_clear_dir(D1_DIR)
 	DirAccess.make_dir_recursive_absolute(D1_DIR)
 	ss.save_path = D1_SAVE
+	if "codex_path" in ss:
+		ss.codex_path = D1_CODEX
 	_check_d1_round_trip(gm, ss, wm, pm, ab)
 	_check_d1_resume(gm, ss, pm)
 	_check_d1_schema(gm, ss, pm)
 	_check_d1_backups(gm, ss)
 	_check_d1_autosave_guard(ss)
+	# Code review patches (2026-10-31)
+	_check_d1_run_gate(gm, ss)
+	_check_d1_fire_on_load(gm, ss)
+	_check_d1_day_end_save(gm, ss)
+	_check_d1_reset_pending(gm, pm)
+	_check_d1_relink_rules(gm)
+	_check_d1_recover_swap(ss)
+	_check_d1_load_notice(ss)
+	_check_d1_load_without_world(ss, wm)
+	_check_d1_codex_path(ss)
+	_check_d1_messages()
 	_d1_restore(snap, gm, wm, pm, ss)
 	_d1_clear_dir(D1_DIR)
 	check(_d1_sha(REAL_SAVE_PATH) == real_sha, "Test 26 never touched the real save (sha256 %s…)" % real_sha.left(12))
@@ -8707,6 +8720,8 @@ func _check_d1_autosave_guard(ss) -> void:
 	hall.add_to_group("player_scene")
 	root.add_child(hall)
 	current_scene = hall
+	if "run_active" in ss:
+		ss.run_active = true   # a live run (P1)
 	ss._on_autosave_timer_timeout()
 	var d := _d1_read_json(D1_SAVE)
 	check(ss.has_method("can_autosave") and ss.can_autosave() and d.get("save_type", "") == "autosave" and d.get("player_scene", "") == TAVERN_SCENE_PATH,
@@ -8722,7 +8737,8 @@ func _d1_snapshot(gm, wm, pm, ss) -> Dictionary:
 		g[k] = v.duplicate(true) if v is Array or v is Dictionary else v
 	return {"gm": g, "world_map": wm.world_map, "chosen_center": wm.chosen_center, "rumours": wm.overheard_rumours.duplicate(),
 		"player": pm.player, "spawn": pm.pending_spawn_position, "has_spawn": pm.has_pending_spawn, "save_path": ss.save_path,
-		"scene": current_scene}
+		"scene": current_scene, "run_active": ss.get("run_active"), "codex_path": ss.get("codex_path"),
+		"codex": ss.codex_data.duplicate(true), "last_scene_name": pm._last_scene_name}
 
 
 func _d1_restore(s: Dictionary, gm, wm, pm, ss) -> void:
@@ -8738,6 +8754,12 @@ func _d1_restore(s: Dictionary, gm, wm, pm, ss) -> void:
 	ss.load_in_progress = false
 	ss.save_in_progress = false
 	current_scene = s.scene
+	if s.run_active != null:
+		ss.run_active = s.run_active
+	if s.codex_path != null:
+		ss.codex_path = s.codex_path
+	ss.codex_data = s.codex
+	pm._last_scene_name = s.last_scene_name
 
 
 static func _d1_adv(id: int, adv_name: String, status: int, card: String) -> Dictionary:
@@ -8811,10 +8833,16 @@ func test_pause_menu_save_first() -> void:
 	var scene_before = current_scene
 	var pm_node = root.get_node_or_null("PlayerManager")
 	var last_scene_name = pm_node._last_scene_name if pm_node != null else ""
+	var player_before = pm_node.player if pm_node != null else null
+	var run_before = ss.get("run_active")
+	var codex_path_before = ss.get("codex_path")
+	var codex_before: Dictionary = ss.codex_data.duplicate(true)
 	_d1_remove_tmp_dir()
 	_d1_clear_dir(D1_PAUSE_DIR)
 	DirAccess.make_dir_recursive_absolute(D1_PAUSE_DIR)
 	ss.save_path = D1_PAUSE_SAVE
+	if "codex_path" in ss:
+		ss.codex_path = D1_PAUSE_CODEX
 	var hall := Node3D.new()
 	hall.name = "D1PauseHall"
 	hall.scene_file_path = TAVERN_SCENE_PATH
@@ -8823,6 +8851,10 @@ func test_pause_menu_save_first() -> void:
 	_d1_set_scene(hall)
 	_check_d1_write_and_rotation(gm, ss)
 	_check_d1_pause_scene_scan()
+	# Code review patches (2026-10-31)
+	_check_d1_swap_failure(gm, ss)
+	_check_d1_commit_checks(ss)
+	_check_d1_nan_save(gm, ss)
 	current_scene = null
 	hall.free()
 	_check_d1_pause_menu_outside(gm, ss, nm)
@@ -8835,6 +8867,12 @@ func test_pause_menu_save_first() -> void:
 	current_scene = scene_before
 	if pm_node != null:
 		pm_node._last_scene_name = last_scene_name
+		pm_node.player = player_before
+	if run_before != null:
+		ss.run_active = run_before
+	if codex_path_before != null:
+		ss.codex_path = codex_path_before
+	ss.codex_data = codex_before
 	_d1_remove_tmp_dir()
 	_d1_clear_dir(D1_PAUSE_DIR)
 	check(_d1_sha(REAL_SAVE_PATH) == real_sha, "Test 27 never touched the real save (sha256 %s…)" % real_sha.left(12))
@@ -8964,11 +9002,22 @@ func _check_d1_pause_menu_outside(gm, ss, nm) -> void:
 	if menu.has_method("open_menu"):
 		menu.open_menu()
 	gm.gold = 4343
+	var body := CharacterBody3D.new()
+	outside.add_child(body)
+	body.global_position = Vector3(5.5, 0.25, -3.0)
+	var pmn = root.get_node_or_null("PlayerManager")
+	if pmn != null:
+		pmn.player = body
 	menu.save_exit_button.pressed.emit()
 	var at_exit = JSON.parse_string(menu.exits[0]) if menu.exits.size() == 1 else null
 	check(menu.exits.size() == 1 and at_exit is Dictionary and int(at_exit.get("gold", -1)) == 4343
 		and at_exit.get("save_type", "") == "manual_save" and at_exit.get("player_scene", "") == EXTERIOR_SCENE_PATH,
 		"Save & Exit leaves once, and only after the file holds the new save (gold 4343, outside)")
+	var pp = at_exit.get("player_position", []) if at_exit is Dictionary else []
+	check(pp is Array and pp.size() == 3 and Vector3(pp[0], pp[1], pp[2]).is_equal_approx(Vector3(5.5, 0.25, -3.0)),
+		"…with the player's x, y, z outside %s" % [pp])
+	if pmn != null:
+		pmn.player = null
 	paused = false
 	current_scene = null
 	outside.free()
@@ -9571,3 +9620,307 @@ func _t28_restore(s: Dictionary, gm, wm, dm) -> void:
 	if s.warned != null:
 		gm.set("_party_missions_warned", s.warned)
 	_d1_set_scene(s.scene)
+
+
+# --- Tests 26 and 27, code review patches (Stories 11.2, 11.3; 2026-10-31) ---
+const D1_CODEX := "user://failsafe_d1/codex.dat"
+const D1_PAUSE_CODEX := "user://failsafe_d1_pause/codex.dat"
+const REAL_CODEX_PATH := "user://codex.dat"
+const MAIN_TAVERN_SCRIPT_PATH := "res://scripts/game/main_tavern.gd"
+const GAME_MANAGER_SCRIPT_PATH := "res://scripts/GameManager.gd"
+const D1_DAY_FIXTURE := {"schema_version": 2, "current_day": 4, "gold": 40, "beer_stock": 1, "adventurers": []}
+
+
+## A Node3D in the player_scene group playing `path`, made the current scene.
+func _d1_stand_in(path: String) -> Node3D:
+	var n := Node3D.new()
+	n.scene_file_path = path
+	n.add_to_group("player_scene")
+	root.add_child(n)
+	_d1_set_scene(n)
+	return n
+
+
+func _d1_drop_stand_in(n: Node) -> void:
+	current_scene = null
+	n.free()
+
+
+## Removes the test save, its .tmp / .prev and every backup (save_path in user://failsafe_d1/).
+static func _d1_clear_files() -> void:
+	for suffix in ["", ".tmp", ".prev", ".backup1", ".backup2", ".backup3"]:
+		if FileAccess.file_exists(D1_SAVE + suffix):
+			DirAccess.remove_absolute(D1_SAVE + suffix)
+
+
+## P1: the automatic saves (the 300 s timer, the end of a day, a game over) need a live run: a successful load, or a
+## New Game's first save. A scene launched straight from the editor used to write its default Day 1 over the run.
+func _check_d1_run_gate(gm, ss) -> void:
+	if not ("run_active" in ss and ss.has_method("start_new_run_save") and ss.has_method("save_end_of_day")):
+		check(false, "SaveSystem.run_active, start_new_run_save() and save_end_of_day() exist")
+		return
+	_d1_clear_files()
+	var hall := _d1_stand_in(TAVERN_SCENE_PATH)
+	ss.run_active = false
+	ss._on_autosave_timer_timeout()
+	ss._on_game_over("test")
+	var day_end: bool = ss.save_end_of_day()
+	check(not FileAccess.file_exists(D1_SAVE) and not ss.can_autosave() and not day_end,
+		"no live run (a scene launched straight from the editor): the timer, a game over and the end of a day save nothing")
+	_d1_write_json(D1_SAVE, D1_DAY_FIXTURE)
+	ss.load_game()
+	check(ss.run_active, "a successful load starts the run")
+	DirAccess.remove_absolute(D1_SAVE)
+	ss._on_autosave_timer_timeout()
+	check(_d1_read_json(D1_SAVE).get("save_type", "") == "autosave", "…then the 300 s autosave writes (to save_path)")
+	gm.reset_game_state()
+	check(not ss.run_active, "a New Game reset ends the run")
+	ss.start_new_run_save()
+	check(ss.run_active and _d1_read_json(D1_SAVE).get("save_type", "") == "new_game_start", "New Game's first save starts the new run")
+	var mt := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
+	check(_lm_in_func(mt, "_ready", "SaveSystem.start_new_run_save()"), "the hall's New Game save goes through start_new_run_save()")
+	_d1_drop_stand_in(hall)
+
+
+## P2: a Load from the hall's pause menu keeps the save's fire fuel (the hall's fire zone answered the load's
+## day_changed with "the fire went out overnight").
+func _check_d1_fire_on_load(gm, ss) -> void:
+	var z := Area3D.new()
+	z.set_script(load(FIRE_ZONE_SCRIPT_PATH))
+	root.add_child(z)
+	var save := D1_DAY_FIXTURE.duplicate()
+	save["current_day"] = 9
+	save["fireplace_fuel"] = 42.5
+	_d1_write_json(D1_SAVE, save)
+	gm.set_fireplace_fuel(10.0)
+	ss.load_game()
+	check(is_equal_approx(gm.fireplace_fuel, 42.5), "a Load with the hall's fire zone live keeps the saved fire fuel (%.1f)" % gm.fireplace_fuel)
+	z.free()
+
+
+## P5: the end-of-day autosave holds the whole night (wages, the mission's days, the fire, recruits). It used to run at
+## day_changed, before any of it, so Sleep -> quit -> Continue skipped a night.
+func _check_d1_day_end_save(gm, ss) -> void:
+	if not ss.has_method("save_end_of_day"):
+		check(false, "SaveSystem.save_end_of_day() exists")
+		return
+	_d1_clear_files()
+	var hall := _d1_stand_in(TAVERN_SCENE_PATH)
+	if "run_active" in ss:
+		ss.run_active = true
+	var S = AdventurerStatus.Status
+	var runner := _d1_adv(61, "Vera", S.ON_MISSION, "the_fool")
+	runner["daily_wage"] = 7
+	gm.adventurers = [runner]
+	gm.active_missions = [{"adventurer": runner, "mission": {"name": "Long Road", "duration_days": 3}, "days_remaining": 2,
+		"total_duration": 3, "success_chance": 60, "sent_day": 4, "hex_id": ""}]
+	gm.current_day = 5
+	gm.gold = 500
+	gm.beer_stock = 20
+	gm.tax_due_day = 90
+	gm.tax_grace_days = 0
+	gm.fireplace_fuel = 80.0
+	gm.game_over_active = false
+	gm.advance_day()
+	var d := _d1_read_json(D1_SAVE)
+	var e: Array = d.get("active_missions", [])
+	check(int(d.get("current_day", -1)) == 6 and e.size() == 1 and int(e[0].get("days_remaining", -1)) == 1
+		and int(d.get("gold", -1)) == gm.gold and gm.gold < 500 and float(d.get("fireplace_fuel", -1.0)) == 0.0
+		and d.get("save_type", "") == "autosave",
+		"the end-of-day autosave holds the whole night: day 6, the mission at 1 day, gold after wages, the fire out (saved day %s, days left %s, gold %s vs %s)"
+		% [d.get("current_day"), e[0].get("days_remaining") if e.size() > 0 else "-", d.get("gold"), gm.gold])
+	var src := FileAccess.get_file_as_string(SAVE_SYSTEM_PATH)
+	check(not _lm_in_func(src, "_on_day_changed", "autosave_game()"), "day_changed itself no longer saves (mid-advance)")
+	_d1_drop_stand_in(hall)
+
+
+## P7: New Game forgets the last run's pending patrons, saved scene and spot; a save made before the hall restored its
+## patrons keeps them.
+func _check_d1_reset_pending(gm, pm) -> void:
+	gm.restored_patrons = [{"name": "Old Patron"}]
+	gm.saved_player_scene = EXTERIOR_SCENE_PATH
+	pm.pending_spawn_position = Vector3(1, 2, 3)
+	pm.has_pending_spawn = true
+	check(gm._gather_patrons_save() == [{"name": "Old Patron"}], "a save before the hall restored its patrons keeps them (the pending list)")
+	gm.reset_game_state()
+	check(gm.restored_patrons.is_empty() and gm.saved_player_scene == "" and not pm.has_pending_spawn,
+		"New Game forgets the last run's pending patrons, saved scene and saved spot")
+
+
+## P8, P9: re-linking prefers the member's own id (a reordered adventurer_ids can't swap two adventurers), falls back
+## to adventurer_ids for a member without a usable id, and an entry's day counts and chance are ints again.
+func _check_d1_relink_rules(gm) -> void:
+	var S = AdventurerStatus.Status
+	var a74 := _d1_adv(74, "Gareth", S.ON_MISSION, "")
+	var a60 := _d1_adv(60, "Mira", S.ON_MISSION, "")
+	gm.adventurers = [a74, a60]
+	var c_bad := a60.duplicate(true)
+	c_bad["id"] = -1
+	gm.active_missions = [
+		{"party": [a74.duplicate(true), a60.duplicate(true)], "adventurer_ids": [60.0, 74.0], "is_party_mission": true,
+			"mission": {"name": "A"}, "days_remaining": 2.0, "total_duration": 3.0, "sent_day": 4.0, "success_chance": 55.0,
+			"dispatch_day": 4.0, "return_day": 7.0, "travel_duration": 3.0},
+		{"party": [c_bad], "adventurer_ids": [60.0], "is_party_mission": true, "mission": {"name": "B"}, "days_remaining": 1.0},
+	]
+	gm._relink_active_missions()
+	var e0: Dictionary = gm.active_missions[0]
+	check(is_same(e0.party[0], a74) and is_same(e0.party[1], a60), "a party re-links by each member's own id, whatever order adventurer_ids has")
+	check(is_same((gm.active_missions[1] as Dictionary).party[0], a60), "a member without a usable id re-links through adventurer_ids")
+	var keys := ["days_remaining", "total_duration", "sent_day", "success_chance", "dispatch_day", "return_day", "travel_duration"]
+	var not_int := keys.filter(func(k): return not (e0.get(k) is int))
+	check(not_int.is_empty() and (e0.adventurer_ids as Array).all(func(i): return i is int),
+		"an entry's day counts, chance and ids are ints again (no \"2.0 days remaining\") %s" % [not_int])
+
+
+## P10: after a crash mid-swap the newest save sits in .tmp (or the old one in .prev): with the save missing, read_save()
+## takes a valid .tmp, else the .prev, before the backups, and puts it back in place.
+func _check_d1_recover_swap(ss) -> void:
+	_d1_clear_files()
+	var d21 := D1_DAY_FIXTURE.duplicate()
+	d21["current_day"] = 21
+	var d20 := D1_DAY_FIXTURE.duplicate()
+	d20["current_day"] = 20
+	var d19 := D1_DAY_FIXTURE.duplicate()
+	d19["current_day"] = 19
+	_d1_write_json(D1_SAVE + ".tmp", d21)
+	_d1_write_json(D1_SAVE + ".prev", d20)
+	_d1_write_json(D1_SAVE + ".backup1", d19)
+	var day := int(ss.read_save().get("current_day", -1))
+	check(day == 21 and int(_d1_read_json(D1_SAVE).get("current_day", -1)) == 21 and not FileAccess.file_exists(D1_SAVE + ".tmp"),
+		"the save missing after a crash: a valid .tmp is the newest save, put back in place (day %d)" % day)
+	DirAccess.remove_absolute(D1_SAVE)
+	_d1_write_text(D1_SAVE + ".tmp", "{half a save")
+	day = int(ss.read_save().get("current_day", -1))
+	check(day == 20 and int(_d1_read_json(D1_SAVE).get("current_day", -1)) == 20 and not FileAccess.file_exists(D1_SAVE + ".prev"),
+		"a broken .tmp: the .prev save, put back in place (day %d)" % day)
+	_d1_clear_files()
+
+
+## P12, P15: a backup fallback says so (Continue and Load show the line), and load_game()'s state carries the epic's
+## {scene, x, y, z} block (in memory only).
+func _check_d1_load_notice(ss) -> void:
+	if not (ss.has_method("load_notice") and "last_loaded_from" in ss):
+		check(false, "SaveSystem.load_notice() and last_loaded_from exist")
+		return
+	_d1_clear_files()
+	var d7 := D1_DAY_FIXTURE.duplicate()
+	d7["current_day"] = 7
+	_d1_write_text(D1_SAVE, "{not json")
+	_d1_write_json(D1_SAVE + ".backup1", d7)
+	ss.load_game()
+	var notice: String = ss.load_notice()
+	check(ss.last_loaded_from == D1_SAVE + ".backup1" and notice == "Your latest save couldn't be read; loaded backup 1 (Day 7).",
+		"a backup fallback is said out loud: \"%s\"" % notice)
+	var d8 := D1_DAY_FIXTURE.duplicate()
+	d8["current_day"] = 8
+	d8["player_position"] = [1.5, 0.5, -2.0]
+	d8["player_scene"] = EXTERIOR_SCENE_PATH
+	_d1_write_json(D1_SAVE, d8)
+	var state = ss.load_game()
+	check(ss.last_loaded_from == D1_SAVE and ss.load_notice() == "", "the save itself loaded: no notice")
+	var block = state.get("player_spot") if state is Dictionary else null
+	check(block is Dictionary and block == ss.player_spot(state) and block.get("scene", "") == EXTERIOR_SCENE_PATH
+		and not _d1_read_json(D1_SAVE).has("player_spot"),
+		"load_game()'s state carries the {scene, x, y, z} block (in memory, never written) %s" % [block])
+	var mm := FileAccess.get_file_as_string(MAIN_MENU_SCRIPT_PATH)
+	var pmn := FileAccess.get_file_as_string(PAUSE_MENU_SCRIPT_PATH)
+	check(_lm_in_func(mm, "_on_continue_button_pressed", "SaveSystem.load_notice()") and _lm_in_func(pmn, "_load_game", "SaveSystem.load_notice()"),
+		"Continue and Load show that notice")
+	_d1_clear_files()
+
+
+## P13: a save without a world leaves no world from the run before it.
+func _check_d1_load_without_world(ss, wm) -> void:
+	_d1_clear_files()
+	wm.world_map = [{"id": "old_run", "coord": Vector2i(0, 0)}]
+	wm.chosen_center = {"id": "old_run"}
+	wm.overheard_rumours = ["old run"]
+	_d1_write_json(D1_SAVE, D1_DAY_FIXTURE)
+	ss.load_game()
+	check(wm.world_map.is_empty() and wm.chosen_center.is_empty() and wm.overheard_rumours.is_empty(),
+		"a save without a world: the previous run's map, tavern hex and rumours are gone")
+	_d1_clear_files()
+
+
+## P4: the codex follows the session's redirect too (codex_path): a record written in a redirected run never reaches
+## the real codex.dat.
+func _check_d1_codex_path(ss) -> void:
+	if not ("codex_path" in ss):
+		check(false, "SaveSystem.codex_path exists")
+		return
+	var real := _d1_sha(REAL_CODEX_PATH)
+	var runs := int(ss.codex_data.get("total_runs", 0))
+	ss.record_run_end()
+	var d := _d1_read_json(ss.codex_path)
+	check(ss.codex_path != REAL_CODEX_PATH and int(d.get("total_runs", -1)) == runs + 1 and _d1_sha(REAL_CODEX_PATH) == real,
+		"a codex record in a redirected run goes to codex_path (%s), the real codex.dat untouched" % ss.codex_path)
+
+
+## P14: the messages with no failing check before.
+func _check_d1_messages() -> void:
+	var mm := FileAccess.get_file_as_string(MAIN_MENU_SCRIPT_PATH)
+	var pmn := FileAccess.get_file_as_string(PAUSE_MENU_SCRIPT_PATH)
+	var src := FileAccess.get_file_as_string(SAVE_SYSTEM_PATH)
+	var gms := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(_lm_in_func(mm, "_on_continue_button_pressed", "\"Couldn't load the save.\"") and _lm_in_func(pmn, "_load_game", "\"Couldn't load the save.\""),
+		"Continue and Load say \"Couldn't load the save.\" when nothing loads")
+	check(_lm_in_func(src, "read_save", "[SaveSystem] warn: save unreadable, loaded backup %d")
+		and _lm_in_func(src, "_migrate_save_data", "is newer than this build"), "the backup warning and the newer-schema line")
+	check(_lm_in_func(gms, "_roster_or_copy", "is not on the roster; keeping the saved copy"), "the missing-roster-id warning")
+
+
+## P3: the swap is undoable. A save that can't be swapped in (the save held open by another program, or the new file
+## refusing to move in) leaves the save and every backup as they were, with no .tmp or .prev left.
+func _check_d1_swap_failure(gm, ss) -> void:
+	var shas := _d1_pause_shas()
+	var lock := FileAccess.open(D1_PAUSE_SAVE, FileAccess.READ)
+	gm.gold = 777
+	var ok: bool = ss.save_game()
+	lock.close()
+	check(not ok and _d1_pause_shas() == shas and not FileAccess.file_exists(D1_PAUSE_SAVE + ".tmp")
+		and not FileAccess.file_exists(D1_PAUSE_SAVE + ".prev"),
+		"the save held open by another program: the save fails, every file as it was, nothing left behind")
+	var seam: bool = "debug_fail_commit" in ss
+	if seam:
+		ss.debug_fail_commit = "swap"
+		ok = ss.save_game()
+		ss.debug_fail_commit = ""
+	check(seam and not ok and _d1_pause_shas() == shas and not FileAccess.file_exists(D1_PAUSE_SAVE + ".tmp")
+		and not FileAccess.file_exists(D1_PAUSE_SAVE + ".prev"),
+		"the new save refusing to move in: the old save is put back, every backup as it was")
+	gm.gold = 778
+	ok = ss.save_game()
+	var golds := []
+	for suffix in ["", ".backup1"]:
+		golds.append(int(_d1_read_json(D1_PAUSE_SAVE + suffix).get("gold", -1)))
+	check(ok and golds == [778, 103] and not FileAccess.file_exists(D1_PAUSE_SAVE + ".prev"),
+		"the next save goes through: the save, and the old one as .backup1 (moved, not copied) %s" % [golds])
+
+
+## P6: the size check guards the swap: a tmp file that isn't the size written is refused (no test failed without it).
+func _check_d1_commit_checks(ss) -> void:
+	if not ss.has_method("_commit_tmp"):
+		check(false, "SaveSystem._commit_tmp() exists")
+		return
+	var shas := _d1_pause_shas()
+	_d1_write_text(D1_PAUSE_SAVE + ".tmp", "{\"current_day\": 3}")
+	var ok: bool = ss._commit_tmp(D1_PAUSE_SAVE + ".tmp", D1_PAUSE_SAVE, 9999, true)
+	check(not ok and _d1_pause_shas() == shas and not FileAccess.file_exists(D1_PAUSE_SAVE + ".tmp"),
+		"a tmp file that isn't the size written is refused: the save and backups as they were, the tmp removed")
+	var src := FileAccess.get_file_as_string(SAVE_SYSTEM_PATH)
+	var body := _func_body(src, "_commit_tmp")
+	var at_check := body.find("written_size_ok(")
+	check(at_check >= 0 and at_check < body.find(".rename(") and _func_body(src, "_write_file_atomic").contains("_commit_tmp("),
+		"_write_file_atomic commits through _commit_tmp, whose size check comes before any rename")
+
+
+## P11: verified in 4.4.1: JSON.stringify writes NAN / INF as bare nan / inf, which JSON can't read back. A run holding
+## one fails the save instead of replacing the save with an unreadable file.
+func _check_d1_nan_save(gm, ss) -> void:
+	var shas := _d1_pause_shas()
+	var fuel: float = gm.fireplace_fuel
+	gm.fireplace_fuel = NAN
+	var ok: bool = ss.save_game()
+	gm.fireplace_fuel = fuel
+	check(not ok and _d1_pause_shas() == shas and not FileAccess.file_exists(D1_PAUSE_SAVE + ".tmp"),
+		"a NaN in the run fails the save; the save on disk stays readable")
