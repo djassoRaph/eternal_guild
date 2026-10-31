@@ -26,6 +26,9 @@ var save_in_progress: bool = false
 var load_in_progress: bool = false
 
 var codex_data: Dictionary = {}
+## Story 13.4: the folder the last fallen run's save went to (end_run), "" until a run fell this session. Epic 22's
+## legacy transition can read the fallen run there (the save slot is already empty).
+var last_archive_dir := ""
 
 signal save_completed(success: bool)
 signal load_completed(success: bool)
@@ -36,10 +39,9 @@ func _ready():
 	_load_codex()
 	setup_autosave_timer()
 
-	if GameManager:
-		# The day's autosave runs at the END of GameManager.advance_day() (save_end_of_day, review P5), not on
-		# day_changed, which fires before the night's work.
-		GameManager.game_over_triggered.connect(_on_game_over)
+	# The day's autosave runs at the END of GameManager.advance_day() (save_end_of_day, review P5), not on day_changed,
+	# which fires before the night's work. A fall's last save is end_run()'s (Story 13.4), which GameManager calls
+	# before the fall is announced.
 
 func setup_autosave_timer():
 	var interval = DataManager.get_config("autosave_interval_seconds", 300)
@@ -60,7 +62,7 @@ func _on_autosave_timer_timeout():
 ## outside: their roots are in the player_scene group). In the main menu it saved the menu as the resume scene
 ## (Continue then reopened the menu), and on a fresh launch the default Day-1 state over the player's run.
 func can_autosave() -> bool:
-	if not run_active or not is_inside_tree():
+	if not run_active or GameManager.game_over_active or not is_inside_tree():   # Story 13.4: never a fallen run
 		return false
 	var cs := get_tree().current_scene
 	return cs != null and cs.is_in_group("player_scene")
@@ -76,10 +78,59 @@ func start_new_run_save() -> bool:
 	run_active = true
 	return save_game_state("new_game_start", true)
 
-func _on_game_over(reason: String):
+## Story 13.4 (DG-2): where a fallen run leaves the save slot. GameManager.trigger_game_over() calls it before the fall
+## is announced: (1) the codex.dat entry (record_run_end: guild_history), (2) the fallen state saved one last time
+## (game_over_save), (3) the save and its backups moved to <save folder>/fallen_runs/<stamp>/ (archived, not deleted),
+## so Continue can't resume the run. Then the run is over (run_active false). Only in a live run (review P1): a scene
+## launched straight from the editor records and moves nothing. Returns the archive folder, or "".
+func end_run(summary: Dictionary) -> String:
 	if not run_active:
-		return
-	save_game_state("game_over_save")
+		print("[SaveSystem] skip: no live run, the fall is not recorded")
+		return ""
+	record_run_end(summary)
+	save_game_state("game_over_save", true)
+	var dir := archive_run_save()
+	run_active = false
+	return dir
+
+## Story 13.4: moves the save, its .prev / .tmp (read_save() would put those back) and every backup into a new folder
+## <save folder>/fallen_runs/<YYYYMMDD-HHMMSS> (-2, -3... when it exists; no ':' in the name). Returns the folder, or ""
+## when there was nothing to move or a move failed (an error is pushed; what didn't move stays).
+func archive_run_save() -> String:
+	var files: Array[String] = []
+	for suffix in ["", ".prev", ".tmp"]:
+		if FileAccess.file_exists(save_path + suffix):
+			files.append(save_path + suffix)
+	for i in range(1, _max_backups() + 2):
+		if FileAccess.file_exists(save_path + ".backup" + str(i)):
+			files.append(save_path + ".backup" + str(i))
+	if files.is_empty():
+		return ""
+	var root := save_path.get_base_dir().path_join("fallen_runs")
+	var stamp := archive_stamp(Time.get_datetime_dict_from_system())
+	var dir := root.path_join(stamp)
+	var n := 2
+	while DirAccess.dir_exists_absolute(dir):
+		dir = root.path_join("%s-%d" % [stamp, n])
+		n += 1
+	if DirAccess.make_dir_recursive_absolute(dir) != OK:
+		push_error("[SaveSystem] error: couldn't archive the fallen run (no folder %s); the save stays" % dir)
+		return ""
+	var failed: Array[String] = []
+	for f in files:
+		if DirAccess.rename_absolute(f, dir.path_join(f.get_file())) != OK:
+			failed.append(f.get_file())
+	if not failed.is_empty():
+		push_error("[SaveSystem] error: couldn't archive the fallen run (%s stayed in %s)" % [", ".join(failed), save_path.get_base_dir()])
+		return ""
+	last_archive_dir = dir
+	print("[SaveSystem] archive: the fallen run's save moved to ", dir)
+	return dir
+
+## A folder name for a date (Time.get_datetime_dict_from_system()): YYYYMMDD-HHMMSS. Pure.
+static func archive_stamp(dt: Dictionary) -> String:
+	return "%04d%02d%02d-%02d%02d%02d" % [int(dt.get("year", 0)), int(dt.get("month", 0)), int(dt.get("day", 0)),
+		int(dt.get("hour", 0)), int(dt.get("minute", 0)), int(dt.get("second", 0))]
 
 
 # === MAIN SAVE/LOAD ===
@@ -91,6 +142,10 @@ func autosave_game() -> bool:
 	return save_game_state("autosave", true)
 
 func save_game_state(save_type: String = "manual_save", silent: bool = false) -> bool:
+	# Story 13.4 (DG-8): a fallen run is never saved again (the pause menu, the timer); end_run() writes its last one.
+	if GameManager.game_over_active and save_type != "game_over_save":
+		print("[SaveSystem] refuse: the run has fallen (", save_type, ")")
+		return false
 	if save_in_progress:
 		if not silent:
 			print("[SaveSystem] Save already in progress, skipping")
@@ -299,6 +354,7 @@ func _default_codex() -> Dictionary:
 		"fallen_heroes": [],
 		"guild_achievements": [],
 		"artifacts_found": [],
+		"guild_history": [],   # one entry per run's end (Story 13.4: a fall; Epics 21/22 add The Reading's)
 		"total_runs": 0,
 		"best_day_reached": 0,
 		"total_gold_earned": 0,
@@ -357,13 +413,23 @@ func record_artifact_found(artifact_id: String) -> void:
 	codex_data["artifacts_found"].append(entry)
 	_save_codex()
 
-func record_run_end() -> void:
-	codex_data["total_runs"] = codex_data.get("total_runs", 0) + 1
-	var day = GameManager.current_day
-	if day > codex_data.get("best_day_reached", 0):
+## A run's end in codex.dat (Story 13.4): the totals, and `entry` (GameManager.run_summary(): the guild history entry
+## the fall screen shows) appended to guild_history with its run number. Epic 21 adds Fame and the heir to the same
+## entry. One atomic write.
+func record_run_end(entry: Dictionary = {}) -> void:
+	codex_data["total_runs"] = int(codex_data.get("total_runs", 0)) + 1
+	var day := int(entry.get("end_day", GameManager.current_day))
+	if day > int(codex_data.get("best_day_reached", 0)):
 		codex_data["best_day_reached"] = day
-	codex_data["total_gold_earned"] = codex_data.get("total_gold_earned", 0) + GameManager.gold
-	codex_data["total_missions_completed"] = codex_data.get("total_missions_completed", 0) + GameManager.total_missions_completed
+	codex_data["total_gold_earned"] = int(codex_data.get("total_gold_earned", 0)) + int(entry.get("gold_at_end", GameManager.gold))
+	codex_data["total_missions_completed"] = int(codex_data.get("total_missions_completed", 0)) \
+		+ int(entry.get("missions_completed", GameManager.total_missions_completed))
+	if not entry.is_empty():
+		var e := entry.duplicate(true)
+		e["run"] = codex_data["total_runs"]
+		if not (codex_data.get("guild_history") is Array):
+			codex_data["guild_history"] = []   # a codex.dat from before Story 13.4
+		codex_data["guild_history"].append(e)
 	_save_codex()
 
 
