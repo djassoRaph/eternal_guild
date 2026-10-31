@@ -12092,6 +12092,13 @@ func test_staff_records() -> void:
 		gb.connect(s, recs[s])
 	var gold_rec := func(g): events.append(["gold", g])
 	eb.gold_changed.connect(gold_rec)
+	_check_t33b_signals(eb)
+	var wage_recs := {}
+	if eb.has_signal("staff_wage_paid") and eb.has_signal("staff_wage_unpaid"):
+		wage_recs["staff_wage_paid"] = func(id, amount): events.append(["paid", id, amount])
+		wage_recs["staff_wage_unpaid"] = func(id): events.append(["unpaid", id])
+	for s in wage_recs:
+		eb.connect(s, wage_recs[s])
 
 	_check_t33_data(dm)
 	_check_t33_seed(gm)
@@ -12100,11 +12107,22 @@ func test_staff_records() -> void:
 	_check_t33_hire_dismiss(gm, dm, events, capture)
 	_check_t33_save(gm, events)
 	await _check_t33_debug_panel(gm, events)
-	#T33B
+	# part B: Story 16.5
+	if gm.has_method("apply_staff_wages") and gm.has_method("pay_staff_back_wage") and not wage_recs.is_empty():
+		_check_t33b_config(gm, dm)
+		_check_t33b_wages(gm, events, capture)
+		_check_t33b_pay_back(gm, events, capture)
+		_check_t33b_source()
+		await _check_t33b_banners(gm, eb, gb)
+	else:
+		check(false, "Story 16.5: GameManager.apply_staff_wages / pay_staff_back_wage and EconomyBus.staff_wage_paid / staff_wage_unpaid")
 
 	for s in recs:
 		if gb.is_connected(s, recs[s]):
 			gb.disconnect(s, recs[s])
+	for s in wage_recs:
+		if eb.is_connected(s, wage_recs[s]):
+			eb.disconnect(s, wage_recs[s])
 	if eb.gold_changed.is_connected(gold_rec):
 		eb.gold_changed.disconnect(gold_rec)
 	ss.save_path = ss_saved[0]
@@ -12237,9 +12255,10 @@ func _check_t33_hire_dismiss(gm, dm, events: Array, capture) -> void:
 	capture.lines.clear()
 	var r1: String = gm.hire_staff("bartender")
 	var bt: Dictionary = gm.staff_record("bartender")
-	check(r1 == "" and gm.gold == 7 and bt.get("hired") == true and events == [["gold", 7], ["hired", "bartender/barkeep", "bartender"]]
+	check(r1 == "" and gm.gold == 7 and bt.get("hired") == true
+		and events == [["gold", 7], ["paid", "bartender/barkeep", 3], ["hired", "bartender/barkeep", "bartender"]]
 		and capture.lines.has("[GameManager] staff: hired the Bartender (3 gold a day)"),
-		"hire_staff: the first day's wage through spend_gold (one gold_changed), the record hired, then ONE staff_hired %s %s" % [events, capture.lines])
+		"hire_staff: the first day's wage through spend_gold (one gold_changed, one staff_wage_paid: Story 16.5), the record hired, then ONE staff_hired %s %s" % [events, capture.lines])
 	events.clear()
 	var r2: String = gm.hire_staff("bartender")
 	gm.gold = 2
@@ -12363,3 +12382,176 @@ func _check_t33_debug_panel(gm, events: Array) -> void:
 		"the F12 NPCs tab: Hire / Dismiss / Pay / Strike per role (missing %s); Strike toggles through GameManager %s" % [missing, events])
 	panel.queue_free()
 	await process_frame
+
+
+## AC 1 (16.5): the wage signals on EconomyBus with the argument names listeners read.
+func _check_t33b_signals(eb) -> void:
+	var got := {}
+	if eb:
+		for s in eb.get_signal_list():
+			got[s.name] = s.args.map(func(a): return a.name)
+	check(got.get("staff_wage_paid") == ["staff_id", "amount"] and got.get("staff_wage_unpaid") == ["staff_id"],
+		"EconomyBus: staff_wage_paid (staff_id, amount) and staff_wage_unpaid (staff_id) (Story 16.5)")
+
+
+## AC 5 (16.5): missed_days_to_leave from game_config.json staff_wages, with its fallback.
+func _check_t33b_config(gm, dm) -> void:
+	var w = dm.get_config("staff_wages", {})
+	var real = w.get("missed_days_to_leave") if w is Dictionary else null
+	var cfg: Dictionary = (w as Dictionary).duplicate(true) if w is Dictionary else {}
+	var got := []
+	for v in [2, 0, "x", 2.5, null]:
+		var c := cfg.duplicate(true)
+		if v == null:
+			c.erase("missed_days_to_leave")
+		else:
+			c["missed_days_to_leave"] = v
+		dm.game_config["staff_wages"] = c
+		got.append(gm.staff_missed_days_to_leave())
+	dm.game_config["staff_wages"] = w
+	check((real is int or real is float) and int(real) == 3 and gm.staff_missed_days_to_leave() == 3 and got == [2, 3, 3, 3, 3],
+		"staff_wages.missed_days_to_leave is 3; a bad or missing value falls back to 3 (%s)" % [got])
+
+
+## AC 2 (16.5): apply_staff_wages: paid, a strike, a striker's next mornings, leaving, nobody to pay.
+func _check_t33b_wages(gm, events: Array, capture) -> void:
+	var cfg := {"daily_wage": {"bartender": 3, "desk_manager": 4}}
+	gm.staff = gm.staff_seed(gm.staff_roles(), "demo", ["bartender", "desk_manager"], cfg)
+	var bt := "bartender/barkeep"
+	var qd := "desk_manager/silver_elf"
+	var d: Dictionary = gm.staff_record("desk_manager")
+	gm.gold = 20
+	events.clear()
+	capture.lines.clear()
+	var p1: int = gm.apply_staff_wages()
+	check(p1 == 7 and gm.gold == 13 and events == [["gold", 17], ["paid", bt, 3], ["gold", 13], ["paid", qd, 4]]
+		and capture.lines.count("Paid 7 gold in staff wages.") == 1,
+		"apply_staff_wages: each hired member paid in full through spend_gold, one staff_wage_paid each, one log line %s" % [events])
+	gm.gold = 5
+	events.clear()
+	capture.lines.clear()
+	var p2: int = gm.apply_staff_wages()
+	check(p2 == 3 and gm.gold == 2 and events == [["gold", 2], ["paid", bt, 3], ["unpaid", qd], ["strike", qd, true, true]]
+		and d.on_strike == true and d.owed == 4 and d.missed_days == 1 and gm.is_staff_hired("desk_manager")
+		and capture.lines.has("[GameManager] staff: the Quest Dealer unpaid (missed 1, owes 4)") and capture.lines.has("Paid 3 gold in staff wages."),
+		"short of a wage: on strike (owes the wage, missed 1), staff_wage_unpaid then staff_strike_changed(true); still hired %s" % [events])
+	gm.gold = 100
+	events.clear()
+	var p3: int = gm.apply_staff_wages()
+	check(p3 == 3 and gm.gold == 97 and events == [["gold", 97], ["paid", bt, 3], ["unpaid", qd]] and d.owed == 8 and d.missed_days == 2,
+		"a striker is not paid automatically, even with the gold: owed and missed grow, staff_wage_unpaid again, no new strike signal %s" % [events])
+	events.clear()
+	capture.lines.clear()
+	gm.apply_staff_wages()
+	check(events == [["gold", 94], ["paid", bt, 3], ["unpaid", qd], ["strike", qd, false, false], ["fired", qd, "desk_manager", false]]
+		and d.hired == false and d.on_strike == false and d.owed == 0 and d.missed_days == 0
+		and capture.lines.has("[GameManager] staff: the Quest Dealer left (unpaid 3 days)"),
+		"the third unpaid morning (missed_days_to_leave): unpaid, then they leave (the record cleared first, strike off, staff_fired), the debt dropped %s" % [events])
+	events.clear()
+	gm.apply_staff_wages()
+	check(events == [["gold", 91], ["paid", bt, 3]], "a staff member who isn't hired draws nothing %s" % [events])
+	gm.staff_record("bartender").hired = false
+	events.clear()
+	capture.lines.clear()
+	var p4: int = gm.apply_staff_wages()
+	check(p4 == 0 and events.is_empty() and not capture.lines.any(func(l): return str(l).contains("staff wages")),
+		"nobody hired: nothing paid, no signal, no wage line")
+
+
+## AC 4 (16.5): pay_staff_back_wage.
+func _check_t33b_pay_back(gm, events: Array, capture) -> void:
+	var cfg := {"daily_wage": {"bartender": 3, "desk_manager": 4}}
+	gm.staff = gm.staff_seed(gm.staff_roles(), "demo", ["bartender", "desk_manager"], cfg)
+	var d: Dictionary = gm.staff_record("desk_manager")
+	d.on_strike = true
+	d.owed = 8
+	d.missed_days = 2
+	gm.gold = 5
+	events.clear()
+	var r := [gm.pay_staff_back_wage("bartender"), gm.pay_staff_back_wage("garden_manager"), gm.pay_staff_back_wage("desk_manager")]
+	check(r == ["Not on strike.", "Unknown staff.", "Not enough gold (8)."] and events.is_empty() and gm.gold == 5 and d.on_strike == true and d.owed == 8,
+		"pay_staff_back_wage refused (not on strike, unknown, short of the back wage): nothing changes %s" % [r])
+	gm.gold = 20
+	capture.lines.clear()
+	var ok: String = gm.pay_staff_back_wage("desk_manager")
+	check(ok == "" and gm.gold == 12 and events == [["gold", 12], ["paid", "desk_manager/silver_elf", 8], ["strike", "desk_manager/silver_elf", false, true]]
+		and d.on_strike == false and d.owed == 0 and d.missed_days == 0 and capture.lines.has("Paid the Quest Dealer's back wages: 8 gold."),
+		"pay_staff_back_wage: the back wage through spend_gold, the record cleared, then staff_wage_paid and staff_strike_changed(false) %s" % [events])
+
+
+## AC 2 (16.5): advance_day pays the staff right after the adventurers, before the tax.
+func _check_t33b_source() -> void:
+	var body := _func_body(FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH), "advance_day")
+	var a := body.find("apply_daily_wages()")
+	var s := body.find("apply_staff_wages()")
+	var t := body.find("check_tax_deadline()")
+	var between := body.substr(a, s - a) if a >= 0 and s > a else ""
+	check(a >= 0 and s > a and t > s and between.count("\n") <= 2,
+		"advance_day calls apply_staff_wages() right after apply_daily_wages() and before the tax check (%d, %d, %d)" % [a, s, t])
+
+
+## AC 3 (16.5): the banners, worded by the record; the F12 Pay button.
+func _check_t33b_banners(gm, eb, gb) -> void:
+	var nm = root.get_node_or_null("NotificationManager")
+	if nm == null:
+		check(false, "the NotificationManager autoload")
+		return
+	for c in nm._container.get_children():
+		nm._container.remove_child(c)
+		c.free()
+	var cfg := {"daily_wage": {"bartender": 3, "desk_manager": 4}}
+	gm.staff = gm.staff_seed(gm.staff_roles(), "demo", ["bartender", "desk_manager"], cfg)
+	var d: Dictionary = gm.staff_record("desk_manager")
+	d.on_strike = true
+	var shown := []
+	for missed in [1, 2, 3]:
+		d.missed_days = missed
+		eb.staff_wage_unpaid.emit("desk_manager/silver_elf")
+		shown.append(_t33_last_banner(nm))
+	gb.staff_strike_changed.emit("desk_manager/silver_elf", false)   # still hired: a pay-back
+	shown.append(_t33_last_banner(nm))
+	d.hired = false
+	var n_before: int = nm._container.get_child_count()
+	gb.staff_strike_changed.emit("desk_manager/silver_elf", false)   # dismissed or left: no banner
+	var quiet: bool = nm._container.get_child_count() == n_before
+	check(shown == ["The Quest Dealer hasn't been paid — on strike.", "The Quest Dealer leaves tomorrow if unpaid.",
+		"The Quest Dealer has left the guild, unpaid.", "The Quest Dealer is back to work."] and quiet,
+		"NotificationManager: the strike, the one-day warning, the leaving and back to work, worded from the record; none for a dismissal %s" % [shown])
+	check(nm.staff_unpaid_text("the Bartender", 1, 2) == "The Bartender hasn't been paid — on strike. Leaves tomorrow if unpaid."
+		and nm.staff_unpaid_text("the Bartender", 1, 1) == "The Bartender has left the guild, unpaid."
+		and nm.staff_unpaid_text("the Bartender", 2, 5) == "The Bartender is still unpaid (2 days).",
+		"staff_unpaid_text: the first miss with leaving next, leaving at once, a middle day")
+	for c in nm._container.get_children():
+		nm._container.remove_child(c)
+		c.free()
+	# F12's Pay button runs the same pay-back
+	var ps = load(DEBUG_PANEL_SCENE_PATH)
+	var panel: Node = ps.instantiate() if ps is PackedScene else null
+	if panel == null:
+		check(false, "the debug panel scene loads")
+		return
+	root.add_child(panel)
+	d.hired = true
+	d.on_strike = true
+	d.owed = 4
+	gm.gold = 10
+	for b in panel.find_children("*", "Button", true, false):
+		if (b as Button).text == "Pay the Quest Dealer":
+			(b as Button).pressed.emit()
+	check(d.on_strike == false and gm.gold == 6, "F12's Pay the Quest Dealer pays the back wage (strike %s, gold %d)" % [d.on_strike, gm.gold])
+	for c in nm._container.get_children():
+		nm._container.remove_child(c)
+		c.free()
+	panel.queue_free()
+	await process_frame
+
+
+## The newest NotificationManager banner's text ("" when none).
+static func _t33_last_banner(nm) -> String:
+	var n: int = nm._container.get_child_count()
+	if n == 0:
+		return ""
+	var text := ""
+	for l in nm._container.get_child(n - 1).find_children("*", "Label", true, false):
+		text = (l as Label).text
+	return text
