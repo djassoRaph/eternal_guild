@@ -15,6 +15,8 @@ var save_path: String = SAVE_FILE
 ## saves (the timer, the end of a day, a game over, the reveal's pre-save) need it: a scene launched straight from
 ## the editor runs on the default Day 1 and must never write it over the player's run.
 var run_active := false
+## Test seam (Test 27, review P3): "swap" makes the next commit's move-in fail once, to prove the old save comes back.
+var debug_fail_commit := ""
 var autosave_timer: Timer
 var save_in_progress: bool = false
 var load_in_progress: bool = false
@@ -106,9 +108,9 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	save_data["beer_shortage_days"] = GameManager.beer_shortage_days
 	save_data["adventurer_morale"] = GameManager.adventurer_morale
 
-	# Story 11.3: the backups rotate only once the new save is written and confirmed, just before it replaces the
-	# old one, so a failed save leaves the save and every backup as they were.
-	var success = _write_file_atomic(save_path, save_data, _create_save_backup.bind(_max_backups()))
+	# Story 11.3: the backups rotate only once the new save is in place (review P3: the swap is undoable), so a failed
+	# save leaves the save and every backup as they were.
+	var success = _write_file_atomic(save_path, save_data, true)
 
 	save_in_progress = false
 	save_completed.emit(success)
@@ -150,6 +152,8 @@ func load_game() -> Dictionary:
 ## Story 11.2: the save's state, migrated and validated, without applying it: the main file, else the newest
 ## readable backup (game-architecture: a corrupt save loads the most recent valid backup). {} when none is readable.
 func read_save() -> Dictionary:
+	if not FileAccess.file_exists(save_path):
+		_recover_interrupted_swap()
 	var paths: Array[String] = [save_path]
 	for i in range(1, _max_backups() + 1):
 		paths.append(save_path + ".backup" + str(i))
@@ -168,6 +172,23 @@ func read_save() -> Dictionary:
 		return data
 	print("[SaveSystem] No readable save at: ", save_path)
 	return {}
+
+
+## Review P10: after a crash mid-swap the save is missing; the newest save sits in .tmp (complete: it is checked
+## before a swap starts) or the old one in .prev. The first readable one (.tmp first) is put back as the save.
+## Returns the suffix it used, or "".
+func _recover_interrupted_swap() -> String:
+	for suffix in [".tmp", ".prev"]:
+		var p: String = save_path + suffix
+		if not FileAccess.file_exists(p):
+			continue
+		var data := _read_json_file(p)
+		if data.is_empty() or not _validate_save_data(_migrate_save_data(data)):
+			continue
+		if DirAccess.rename_absolute(p, save_path) == OK:
+			push_warning("[SaveSystem] warn: the save was missing; put %s back in its place" % p.get_file())
+			return suffix
+	return ""
 
 
 ## Story 11.2: the player's saved spot as {"scene", "x", "y", "z"} (the save keeps player_position [x, y, z] and
@@ -374,51 +395,71 @@ static func rename_classes(data) -> int:
 
 # === ATOMIC FILE I/O ===
 
-## Writes `data` to `filepath` through a .tmp file. Story 11.3: the tmp file is confirmed (no write error, every
-## byte on disk: a full disk writes short) before the old file is touched; on any failure the tmp file is removed,
-## the old file stays as it was and this returns false. `before_swap` runs between the confirmed write and the
-## swap (the save's backup rotation).
-func _write_file_atomic(filepath: String, data: Dictionary, before_swap := Callable()) -> bool:
-	var tmp_path = filepath + ".tmp"
+## Writes `data` to `filepath` through a .tmp file, then commits it (_commit_tmp). Story 11.3: on any failure the
+## tmp file is removed, the old file (and every backup) stays as it was, and this returns false. `rotate` (the save,
+## not the codex): the replaced save becomes .backup1.
+func _write_file_atomic(filepath: String, data: Dictionary, rotate := false) -> bool:
+	var tmp_path := filepath + ".tmp"
+	var json_string: String = JSON.stringify(data, "\t")
+	# Review P11 (verified in 4.4.1): a NAN or INF value is written as a bare nan / inf, which JSON can't read back.
+	if JSON.new().parse(json_string) != OK:
+		push_error("[SaveSystem] error: %s would not read back (a NaN or INF value?); the old file is kept" % filepath.get_file())
+		return false
 
-	var file = FileAccess.open(tmp_path, FileAccess.WRITE)
+	var file := FileAccess.open(tmp_path, FileAccess.WRITE)
 	if file == null:
 		print("[SaveSystem] Cannot open tmp file: ", tmp_path, " (error ", FileAccess.get_open_error(), ")")
 		return false
-
-	var json_string: String = JSON.stringify(data, "\t")
 	file.store_string(json_string)
 	var write_err := file.get_error()
 	file.close()
-	if write_err != OK or not written_size_ok(tmp_path, json_string.to_utf8_buffer().size()):
-		print("[SaveSystem] Write not confirmed: ", tmp_path, " (error ", write_err, "); the old file is kept")
+	if write_err != OK:
+		print("[SaveSystem] Write failed: ", tmp_path, " (error ", write_err, "); the old file is kept")
 		DirAccess.remove_absolute(tmp_path)
 		return false
+	return _commit_tmp(tmp_path, filepath, json_string.to_utf8_buffer().size(), rotate)
 
-	if before_swap.is_valid():
-		before_swap.call()
 
+## Story 11.3 (review P3, P6): moves a written tmp file into place, undoably. The tmp file must hold exactly
+## `expected` bytes (a full disk writes short); the old file steps aside as .prev; the tmp file moves in (if it
+## can't, .prev moves back); only then does .prev become .backup1 (`rotate`) or go. Every failure removes the tmp
+## file and leaves the old file and every backup as they were. Nothing is renamed before the folder opens.
+func _commit_tmp(tmp_path: String, filepath: String, expected: int, rotate := false) -> bool:
+	if not written_size_ok(tmp_path, expected):
+		print("[SaveSystem] Write not confirmed: ", tmp_path, " (not the ", expected, " bytes written); the old file is kept")
+		DirAccess.remove_absolute(tmp_path)
+		return false
 	# The file's own folder (Story 11.2: save_path may point below user://; renaming in user:// itself would hit
 	# the player's save instead).
-	var dir = DirAccess.open(filepath.get_base_dir())
+	var dir := DirAccess.open(filepath.get_base_dir())
 	if dir == null:
-		print("[SaveSystem] Cannot open ", filepath.get_base_dir(), " for rename")
+		print("[SaveSystem] Cannot open ", filepath.get_base_dir(), " for the swap; the old file is kept")
+		DirAccess.remove_absolute(tmp_path)
 		return false
-
-	var fname = filepath.get_file()
-	var tmp_fname = tmp_path.get_file()
-
-	if dir.file_exists(fname):
-		var err = dir.remove(fname)
+	var fname := filepath.get_file()
+	var prev_fname := fname + ".prev"
+	var tmp_fname := tmp_path.get_file()
+	var had_old := dir.file_exists(fname)
+	if had_old:
+		if dir.file_exists(prev_fname):
+			dir.remove(prev_fname)   # left by an interrupted swap; the file itself is intact
+		var err := dir.rename(fname, prev_fname)
 		if err != OK:
-			print("[SaveSystem] Cannot remove old file: ", err)
+			print("[SaveSystem] Cannot move the old file aside (error ", err, "); it is kept")
+			dir.remove(tmp_fname)
 			return false
-
-	var err = dir.rename(tmp_fname, fname)
-	if err != OK:
-		print("[SaveSystem] Rename failed: ", err)
+	var err_in: Error = ERR_FILE_CANT_WRITE if debug_fail_commit == "swap" else dir.rename(tmp_fname, fname)
+	if err_in != OK:
+		print("[SaveSystem] Cannot move the new file in (error ", err_in, "); the old file is put back")
+		if had_old:
+			dir.rename(prev_fname, fname)
+		dir.remove(tmp_fname)
 		return false
-
+	if had_old:
+		if rotate:
+			_rotate_backups(filepath, filepath + ".prev")
+		else:
+			dir.remove(prev_fname)
 	return true
 
 ## Story 11.3: true when the file at `path` holds exactly `expected` bytes (a short write or a missing file: false).
@@ -461,22 +502,20 @@ func _read_json_file(filepath: String) -> Dictionary:
 
 # === BACKUP SYSTEM ===
 
-## Shifts every backup one down (the oldest drops off) and copies the save to .backup1. Story 11.3: the old loop
-## deleted .backup3 instead of moving .backup2 into it, so only two backups were ever kept.
-func _create_save_backup(max_backups: int = 3):
-	if not FileAccess.file_exists(save_path):
-		return
-
-	var oldest = save_path + ".backup" + str(max_backups)
+## Shifts every backup one down (the oldest drops off) and moves the replaced save (`prev_path`) in as .backup1:
+## a rename, so the save is never copied. Runs after the new save is in place (review P3). Story 11.3: the old
+## loop deleted .backup3 instead of moving .backup2 into it, so only two backups were ever kept.
+func _rotate_backups(filepath: String, prev_path: String) -> void:
+	var n := _max_backups()
+	var oldest := filepath + ".backup" + str(n)
 	if FileAccess.file_exists(oldest):
 		DirAccess.remove_absolute(oldest)
-	for i in range(max_backups - 1, 0, -1):
-		var current_backup = save_path + ".backup" + str(i)
-		if FileAccess.file_exists(current_backup):
-			DirAccess.rename_absolute(current_backup, save_path + ".backup" + str(i + 1))
-
-	var backup_path = save_path + ".backup1"
-	DirAccess.copy_absolute(save_path, backup_path)
+	for i in range(n - 1, 0, -1):
+		var b := filepath + ".backup" + str(i)
+		if FileAccess.file_exists(b):
+			DirAccess.rename_absolute(b, filepath + ".backup" + str(i + 1))
+	if DirAccess.rename_absolute(prev_path, filepath + ".backup1") != OK:
+		print("[SaveSystem] Could not keep the previous save as .backup1")
 
 func restore_from_backup(backup_number: int = 1) -> bool:
 	var backup_path = save_path + ".backup" + str(backup_number)
