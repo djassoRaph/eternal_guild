@@ -130,7 +130,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] Save & Exit: saves, and only after a confirmed write returns to the main menu; a failed save keeps you in the game with a message (Story 11.3, 2026-10-31)
 - [x] Load: validates save exists, loads, and goes to the saved scene (Story 11.2, 2026-10-31; it used to reload the current scene)
 - [x] The pause menu outside too (Esc in ExteriorWorld; Story 11.3)
-- [x] Toggle pause with `get_tree().paused`
+- [x] Pausing: in the hall the menu freezes the hall's SubViewport (main_tavern.gd `toggle_pause_menu()`, the tree keeps running); outside it pauses the tree (`get_tree().paused`)
 - [x] `process_mode = PROCESS_MODE_ALWAYS` (works while paused)
 
 ---
@@ -309,13 +309,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 11: Campaign Save & Load
-**Status: ~95% — 11.1 done, 11.2 and 11.3 in review (2026-10-31: load & resume; pause menu save-first), 11.4 done. The world map has been saved to disk since commit f604ec8 (`world_data`: every hex record + the tavern hex).**
+**Status: 100% — 11.1, 11.2, 11.3, 11.4 done (11.2 and 11.3 on 2026-10-31, after their code review). The world map has been saved to disk since commit f604ec8 (`world_data`: every hex record + the tavern hex).**
 
 - [x] **Single-file JSON save** — `user://eternal_guild_save.json` (Story 11.2 decision: the real name stays; the epic's `savegame.dat` is the early name)
 - [x] **3-backup rotation** — `create_save_backup()` rotates backup1→2→3 (it only ever kept two until Story 11.3 fixed the loop)
 - [x] **Comprehensive state saved**: gold, beer, day, tax_due_day, adventurers (full array), max_adventurers, firewood, fuel, recruits, missions, active_missions, patron_pool, reputation, tier, morale
 - [x] **Save metadata**: timestamp, date string, game version, playtime, save type
-- [x] **Autosave** — every 5 minutes + on day change (after day 1)
+- [x] **Autosave** — every 5 minutes + at the end of each day's night (since the Story 11.2 review: only in a live run, i.e. after a load or New Game's first save, and after the whole night, not at day_changed)
 - [x] **Load with validation** — checks required fields (current_day, gold, beer_stock, adventurers)
 - [x] **Restore from backup** method exists
 - [x] **Signal re-emission on load** — all UI signals fired to refresh displays
@@ -329,7 +329,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Disk-save overwrite window fixed** (2026-08-18) — New Game now force-saves (`save_type: "new_game_start"`) the moment the tavern loads, via `GameManager.pending_new_game_save` set in `main_menu.gd` and consumed in `main_tavern.gd`'s `_ready()`. Fixes New Game → quit before Day 2 → Continue loading the previous run. Verified with a headless regression script (planted a stale save, ran the real code path, confirmed disk flipped to fresh state).
 - **NOTE (Raphael):** Load pass — (a) ~~fireplace fuel loads as 0%~~ **fixed 2026-07-12**; (b) ~~old disk save isn't overwritten until the new game's Day-2 autosave~~ **fixed 2026-08-18**; (c) ~~player + patron positions~~ **DONE 2026-07-12** (player scene+position; patrons rebuilt at exact position/state/model).
 
-### Story 11.2: Full State Load & Resume — IN REVIEW (2026-10-31)
+### Story 11.2: Full State Load & Resume — DONE (2026-10-31, after its code review)
 - [x] **The menu autosave no longer overwrites the run.** The 300 s autosave ran in every scene: in the main menu it saved the menu as the resume scene (Continue reopened the menu), and on a fresh launch it wrote a Day-1 default over the run. It now runs only in a player scene (`SaveSystem.can_autosave()`: the hall, outside).
 - [x] **One resume path** — `SaveSystem.resume_scene()` for Continue and the pause menu's Load (Load used to reload the current scene). A missing scene, or one that isn't a player scene (menu, hex map), goes to the tavern's PlayerSpawnPoint with `[SaveSystem] warn: saved scene not found, falling back to default spawn`, and the saved spot is dropped.
 - [x] **`load_game()` returns the state it applied** (`{}` on failure); `read_save()` falls back to the newest readable backup; `player_spot(data)` gives `{scene, x, y, z}`; a failed load shows "Couldn't load the save." (DRAFT) instead of doing nothing.
@@ -340,13 +340,15 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Not saved, by decision:** the map seed (the hex records are the world), the morning reports (the reveal is cosmetic), the hall's day phase, scripted NPC positions. `bard_performed_today` waits for Story 9.2.
 - [x] **`SaveSystem.save_path`** — the save a session reads and writes; the suite and Stage D runs point it at a copy.
 - Failsafe Test 26 (suite 966 / 0); Stage D 25/25 on a copy of the real save (Continue into the hall at the saved spot, out to the village square, save, menu, Continue outside at the same spot with the same values, the missing-scene fallback, the pause menu's Load); shots in `eternal_guild_art/shots/demo/11-2/`.
+- Code review patches (2026-10-31): the automatic saves (timer, end of day, game over, the reveal's pre-save) need a live run, so a scene launched straight from the editor can't write its Day 1 over the run; the day's autosave runs after the whole night; a Load in the hall keeps the saved fire; codex.dat follows the redirect (`codex_path`); New Game forgets the last run's pending patrons, scene and spot; re-linking prefers each member's own id and mission days are ints again; a backup fallback is shown as a banner; a save without a world clears the old map. Suite 1088 / 0.
 
-### Story 11.3: Pause Menu Save-First Handler Fix — IN REVIEW (2026-10-31)
+### Story 11.3: Pause Menu Save-First Handler Fix — DONE (2026-10-31, after its code review)
 - [x] **Save & Exit saves first** — it returns to the main menu only when the save is written and confirmed; a failed save keeps the menu open, the game paused and the file on disk untouched, with "Save failed — please check disk space". The handler carries the fix comment. The stale `.tscn` `[connection]` blocks were already stripped on 2026-07-05 (f366c76); Test 27 now fails if a scene wires a PauseMenu button again.
 - [x] **Confirmed writes** — `_write_file_atomic` checks the tmp file (every byte on disk) before it replaces the save; the backups rotate only after that, and the rotation now keeps three.
 - [x] **A pause menu outside** — Esc in ExteriorWorld opens the same menu (built in code, no scene edit) and pauses the game: villagers and the cat stop and start again, the E prompt comes back, Settings/Codex keep Esc first, an open dialogue box keeps Esc.
 - [x] **Save no longer freezes the hall** — Save closed the menu with its own toggle and left the hall's world frozen until Esc twice; it now closes through main_tavern's toggle and shows a "Game saved" banner.
 - Failsafe Test 27 (suite 988 / 0); Stage D 24/24 + 7/7 on a copy of the real save (Save in the hall, outside pause with villagers / cat / prompt / dialogue box, a failed Save & Exit, Save & Exit + Continue back to the spot); shots in `eternal_guild_art/shots/demo/11-3/`.
+- Code review patches (2026-10-31): the swap is undoable (the old save steps aside as `.prev`, the new one moves in or the old one comes back, and only then does it become `.backup1`), so a locked save file no longer loses a backup or leaves a `.tmp`; a NaN in the run fails the save instead of writing an unreadable file (verified in 4.4.1: JSON writes it as bare `nan`); after a crash mid-swap the save is recovered from `.tmp` / `.prev`.
 
 ---
 
