@@ -25,6 +25,9 @@ func _process(_delta: float) -> void:
 	var log_area = get_node_or_null("GameUI/MainArea")
 	if log_area:
 		log_area.visible = not ZONE_PROMPT_UI.modal_open(get_tree())
+	var top_bar = get_node_or_null("GameUI/TopStatsBar")
+	if top_bar:
+		top_bar.visible = not GameManager.game_over_active   # Story 13.4 review P9: the fall screen owns the screen
 
 
 func _ready():

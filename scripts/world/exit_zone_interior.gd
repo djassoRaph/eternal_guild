@@ -45,6 +45,7 @@ func _ready() -> void:
 # INPUT HANDLING
 # =============================================================================
 func _unhandled_input(event: InputEvent) -> void:
+	if GameManager.game_over_active: return   # Story 13.4 review P1: no way out of a fallen run but its screen
 	if not player_in_zone or transitioning:
 		return
 	if not get_tree().get_nodes_in_group("dialogue_open").is_empty():   # E is the dialogue box's (Story 10.2)

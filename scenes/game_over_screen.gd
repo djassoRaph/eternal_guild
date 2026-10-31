@@ -192,13 +192,33 @@ func show_game_over(reason: String) -> void:
 	_fill()
 	visible = true
 	shown = true
+	add_to_group("blocks_player")   # review P1, P9: the one modal rule: no walking, the E gate shut, the hall's log hidden
 	_pause(true)
+	_freeze_world(true)
+	new_run_button.disabled = true   # review P10: no press lands before the screen is there
+	main_menu_button.disabled = true
 	_overlay.modulate.a = 0.0
 	_panel.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(_overlay, "modulate:a", 1.0, 0.6)
 	tw.tween_property(_panel, "modulate:a", 1.0, 0.5)
+	tw.finished.connect(_on_faded_in)
+
+
+func _on_faded_in() -> void:
+	new_run_button.disabled = false
+	main_menu_button.disabled = false
 	new_run_button.grab_focus()
+
+
+## Review P1: the hall's root runs while paused (main_tavern.gd), so a tree pause alone left the player walking (and the
+## exit door working). The hall's world (its SubViewportContainer) is frozen as the pause menu does it.
+func _freeze_world(on: bool) -> void:
+	var cs := get_tree().current_scene if is_inside_tree() else null
+	var svc = cs.get_node_or_null("SubViewportContainer") if cs else null
+	if svc is Control:
+		svc.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE if on else Control.MOUSE_FILTER_STOP
 
 
 func _on_new_run_pressed() -> void:
@@ -230,19 +250,32 @@ func _ask(text: String, ok_text: String, on_yes: Callable) -> void:
 	_dialog = d
 	add_child(d)
 	d.popup_centered()
+	d.get_cancel_button().grab_focus()   # review P10: a stray Enter cancels, it doesn't act
 
 
 ## New Run: a fresh run with nothing carried over, through the one new-run entry.
 func _start_new_run() -> void:
-	_pause(false)
+	# Review P4: a save still in the slot (a fall with no live run: the editor, F12) is another run: New Game's own
+	# question in the main menu decides whether to overwrite it.
+	if SaveSystem.has_save_file():
+		print("[GameOverScreen] the slot still holds a run: New Run goes by the main menu")
+		_return_to_main_menu()
+		return
+	_leave()
 	GameManager.begin_new_run()
 	_go_to(GameManager.NEW_RUN_SCENE)
 
 
 func _return_to_main_menu() -> void:
-	_pause(false)
+	_leave()
 	GameManager.reset_game_state()
 	_go_to(MAIN_MENU_SCENE)
+
+
+func _leave() -> void:
+	remove_from_group("blocks_player")
+	_freeze_world(false)
+	_pause(false)
 
 
 ## The scene change (Test 32's probe records it instead).
