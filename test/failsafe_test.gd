@@ -357,6 +357,7 @@ func _initialize() -> void:
 	test_pause_menu_save_first()
 	await test_dispatch()
 	await test_hiring()
+	await test_roster_panel()
 
 	_finish()
 
@@ -10592,3 +10593,167 @@ func _check_t29_panel(gm) -> void:
 	check(box.find_child("NoApplicants", true, false) is Label and box.find_children("Applicant_*", "", true, false).is_empty(), "no applicants: the empty line")
 	popup.free()
 	box.free()
+
+# --- Test 30: The roster panel (Story 4.3) ---
+# Each roster entry: the adventurer's Tarot card (compact, the shared card art), name, class + level + trait, status
+# with the days left ("Deployed · returns in N days" from GameManager.return_day_for, the World Map's day; "available
+# in N days" from recovery), the card's name, and the wage (GameManager.wage_of, the one apply_daily_wages deducts) and
+# drink from the record. The pure entry_view() table, the wage and drink helpers, and the panel itself on a minimal
+# tree with a fixture roster (a loaded save's strings and floats included). Fixture roster and missions; every
+# GameManager field touched is restored; never hire_adventurer, load_save_data or handle_adventurer_death.
+const ROSTER_PANEL_SCRIPT := "res://scenes/ui/script/AdventurerRosterPanel.gd"
+
+func test_roster_panel() -> void:
+	print("[Test 30] The roster panel (Story 4.3)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var ps = load(ROSTER_PANEL_SCRIPT)
+	if gm == null or wm == null or dm == null or ps == null or not gm.has_method("wage_of"):
+		check(false, "GameManager.wage_of, the WorldManager and DataManager autoloads and the roster panel script")
+		return
+	var real_sha := _d1_sha(REAL_SAVE_PATH)
+	var snap := _t28_snapshot(gm, wm, dm)
+	_check_t30_entry_view(ps)
+	_check_t30_wage_drink(gm, dm, ps)
+	await _check_t30_panel(gm, ps)
+	_t28_restore(snap, gm, wm, dm)
+	check(_d1_sha(REAL_SAVE_PATH) == real_sha, "Test 30 never touched the real save")
+	print("")
+
+
+## DR-1..DR-6: the entry's lines for each status, a loaded save's labels and floats, and the optional parts.
+func _check_t30_entry_view(ps) -> void:
+	var S = AdventurerStatus.Status
+	var ctx := {"level": 2, "return_day": -1, "today": 10, "card": {"name": "The Chariot"}, "trait": {"name": "Brave", "description": "x"},
+		"wage": 3, "drink": "Drinks mead"}
+	var adv := {"id": 1, "name": "Nina", "class": "Ranger", "status": S.READY}
+	var v: Dictionary = ps.entry_view(adv, ctx)
+	check(v.name == "Nina" and v.class_line == "Ranger · Level 2 · Brave" and v.status_line == "Ready" and v.status_color == Color.GREEN
+		and not v.deployed and not v.greyed and v.card_name == "The Chariot" and v.wage_line == "3 gold a day · Drinks mead",
+		"Ready: name, class · level · trait, 'Ready' in green, the card's name, '3 gold a day · Drinks mead' %s" % [v])
+	var lines: Array = []
+	var cases := [
+		[{"status": S.ON_MISSION}, {"return_day": 12}, "Deployed · returns in 2 days"],
+		[{"status": S.ON_MISSION}, {"return_day": 11}, "Deployed · returns in 1 day"],
+		[{"status": S.ON_MISSION}, {"return_day": -1}, "Deployed"],
+		[{"status": "On Mission"}, {"return_day": 12}, "Deployed · returns in 2 days"],
+		[{"status": 1.0}, {"return_day": 13}, "Deployed · returns in 3 days"],
+		[{"status": S.RESTING, "recovery": 1}, {}, "Resting · available in 1 day"],
+		[{"status": S.RESTING, "recovery": 3.0}, {}, "Resting · available in 3 days"],
+		[{"status": S.RESTING}, {}, "Resting"],
+		[{"status": S.WOUNDED, "recovery": 3}, {}, "Wounded · available in 3 days"],
+		[{"status": "Wounded", "recovery": 2.0}, {}, "Wounded · available in 2 days"]]
+	var wrong: Array = []
+	for c in cases:
+		var a: Dictionary = adv.duplicate()
+		a.merge(c[0], true)
+		var cx: Dictionary = ctx.duplicate()
+		cx.merge(c[1], true)
+		var got: String = ps.entry_view(a, cx).status_line
+		lines.append(got)
+		if got != c[2]:
+			wrong.append([c[0], c[1], got])
+	check(wrong.is_empty(), "the status lines: Deployed with the days left (or none known), Resting / Wounded with the days to wait; a loaded save's labels and floats read the same %s" % [wrong])
+	var dep: Dictionary = ps.entry_view({"status": S.ON_MISSION, "class": "Mage"}, ctx.merged({"return_day": 12}, true))
+	var hurt: Dictionary = ps.entry_view({"status": S.WOUNDED, "recovery": 3}, ctx)
+	check(dep.deployed and dep.greyed and dep.status_color == Color.CYAN and not hurt.deployed and hurt.greyed and hurt.status_color == Color.RED,
+		"deployed: the badge flag and greyed (cyan); wounded: greyed, no badge (red)")
+	var bare: Dictionary = ps.entry_view({"name": "Fy", "class": "Juggler", "status": S.READY}, {"level": 1, "card": {}, "trait": {}, "wage": 1, "drink": ""})
+	check(bare.class_line == "Juggler · Level 1" and bare.card_name == "" and bare.wage_line == "1 gold a day",
+		"no trait, no card, no drink: none of them is written %s" % [bare])
+
+
+## DR-3: one wage read for the roster and the wage deduction; drink labels from game_config; no hard-coded wage left.
+func _check_t30_wage_drink(gm, dm, ps) -> void:
+	var wages := [gm.wage_of({"daily_wage": 3}), gm.wage_of({"daily_wage": 2.0}), gm.wage_of({}), gm.wage_of({"daily_wage": "x"})]
+	check(wages == [3, 2, 1, 1], "wage_of: the record's daily_wage (a save's 2.0 is 2), 1 when it has none %s" % [wages])
+	var gm_src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var panel_src := FileAccess.get_file_as_string(ROSTER_PANEL_SCRIPT)
+	check(_func_body(gm_src, "apply_daily_wages").contains("wage_of(adv)") and not panel_src.contains("Daily Cost: 1 gold")
+		and panel_src.contains("GameManager.wage_of(adventurer)"),
+		"the morning's deduction and the roster read the same wage_of(); the hard-coded 'Daily Cost: 1 gold' is gone")
+	var labels = dm.get_config("drink_labels", {})
+	var drinks := [gm.drink_label("beer", labels), gm.drink_label("mead", labels), gm.drink_label("none", labels), gm.drink_label("cider", labels),
+		gm.drink_label(null, labels), gm.drink_label("", labels)]
+	check(drinks == ["Drinks beer", "Drinks mead", "Doesn't drink", "Drinks cider", "", ""],
+		"drink_label: game_config's drink_labels; an id with no label 'Drinks <id>'; none -> '' %s" % [drinks])
+	check(dm.get_config("drink_preferences", []).all(func(d): return labels is Dictionary and labels.has(d)), "every drink preference has a label")
+	var rec: Dictionary = gm.deployment_record([{"id": 1}], {"duration_days": 3}, "", 10)
+	check(int(rec.return_day) - 10 == 3, "6.5's record: return_day - the dispatch day = the days a mission takes (what the countdown counts down)")
+
+
+## The panel on a minimal tree, fed by GameManager: one card per adventurer with the lines, the thumbnail, the badge.
+func _check_t30_panel(gm, ps) -> void:
+	var S = AdventurerStatus.Status
+	var ada := {"id": 9301, "name": "Ada", "class": "Fighter", "status": S.READY, "tarot_card": "major_07_the_chariot", "daily_wage": 3,
+		"drink_preference": "mead", "personality": "brave", "missions_completed": 0, "portrait": "res://assets/characters/portraits/tarot/major_07_the_chariot.png"}
+	var bo := {"id": 9302, "name": "Bo", "class": "Mage", "status": S.ON_MISSION, "tarot_card": "cups_04_four", "daily_wage": 2.0,
+		"drink_preference": "beer", "personality": "", "missions_completed": 4, "portrait": ""}
+	var cy := {"id": 9303.0, "name": "Cy", "class": "Healer", "status": "On Mission", "tarot_card": "swords_11_page", "daily_wage": 1,
+		"drink_preference": "none", "personality": "Greedy", "missions_completed": 0, "portrait": ""}
+	var di := {"id": 9304, "name": "Di", "class": "Ranger", "status": S.RESTING, "recovery": 1, "tarot_card": "wands_01_ace", "daily_wage": 2,
+		"drink_preference": "mead", "missions_completed": 0}
+	var ed := {"id": 9305, "name": "Ed", "class": "Barbarian", "status": S.WOUNDED, "recovery": 3.0, "tarot_card": "", "tarot_name": "Seven of Swords",
+		"daily_wage": 2, "drink_preference": "beer", "missions_completed": 0}
+	var fy := {"id": 9306, "name": "Fy", "class": "Juggler", "status": S.READY, "tarot_card": "", "missions_completed": 0}
+	gm.adventurers = [ada, bo, cy, di, ed, fy]
+	gm.current_day = 20
+	gm.active_missions = [{"adventurer": bo, "mission": {"name": "M1"}, "days_remaining": 2, "return_day": 22, "adventurer_ids": [9302]},
+		{"party": [{"id": 9303, "name": "Cy"}, {"id": 9399, "name": "Other"}], "mission": {"name": "M2"}, "days_remaining": 1, "is_party_mission": true}]
+	var panel := Control.new()
+	var scroll := ScrollContainer.new()
+	scroll.name = "RosterScrollContainer"
+	panel.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.name = "RosterList"
+	scroll.add_child(list)
+	panel.set_script(ps)
+	root.add_child(panel)
+	for i in 4:
+		await process_frame
+	var cards := {}
+	for c in list.get_children():
+		if c.get("adventurer_id") != null:
+			cards[int(c.adventurer_id)] = c
+	check(cards.size() == 6, "one card per adventurer (6) %s" % [cards.keys()])
+	if cards.size() != 6:
+		panel.queue_free()
+		await process_frame
+		return
+	var got := {}
+	var thumbs_ok := true
+	for id in cards:
+		var c: Control = cards[id]
+		var info := c.get_node("CardContent/InfoContainer")
+		var thumb = c.get_node_or_null("CardContent/ArtSlot/Card")
+		var s: Dictionary = thumb.shown() if thumb else {}
+		thumbs_ok = thumbs_ok and s.get("art") is Texture2D and s.get("name", "x") == "" and s.get("header", "x") == "" \
+			and (thumb.size as Vector2).is_equal_approx(Vector2(64, 106)) and thumb.get_global_rect().end.y <= c.get_global_rect().end.y + 0.5 \
+			and thumb.get_global_rect().end.x <= c.get_global_rect().end.x + 0.5   # the thumbnail's size, inside its card (a Stage D find)
+		got[id] = {"name": (info.get_node("NameLabel") as Label).text, "class": (info.get_node("ClassLabel") as Label).text,
+			"status": (info.get_node("StatusLabel") as Label).text, "card": (info.get_node("CardLabel") as Label).text if info.get_node("CardLabel").visible else "",
+			"wage": (info.get_node("WageLabel") as Label).text, "badge": c.get_node("CardContent/ArtSlot/DeployedBadge").visible,
+			"dim": c.modulate != Color.WHITE, "art_grey": thumb.modulate != Color.WHITE if thumb else false,
+			"art": (s.art as Texture2D).resource_path if s.get("art") is Texture2D else "?"}
+	var a: Dictionary = got[9301]
+	check(a.name == "Ada" and a["class"] == "Fighter · Level 1 · Brave" and a.status == "Ready" and a.card == "The Chariot"
+		and a.wage == "3 gold a day · Drinks mead" and not a.badge and not a.dim and not a.art_grey
+		and a.art == str(PortraitSocket.card_config().silhouettes.Fighter),
+		"Ada (Ready): her lines, The Chariot, '3 gold a day · Drinks mead', the Fighter's silhouette (no painting yet), no badge %s" % [a])
+	var b: Dictionary = got[9302]
+	check(b.status == "Deployed · returns in 2 days" and b.badge and b.dim and b.art_grey and b.card == "Four of Cups" and b.wage == "2 gold a day · Drinks beer"
+		and b["class"] == "Mage · Level 2",
+		"Bo (out, back day 22, today 20): 'Deployed · returns in 2 days', the Deployed badge, his art greyed, the card dimmed %s" % [b])
+	var c3: Dictionary = got[9303]
+	check(c3.status == "Deployed · returns in 1 day" and c3.badge and c3.wage == "1 gold a day · Doesn't drink" and c3["class"] == "Healer · Level 1 · Greedy",
+		"Cy (a loaded save's label and float id, out with a party saved before 6.5: today + days left): 'returns in 1 day' %s" % [c3])
+	check(got[9304].status == "Resting · available in 1 day" and not got[9304].badge and got[9304].dim
+		and got[9305].status == "Wounded · available in 3 days" and got[9305].card == "Seven of Swords" and not got[9305].badge,
+		"Di resting 1 day, Ed wounded 3 days (his card's name kept on the record): dimmed, no badge %s" % [[got[9304], got[9305]]])
+	check(got[9306].card == "" and got[9306].wage == "1 gold a day" and got[9306].art != "?" and thumbs_ok,
+		"Fy (an unknown class, no card, no wage on the record): the class plate, no card line, '1 gold a day'; every thumbnail a compact 64 x 106 card with a texture, inside its entry")
+	check(cards[9301].get("adventurer_id") == 9301 and cards[9301].get_node_or_null("CardContent/InfoContainer/NameLabel") != null,
+		"the drag source's adventurer_id and NameLabel are where adventurer_card.gd reads them")
+	panel.queue_free()
+	await process_frame
