@@ -13,6 +13,8 @@
 	"tax_per_adventurer": 5,
 	"tax_grace_period_days": 3,
 	"tax_warning_days": [7, 3, 1],
+	"_death_chance_comment": "Story 14.6 (K-8, Raphael 2026-11-01: deaths likelier in the demo): death_chance_multiplier scales a failed contract's death chance (GameManager.calculate_death_chance: the level's base x the danger step, then the beer-shortage penalty; the 80% cap stays). 1 is the full game's. profiles.demo doubles it, so most demo sessions see a death before the King's messenger (the 14.6 pacing model). A number >= 0; a bad value is 1 with a warning.",
+	"death_chance_multiplier": 1.0,
 	"_soft_lock_comment": "Story 13.4 and its review (P2, no way back): the guild falls (soft_lock) on a morning when no adventurer is alive, no applicant can be hired with the gold (GameManager.hire_block_reason) and the bar can't earn: no beer to sell and less gold than beer_pint_price (the bar's one-pint price). With the whole deck dealt, no one alive and no one hireable is the end too (Story 4.2). soft_lock_gold_below is the low-gold line: no one to send and less gold than it logs a warning, not a fall.",
 	"soft_lock_gold_below": 8,
 	"beer_pint_price": 1,
@@ -94,7 +96,10 @@
 	},
 
 	"profile": "demo",
-	"demo_start_staff": ["bartender", "desk_manager"],
+	"_demo_start_staff_comment": "Story 25.13 (K9), Story 14.6 (K-7, Raphael 2026-11-01): the staff roles hired from the first morning, read only in the demo profile (GameManager.staff_hired_by_profile). Empty since K-7: in the demo the Bartender and the Quest Dealer are hired like in the full game, once staff_unlock allows it.",
+	"demo_start_staff": [],
+	"_staff_unlock_comment": "Story 14.6 (K-7): when a staff role can be hired. {rule: tier}: at its data/characters/staff.json unlock_tier (the full game, Story 16.1). {rule: gold_peak, gold_peak: N}: every role once the run's gold peak (GameManager.gold_peak, the most gold the guild has held) reaches N, for the rest of the run. GameManager.staff_unlock_rule() reads it and staff_ctx() hands it, with the peak, to staff_hire_block_for. A bad value falls back to tier with a warning.",
+	"staff_unlock": {"rule": "tier"},
 	"staff_wages": {
 		"_comment": "Epic 16: the staff's pay (GameManager reads it, so Story 14.6's demo profile can override it). daily_wage: gold a day per role id of data/characters/staff.json; a staff record takes it when it is created (New Game, a save without staff) and the first day's wage is paid at hire (Story 16.1). Placeholder numbers (GDD: staff ~2-5 g/day). A missing or bad wage is 1 with a warning. Story 16.5: wages are paid each morning right after the adventurers'; a wage that can't be paid puts that member on strike (no work, the wage owed until the player pays it back); missed_days_to_leave unpaid mornings in a row and they leave (a whole number >= 1; bad or missing: 3).",
 		"daily_wage": {"bartender": 3, "desk_manager": 4},
@@ -115,5 +120,46 @@
 		{"threshold": 50,  "label": "Trusted",   "tip_bonus": 0.2, "recruit_stat_bonus": 2},
 		{"threshold": 100, "label": "Respected", "tip_bonus": 0.3, "recruit_stat_bonus": 3},
 		{"threshold": 200, "label": "Honored",   "tip_bonus": 0.4, "recruit_stat_bonus": 4}
-	]
+	],
+	"_reputation_gains_comment": "Story 14.6 (DP-3): how far each source moves the guild's reputation (GameManager.rep_gain; adjust_reputation carries the reason on GuildBus.reputation_adjusted). The top level is the full game's: today's numbers (a group contract's success and a satisfied patron give 0, as before). profiles.demo makes them faster. A whole number; a bad value falls back to today's with a warning.",
+	"rep_mission_success": 2,
+	"rep_mission_failure": -1,
+	"rep_party_mission_success": 0,
+	"rep_party_mission_failure": -1,
+	"rep_dismiss": -1,
+	"rep_patron_satisfied": 0,
+
+	"demo_ending": {
+		"_comment": "Story 10.7 (sprint-change-proposal-2026-10-31.md K-2, K-3): the demo's ending, the King's messenger. On the morning after reputation >= min_reputation AND at least min_taxes_paid taxes are paid, he walks into the tavern. Only when enabled AND the profile is demo (DataManager.is_demo()): the full game never runs it. Story 14.6 adds the keys (off here); profiles.demo turns them on. Whole numbers: min_reputation >= 0, min_taxes_paid >= 1.",
+		"enabled": false,
+		"min_reputation": 32,
+		"min_taxes_paid": 2
+	},
+
+	"profiles": {
+		"_comment": "Story 14.6 (DP-1): per-profile values. DataManager.get_config(key) returns profiles.<profile>.<key> when the active profile's block has the key, else the top-level value: the top level is the full game. A block replaces a key's whole value (lists and objects are never merged). Every key in a block also exists at the top level; profile and profiles are never in a block. Keys tools read straight from this file can't be overridden: anime_look_preset(s), edge_pass, tavern_light_*, autosave_interval_seconds. The demo's other switches are top-level demo-only keys: demo_start_staff, demo_party_missions.",
+		"demo": {
+			"_comment": "The Kickstarter demo. DRAFT numbers: Phase F playtests retune them. Pacing (14.6 DP-2, DP-4): faster tiers and gains and a satisfied patron's +1, so a typical ~30-minute session is Known on Day 2, Trusted on Day 4 and Respected about Day 6. The arc (14.6 DP-12; sprint-change-proposal-2026-10-31.md K-1..K-6; Raphael 2026-11-01 K-7..K-9): 40 gold and 20 beer to start, a 20-gold tax every 3 days from Day 3 (warned 2 days and 1 day before), the King's messenger (Story 10.7) once reputation reaches 32 after 2 taxes, the staff hireable once the guild has held 300 gold, and deaths twice as likely.",
+			"reputation_tiers": [
+				{"threshold": 0,  "label": "Unknown",   "tip_bonus": 0.0, "recruit_stat_bonus": 0},
+				{"threshold": 10, "label": "Known",     "tip_bonus": 0.1, "recruit_stat_bonus": 1},
+				{"threshold": 24, "label": "Trusted",   "tip_bonus": 0.2, "recruit_stat_bonus": 2},
+				{"threshold": 40, "label": "Respected", "tip_bonus": 0.3, "recruit_stat_bonus": 3},
+				{"threshold": 70, "label": "Honored",   "tip_bonus": 0.4, "recruit_stat_bonus": 4}
+			],
+			"rep_mission_success": 3,
+			"rep_party_mission_success": 3,
+			"rep_patron_satisfied": 1,
+			"starting_gold": 40,
+			"starting_beer": 20,
+			"tax_due_day": 3,
+			"tax_interval_days": 3,
+			"tax_base_amount": 20,
+			"tax_per_adventurer": 0,
+			"tax_warning_days": [2, 1],
+			"death_chance_multiplier": 2.0,
+			"staff_unlock": {"rule": "gold_peak", "gold_peak": 300},
+			"demo_ending": {"enabled": true, "min_reputation": 32, "min_taxes_paid": 2}
+		}
+	}
 }
