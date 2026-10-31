@@ -10498,10 +10498,11 @@ func _check_t29_deck(gm, capture: Node) -> void:
 	check(line is Label and line.text == "Every card has been dealt. No one new will come.", "the desk says every card has been dealt (not 'come back tomorrow')")
 	popup.free()
 	box.free()
-	var locked := [gm.is_soft_locked(0, 500, 0, 8, true), gm.is_soft_locked(0, 500, 0, 8, false), gm.is_soft_locked(1, 0, 0, 8, true),
-		gm.is_soft_locked(0, 500, 1, 8, true), gm.is_soft_locked(0, 3, 0, 8)]
+	# Story 13.4 review P2: is_soft_locked(alive, hireable, can_earn, deck_out); the deck clause stays as built here
+	var locked := [gm.is_soft_locked(0, 0, true, true), gm.is_soft_locked(0, 0, true, false), gm.is_soft_locked(1, 0, false, true),
+		gm.is_soft_locked(0, 1, true, true), gm.is_soft_locked(0, 0, false)]
 	check(locked == [true, false, false, false, true],
-		"is_soft_locked: the deck dealt + nobody alive + nobody hireable = the end with 500 gold; otherwise the gold rule as before %s" % [locked])
+		"is_soft_locked: the deck dealt + nobody alive + nobody hireable = the end even while the bar can earn; otherwise only no way to earn (13.4 review P2) %s" % [locked])
 	check(_func_body(FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH), "_check_soft_lock").contains("deck_exhausted()"),
 		"the morning's soft-lock check passes deck_exhausted()")
 	gm.hired_tarot_cards = []

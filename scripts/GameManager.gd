@@ -1124,6 +1124,12 @@ func tax_config() -> Dictionary:
 func current_tax_amount() -> int:
 	return tax_amount_for(adventurers.size(), tax_config())
 
+## The hall's event-log line for a tax warning (Story 13.1 review P13: the wording, out of check_tax_deadline). Pure.
+static func tax_warning_log_line(days_left: int, amount: int) -> String:
+	if days_left == 1:
+		return "Tax payment due TOMORROW! Need " + str(amount) + " gold!"
+	return "Tax payment due in " + str(days_left) + " days. Need " + str(amount) + " gold."
+
 ## Runs each morning (advance_day): a warning on a configured day before the due day; from the due day on, the payment.
 func check_tax_deadline():
 	var cfg := tax_config()
@@ -1133,10 +1139,7 @@ func check_tax_deadline():
 		return
 	if (cfg.warning_days as Array).has(days_until_tax):
 		var amount := tax_amount_for(adventurers.size(), cfg)
-		if days_until_tax == 1:
-			log_message("Tax payment due TOMORROW! Need " + str(amount) + " gold!")
-		else:
-			log_message("Tax payment due in " + str(days_until_tax) + " days. Need " + str(amount) + " gold.")
+		log_message(tax_warning_log_line(days_until_tax, amount))
 		print("[GameManager] tax: warning, due in %d day(s), %d gold" % [days_until_tax, amount])
 		EconomyBus.tax_warning.emit(days_until_tax, amount)
 
@@ -1621,6 +1624,8 @@ func advance_day():
 	process_mission_returns()
 	process_daily_operations_with_beer()
 	check_tax_deadline()
+	if game_over_active:
+		return   # Story 13.4 review P6: the guild fell this morning (the tax): the night ends here (it saved itself)
 	
 	# Show daily status if beer shortage is active
 	if beer_shortage_days > 0:
@@ -1884,7 +1889,7 @@ func load_save_data(data: Dictionary):
 	# aborting the load half-way; keys this build doesn't know are ignored.
 	# Core resources
 	gold = _save_int(data.get("gold"), 10)
-	gold_peak = gold_peak_from_save(data.get("gold_peak"), gold)   # Story 13.4; an old save: the loaded gold
+	gold_peak = gold_peak_from_save(data.get("gold_peak"), gold, _save_int(DataManager.get_config("starting_gold", 1000), 1000))   # Story 13.4 (+ review P12)
 	beer_stock = _save_int(data.get("beer_stock"), 0)
 
 	# Time tracking
@@ -2232,7 +2237,7 @@ func trigger_game_over(failure_type: String, reason: String):
 	game_over_active = true
 	log_message("FAILURE: " + reason)
 	log_message("GAME OVER!")
-	print("[GameManager] fall: %s on day %d" % [failure_type, current_day])
+	log_message("[GameManager] fall: %s on day %d" % [failure_type, current_day])
 
 	last_run_summary = run_summary(failure_type)
 	SaveSystem.end_run(last_run_summary)
@@ -2257,16 +2262,21 @@ func run_summary(cause: String) -> Dictionary:
 		"taxes_paid": taxes_paid_count, "reputation": tavern_reputation, "legacy_adventurer": null,
 		"timestamp": Time.get_unix_time_from_system()}
 
-## Story 13.4: a saved gold_peak, never below the loaded gold; an old save (no key) or junk: the loaded gold. Pure.
-static func gold_peak_from_save(v, gold_now: int) -> int:
-	return maxi(_save_int(v, gold_now), gold_now)
+## Story 13.4: a saved gold_peak, never below the loaded gold nor the run's starting gold (review P12: an old save could
+## read below it); an old save (no key) or junk: the loaded gold. Pure; the caller passes the active starting gold.
+static func gold_peak_from_save(v, gold_now: int, starting := 0) -> int:
+	return maxi(maxi(_save_int(v, gold_now), gold_now), starting)
 
-## Story 13.4 (DG-9; the GDD's and Story 3.6's rule, pure): the guild can't go on when no adventurer is alive, the gold
-## is under the line and no applicant can be hired with it.
+## Story 13.4 (DG-9, review P2: "no way back", pure): the guild can't go on when no adventurer is alive, no applicant can
+## be hired with the gold, and the bar can't earn (can_earn_at_bar: no beer to sell, not the price of a pint).
 ## Story 4.2 review P8: with the whole deck dealt (`deck_out`) no applicant will ever come again, so an empty roster with
-## nobody hireable is the end whatever the gold.
-static func is_soft_locked(alive: int, gold_now: int, hireable: int, gold_below: int, deck_out := false) -> bool:
-	return alive <= 0 and hireable <= 0 and (gold_now < gold_below or deck_out)
+## nobody hireable is the end whatever the bar can earn.
+static func is_soft_locked(alive: int, hireable: int, can_earn: bool, deck_out := false) -> bool:
+	return alive <= 0 and hireable <= 0 and (deck_out or not can_earn)
+
+## Story 13.4 review P2 (pure): the bar can still make money: beer in stock to sell, or the gold for one pint to buy.
+static func can_earn_at_bar(beer: int, gold_now: int, pint_price: int) -> bool:
+	return beer > 0 or gold_now >= pint_price
 
 ## Today's applicants the hire authority (hire_block_reason, Story 4.2) would let the guild hire now.
 func hireable_count() -> int:
@@ -2276,17 +2286,23 @@ func hireable_count() -> int:
 			n += 1
 	return n
 
-## The morning's soft-lock check (the end of advance_day): the fall when the guild can't go on.
+## The morning's soft-lock check (the end of advance_day): the fall when the guild can't go on (review P2: no way back);
+## close to it (no one to send, gold under soft_lock_gold_below) it only warns.
 func _check_soft_lock() -> void:
+	if game_over_active:
+		return   # review P6: a guild that fell this morning is not checked again
 	var alive := 0
 	for adv in adventurers:
 		if adv is Dictionary and adv.get("status") != AStatus.DEAD:
 			alive += 1
-	var line := _save_int(DataManager.get_config("soft_lock_gold_below", 8), 8)
-	if is_soft_locked(alive, gold, hireable_count(), line, deck_exhausted()):
-		print("[GameManager] warn: soft-lock condition detected on day %d" % current_day)
+	var hireable := hireable_count()
+	var price := _save_int(DataManager.get_config("beer_pint_price", 1), 1)
+	if is_soft_locked(alive, hireable, can_earn_at_bar(beer_stock, gold, price), deck_exhausted()):
+		log_message("[GameManager] warn: soft-lock condition detected on day %d" % current_day)
 		log_message("The guild cannot recover. No adventurers, no funds, no prospects.")
 		trigger_game_over("soft_lock", "The Eternal Guild fades into history — abandoned and forgotten.")
+	elif alive <= 0 and hireable <= 0 and gold < _save_int(DataManager.get_config("soft_lock_gold_below", 8), 8):
+		log_message("[GameManager] warn: low gold (%d) and no one to send on day %d; the bar can still earn" % [gold, current_day])
 
 ## Story 13.4 (DG-5): the one way into a new run, shared by the main menu's New Game and the fall screen's New Run:
 ## the run state reset (nothing carried over) and the new run's first save made when the hall loads. Story 5.1's naming
