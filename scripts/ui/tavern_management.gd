@@ -37,6 +37,27 @@ func create_beer_ui():
 	# Purchase buttons
 	create_purchase_buttons()
 
+	# Story 16.2: the staff (the placeholder hire UX: hire, dismiss, pay a striker's back wage)
+	create_staff_section()
+
+const STAFF_PANEL_SCRIPT := "res://scripts/ui/staff_panel.gd"
+
+func create_staff_section():
+	var section = load(STAFF_PANEL_SCRIPT).new()
+	section.name = "StaffSection"
+	main_container.add_child(section)
+	section.refresh()
+	section.acted.connect(_on_staff_acted)
+
+## A staff action ran (Story 16.2): the gold line and the rows change, so the popup is rebuilt the way a beer purchase
+## rebuilds it. A refusal stays shown in its row instead.
+func _on_staff_acted(_role: String, _action: String, why: String) -> void:
+	if why != "":
+		return
+	hide()
+	await get_tree().create_timer(0.1).timeout
+	open_tavern_management()
+
 func create_status_display():
 	"""Show current gold and beer status in pints"""
 	var status_container = VBoxContainer.new()
