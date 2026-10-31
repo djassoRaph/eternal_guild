@@ -45,6 +45,7 @@ var mission_refresh_day: int = 1
 var recruit_refresh_day: int = 1
 var daily_recruits: Array = []
 var _no_traits_warned := false   # an empty traits.json is warned about once a session (Story 4.2)
+const TRAIT_WOUND_DAYS := 2      # Reckless's injury on a successful contract (Story 4.2 review P2): days WOUNDED
 var game_over_active: bool = false
 var last_run_summary: Dictionary = {}   # the run's numbers frozen at the fall (Story 13.4, run_summary); not saved
 var beer_shortage_days: int = 0
@@ -542,16 +543,18 @@ func deployment_info(hex_id: String) -> Dictionary:
 	return view
 
 
-## The day an adventurer out on a mission is back, or -1 (not out, or no entry for them).
+## The day an adventurer out on a mission is back, or -1 (not out, or no entry for them). The entry holding this very
+## dictionary wins over one that only shares its id (Story 4.3 review: a stale or colliding entry can't steal the day).
 func return_day_for(adventurer: Dictionary) -> int:
 	var id = _id_key(adventurer.get("id", adventurer.get("name")))
-	for entry in active_missions:
-		if not (entry is Dictionary):
-			continue
-		var view := deployment_view(entry, current_day)
-		for a in view.party:
-			if is_same(a, adventurer) or (a is Dictionary and _same_id(_id_key(a.get("id", a.get("name"))), id)):
-				return int(view.return_day)
+	for pass_by_id in [false, true]:
+		for entry in active_missions:
+			if not (entry is Dictionary):
+				continue
+			var view := deployment_view(entry, current_day)
+			for a in view.party:
+				if (not pass_by_id and is_same(a, adventurer)) or (pass_by_id and a is Dictionary and _same_id(_id_key(a.get("id", a.get("name"))), id)):
+					return int(view.return_day)
 	return -1
 
 
@@ -748,21 +751,17 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 	if success:
 		reward = randi_range(mission.reward_range[0], mission.reward_range[1])
 
-		# Lucky trait: bonus reward on success
-		var trait_data = get_trait_data(adventurer.get("personality", ""))
-		if trait_data.has("reward_bonus"):
-			var bonus = int(reward * trait_data.reward_bonus)
-			if bonus > 0:
-				reward += bonus
-				log_message("" + adventurer.name + "'s luck paid off! +" + str(bonus) + " bonus gold.")
+		# The trait's bonus gold (Lucky, Greedy), logged in the trait's name (Story 4.2 review P2)
+		reward += _trait_bonus_gold(adventurer, reward)
 
 		add_gold(reward)
 		adventurer.missions_completed += 1
 		adventurer.gold_earned += reward
 
-		# SUCCESS: Adventurer needs rest (1 day minimum)
+		# SUCCESS: Adventurer needs rest (1 day minimum); a Reckless one may come back hurt instead (review P2)
 		adventurer.status = AStatus.RESTING
 		adventurer.recovery = 1
+		_trait_hurt_on_success(adventurer)
 
 		total_missions_completed += 1
 		adjust_reputation(2)
@@ -775,13 +774,11 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		adjust_reputation(-1)
 		log_message("FAILED! " + adventurer.name + " failed the mission: " + mission.name)
 
-		# FAILURE ONLY: Handle injury and death consequences
-		if adventurer.get("injured", false):
-			adventurer.status = AStatus.WOUNDED
-			adventurer.recovery = randi_range(2, 5)
-		else:
-			adventurer.status = AStatus.RESTING
-			adventurer.recovery = 1
+		# FAILURE ONLY: Handle injury and death consequences (they set the status: WOUNDED or DEAD). The old
+		# `injured` flag (Reckless's pre-4.2 no-op, review P2) is dropped from any record that still holds it.
+		adventurer.erase("injured")
+		adventurer.status = AStatus.RESTING
+		adventurer.recovery = 1
 
 		handle_party_failure_consequences(adventurer, mission)
 
@@ -802,15 +799,22 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool, an
 	var reward := 0
 	if success:
 		reward = randi_range(mission.reward_range[0], mission.reward_range[1])
-		add_gold(reward)
+		var share: int = reward / maxi(1, party.size())
+		var bonuses := 0
 
 		for adventurer in party:
-			# SUCCESS: All party members need rest
+			# SUCCESS: All party members need rest; each one's trait bonus on their own share (review P2: it was
+			# solo-only), and a Reckless one may come back hurt
+			var bonus := _trait_bonus_gold(adventurer, share)
+			bonuses += bonus
 			adventurer.status = AStatus.RESTING
 			adventurer.recovery = 1  # 1 day rest for successful party missions
 			adventurer.missions_completed += 1
-			adventurer.gold_earned += reward / party.size()
+			adventurer.gold_earned += share + bonus
+			_trait_hurt_on_success(adventurer)
 			check_adventurer_level_up(adventurer)
+		reward += bonuses
+		add_gold(reward)
 
 		if announce:
 			_log_party_success(mission, reward)
@@ -898,12 +902,8 @@ func _resolve_solo_mission(entry: Dictionary) -> Dictionary:
 	var roll = randi() % 100 + 1
 	var success = roll <= success_chance
 
-	# Reckless trait: extra injury chance on failure
-	var trait_data = get_trait_data(adventurer.get("personality", ""))
-	if not success and trait_data.has("injury_chance"):
-		if randf() < trait_data.injury_chance:
-			adventurer["injured"] = true
-
+	# Reckless's injury_chance acts in complete_mission on a success (Story 4.2 review P2; on a failure it changed
+	# nothing: the failure wounds or kills anyway).
 	var reward := complete_mission(adventurer, mission, success, false)
 
 	# Epic 12 — one loot roll per resolved mission, success only (failure already has its own
@@ -1193,8 +1193,9 @@ func generate_daily_recruits(count: int = -1):
 	daily_recruits = generate_fallback_recruits(count)
 	recruit_refresh_day = current_day
 	
-	# Log the new recruits
-	log_message("New adventurers seeking employment at the guild!")
+	# Log the new recruits (none when the deck has no card left to deal: review P8, no "seeking" line over nobody)
+	if not daily_recruits.is_empty():
+		log_message("New adventurers seeking employment at the guild!")
 	for recruit in daily_recruits:
 		var cost = recruit.get("hiring_cost", 10)
 		log_message("• " + recruit.name + " the " + recruit.class + " — " + str(recruit.get("tarot_name", "")) + " (Hiring cost: " + str(cost) + " gold)")
@@ -1487,6 +1488,67 @@ func tarot_card_of(adventurer: Dictionary) -> Dictionary:
 	var shown := str(adventurer.get("tarot_name", ""))
 	return {"name": shown} if shown != "" else {}
 
+## Story 4.2 review P8: every card of the deck has been dealt this run (on the roster or hired before), so no
+## applicant can ever come again. False with no deck loaded (the generator then makes card-less applicants).
+func deck_exhausted() -> bool:
+	return not DataManager.get_all_tarot_ids().is_empty() and _get_available_tarot_ids().is_empty()
+
+## Story 4.2 review P9: an applicant saved before 4.2 holds a capitalised trait word ("Greedy"); it gets the key and the
+## wage that trait sets (trait_wage). Lower-case keys (made since 4.2) and words with no trait data are left alone, so
+## the multiplier is never applied twice. True when the record changed.
+func heal_applicant_trait(rec: Dictionary) -> bool:
+	var p = rec.get("personality")
+	if not (p is String) or (p as String).strip_edges() == "" or p == (p as String).to_lower():
+		return false
+	var key := (p as String).strip_edges().to_lower()
+	var data := get_trait_data(key)
+	if data.is_empty():
+		return false
+	rec["personality"] = key
+	rec["daily_wage"] = trait_wage(wage_of(rec), data)
+	return true
+
+## Story 4.2 review P10: an applicant whose id someone else holds too (the roster, someone out, the codex's fallen,
+## another applicant; old saves restarted ids at 1 every session) gets a fresh one. Returns how many were re-keyed.
+func _rekey_colliding_applicants() -> int:
+	var n := 0
+	for rec in daily_recruits:
+		if not (rec is Dictionary):
+			continue
+		var key = _id_key(rec.get("id"))
+		var holders := 0
+		for t in _taken_ids():
+			if _same_id(_id_key(t), key):
+				holders += 1
+		if holders > 1:
+			rec["id"] = generate_unique_id()
+			n += 1
+	return n
+
+## Story 4.2 review P2: the bonus gold an adventurer's trait adds to their `share` of a successful contract (reward_bonus:
+## Lucky +20 %, Greedy +10 %), logged in the trait's own name. 0 without one.
+func _trait_bonus_gold(adventurer: Dictionary, share: int) -> int:
+	var rb = get_trait_data(str(adventurer.get("personality", ""))).get("reward_bonus", 0.0)
+	if not (rb is int or rb is float):
+		return 0
+	var bonus := int(share * float(rb))
+	if bonus > 0:
+		log_message("%s (%s): +%d bonus gold." % [str(adventurer.get("name", "?")), str(trait_info(adventurer).get("name", "?")), bonus])
+	return bonus
+
+## Story 4.2 review P2: Reckless's injury_chance on a SUCCESSFUL contract: they come back hurt (WOUNDED for
+## TRAIT_WOUND_DAYS) instead of resting. A failure already wounds or kills, so that is where the chance means something;
+## nothing is stored on the record (the old `injured` flag is gone). True when it happened.
+func _trait_hurt_on_success(adventurer: Dictionary) -> bool:
+	var ic = get_trait_data(str(adventurer.get("personality", ""))).get("injury_chance", 0.0)
+	if not (ic is int or ic is float) or float(ic) <= 0.0 or randf() >= float(ic):
+		return false
+	adventurer["status"] = AStatus.WOUNDED
+	adventurer["recovery"] = TRAIT_WOUND_DAYS
+	adventurer["injuries_sustained"] = int(adventurer.get("injuries_sustained", 0)) + 1
+	log_message("%s (%s) came back hurt: %d days to heal." % [str(adventurer.get("name", "?")), str(trait_info(adventurer).get("name", "?")), TRAIT_WOUND_DAYS])
+	return true
+
 func get_available_recruits() -> Array:
 	"""Get current list of available recruits"""
 	var current_recruits = []
@@ -1674,6 +1736,8 @@ func hire_adventurer(recruit: Dictionary) -> bool:
 	if hired_card != "" and not hired_tarot_cards.has(hired_card):
 		hired_tarot_cards.append(hired_card)  # never re-offer this card this run (Epic 4.1)
 	remove_hired_recruit(recruit)  # Remove from available pool
+	if daily_recruits.is_empty():
+		recruit_refresh_day = current_day   # review P1: hired out today, so the desk doesn't make a second pool today
 	_count_hire()
 	adventurer_roster_changed.emit()
 	on_adventurer_hired(new_adventurer)
@@ -1697,6 +1761,7 @@ func _normalize_adventurer_ints(adv: Dictionary) -> void:
 	for k in ["recovery", "hiring_cost", "daily_wage", "id", "strength", "dexterity", "intelligence", "endurance", "missions_completed", "missions_failed", "gold_earned", "injuries_sustained"]:
 		if adv.has(k) and adv[k] is float:
 			adv[k] = int(adv[k])
+	adv.erase("injured")   # Story 4.2 review P2: Reckless's old no-op flag never outlives a load or a hire
 
 # === SAVE/LOAD SYSTEM ===
 
@@ -1844,6 +1909,7 @@ func load_save_data(data: Dictionary):
 	daily_recruits = _save_dicts(data.get("daily_recruits"))
 	for rec in daily_recruits:
 		_normalize_adventurer_ints(rec)
+		heal_applicant_trait(rec)   # Story 4.2 review P9: a pre-4.2 "Greedy" applicant gets the key and its wage
 	recruit_refresh_day = _save_int(data.get("recruit_refresh_day"), 0)
 	_load_hired_tarot_cards(data.get("hired_tarot_cards"))
 
@@ -1863,6 +1929,7 @@ func load_save_data(data: Dictionary):
 
 	# ID counter
 	next_adventurer_id = _save_int(data.get("next_adventurer_id"), 1)
+	_rekey_colliding_applicants()   # Story 4.2 review P10: an old save's applicant sharing a taken id gets a new one
 
 	# Tax grace period
 	tax_grace_days = _save_int(data.get("tax_grace_days"), 0)
@@ -2196,8 +2263,10 @@ static func gold_peak_from_save(v, gold_now: int) -> int:
 
 ## Story 13.4 (DG-9; the GDD's and Story 3.6's rule, pure): the guild can't go on when no adventurer is alive, the gold
 ## is under the line and no applicant can be hired with it.
-static func is_soft_locked(alive: int, gold_now: int, hireable: int, gold_below: int) -> bool:
-	return alive <= 0 and gold_now < gold_below and hireable <= 0
+## Story 4.2 review P8: with the whole deck dealt (`deck_out`) no applicant will ever come again, so an empty roster with
+## nobody hireable is the end whatever the gold.
+static func is_soft_locked(alive: int, gold_now: int, hireable: int, gold_below: int, deck_out := false) -> bool:
+	return alive <= 0 and hireable <= 0 and (gold_now < gold_below or deck_out)
 
 ## Today's applicants the hire authority (hire_block_reason, Story 4.2) would let the guild hire now.
 func hireable_count() -> int:
@@ -2214,7 +2283,7 @@ func _check_soft_lock() -> void:
 		if adv is Dictionary and adv.get("status") != AStatus.DEAD:
 			alive += 1
 	var line := _save_int(DataManager.get_config("soft_lock_gold_below", 8), 8)
-	if is_soft_locked(alive, gold, hireable_count(), line):
+	if is_soft_locked(alive, gold, hireable_count(), line, deck_exhausted()):
 		print("[GameManager] warn: soft-lock condition detected on day %d" % current_day)
 		log_message("The guild cannot recover. No adventurers, no funds, no prospects.")
 		trigger_game_over("soft_lock", "The Eternal Guild fades into history — abandoned and forgotten.")
