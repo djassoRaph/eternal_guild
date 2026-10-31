@@ -362,6 +362,7 @@ func _initialize() -> void:
 	await test_guild_falls()
 	await test_staff_records()
 	await test_staff_panel()
+	await test_bartender_serves()
 
 	_finish()
 
@@ -12702,3 +12703,351 @@ func _check_t34_live(gm, gb, sp) -> void:
 static func _t34_text(n: Node, label_name: String) -> String:
 	var l = n.find_child(label_name, true, false)
 	return (l as Label).text if l is Label else ""
+
+
+# --- Test 35: The Bartender serves (Story 16.3) ---
+# His FSM is a LimboAI LimboHSM built in code (IDLE, SERVING, RESTOCKING; update mode MANUAL, updated from his own
+# tick() so tests step it), switched on by the hall (enable_automation). He takes the longest-waiting patron on a stool
+# that faces one of his serve stations, hands the drink over through the patron's own serve_patron() (consume_drink
+# beer: the player's path), restocks at the kegs while the beer is out and retries the same patron, takes no orders on
+# strike, and never leaves the ring (the tables stay the player's). All LimboAI code lives in scripts/game/staff_ai.gd.
+const STAFF_AI_SCRIPT := "res://scripts/game/staff_ai.gd"
+const BARTENDER_AI_SCRIPT := "res://scripts/game/bartender_ai.gd"
+
+
+func test_bartender_serves() -> void:
+	print("[Test 35] The Bartender serves (Story 16.3)")
+	var limbo_ok := _check_t35_limbo()
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	var eb = root.get_node_or_null("EconomyBus")
+	_check_t35_source()
+	if not limbo_ok or gm == null or not ResourceLoader.exists(BARTENDER_AI_SCRIPT) or not ResourceLoader.exists(STAFF_AI_SCRIPT) \
+			or not gm.has_method("is_staff_working"):
+		check(false, "the Bartender's brain (staff_ai.gd, bartender_ai.gd) and GameManager's staff records (LimboAI ok: %s)" % limbo_ok)
+		return
+	var snap := _t28_snapshot(gm, wm, dm)
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	check(get_nodes_in_group("patrons").is_empty(), "precondition: no patrons in the tree before Test 35's small world")
+	gm.staff = gm._seeded_staff()
+	gm.beer_stock = 5
+	eb.beer_changed.emit(5)
+	var world := Node3D.new()
+	root.add_child(world)
+	var door := _make_door()
+	world.add_child(door)
+	door.global_position = DOOR_CENTER
+	var bar = (load(ROUND_BAR_SCENE_PATH) as PackedScene).instantiate()
+	world.add_child(bar)
+	bar.global_position = RING_CENTER
+	var patron_script = load(PATRON_SCRIPT_PATH)
+	var seat08: Vector3 = patron_script.seat_root((bar.get_node("Stools/Stool08").find_child("SeatPoint", true, false) as Node3D).global_transform)
+	var seat10: Vector3 = patron_script.seat_root((bar.get_node("Stools/Stool10").find_child("SeatPoint", true, false) as Node3D).global_transform)
+	var route := PackedVector3Array()
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	for k in tav:
+		if tav[k].instance == BARTENDER_SCENE:
+			route = tav[k].props.get("arrive_route", PackedVector3Array())
+	var bt = (load(BARTENDER_SCENE) as PackedScene).instantiate()
+	bt.manual_tick = true
+	bt.hired_at_start_override = 1
+	bt.bar_path = bar.get_path()
+	bt.door_path = door.get_path()
+	bt.arrive_route = route
+	world.add_child(bt)
+	bt.tick(1.0 / 30.0)
+	var fix := GDScript.new()
+	fix.source_code = T35_PATRON_SRC
+	fix.reload()
+	var p08 = _t35_patron(world, fix, seat08)
+	var p10 = _t35_patron(world, fix, seat10)
+	var table = _t35_patron(world, fix, RING_CENTER + Vector3(-6.5, 0.0, 6.0))   # a table spot, far from every stool
+	p08.waiting = false
+	p10.waiting = false
+	check(bt.station_for_patron(seat08) == 0 and bt.station_for_patron(seat10) >= 0 and bt.station_for_patron(table.global_position) == -1,
+		"station_for_patron: stool 08 faces serve_point_01, stool 10 one of his stations, a table spot none (%d, %d, %d)"
+		% [bt.station_for_patron(seat08), bt.station_for_patron(seat10), bt.station_for_patron(table.global_position)])
+
+	# M. 25.13's Bartender without automation: a waiting stool patron is never served
+	p08.waiting = true
+	_t35_tick(bt, 15.0, func(): return false)
+	check(p08.served == 0 and gm.beer_stock == 5 and bt.brain == null, "without enable_automation() he stays 25.13's cosmetic Bartender: a waiting stool patron is never served")
+	p08.waiting = false
+
+	bt.enable_automation()
+	bt.enable_automation()   # once only
+	_check_t35_structure(bt)
+	var brain = bt.brain
+	# B. the react time, the serve, one consume, back to IDLE; work_state follows the FSM
+	_t35_tick(bt, 3.0, func(): return false)
+	p08.waiting = true
+	var anims := []
+	var mismatch := []
+	var track := func():
+		var a: String = bt.anim_state()
+		if anims.is_empty() or anims[anims.size() - 1] != a:
+			anims.append(a)
+		if bt.work_state() != brain.state():
+			mismatch.append([brain.state(), bt.work_state()])
+	var waited := _t35_tick(bt, 10.0, func(): return brain.state() == "SERVING", track)
+	var took := _t35_tick(bt, 60.0, func(): return brain.state() == "IDLE", track)
+	check(waited >= brain.react_seconds - 0.05 and waited <= brain.react_seconds + 0.1 and p08.served == 1 and gm.beer_stock == 4
+		and _t35_subseq(anims, ["Pour", "Serve"]) and mismatch.is_empty() and table.served == 0,
+		"a stool patron waits %.1f s (react %.1f), then SERVING: Pour, then Serve, ONE consume at the release (beer 5 -> %d), back to IDLE after %.1f s; work_state() matched the FSM; the table patron untouched %s %s"
+		% [waited, brain.react_seconds, gm.beer_stock, took, anims, mismatch])
+	# D. two waiting: the longer first
+	p10.waiting = true
+	_t35_tick(bt, 1.0, func(): return false)
+	p08.waiting = true
+	p08.served = 0
+	p10.served = 0
+	var order := []
+	var note := func():
+		if p10.served == 1 and not order.has("p10"):
+			order.append("p10")
+		if p08.served == 1 and not order.has("p08"):
+			order.append("p08")
+	_t35_tick(bt, 90.0, func(): return p08.served == 1 and p10.served == 1, note)
+	check(order == ["p10", "p08"] and gm.beer_stock == 2 and table.served == 0, "two stool patrons waiting: the one waiting longer is served first %s" % [order])
+	# E. beer 0: RESTOCKING at the kegs, nothing handed over; beer back: served
+	_t35_tick(bt, 3.0, func(): return brain.state() == "IDLE")
+	_t35_set_beer(gm, eb, 0)
+	p08.waiting = true
+	p08.served = 0
+	var rest_t := _t35_tick(bt, 30.0, func(): return brain.state() == "RESTOCKING" and bt._station == bt.RESTOCK_INDEX)
+	_t35_tick(bt, 10.0, func(): return false)
+	var dry_ok: bool = brain.state() == "RESTOCKING" and bt.anim_state() == "Restock" and p08.served == 0 and gm.beer_stock == 0
+	gm.add_beer(1)
+	_t35_tick(bt, 40.0, func(): return p08.served == 1)
+	check(dry_ok and p08.served == 1 and gm.beer_stock == 0,
+		"beer 0: RESTOCKING at the kegs (%.1f s), nothing handed over; beer back: the waiting patron is served (beer %d)" % [rest_t, gm.beer_stock])
+	# F. the same tick: a patron starts waiting and the beer runs out
+	_t35_tick(bt, 5.0, func(): return brain.state() == "RESTOCKING")
+	gm.add_beer(3)
+	_t35_tick(bt, 30.0, func(): return brain.state() == "IDLE")
+	p08.waiting = true
+	p08.served = 0
+	_t35_set_beer(gm, eb, 0)
+	_t35_tick(bt, 6.0, func(): return false)
+	check(brain.state() == "RESTOCKING" and p08.served == 0, "a patron starts waiting as the beer runs out (one tick): RESTOCKING, no serve attempt")
+	gm.add_beer(3)
+	_t35_tick(bt, 40.0, func(): return p08.served == 1)
+	_t35_tick(bt, 30.0, func(): return brain.state() == "IDLE")
+	# G. served by the player while he walks
+	p10.waiting = true
+	p10.served = 0
+	_t35_tick(bt, 10.0, func(): return brain.state() == "SERVING")
+	_t35_tick(bt, 1.0, func(): return false)
+	var beer_g: int = gm.beer_stock
+	p10.waiting = false        # the player's E got there first
+	_t35_tick(bt, 1.0 / 30.0 * 2, func(): return false)
+	check(brain.state() == "IDLE" and gm.beer_stock == beer_g and p10.served == 0 and bt.work_state() == "IDLE" and bt._tankard == null,
+		"served by someone else while he walks: IDLE at once, nothing consumed, the serve dropped (no tankard; back to wiping) (%s, %s)" % [brain.state(), bt.work_state()])
+	# H. the beer runs out between the pour and the release
+	_t35_tick(bt, 3.0, func(): return false)
+	p10.waiting = true
+	_t35_tick(bt, 10.0, func(): return bt.anim_state() == "Pour")
+	_t35_set_beer(gm, eb, 0)
+	_t35_tick(bt, 40.0, func(): return brain.state() == "RESTOCKING")
+	var h_ok: bool = brain.state() == "RESTOCKING" and p10.served == 0 and brain.target == p10
+	gm.add_beer(1)
+	_t35_tick(bt, 40.0, func(): return p10.served == 1)
+	check(h_ok and p10.served == 1 and gm.beer_stock == 0,
+		"the beer runs out between the pour and the release: RESTOCKING, nothing handed over; beer back: he retries the same patron")
+	gm.add_beer(5)
+	_t35_tick(bt, 30.0, func(): return brain.state() == "IDLE")
+	# I. on strike: no orders; the strike over: served
+	var rec: Dictionary = gm.staff_record("bartender")
+	rec.on_strike = true
+	p08.waiting = true
+	p08.served = 0
+	_t35_tick(bt, 20.0, func(): return false)
+	var strike_ok: bool = p08.served == 0 and brain.state() == "IDLE"
+	rec.on_strike = false
+	_t35_tick(bt, 40.0, func(): return p08.served == 1)
+	check(strike_ok and p08.served == 1, "on strike: IDLE, a waiting stool patron left for the player for 20 s; the strike over: served")
+	_t35_tick(bt, 30.0, func(): return brain.state() == "IDLE")
+	# K. game over: no orders
+	gm.game_over_active = true
+	p08.waiting = true
+	p08.served = 0
+	_t35_tick(bt, 8.0, func(): return false)
+	var go_ok: bool = p08.served == 0 and brain.state() == "IDLE"
+	gm.game_over_active = false
+	p08.waiting = false
+	check(go_ok, "Game Over: no orders")
+	# L. tick(0) changes nothing
+	var pos0: Vector3 = bt.global_position
+	var st0: String = brain.state()
+	bt.tick(0.0)
+	check(bt.global_position == pos0 and brain.state() == st0, "tick(0.0) changes nothing")
+	# J. fired mid-serve: nothing consumed, he walks out; hired again: he walks in and serves
+	var left := [false]
+	var arrived := [false]
+	bt.left_tavern.connect(func(): left[0] = true)
+	bt.arrived_at_station.connect(func(): arrived[0] = true)
+	_t35_tick(bt, 3.0, func(): return false)
+	p10.waiting = true
+	p10.served = 0
+	_t35_tick(bt, 10.0, func(): return brain.state() == "SERVING")
+	_t35_tick(bt, 2.0, func(): return false)
+	var beer_j: int = gm.beer_stock
+	gb.staff_fired.emit("t35", "bartender")
+	_t35_tick(bt, 120.0, func(): return left[0])
+	var fired_ok: bool = left[0] and not bt.present and brain.state() == "IDLE" and gm.beer_stock == beer_j and p10.served == 0
+	gb.staff_hired.emit("t35", "bartender")
+	_t35_tick(bt, 150.0, func(): return arrived[0])
+	_t35_tick(bt, 40.0, func(): return p10.served == 1)
+	check(fired_ok and arrived[0] and p10.served == 1,
+		"fired mid-serve: IDLE, nothing consumed, he walks out; hired again: he walks in and serves the waiting patron (left %s, arrived %s)" % [left[0], arrived[0]])
+	check(table.served == 0, "the table patron waited through it all: tables stay the player's")
+
+	world.queue_free()
+	await process_frame
+	_t28_restore(snap, gm, wm, dm)
+	eb.beer_changed.emit(gm.beer_stock)
+	capture.free()
+	print("")
+
+
+const T35_PATRON_SRC := "extends Node3D\nvar waiting := false\nvar served := 0\nfunc is_waiting_for_service() -> bool:\n\treturn waiting\nfunc serve_patron() -> bool:\n\tif not waiting:\n\t\treturn false\n\tif not Engine.get_main_loop().root.get_node(\"GameManager\").consume_beer_pints(1):\n\t\treturn false\n\twaiting = false\n\tserved += 1\n\treturn true\n"
+
+
+## A fixture patron (group patrons) at `at`, with the fixture's is_waiting_for_service / serve_patron.
+func _t35_patron(world: Node3D, script: GDScript, at: Vector3) -> Node3D:
+	var p := Node3D.new()
+	p.set_script(script)
+	p.add_to_group("patrons")
+	world.add_child(p)
+	p.global_position = at
+	return p
+
+
+## Ticks a staff node by 1/30 s until `done` is true or `cap` seconds pass; `each` runs after every tick. The seconds ticked.
+func _t35_tick(bt, cap: float, done: Callable, each := Callable()) -> float:
+	var t := 0.0
+	var dt := 1.0 / 30.0
+	while t < cap - 0.0001:
+		bt.tick(dt)
+		t += dt
+		if each.is_valid():
+			each.call()
+		if done.call():
+			break
+	return t
+
+
+static func _t35_set_beer(gm, eb, n: int) -> void:
+	gm.beer_stock = n
+	eb.beer_changed.emit(n)
+
+
+## `want` appears in `seq` in order (other entries may fall between).
+static func _t35_subseq(seq: Array, want: Array) -> bool:
+	var i := 0
+	for s in seq:
+		if i < want.size() and s == want[i]:
+			i += 1
+	return i == want.size()
+
+
+## AC 2, 4: the brain's HSM is LimboAI's, MANUAL, with exactly the three states.
+func _check_t35_structure(bt) -> void:
+	var brain = bt.brain
+	var hsm = brain.hsm if brain else null
+	var names := []
+	if hsm:
+		for c in hsm.get_children():
+			if c.get_class() == "LimboState":
+				names.append(str(c.name))
+	check(brain != null and brain.name == "Brain" and bt.get_children().filter(func(c): return c.name == "Brain").size() == 1
+		and hsm != null and hsm.get_class() == "LimboHSM" and hsm.get("update_mode") == ClassDB.class_get_integer_constant("LimboHSM", "MANUAL")
+		and names == ["IDLE", "SERVING", "RESTOCKING"] and brain.state() == "IDLE" and bt.autopilot,
+		"enable_automation(): one Brain whose FSM is a LimboHSM (MANUAL) with exactly IDLE, SERVING, RESTOCKING; it starts IDLE with the cosmetic autopilot on %s" % [names])
+
+
+## AC 2, 3, 5: where the code lives.
+func _check_t35_source() -> void:
+	var limbo_users := []
+	for f in _t35_gd_files("res://scripts"):
+		var s := FileAccess.get_file_as_string(f)
+		if s.contains("LimboHSM") or s.contains("LimboState"):
+			limbo_users.append(f)
+	check(limbo_users == [STAFF_AI_SCRIPT], "staff_ai.gd is the only game script naming LimboAI's classes %s" % [limbo_users])
+	var named := [STAFF_AI_SCRIPT, BARTENDER_AI_SCRIPT].filter(func(p): return ResourceLoader.exists(p) and (load(p) as Script).get_global_name() != "")
+	check(named.is_empty(), "no class_name on the staff brains %s" % [named])
+	var tav := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
+	check(tav.contains("call_group(\"staff\", \"enable_automation\")"), "main_tavern.gd turns the staff's automation on (group staff)")
+	var pat := FileAccess.get_file_as_string(PATRON_SCRIPT_PATH)
+	var wait_body := _func_body(pat, "is_waiting_for_service")
+	var serve_body := _func_body(pat, "serve_patron")
+	var gm_src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(wait_body.contains("WAITING_SERVICE") and wait_body.contains("has_been_served") and serve_body.contains("consume_beer_pints(1)")
+		and _func_body(gm_src, "consume_beer_pints").contains("consume_drink(\"beer\""),
+		"RealisticPatron.is_waiting_for_service (waiting and not served); serve_patron still pays through consume_beer_pints -> consume_drink(\"beer\")")
+	var cfg = root.get_node("DataManager").get_config("staff_automation", {})
+	check(cfg is Dictionary and cfg.has("_comment") and (cfg.get("bartender_react_seconds") is float or cfg.get("bartender_react_seconds") is int),
+		"game_config.json staff_automation: a _comment and bartender_react_seconds")
+
+
+static func _t35_gd_files(dir: String) -> Array:
+	var out := []
+	var d := DirAccess.open(dir)
+	if d == null:
+		return out
+	for f in d.get_files():
+		if f.ends_with(".gd"):
+			out.append(dir.path_join(f))
+	for sub in d.get_directories():
+		out += _t35_gd_files(dir.path_join(sub))
+	return out
+
+
+## T0 (16.3 AC 1): LimboAI is loaded in this engine with the API the staff brains use, and a two-state LimboHSM built in
+## code (update mode MANUAL) changes state on dispatch and hands its update callbacks the delta. Built through ClassDB,
+## so this test compiles without the extension.
+func _check_t35_limbo() -> bool:
+	var classes := ClassDB.class_exists("LimboHSM") and ClassDB.class_exists("LimboState")
+	var want := {"LimboHSM": ["update", "dispatch", "add_transition", "initialize", "set_active", "get_active_state"],
+		"LimboState": ["call_on_enter", "call_on_update", "call_on_exit"]}
+	var missing := []
+	if classes:
+		for c in want:
+			for m in want[c]:
+				if not ClassDB.class_has_method(c, m):
+					missing.append("%s.%s" % [c, m])
+	var manual_ok := classes and ClassDB.class_has_integer_constant("LimboHSM", "MANUAL")
+	check(classes and missing.is_empty() and manual_ok,
+		"LimboAI is loaded: LimboHSM and LimboState with the methods the staff brains call, and the MANUAL update mode (missing %s)" % [missing])
+	if not (classes and missing.is_empty() and manual_ok):
+		return false
+	var hsm: Node = ClassDB.instantiate("LimboHSM")
+	hsm.set("update_mode", ClassDB.class_get_integer_constant("LimboHSM", "MANUAL"))
+	var a: Node = ClassDB.instantiate("LimboState")
+	a.name = "A"
+	var b: Node = ClassDB.instantiate("LimboState")
+	b.name = "B"
+	hsm.add_child(a)
+	hsm.add_child(b)
+	var seen := []
+	a.call("call_on_update", func(d): seen.append(["A", d]))
+	b.call("call_on_enter", func(): seen.append(["enter B"]))
+	b.call("call_on_update", func(d): seen.append(["B", d]))
+	hsm.call("add_transition", a, b, &"go")
+	hsm.set("initial_state", a)
+	var agent := Node.new()
+	root.add_child(agent)
+	agent.add_child(hsm)
+	hsm.call("initialize", agent)
+	hsm.call("set_active", true)
+	hsm.call("update", 0.5)
+	hsm.call("dispatch", &"go")
+	hsm.call("update", 0.25)
+	var active = hsm.call("get_active_state")
+	var ok: bool = seen == [["A", 0.5], ["enter B"], ["B", 0.25]] and active != null and str(active.name) == "B"
+	check(ok, "a LimboHSM built in code, MANUAL: update(delta) runs the state's callback with the delta, dispatch moves it %s" % [seen])
+	agent.free()
+	return ok
