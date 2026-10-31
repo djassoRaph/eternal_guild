@@ -1100,7 +1100,12 @@ func _normalize_adventurer_ints(adv: Dictionary) -> void:
 	adventurer/recruit's integer fields back so status enums match and displays don't show '5.0'."""
 	if adv.has("status"):
 		var s = adv["status"]
-		adv["status"] = AdventurerStatus.from_save(s) if s is String else int(s)
+		if s is String:
+			adv["status"] = AdventurerStatus.from_save(s)
+		elif s is int or s is float:
+			adv["status"] = int(s)
+		else:
+			adv["status"] = AStatus.READY   # junk / null (Story 11.2: int(null) aborted the load)
 	for k in ["recovery", "hiring_cost", "daily_wage", "id", "strength", "dexterity", "intelligence", "endurance", "missions_completed", "missions_failed", "gold_earned", "injuries_sustained"]:
 		if adv.has(k) and adv[k] is float:
 			adv[k] = int(adv[k])
@@ -1172,7 +1177,8 @@ func get_save_data() -> Dictionary:
 		# Recruitment
 		"daily_recruits": daily_recruits,
 		"recruit_refresh_day": recruit_refresh_day,
-		
+		"hired_tarot_cards": hired_tarot_cards.duplicate(),   # never offered again this run (Epic 4.1; Story 11.2)
+
 		# Missions
 		"available_missions": available_missions,
 		
@@ -1213,68 +1219,78 @@ func load_save_data(data: Dictionary):
 	"""Load game state from save data - COMPLETE VERSION"""
 	print("Loading save data into GameManager...")
 	
+	# Every value is read defensively (Story 11.2): a junk or null value loads as its default instead of
+	# aborting the load half-way; keys this build doesn't know are ignored.
 	# Core resources
-	gold = int(data.get("gold", 10))
-	beer_stock = int(data.get("beer_stock", 0))
-	
+	gold = _save_int(data.get("gold"), 10)
+	beer_stock = _save_int(data.get("beer_stock"), 0)
+
 	# Time tracking
-	current_day = int(data.get("current_day", 1))
-	tax_due_day = int(data.get("tax_due_day", 30))
-	
+	current_day = _save_int(data.get("current_day"), 1)
+	tax_due_day = _save_int(data.get("tax_due_day"), 30)
+
 	# Adventurers
-	adventurers = data.get("adventurers", [])
+	adventurers = _save_dicts(data.get("adventurers"))
 	for adv in adventurers:
 		_normalize_adventurer_ints(adv)
 	max_adventurers = DataManager.get_config("max_adventurers", 5)
-	
+
 	# Beer shortage tracking
-	beer_shortage_days = int(data.get("beer_shortage_days", 0))
-	adventurer_morale = data.get("adventurer_morale", {})
-	
+	beer_shortage_days = _save_int(data.get("beer_shortage_days"), 0)
+	adventurer_morale = _morale_from_save(data.get("adventurer_morale"))
+
 	# Firewood system
-	firewood_stock = int(data.get("firewood_stock", 0))
-	fireplace_fuel = data.get("fireplace_fuel", 100.0)
-	
+	firewood_stock = _save_int(data.get("firewood_stock"), 0)
+	fireplace_fuel = _save_float(data.get("fireplace_fuel"), 100.0)
+
 	# Recruitment
-	daily_recruits = data.get("daily_recruits", [])
+	daily_recruits = _save_dicts(data.get("daily_recruits"))
 	for rec in daily_recruits:
 		_normalize_adventurer_ints(rec)
-	recruit_refresh_day = int(data.get("recruit_refresh_day", 0))
-	
+	recruit_refresh_day = _save_int(data.get("recruit_refresh_day"), 0)
+	_load_hired_tarot_cards(data.get("hired_tarot_cards"))
+
 	# Missions
-	available_missions = data.get("available_missions", [])
-	
+	available_missions = _save_dicts(data.get("available_missions"))
+
 	# Patron recruitment pool
-	patron_recruitment_pool = data.get("patron_recruitment_pool", [])
+	patron_recruitment_pool = _save_array(data.get("patron_recruitment_pool"))
 
 	# Progression
-	total_missions_completed = int(data.get("total_missions_completed", 0))
-	tavern_reputation = int(data.get("tavern_reputation", 0))
-	taxes_paid_count = int(data.get("taxes_paid_count", 0))
-	mission_tier_unlocked = int(data.get("mission_tier_unlocked", 1))
-	active_missions = data.get("active_missions", [])
+	total_missions_completed = _save_int(data.get("total_missions_completed"), 0)
+	tavern_reputation = _save_int(data.get("tavern_reputation"), 0)
+	taxes_paid_count = _save_int(data.get("taxes_paid_count"), 0)
+	mission_tier_unlocked = _save_int(data.get("mission_tier_unlocked"), 1)
+	active_missions = _save_dicts(data.get("active_missions"))
+	_relink_active_missions()
 
 	# ID counter
-	next_adventurer_id = int(data.get("next_adventurer_id", 1))
+	next_adventurer_id = _save_int(data.get("next_adventurer_id"), 1)
 
 	# Tax grace period
-	tax_grace_days = int(data.get("tax_grace_days", 0))
+	tax_grace_days = _save_int(data.get("tax_grace_days"), 0)
 
 	# Run counters + conversation flags (Story 10.2; older saves have none)
 	_load_dialogue_data(data)
 
-	# World map (restore hex grid so mission board works after load)
+	# World map (restore hex grid so mission board works after load) + the Latest News rumours (Story 11.2)
 	var world_data = data.get("world_data", {})
-	if not world_data.is_empty():
+	if world_data is Dictionary and not world_data.is_empty():
 		WorldManager.load_save_data(world_data)
+	else:
+		WorldManager.reset_run_state()
 
-	# Player position — hand it to PlayerManager so the loaded scene spawns the player there.
-	var ppos = data.get("player_position", [])
-	if ppos is Array and ppos.size() == 3:
-		PlayerManager.pending_spawn_position = Vector3(ppos[0], ppos[1], ppos[2])
+	# Player position — hand it to PlayerManager so the loaded scene spawns the player there
+	# (SaveSystem.resume_scene() drops it again when the saved scene can't be resumed).
+	var spot: Dictionary = SaveSystem.player_spot(data)
+	if spot.is_empty():
+		PlayerManager.clear_pending_spawn()
+	else:
+		PlayerManager.pending_spawn_position = Vector3(spot.x, spot.y, spot.z)
 		PlayerManager.has_pending_spawn = true
-	saved_player_scene = data.get("player_scene", "")
-	restored_patrons = data.get("patrons_active", [])
+	var scene = data.get("player_scene", "")
+	saved_player_scene = scene if scene is String else ""
+	restored_patrons = _save_array(data.get("patrons_active"))
 
 	# Reset game over state
 	game_over_active = false
@@ -1289,7 +1305,10 @@ func load_save_data(data: Dictionary):
 	firewood_changed.emit(firewood_stock)
 	fireplace_fuel_changed.emit(fireplace_fuel)
 	adventurer_roster_changed.emit()
-	
+	reputation_changed.emit(tavern_reputation)   # Story 11.2: the HUD's reputation, the notice board, the hire pool
+	missions_changed.emit()
+	recruitment_pool_changed.emit()
+
 	print("Game state loaded successfully")
 	print("   Day: ", current_day)
 	print("   Gold: ", gold)
@@ -1297,7 +1316,105 @@ func load_save_data(data: Dictionary):
 	print("   Adventurers: ", adventurers.size())
 	print("   Firewood: ", firewood_stock)
 	print("   Fuel: ", fireplace_fuel, "%")
-	
+
+# === Load helpers (Story 11.2) ===
+
+## A saved number read defensively: an int or a float (or a numeric string) as itself, anything else (null, junk)
+## as `fallback`. int(null) aborts load_save_data half-way and leaves a half-loaded run.
+static func _save_int(v, fallback: int) -> int:
+	if v is int or v is float:
+		return int(v)
+	if v is String and (v as String).is_valid_float():
+		return int(float(v))
+	return fallback
+
+static func _save_float(v, fallback: float) -> float:
+	if v is int or v is float:
+		return float(v)
+	if v is String and (v as String).is_valid_float():
+		return float(v)
+	return fallback
+
+## A saved list: anything that isn't an Array loads as [].
+static func _save_array(v) -> Array:
+	return (v as Array).duplicate() if v is Array else []
+
+## A saved list of records (roster, recruits, missions): [] unless an Array; entries that aren't Dictionaries drop.
+static func _save_dicts(v) -> Array:
+	if not (v is Array):
+		return []
+	return (v as Array).filter(func(e): return e is Dictionary)
+
+## Morale is keyed by the adventurer's int id, but JSON brings the keys back as Strings ("60"), so every lookup
+## missed and each adventurer read as neutral after a load. Numeric keys go back to ints, levels to ints.
+static func _morale_from_save(v) -> Dictionary:
+	var out := {}
+	if not (v is Dictionary):
+		return out
+	for k in v:
+		var key = k
+		if k is String and (k as String).is_valid_int():
+			key = int(k)
+		elif k is float:
+			key = int(k)
+		out[key] = _save_int(v[k], 2)
+	return out
+
+## The tarot cards hired this run (never offered again, Epic 4.1). A save from before Story 11.2 has none: the
+## cards of the adventurers on the roster are the best guess.
+func _load_hired_tarot_cards(v) -> void:
+	hired_tarot_cards = []
+	var source: Array = v if v is Array else adventurers.map(func(a): return a.get("tarot_card", ""))
+	for c in source:
+		if c is String and c != "" and not hired_tarot_cards.has(c):
+			hired_tarot_cards.append(c)
+
+## In play an active_missions entry holds the roster's own adventurer dicts (send_on_mission); a JSON load brings
+## back copies, so the mission's resolution updated the copy and left the roster adventurer On Mission for good.
+## Each entry's adventurer / party member becomes the roster dict with the same id again (the entry's
+## "adventurer_ids", Story 6.5, first when it matches the party); an id not on the roster keeps the saved copy,
+## normalised, with a warning.
+func _relink_active_missions() -> void:
+	var by_id := {}
+	for adv in adventurers:
+		by_id[_id_key(adv.get("id"))] = adv
+	for entry in active_missions:
+		var ids = entry.get("adventurer_ids", [])
+		if entry.has("party"):
+			var party = entry.get("party")
+			if not (party is Array):
+				entry["party"] = []
+				continue
+			var linked: Array = []
+			for i in party.size():
+				var member = party[i]
+				var id = ids[i] if ids is Array and ids.size() == party.size() else (member.get("id") if member is Dictionary else null)
+				linked.append(_roster_or_copy(by_id, id, member, entry))
+			entry["party"] = linked
+		elif entry.get("adventurer") is Dictionary:
+			var a: Dictionary = entry["adventurer"]
+			var id = ids[0] if ids is Array and ids.size() == 1 else a.get("id")
+			entry["adventurer"] = _roster_or_copy(by_id, id, a, entry)
+
+func _roster_or_copy(by_id: Dictionary, id, saved, entry: Dictionary):
+	var key = _id_key(id)
+	if by_id.has(key):
+		return by_id[key]
+	var m = entry.get("mission")
+	push_warning("[GameManager] load: adventurer %s on '%s' is not on the roster; keeping the saved copy"
+		% [id, m.get("name", "?") if m is Dictionary else "?"])
+	if saved is Dictionary:
+		_normalize_adventurer_ints(saved)
+	return saved
+
+## A saved id as the roster keys it: JSON turns int ids into floats (61.0).
+static func _id_key(v):
+	if v is float and v == floorf(v):
+		return int(v)
+	if v is String and (v as String).is_valid_int():
+		return int(v)
+	return v
+
 # === Dialogue state (Story 10.2) ===
 # Small helpers so the failsafe suite can test the counters without hiring, killing or loading (they
 # spend gold, write the codex and reload the world).
@@ -1455,7 +1572,8 @@ func reset_game_state():
 	recruit_refresh_day = 0
 	patron_recruitment_pool.clear()
 	hired_tarot_cards.clear()  # fresh deck for a new run (Epic 4.1)
-	
+	WorldManager.reset_run_state()  # no Latest News rumours from the previous run (Story 11.2)
+
 	# Missions
 	available_missions.clear()
 	active_missions.clear()      # adventurers currently out — must not carry into a new run

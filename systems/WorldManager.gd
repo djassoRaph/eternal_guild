@@ -41,7 +41,9 @@ func get_save_data() -> Dictionary:
 		if c is Vector2i or c is Vector2:
 			copy["coord"] = [c.x, c.y]
 		serialized.append(copy)
-	return {"world_map": serialized, "chosen_center": chosen_center.duplicate(true)}
+	# Story 11.2: the Latest News rumours (Story 8.5) belong to the run, so they are saved with the world.
+	return {"world_map": serialized, "chosen_center": chosen_center.duplicate(true),
+		"overheard_rumours": overheard_rumours.duplicate()}
 
 
 func load_save_data(data: Dictionary) -> void:
@@ -52,8 +54,15 @@ func load_save_data(data: Dictionary) -> void:
 			rec["coord"] = Vector2i(int(c[0]), int(c[1]))
 	world_map = records
 	chosen_center = data.get("chosen_center", {})
-	print("[WorldManager] Restored world: ", world_map.size(), " hexes")
+	var rumours = data.get("overheard_rumours", [])   # a save from before Story 11.2 has none
+	overheard_rumours = (rumours as Array).filter(func(r): return r is String) if rumours is Array else []
+	print("[WorldManager] Restored world: ", world_map.size(), " hexes, ", overheard_rumours.size(), " rumours")
 	_reserve_ruin_if_missing()
+
+
+## Story 11.2: what belongs to one run and isn't the map itself (New Game, or a save without a world).
+func reset_run_state() -> void:
+	overheard_rumours.clear()
 
 
 ## Saves made before Story 25.2 have no Prior Ruins hex: reserve one now with the generator's own
