@@ -10,7 +10,7 @@ any other document.** Update it when a feature ships, not before.
 
 | Feature | Owner | Notes |
 |---|---|---|
-| Tavern core loop (patrons, beer, gold, taxes) | GameManager | MVP running |
+| Tavern core loop (patrons, beer, gold, taxes) | GameManager | MVP running. The tax cycle (Story 13.1, in review): every number in game_config.json `tax_*` (`tax_config()`), every event on EconomyBus (`tax_warning`, `tax_demand_triggered`, `tax_paid`, `tax_overdue`; NotificationManager's banners listen), the F12 tax line; failsafe Test 31 |
 | Firewood / comfort system | GameManager + fireplace_zone | ⚠ two competing drain authorities — see TECH_DEBT |
 | Recruitment + roster (`max_adventurers`, 8) | GameManager (`hire_block_reason` / `hire_adventurer`, `ensure_hire_pool`, traits from `traits.json`, ids never reused) | The hire desk shows each applicant as a Tarot card: the class silhouette in a placeholder frame, numeral or suit, card name; pick, then confirm (Story 4.2, 2026-10-31, in review). The card's look is `data/config/tarot_card.json` (frame, silhouettes, suits), the art `PortraitSocket.resolve_card_art`. The Tab roster panel shows each adventurer's card, card name, trait, wage and drink, a Deployed badge with "returns in N days", "available in N days" (Story 4.3, in review) |
 | Dispatch (`send_on_mission` / `send_party_on_mission`, behind the checked `dispatch_adventurers`) | GameManager | Works; the Deployment Record and the hex lock on each active entry; one success estimate (`estimate_success`) shown and rolled (Story 6.5, 2026-10-31) |
