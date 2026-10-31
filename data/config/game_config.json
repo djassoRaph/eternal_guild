@@ -7,6 +7,12 @@
 	"max_adventurers": 8,
 	"max_firewood_storage": 10,
 	"tax_due_day": 30,
+	"_tax_comment": "Story 13.1: the tax cycle (GameManager.tax_config; every event on EconomyBus). tax_due_day: the first due day of a run. Then every tax_interval_days. The amount: tax_base_amount + tax_per_adventurer x the roster's size. A morning that can't pay starts the grace: the guild falls (bankruptcy) on the morning tax_grace_period_days is reached, counting the due morning as the first. tax_warning_days: the days before the due day that warn (a banner and a log line). Today's numbers; Story 14.6's demo profile may override them. A bad value falls back to today's with a warning.",
+	"tax_interval_days": 30,
+	"tax_base_amount": 1000,
+	"tax_per_adventurer": 5,
+	"tax_grace_period_days": 3,
+	"tax_warning_days": [7, 3, 1],
 	"daily_operating_cost": 1,
 
 	"warn_gold_below": 20,
