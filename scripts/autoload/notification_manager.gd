@@ -43,6 +43,23 @@ func _ready() -> void:
 		EconomyBus.gold_changed.connect(_on_gold_changed)
 		EconomyBus.beer_changed.connect(_on_beer_changed)
 		EconomyBus.fireplace_fuel_changed.connect(_on_comfort_changed)
+		# Story 13.1 (DT-6): the tax cycle's events, one banner each (no cooldown: each is its own event).
+		EconomyBus.tax_warning.connect(func(days_left: int, amount: int): show_banner(tax_warning_text(days_left, amount)))
+		EconomyBus.tax_paid.connect(func(amount: int): show_banner(tax_paid_text(amount)))
+		EconomyBus.tax_overdue.connect(func(days_remaining: int): show_banner(tax_overdue_text(days_remaining)))
+
+
+## Story 13.1 (DT-6): the tax banners' text. DRAFT (Raphael rewrites).
+static func tax_warning_text(days_left: int, amount: int) -> String:
+	if days_left == 1:
+		return "Tax due tomorrow: %d gold." % amount
+	return "Tax due in %d days: %d gold." % [days_left, amount]
+
+static func tax_paid_text(amount: int) -> String:
+	return "Tax paid: %d gold." % amount
+
+static func tax_overdue_text(days_remaining: int) -> String:
+	return "Tax overdue. %d day%s before the guild is seized." % [days_remaining, "" if days_remaining == 1 else "s"]
 
 
 func _process(delta: float) -> void:

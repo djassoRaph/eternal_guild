@@ -108,7 +108,7 @@ func _build_tab_state(parent: VBoxContainer) -> void:
 
 	var keys := [
 		"gold", "beer", "firewood", "fuel",
-		"day", "tax_due_day",
+		"day", "tax_due_day", "tax",
 		"adventurers_count", "active_missions_count",
 		"tier_unlocked", "reputation",
 		"beer_shortage_days", "total_missions_completed"
@@ -149,6 +149,11 @@ func _refresh_state_tab() -> void:
 	_sl("fuel",                    str(snappedf(gm.fireplace_fuel * 100.0, 0.1)) + "%")
 	_sl("day",                     "Day " + str(gm.current_day))
 	_sl("tax_due_day",             "Day " + str(gm.tax_due_day))
+	# Story 13.1 (DT-7): the cycle as the morning check will see it
+	var tax_cfg: Dictionary = gm.tax_config()
+	_sl("tax",                     "due Day %d (in %d d) · %d g · grace %d/%d · paid %d" % [gm.tax_due_day,
+		gm.tax_due_day - gm.current_day, gm.tax_amount_for(gm.adventurers.size(), tax_cfg), gm.tax_grace_days,
+		int(tax_cfg.grace_days), gm.taxes_paid_count])
 	_sl("adventurers_count",       str(gm.adventurers.size()) + " / " + str(gm.max_adventurers))
 	_sl("active_missions_count",   str(gm.active_missions.size()) + " active")
 	_sl("tier_unlocked",           "Tier " + str(gm.mission_tier_unlocked))
@@ -283,12 +288,12 @@ func _force_fuel(v: float) -> void:
 	GameManager.fireplace_fuel = v
 	GameManager.fireplace_fuel_changed.emit(v)
 
+## Story 13.1 (DT-7): today becomes the due day and the real morning check runs: a demand, then paid or overdue.
 func _debug_trigger_tax() -> void:
-	if GameManager.has_method("process_tax_day"):
-		GameManager.process_tax_day()
-		print("Tax event triggered")
-	else:
-		print("GameManager.process_tax_day() not yet implemented")
+	GameManager.tax_due_day = GameManager.current_day
+	GameManager.check_tax_deadline()
+	print("Debug: tax event triggered (due day %d)" % GameManager.current_day)
+	_refresh_state_tab()
 
 func _debug_force_beer_shortage() -> void:
 	_force_beer(0)
