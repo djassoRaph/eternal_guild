@@ -1297,6 +1297,12 @@ func advance_day():
 		log_message("The guild cannot recover. No adventurers, no funds, no prospects.")
 		trigger_game_over("soft_lock", "The Eternal Guild fades into history — abandoned and forgotten.")
 
+	# The day's autosave, now that the whole night is done (Story 11.2 review P5: it used to run on day_changed,
+	# before wages, missions, the fire and recruits, so Sleep -> quit -> Continue skipped a night). A game over
+	# already saved itself.
+	if not game_over_active:
+		SaveSystem.save_end_of_day()
+
 
 func generate_fallback_missions() -> Array:
 	"""Generate fallback missions when DataManager is not available"""

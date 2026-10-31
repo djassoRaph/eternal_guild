@@ -34,7 +34,8 @@ func _ready():
 	setup_autosave_timer()
 
 	if GameManager:
-		GameManager.day_changed.connect(_on_day_changed)
+		# The day's autosave runs at the END of GameManager.advance_day() (save_end_of_day, review P5), not on
+		# day_changed, which fires before the night's work.
 		GameManager.game_over_triggered.connect(_on_game_over)
 
 func setup_autosave_timer():
@@ -61,11 +62,11 @@ func can_autosave() -> bool:
 	var cs := get_tree().current_scene
 	return cs != null and cs.is_in_group("player_scene")
 
-func _on_day_changed(new_day: int):
-	if load_in_progress:
-		return
-	if new_day > 1:
-		autosave_game()
+## Review P5: called by GameManager.advance_day() once the whole night is done (wages, missions, the fire, recruits).
+func save_end_of_day() -> bool:
+	if not can_autosave():
+		return false
+	return autosave_game()
 
 ## Review P1: New Game's first save (the hall's _ready) starts the run.
 func start_new_run_save() -> bool:
