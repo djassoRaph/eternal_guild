@@ -11,8 +11,10 @@
 extends PopupPanel
 
 const TAROT_CARD_SCENE := "res://scenes/ui/TarotCard.tscn"
-const PANEL_SIZE := Vector2i(1120, 800)     # five applicant columns fit at 1920 x 1080
-const CARD_SIZE := Vector2(170, 283)        # tarot_card.json's aspect (0.6)
+const PANEL_SIZE := Vector2i(1260, 840)     # six applicant columns and the confirm bar's row fit at 1920 x 1080 (review P6, P16)
+const CARD_WIDTH := 170.0                   # the height follows tarot_card.json's aspect (PortraitSocket.card_height, review P3)
+const BELOW_CARD := 209.0                   # a column's lines and button under its card
+const CONFIRM_ROW_HEIGHT := 52.0            # the confirm bar's row is kept even when empty, so the desk never grows (review P6)
 const COLUMN_WIDTH := 190
 const GOLD := Color(0.95, 0.82, 0.45)
 const TRAIT_COLOR := Color(0.85, 0.75, 1.0)
@@ -24,6 +26,7 @@ const COLUMN_EDGE := Color(0.36, 0.28, 0.20, 1.0)
 var selected_id = null     # the applicant the confirm bar asks about (their id); null = none picked
 var last_reason := ""      # why the last confirm was refused ("" = none); the bar itself always says the current reason
 var _content: Control = null   # the container build_hire_content last filled
+var _refresh_queued := false   # a live refresh is already waiting for the end of the frame (review P7)
 
 func _ready():
 	add_to_group("blocks_player")
@@ -33,7 +36,26 @@ func _ready():
 	bg.border_color = COLUMN_EDGE
 	bg.set_content_margin_all(10)
 	add_theme_stylebox_override("panel", bg)
+	# Review P7: the desk follows the game while it is open (patrons pay on a timer; a wage, a death): gold, roster, pool.
+	GameManager.gold_changed.connect(_on_game_state_changed.unbind(1))
+	GameManager.adventurer_roster_changed.connect(_on_game_state_changed)
+	GameManager.recruitment_pool_changed.connect(_on_game_state_changed)
 	print("Recruitment Popup ready")
+
+
+## A change the open desk must show: one rebuild at the end of the frame, however many changes came (a hire emits gold
+## and roster changes from inside hire_adventurer: the rebuild waits until it is done). The pick is kept.
+func _on_game_state_changed() -> void:
+	if not visible or _content == null or _refresh_queued:
+		return
+	_refresh_queued = true
+	_refresh_now.call_deferred()
+
+
+func _refresh_now() -> void:
+	_refresh_queued = false
+	if visible and _content != null and is_instance_valid(_content):
+		build_hire_content(_content)
 
 func open_recruitment_desk():
 	"""Open the hire desk: today's applicants (made now if the day never had any) and the guild."""
@@ -67,11 +89,13 @@ func build_hire_content(container: Control) -> void:
 
 	container.add_child(_label("ApplicantsHeader", "Looking for work today", 16, Color(0.6, 0.85, 0.95)))
 	if recruits.is_empty():
-		container.add_child(_label("NoApplicants", "No one is looking for work today. Come back tomorrow.", 14, Color.GRAY))
+		var none := "Every card has been dealt. No one new will come." if GameManager.deck_exhausted() \
+			else "No one is looking for work today. Come back tomorrow."   # review P8
+		container.add_child(_label("NoApplicants", none, 14, Color.GRAY))
 	else:
 		var scroll := ScrollContainer.new()
 		scroll.name = "ApplicantsScroll"
-		scroll.custom_minimum_size = Vector2(PANEL_SIZE.x - 40, 492)
+		scroll.custom_minimum_size = Vector2(PANEL_SIZE.x - 40, PortraitSocket.card_height(CARD_WIDTH) + BELOW_CARD)
 		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		container.add_child(scroll)
 		var row := HBoxContainer.new()
@@ -82,15 +106,19 @@ func build_hire_content(container: Control) -> void:
 			row.add_child(_applicant_column(recruit))
 
 	var picked: Dictionary = _recruit_by_id(recruits, selected_id) if selected_id != null else {}
+	var confirm_row := MarginContainer.new()   # always there, empty without a pick: the desk keeps its size (review P6)
+	confirm_row.name = "ConfirmRow"
+	confirm_row.custom_minimum_size = Vector2(0, CONFIRM_ROW_HEIGHT)
+	container.add_child(confirm_row)
 	if not picked.is_empty():
-		container.add_child(_confirm_bar(picked))
+		confirm_row.add_child(_confirm_bar(picked))
 
 	container.add_child(HSeparator.new())
 	var roster: Array = GameManager.adventurers
 	container.add_child(_label("GuildHeader", "Your guild (%d/%d)" % [roster.size(), GameManager.get_max_adventurers()], 16, Color.ORANGE))
 	var guild_scroll := ScrollContainer.new()
 	guild_scroll.name = "GuildScroll"
-	guild_scroll.custom_minimum_size = Vector2(PANEL_SIZE.x - 40, 150)
+	guild_scroll.custom_minimum_size = Vector2(PANEL_SIZE.x - 40, 140)
 	container.add_child(guild_scroll)
 	var guild := VBoxContainer.new()
 	guild.name = "Guild"
@@ -122,8 +150,9 @@ func _applicant_column(recruit: Dictionary) -> Control:
 
 	var card = (load(TAROT_CARD_SCENE) as PackedScene).instantiate()   # tarot_card.gd (loaded by path, no class_name)
 	card.name = "Card"
-	card.custom_minimum_size = CARD_SIZE
-	card.size = CARD_SIZE
+	var card_size := Vector2(CARD_WIDTH, PortraitSocket.card_height(CARD_WIDTH))
+	card.custom_minimum_size = card_size
+	card.size = card_size
 	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	card.set_card(GameManager.tarot_card_of(recruit), PortraitSocket.resolve_card_art(recruit))
 	box.add_child(card)
