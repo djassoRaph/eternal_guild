@@ -310,7 +310,7 @@ func send_on_mission(adventurer: Dictionary, mission: Dictionary, hex_id: String
 	_lock_hex(hex_id)
 	_log_dispatch(active_entry, [adventurer])
 
-	log_message("" + adventurer.name + " departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
+	log_message("" + adventurer.name + " departs on: " + mission.get("name", "?") + " (" + str(int(duration)) + " day" + ("s" if int(duration) > 1 else "") + ")")
 
 	adventurer_roster_changed.emit()
 	mission_dispatched.emit([adventurer], mission, hex_id)
@@ -342,7 +342,7 @@ func send_party_on_mission(party: Array, mission: Dictionary, hex_id: String = "
 	_log_dispatch(active_entry, party)
 
 	var names = ", ".join(party.map(func(a): return a.name))
-	log_message("Party departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
+	log_message("Party departs on: " + mission.get("name", "?") + " (" + str(int(duration)) + " day" + ("s" if int(duration) > 1 else "") + ")")
 	log_message("   Party: " + names)
 
 	adventurer_roster_changed.emit()
@@ -595,10 +595,17 @@ func _lock_hex(hex_id: String) -> void:
 
 
 func _log_dispatch(entry: Dictionary, party: Array) -> void:
+	print(dispatch_line(entry, party))
+
+
+## The NFR-10 line for a dispatch: `[GameManager] dispatch: Ada -> Clear the Cellar (hex_12), back day 7, chance 82%`.
+static func dispatch_line(entry: Dictionary, party: Array) -> String:
 	var names := ", ".join(party.map(func(a): return str(a.get("name", "?"))))
 	var where := str(entry.get("location_id", ""))
-	print("[GameManager] dispatch: %s -> %s (%s), back day %d, chance %d%%" % [names, entry.mission.get("name", "?"),
-		where if where != "" else "no hex", int(entry.get("return_day", 0)), int(entry.get("success_chance", 0))])
+	var mission = entry.get("mission")
+	return "[GameManager] dispatch: %s -> %s (%s), back day %d, chance %d%%" % [names,
+		mission.get("name", "?") if mission is Dictionary else "?", where if where != "" else "no hex",
+		int(entry.get("return_day", 0)), int(entry.get("success_chance", 0))]
 
 
 ## How many party missions a refresh must carry (DD-7). Party templates start at Tier 2, which the first tax (Day 30)
