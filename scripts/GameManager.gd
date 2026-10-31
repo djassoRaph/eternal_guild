@@ -1446,6 +1446,10 @@ func _gather_patrons_save() -> Array:
 	for p in get_tree().get_nodes_in_group("patrons"):
 		if is_instance_valid(p) and p.has_method("to_save"):
 			out.append(p.to_save())
+	# Story 11.2 review (P7): no patron live yet but some waiting to be restored (the hall seats them 2 s after it
+	# loads, or the run resumed outside): a save keeps the waiting ones.
+	if out.is_empty() and not restored_patrons.is_empty():
+		return restored_patrons.duplicate(true)
 	return out
 
 func get_save_data() -> Dictionary:
@@ -1876,7 +1880,11 @@ func reset_game_state():
 	patron_recruitment_pool.clear()
 	hired_tarot_cards.clear()  # fresh deck for a new run (Epic 4.1)
 	WorldManager.reset_run_state()  # no Latest News rumours from the previous run (Story 11.2)
-	# Story 11.2 review (P1): no live run until New Game's first save: the automatic saves wait for it.
+	# Story 11.2 review: nothing waiting from the last run's load (P7: its patrons, scene and spot), and no live run
+	# until New Game's first save (P1: the automatic saves wait for it).
+	restored_patrons = []
+	saved_player_scene = ""
+	PlayerManager.clear_pending_spawn()
 	SaveSystem.run_active = false
 
 	# Missions
