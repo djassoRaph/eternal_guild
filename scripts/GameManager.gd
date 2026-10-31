@@ -5,6 +5,7 @@ const AStatus = AdventurerStatus.Status
 
 # === CORE GAME STATE ===
 var gold: int = 1000
+var gold_peak: int = 1000   # the most gold this run has held (Story 13.4: the fall screen; Fame, Story 20.1)
 var beer_stock: int = 5
 var current_day: int = 1
 var max_adventurers: int = 5
@@ -45,6 +46,7 @@ var recruit_refresh_day: int = 1
 var daily_recruits: Array = []
 var _no_traits_warned := false   # an empty traits.json is warned about once a session (Story 4.2)
 var game_over_active: bool = false
+var last_run_summary: Dictionary = {}   # the run's numbers frozen at the fall (Story 13.4, run_summary); not saved
 var beer_shortage_days: int = 0
 var adventurer_morale: Dictionary = {}  # adventurer_id -> morale level (1-3)
 
@@ -90,6 +92,7 @@ func _ready():
 
 func _apply_config():
 	gold = DataManager.get_config("starting_gold", 1000)
+	gold_peak = gold   # a run starts at its starting gold (Story 13.4)
 	beer_stock = DataManager.get_config("starting_beer", 5)
 	max_adventurers = DataManager.get_config("max_adventurers", 5)
 	max_firewood_storage = DataManager.get_config("max_firewood_storage", 10)
@@ -130,6 +133,7 @@ func refresh_missions():
 func add_gold(amount: int):
 	"""Add gold and notify all systems"""
 	gold += amount
+	gold_peak = maxi(gold_peak, gold)   # Story 13.4: income is the only way up
 	gold_changed.emit(gold)
 	print("Added ", amount, " gold. Total: ", gold)
 
@@ -1578,10 +1582,8 @@ func advance_day():
 	var availability_report = get_guild_availability_report()
 	log_message("Gold: " + str(gold) + " | Beer: " + str(beer_stock) + " pints | Available: " + str(availability_report["ready"]) + "/" + str(adventurers.size()))
 
-	# Soft-lock detection
-	if adventurers.size() == 0 and gold < 8 and daily_recruits.size() == 0:
-		log_message("The guild cannot recover. No adventurers, no funds, no prospects.")
-		trigger_game_over("soft_lock", "The Eternal Guild fades into history — abandoned and forgotten.")
+	# Soft-lock detection (Story 13.4: the GDD's rule, with the hire authority's affordability)
+	_check_soft_lock()
 
 	# The day's autosave, now that the whole night is done (Story 11.2 review P5: it used to run on day_changed,
 	# before wages, missions, the fire and recruits, so Sleep -> quit -> Continue skipped a night). A game over
@@ -1706,6 +1708,9 @@ var saved_player_scene: String = ""
 # Day-2 autosave -> Continue restores the fresh game instead of stale state from the prior run.
 var pending_new_game_save: bool = false
 
+## Story 13.4 (DG-5): where a new run starts (today the world map; Story 5.1 puts the guild naming screen in front).
+const NEW_RUN_SCENE := "res://scenes/HexMapTest.tscn"
+
 func _player_pos_array() -> Array:
 	if PlayerManager and is_instance_valid(PlayerManager.player):
 		var p = PlayerManager.player.global_position
@@ -1746,6 +1751,7 @@ func get_save_data() -> Dictionary:
 	var data = {
 		# Core resources
 		"gold": gold,
+		"gold_peak": gold_peak,   # Story 13.4
 		"beer_stock": beer_stock,
 
 		# Time tracking
@@ -1813,6 +1819,7 @@ func load_save_data(data: Dictionary):
 	# aborting the load half-way; keys this build doesn't know are ignored.
 	# Core resources
 	gold = _save_int(data.get("gold"), 10)
+	gold_peak = gold_peak_from_save(data.get("gold_peak"), gold)   # Story 13.4; an old save: the loaded gold
 	beer_stock = _save_int(data.get("beer_stock"), 0)
 
 	# Time tracking
@@ -2147,21 +2154,78 @@ func check_additional_failure_conditions():
 		pass
 		trigger_game_over("abandoned_tavern", "Tavern abandoned - no customers for too long")
 
+## The guild falls. `failure_type` is the cause key (bankruptcy, soft_lock; Story 21.3 adds no_survivors), `reason` a
+## sentence for the log. Story 13.4: the run is recorded before anything hears of it (DG-2): last_run_summary is frozen,
+## SaveSystem.end_run() writes the codex.dat entry and moves the save out of the slot; then GameManager stops and
+## game_over_triggered(cause) goes out (GameBus too); the hall's "The Guild Falls" screen listens. Once only.
 func trigger_game_over(failure_type: String, reason: String):
-	"""Trigger game over state and stop all game processes"""
 	if game_over_active:
 		return  # Prevent multiple game overs
-		
+
 	game_over_active = true
 	log_message("FAILURE: " + reason)
 	log_message("GAME OVER!")
-	
+	print("[GameManager] fall: %s on day %d" % [failure_type, current_day])
+
+	last_run_summary = run_summary(failure_type)
+	SaveSystem.end_run(last_run_summary)
+
 	# Stop all game processes
 	set_process_mode(Node.PROCESS_MODE_DISABLED)
-	
-	# Emit signal to show game over screen
-	game_over_triggered.emit("Tax Bankruptcy: " + reason)
 
+	# DG-1: the cause key is the payload (the screen's reason line is data/reveal/guild_falls.json's, keyed by it)
+	game_over_triggered.emit(failure_type)
+
+## Story 13.4 (DG-3): the run's numbers at the fall: the screen's three stats and codex.dat's guild_history entry.
+## days_survived: a fall comes at a day's start, so the days before it. No heir (legacy_adventurer null): a fall carries
+## nobody over until Epics 21/22.
+func run_summary(cause: String) -> Dictionary:
+	var alive := 0
+	for adv in adventurers:
+		if adv is Dictionary and adv.get("status") != AStatus.DEAD:
+			alive += 1
+	return {"cause": cause, "ending": "fall", "end_day": current_day, "days_survived": maxi(0, current_day - 1),
+		"adventurers_lost": deaths_this_run, "adventurers_hired": adventurers_hired_this_run, "survivors": alive,
+		"gold_peak": maxi(gold_peak, gold), "gold_at_end": gold, "missions_completed": total_missions_completed,
+		"taxes_paid": taxes_paid_count, "reputation": tavern_reputation, "legacy_adventurer": null,
+		"timestamp": Time.get_unix_time_from_system()}
+
+## Story 13.4: a saved gold_peak, never below the loaded gold; an old save (no key) or junk: the loaded gold. Pure.
+static func gold_peak_from_save(v, gold_now: int) -> int:
+	return maxi(_save_int(v, gold_now), gold_now)
+
+## Story 13.4 (DG-9; the GDD's and Story 3.6's rule, pure): the guild can't go on when no adventurer is alive, the gold
+## is under the line and no applicant can be hired with it.
+static func is_soft_locked(alive: int, gold_now: int, hireable: int, gold_below: int) -> bool:
+	return alive <= 0 and gold_now < gold_below and hireable <= 0
+
+## Today's applicants the hire authority (hire_block_reason, Story 4.2) would let the guild hire now.
+func hireable_count() -> int:
+	var n := 0
+	for r in get_available_recruits():
+		if r is Dictionary and hire_block_reason(r) == "":
+			n += 1
+	return n
+
+## The morning's soft-lock check (the end of advance_day): the fall when the guild can't go on.
+func _check_soft_lock() -> void:
+	var alive := 0
+	for adv in adventurers:
+		if adv is Dictionary and adv.get("status") != AStatus.DEAD:
+			alive += 1
+	var line := _save_int(DataManager.get_config("soft_lock_gold_below", 8), 8)
+	if is_soft_locked(alive, gold, hireable_count(), line):
+		print("[GameManager] warn: soft-lock condition detected on day %d" % current_day)
+		log_message("The guild cannot recover. No adventurers, no funds, no prospects.")
+		trigger_game_over("soft_lock", "The Eternal Guild fades into history — abandoned and forgotten.")
+
+## Story 13.4 (DG-5): the one way into a new run, shared by the main menu's New Game and the fall screen's New Run:
+## the run state reset (nothing carried over) and the new run's first save made when the hall loads. Story 5.1's naming
+## screen goes in front of NEW_RUN_SCENE; Epic 22's LegacyTransition wraps this (execute_total_wipe) or follows The
+## Reading (execute) for a run with an heir. Callers change scene to NEW_RUN_SCENE.
+func begin_new_run() -> void:
+	reset_game_state()
+	pending_new_game_save = true
 
 func reset_game_state():
 	print("Resetting game state...")
@@ -2203,6 +2267,7 @@ func reset_game_state():
 	
 	# Game state
 	game_over_active = false
+	last_run_summary = {}   # Story 13.4
 	
 	# Re-enable processing
 	set_process_mode(Node.PROCESS_MODE_INHERIT)
