@@ -1,0 +1,47 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/dev/silhouette_studio.gd" id="1_sil"]
+
+[sub_resource type="Environment" id="Environment_black"]
+background_mode = 1
+background_color = Color(0, 0, 0, 1)
+ambient_light_source = 1
+reflected_light_source = 1
+tonemap_mode = 0
+
+[node name="SilhouetteStudio" type="Node3D"]
+script = ExtResource("1_sil")
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+offset_right = 512.0
+offset_bottom = 512.0
+mouse_filter = 2
+
+[node name="Studio" type="SubViewport" parent="SubViewportContainer"]
+unique_name_in_owner = true
+handle_input_locally = false
+msaa_3d = 2
+size = Vector2i(1024, 1024)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/Studio"]
+environment = SubResource("Environment_black")
+
+[node name="Subject" type="Node3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/Studio"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 6)
+projection = 1
+size = 3.0
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+
+[node name="Info" type="Label" parent="Overlay"]
+unique_name_in_owner = true
+offset_left = 8.0
+offset_top = 520.0
+offset_right = 900.0
+offset_bottom = 546.0
+text = "silhouette studio"
