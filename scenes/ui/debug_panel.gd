@@ -473,7 +473,7 @@ func _build_tab_failures(parent: VBoxContainer) -> void:
 	_h(parent, "FAILURE STATE TESTING")
 
 	var warn := Label.new()
-	warn.text = "These intentionally break the game. Save first."
+	warn.text = "These end the run for real: the fall goes into codex.dat and the save moves to fallen_runs/."
 	warn.add_theme_color_override("font_color", Color(1.0, 0.6, 0.1))
 	parent.add_child(warn)
 	parent.add_child(HSeparator.new())
@@ -487,11 +487,14 @@ func _build_tab_failures(parent: VBoxContainer) -> void:
 	_h(parent, "RECOVERY")
 	_btn_full(parent, "Full Reset → Day 1 Starting State",  _full_reset)
 
+## Story 13.4 (DG-13): the real path: no gold, the tax due today with the grace at its last day, then the morning's
+## tax check (it used to set daily_operating_cost, which nothing reads since Story 4.4).
 func _go_bankruptcy() -> void:
 	_force_gold(0)
-	GameManager.daily_operating_cost = 9999
-	if GameManager.has_method("advance_day"):
-		GameManager.advance_day()
+	var cfg: Dictionary = GameManager.tax_config()
+	GameManager.tax_due_day = GameManager.current_day
+	GameManager.tax_grace_days = maxi(0, int(cfg.grace_days) - 1)
+	GameManager.check_tax_deadline()
 	print("Bankruptcy scenario triggered")
 
 func _go_beer_shortage() -> void:

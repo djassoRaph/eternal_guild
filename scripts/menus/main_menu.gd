@@ -2,7 +2,6 @@
 extends Control
 
 const TAVERN_SCENE = "res://scenes/MainTavern.tscn"
-const HEX_MAP_SCENE = "res://scenes/HexMapTest.tscn"
 
 @onready var start_button = $VBoxContainer/StartButton
 @onready var continue_button = $VBoxContainer/ContinueButton
@@ -53,13 +52,11 @@ func _on_start_button_pressed():
 		_start_new_game()
 
 func _start_new_game():
-	# GameManager is an autoload — it holds state for the whole session. Wipe any in-memory
-	# state from a prior game or Continue so a New Game never inherits the old day/gold/roster.
-	GameManager.reset_game_state()
-	# Consumed by main_tavern.gd's _ready() — forces a disk save the moment the tavern loads,
-	# so quitting before Day 2 doesn't leave the previous run's save on disk (Epic 11).
-	GameManager.pending_new_game_save = true
-	get_tree().change_scene_to_file(HEX_MAP_SCENE)
+	# Story 13.4: the one way into a new run, shared with the fall screen's New Run. begin_new_run() wipes the session's
+	# run state (a New Game never inherits the old day/gold/roster) and has the hall make the new run's first save as it
+	# loads (Epic 11). Story 5.1's naming screen and Epic 22's legacy transition hook in there.
+	GameManager.begin_new_run()
+	get_tree().change_scene_to_file(GameManager.NEW_RUN_SCENE)
 
 func _on_continue_button_pressed():
 	# Story 11.2: one resume path for Continue and the pause menu's Load. load_game() falls back to a backup when
