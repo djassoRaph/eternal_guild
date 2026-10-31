@@ -12,7 +12,7 @@ any other document.** Update it when a feature ships, not before.
 |---|---|---|
 | Tavern core loop (patrons, beer, gold, taxes) | GameManager | MVP running |
 | Firewood / comfort system | GameManager + fireplace_zone | ⚠ two competing drain authorities — see TECH_DEBT |
-| Recruitment + roster (5 cap) | GameManager | Roster panel with portraits (old anime set) |
+| Recruitment + roster (`max_adventurers`, 8) | GameManager (`hire_block_reason` / `hire_adventurer`, `ensure_hire_pool`, traits from `traits.json`, ids never reused) | The hire desk shows each applicant as a Tarot card: the class silhouette in a placeholder frame, numeral or suit, card name; pick, then confirm (Story 4.2, 2026-10-31, in review). The card's look is `data/config/tarot_card.json` (frame, silhouettes, suits), the art `PortraitSocket.resolve_card_art`. Roster panel: Story 4.3 |
 | Dispatch (`send_on_mission` / `send_party_on_mission`, behind the checked `dispatch_adventurers`) | GameManager | Works; the Deployment Record and the hex lock on each active entry; one success estimate (`estimate_success`) shown and rolled (Story 6.5, 2026-10-31) |
 | Party mission UI | — | done |
 | F12 debug menu | — | done |
