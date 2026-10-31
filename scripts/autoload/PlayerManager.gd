@@ -56,6 +56,13 @@ func _ready() -> void:
 	print("========================================")
 
 
+## Story 11.2: forget a saved spot that belongs to another scene (a resume that fell back to the tavern, or a save
+## without a position), so the next scene uses its own spawn point.
+func clear_pending_spawn() -> void:
+	has_pending_spawn = false
+	pending_spawn_position = Vector3.ZERO
+
+
 # =============================================================================
 # PUBLIC: TRANSITION TO SCENE
 # =============================================================================

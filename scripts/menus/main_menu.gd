@@ -62,17 +62,27 @@ func _start_new_game():
 	get_tree().change_scene_to_file(HEX_MAP_SCENE)
 
 func _on_continue_button_pressed():
-	if SaveSystem.load_game():
-		# Return the player to the scene they saved in (falls back to the tavern).
-		var target = GameManager.saved_player_scene
-		if target == "" or not ResourceLoader.exists(target):
-			target = TAVERN_SCENE
-		get_tree().change_scene_to_file(target)
+	# Story 11.2: one resume path for Continue and the pause menu's Load. load_game() falls back to a backup when
+	# the save is broken; resume_scene() is the saved scene, or the tavern's spawn point when it can't be resumed.
+	if SaveSystem.load_game().is_empty():
+		_show_message("Couldn't load the save.")   # DRAFT text
+		return
+	get_tree().change_scene_to_file(SaveSystem.resume_scene())
+
+
+func _show_message(text: String) -> void:
+	var dialog := AcceptDialog.new()
+	dialog.dialog_text = text
+	dialog.title = "Continue"
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
 
 func _on_quit_button_pressed():
 	"""Quit game"""
 	get_tree().quit()
 
 func has_save_game() -> bool:
-	"""Check if a save file exists"""
-	return FileAccess.file_exists(SaveSystem.SAVE_FILE)
+	"""Check if a save file exists (a backup counts: Continue loads it when the main file is broken)"""
+	return SaveSystem.has_save_file()

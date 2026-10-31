@@ -170,17 +170,14 @@ func _return_to_main_menu():
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
 
 func _load_game():
-	"""Actually load the save file"""
+	"""Load the save and go where it was made (Story 11.2: the same resume path as Continue)"""
 	print("Loading save file...")
-	
-	if SaveSystem and SaveSystem.load_game():
-		show_message("Game loaded!\nReloading scene...")
-		await get_tree().create_timer(1.0).timeout
-		# Reload the scene to refresh everything
-		get_tree().paused = false
-		get_tree().reload_current_scene()
-	else:
-		show_message("Failed to load game")
+
+	if SaveSystem.load_game().is_empty():
+		show_message("Couldn't load the save.")   # DRAFT text
+		return
+	get_tree().paused = false
+	get_tree().change_scene_to_file(SaveSystem.resume_scene())
 
 func _quit_game():
 	"""Actually quit the application"""

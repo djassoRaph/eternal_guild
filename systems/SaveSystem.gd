@@ -117,36 +117,106 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	return success
 
 
-func load_game() -> bool:
-	if not has_save_file():
-		print("[SaveSystem] No save file at: ", save_path)
-		return false
-
-	print("[SaveSystem] Loading from: ", save_path)
-
-	var save_data = _read_json_file(save_path)
+## Story 11.2: reads the save (or its newest readable backup), applies it to GameManager and returns the state it
+## applied (player_position / player_scene included; SaveSystem.player_spot() reads them), or {} when nothing could
+## be loaded. Callers test .is_empty(), then go to resume_scene().
+func load_game() -> Dictionary:
+	var save_data := read_save()
 	if save_data.is_empty():
-		print("[SaveSystem] Failed to read save file or empty")
-		return false
-
-	save_data = _migrate_save_data(save_data)
-
-	if not _validate_save_data(save_data):
-		print("[SaveSystem] Validation failed")
-		return false
-
-	if not GameManager:
-		print("[SaveSystem] GameManager not found")
-		return false
+		load_completed.emit(false)
+		return {}
 
 	load_in_progress = true
 	GameManager.load_save_data(save_data)
 	load_in_progress = false
 
-	print("[SaveSystem] Loaded Day ", save_data.get("current_day", 1))
+	print("[SaveSystem] loaded: Day ", save_data.get("current_day", 1))
 
 	load_completed.emit(true)
-	return true
+	return save_data
+
+
+## Story 11.2: the save's state, migrated and validated, without applying it: the main file, else the newest
+## readable backup (game-architecture: a corrupt save loads the most recent valid backup). {} when none is readable.
+func read_save() -> Dictionary:
+	var paths: Array[String] = [save_path]
+	for i in range(1, _max_backups() + 1):
+		paths.append(save_path + ".backup" + str(i))
+	for i in paths.size():
+		if not FileAccess.file_exists(paths[i]):
+			continue
+		print("[SaveSystem] Loading from: ", paths[i])
+		var data := _read_json_file(paths[i])
+		if data.is_empty():
+			continue
+		data = _migrate_save_data(data)
+		if not _validate_save_data(data):
+			continue
+		if i > 0:
+			push_warning("[SaveSystem] warn: save unreadable, loaded backup %d" % i)
+		return data
+	print("[SaveSystem] No readable save at: ", save_path)
+	return {}
+
+
+## Story 11.2: the player's saved spot as {"scene", "x", "y", "z"} (the save keeps player_position [x, y, z] and
+## player_scene), or {} when the save has no position of three numbers.
+static func player_spot(data: Dictionary) -> Dictionary:
+	var p = data.get("player_position", [])
+	if not (p is Array and p.size() == 3):
+		return {}
+	for c in p:
+		if not (c is int or c is float):
+			return {}
+	var scene = data.get("player_scene", "")
+	return {"scene": scene if scene is String else "", "x": float(p[0]), "y": float(p[1]), "z": float(p[2])}
+
+
+# === RESUME (Story 11.2) ===
+
+const DEFAULT_RESUME_SCENE := "res://scenes/MainTavern.tscn"   # its PlayerSpawnPoint is the New Game start
+const WARN_SCENE_NOT_FOUND := "[SaveSystem] warn: saved scene not found, falling back to default spawn"
+
+## Where a loaded save resumes. A saved scene that is empty, missing, or not a player scene (no player_scene group
+## on its root: the main menu, the hex map) goes to the tavern's spawn point; the saved spot is dropped then, as it
+## belongs to another scene. Pure, so the failsafe suite can walk the table: {scene, keep_spawn, warning}.
+static func resume_target_for(saved: String, exists: bool, is_player: bool) -> Dictionary:
+	if saved == "":
+		return {"scene": DEFAULT_RESUME_SCENE, "keep_spawn": false, "warning": ""}
+	if not exists:
+		return {"scene": DEFAULT_RESUME_SCENE, "keep_spawn": false, "warning": WARN_SCENE_NOT_FOUND}
+	if not is_player:
+		return {"scene": DEFAULT_RESUME_SCENE, "keep_spawn": false,
+			"warning": "[SaveSystem] warn: saved scene is not a player scene (%s), falling back to default spawn" % saved}
+	return {"scene": saved, "keep_spawn": true, "warning": ""}
+
+
+## True when the scene file's root is in the player_scene group (read from the PackedScene, not instanced).
+static func is_player_scene(path: String) -> bool:
+	if not (path.ends_with(".tscn") or path.ends_with(".scn")) or not ResourceLoader.exists(path):
+		return false
+	var ps = load(path)
+	if not (ps is PackedScene):
+		return false
+	var st: SceneState = (ps as PackedScene).get_state()
+	return st.get_node_count() > 0 and st.get_node_groups(0).has("player_scene")
+
+
+## The scene Continue and the pause menu's Load change to after load_game(): the saved scene, or the tavern (with
+## the warning, and PlayerManager's pending spot dropped).
+func resume_scene() -> String:
+	var saved: String = GameManager.saved_player_scene
+	var exists := saved != "" and ResourceLoader.exists(saved)
+	var t := resume_target_for(saved, exists, exists and is_player_scene(saved))
+	if t.warning != "":
+		push_warning(t.warning)
+	if not t.keep_spawn:
+		PlayerManager.clear_pending_spawn()
+	return t.scene
+
+
+func _max_backups() -> int:
+	return maxi(1, int(DataManager.get_config("max_backup_files", 3)))
 
 
 # === CODEX (eternal cross-run persistence) ===
@@ -246,9 +316,16 @@ func record_run_end() -> void:
 # === SCHEMA MIGRATION ===
 
 func _migrate_save_data(data: Dictionary) -> Dictionary:
-	var version = int(data.get("schema_version", 0))
+	# A junk or missing version reads as 0 (Story 11.2: int(null) would abort the load).
+	var v = data.get("schema_version", 0)
+	var version: int = int(v) if (v is int or v is float) else 0
 
 	if version == CURRENT_SCHEMA_VERSION:
+		return data
+
+	if version > CURRENT_SCHEMA_VERSION:
+		# Story 11.2: a save from a newer build loads best-effort; load_save_data() ignores the keys it doesn't know.
+		print("[SaveSystem] Save schema v", version, " is newer than this build (v", CURRENT_SCHEMA_VERSION, "): loading known fields")
 		return data
 
 	print("[SaveSystem] Migrating save from schema v", version, " to v", CURRENT_SCHEMA_VERSION)
@@ -379,7 +456,7 @@ func restore_from_backup(backup_number: int = 1) -> bool:
 	DirAccess.copy_absolute(backup_path, save_path)
 	print("[SaveSystem] Restored from backup: ", backup_path)
 
-	return load_game()
+	return not load_game().is_empty()
 
 
 # === VALIDATION ===
@@ -413,8 +490,14 @@ func _validate_save_data(data: Dictionary) -> bool:
 
 # === UTILITY ===
 
+## Story 11.2: a backup counts (load_game() falls back to it when the main file is missing or broken).
 func has_save_file() -> bool:
-	return FileAccess.file_exists(save_path)
+	if FileAccess.file_exists(save_path):
+		return true
+	for i in range(1, _max_backups() + 1):
+		if FileAccess.file_exists(save_path + ".backup" + str(i)):
+			return true
+	return false
 
 func get_save_info() -> Dictionary:
 	if not has_save_file():
