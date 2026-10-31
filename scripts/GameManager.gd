@@ -329,6 +329,7 @@ func hire_staff(role: String) -> String:
 	rec.missed_days = 0
 	log_message("[GameManager] staff: hired %s (%d gold a day)" % [rec.name, wage])
 	log_message("%s is on the payroll. %d gold a day." % [staff_title(str(rec.name)), wage])
+	EconomyBus.staff_wage_paid.emit(str(rec.staff_id), wage)   # the first day's wage (Story 16.5)
 	GuildBus.staff_hired.emit(str(rec.staff_id), role)
 	return ""
 
@@ -412,6 +413,75 @@ func _load_staff_data(data: Dictionary) -> void:
 ## New Game (and a save without staff): the profile's starting staff.
 func _reset_staff_state() -> void:
 	staff = _seeded_staff()
+
+## Story 16.5 (SW-2): a hired staff member leaves on the morning this many wages in a row went unpaid
+## (game_config.json staff_wages.missed_days_to_leave, so a profile can override it). Missing or bad: 3, with a warning.
+func staff_missed_days_to_leave() -> int:
+	var cfg = DataManager.get_config("staff_wages", {})
+	var v = cfg.get("missed_days_to_leave") if cfg is Dictionary else null
+	if (v is int or v is float) and float(v) == float(int(v)) and int(v) >= 1:
+		return int(v)
+	_staff_warn("[GameManager] fallback: staff_wages.missed_days_to_leave is %s: 3" % [v])
+	return 3
+
+## Story 16.5: the staff's daily wages, paid each morning right after the adventurers' (advance_day), so before the tax.
+## Each hired member is paid in full through spend_gold (the gold authority) or not at all (SW-1): paid ->
+## EconomyBus.staff_wage_paid. Short of the wage -> on strike (owes it, missed 1): staff_wage_unpaid, then
+## GuildBus.staff_strike_changed(true). A striker isn't paid automatically (the player pays the back wage, Story 16.2's
+## panel): each further morning adds the wage to what is owed and counts one more missed day (staff_wage_unpaid); at
+## missed_days_to_leave they leave (the record cleared, the debt dropped: SW-4; staff_strike_changed(false), staff_fired).
+## Returns the gold paid. One log line for the total ("the end-of-day summary", 16.5 AC 4: the event log).
+func apply_staff_wages() -> int:
+	var paid := 0
+	var leave_after := staff_missed_days_to_leave()
+	for rec in staff:
+		if not (rec is Dictionary) or rec.get("hired") != true:
+			continue
+		var wage := wage_of(rec)
+		var id := str(rec.staff_id)
+		if rec.get("on_strike") != true:
+			if spend_gold(wage):
+				paid += wage
+				EconomyBus.staff_wage_paid.emit(id, wage)
+				continue
+			rec.on_strike = true
+			rec.owed = wage
+			rec.missed_days = 1
+			log_message("[GameManager] staff: %s unpaid (missed 1, owes %d)" % [rec.name, rec.owed])
+			EconomyBus.staff_wage_unpaid.emit(id)
+			GuildBus.staff_strike_changed.emit(id, true)
+		else:
+			rec.owed = maxi(0, int(rec.get("owed", 0))) + wage
+			rec.missed_days = maxi(0, int(rec.get("missed_days", 0))) + 1
+			log_message("[GameManager] staff: %s unpaid (missed %d, owes %d)" % [rec.name, rec.missed_days, rec.owed])
+			EconomyBus.staff_wage_unpaid.emit(id)
+		if int(rec.missed_days) >= leave_after:
+			_release_staff(rec, "[GameManager] staff: %s left (unpaid %d days)" % [rec.name, rec.missed_days],
+				"%s has left the guild, unpaid." % staff_title(str(rec.name)))
+	if paid > 0:
+		log_message("Paid %d gold in staff wages." % paid)
+	return paid
+
+## Story 16.5 (SW-3): pay a striker's back wage (Story 16.2's panel, F12): "" when paid, else the reason, with nothing
+## changed. Through spend_gold; the record cleared (no strike, nothing owed); then EconomyBus.staff_wage_paid and
+## GuildBus.staff_strike_changed(false): their work resumes. DRAFT text.
+func pay_staff_back_wage(role: String) -> String:
+	var rec := staff_record(role)
+	if rec.is_empty():
+		return "Unknown staff."
+	if rec.get("hired") != true or rec.get("on_strike") != true:
+		return "Not on strike."
+	var owed := maxi(0, int(rec.get("owed", 0)))
+	if gold < owed or (owed > 0 and not spend_gold(owed)):
+		return "Not enough gold (%d)." % owed
+	rec.on_strike = false
+	rec.owed = 0
+	rec.missed_days = 0
+	log_message("[GameManager] staff: paid %s's back wages (%d gold)" % [rec.name, owed])
+	log_message("Paid %s's back wages: %d gold." % [rec.name, owed])
+	EconomyBus.staff_wage_paid.emit(str(rec.staff_id), owed)
+	GuildBus.staff_strike_changed.emit(str(rec.staff_id), false)
+	return ""
 
 func get_reputation_tier() -> Dictionary:
 	"""Highest reputation_tiers entry (data/config/game_config.json) the guild currently qualifies
@@ -1860,7 +1930,8 @@ func advance_day():
 
 	# Deduct daily wages before the morning briefing (Story 4.4)
 	apply_daily_wages()
-	
+	apply_staff_wages()   # Story 16.5: the staff, right after the adventurers (and so before the tax)
+
 	# Show availability status
 	log_daily_availability_status()
 	
