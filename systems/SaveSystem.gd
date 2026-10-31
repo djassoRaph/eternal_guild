@@ -40,8 +40,19 @@ func setup_autosave_timer():
 	print("[SaveSystem] Autosave timer: ", interval, "s")
 
 func _on_autosave_timer_timeout():
+	if not can_autosave():
+		return
 	autosave_triggered.emit()
 	autosave_game()
+
+## Story 11.2: the timer autosave runs only in a scene the save can resume into (the hall, outside: their roots are
+## in the player_scene group). In the main menu it saved the menu as the resume scene (Continue then reopened the
+## menu), and on a fresh launch the default Day-1 state over the player's run.
+func can_autosave() -> bool:
+	if not is_inside_tree():
+		return false
+	var cs := get_tree().current_scene
+	return cs != null and cs.is_in_group("player_scene")
 
 func _on_day_changed(new_day: int):
 	if load_in_progress:
