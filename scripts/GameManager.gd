@@ -814,7 +814,8 @@ func process_mission_returns():
 		# (roster, gold, statuses) and every death is already in codex.dat. Persist the save
 		# NOW, before the reveal sequencer plays, so the panels are purely cosmetic and a
 		# crash or quit mid-reveal still leaves an already-correct save on disk.
-		SaveSystem.save_game_state("reveal_presave", true)
+		if SaveSystem.run_active:   # Story 11.2 review P1: only a live run saves on its own
+			SaveSystem.save_game_state("reveal_presave", true)
 		morning_briefing_ready.emit(pending_reports)
 
 
@@ -1869,6 +1870,8 @@ func reset_game_state():
 	patron_recruitment_pool.clear()
 	hired_tarot_cards.clear()  # fresh deck for a new run (Epic 4.1)
 	WorldManager.reset_run_state()  # no Latest News rumours from the previous run (Story 11.2)
+	# Story 11.2 review (P1): no live run until New Game's first save: the automatic saves wait for it.
+	SaveSystem.run_active = false
 
 	# Missions
 	available_missions.clear()

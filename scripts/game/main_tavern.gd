@@ -54,7 +54,7 @@ func _ready():
 	# previous run's save behind for Continue to pick up.
 	if GameManager.pending_new_game_save:
 		GameManager.pending_new_game_save = false
-		SaveSystem.save_game_state("new_game_start", true)
+		SaveSystem.start_new_run_save()   # also starts the run: the automatic saves may now write (Story 11.2 review)
 
 
 # === UI UPDATE FUNCTIONS (Connected to GameManager signals) ===

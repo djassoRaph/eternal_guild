@@ -11,6 +11,10 @@ const RENAMED_CLASSES := {"Cleric": "Healer"}
 # Story 11.2: the save this session reads and writes. Tests and Stage D runs point it at a copy, so they never
 # touch the player's save.
 var save_path: String = SAVE_FILE
+## Story 11.2 review (P1): a run is live once a save was loaded or a New Game made its first save. The automatic
+## saves (the timer, the end of a day, a game over, the reveal's pre-save) need it: a scene launched straight from
+## the editor runs on the default Day 1 and must never write it over the player's run.
+var run_active := false
 var autosave_timer: Timer
 var save_in_progress: bool = false
 var load_in_progress: bool = false
@@ -45,11 +49,11 @@ func _on_autosave_timer_timeout():
 	autosave_triggered.emit()
 	autosave_game()
 
-## Story 11.2: the timer autosave runs only in a scene the save can resume into (the hall, outside: their roots are
-## in the player_scene group). In the main menu it saved the menu as the resume scene (Continue then reopened the
-## menu), and on a fresh launch the default Day-1 state over the player's run.
+## Story 11.2: the timer autosave runs only in a live run (P1) and in a scene the save can resume into (the hall,
+## outside: their roots are in the player_scene group). In the main menu it saved the menu as the resume scene
+## (Continue then reopened the menu), and on a fresh launch the default Day-1 state over the player's run.
 func can_autosave() -> bool:
-	if not is_inside_tree():
+	if not run_active or not is_inside_tree():
 		return false
 	var cs := get_tree().current_scene
 	return cs != null and cs.is_in_group("player_scene")
@@ -60,7 +64,14 @@ func _on_day_changed(new_day: int):
 	if new_day > 1:
 		autosave_game()
 
+## Review P1: New Game's first save (the hall's _ready) starts the run.
+func start_new_run_save() -> bool:
+	run_active = true
+	return save_game_state("new_game_start", true)
+
 func _on_game_over(reason: String):
+	if not run_active:
+		return
 	save_game_state("game_over_save")
 
 
@@ -128,6 +139,7 @@ func load_game() -> Dictionary:
 	load_in_progress = true
 	GameManager.load_save_data(save_data)
 	load_in_progress = false
+	run_active = true   # review P1: a loaded run may autosave
 
 	print("[SaveSystem] loaded: Day ", save_data.get("current_day", 1))
 
