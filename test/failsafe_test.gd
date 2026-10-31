@@ -364,6 +364,7 @@ func _initialize() -> void:
 	await test_staff_panel()
 	await test_bartender_serves()
 	await test_quest_dealer_works()
+	await test_demo_pacing()
 
 	_finish()
 
@@ -3572,9 +3573,9 @@ func test_staff() -> void:
 	var cfg = _read_json(GAME_CONFIG_PATH)
 	var start_staff = cfg.get("demo_start_staff", []) if cfg is Dictionary else []
 	var gm = root.get_node_or_null("GameManager")
-	check(cfg is Dictionary and str(cfg.get("profile", "")) == "demo" and start_staff is Array and start_staff.has("bartender") and start_staff.has("desk_manager")
-		and gm != null and gm.has_method("is_staff_hired") and gm.is_staff_hired("bartender") and gm.is_staff_hired("desk_manager"),
-		"the demo profile starts with both staff hired (K9: game_config profile + demo_start_staff)")
+	check(cfg is Dictionary and str(cfg.get("profile", "")) == "demo" and start_staff is Array and start_staff.is_empty()
+		and gm != null and gm.has_method("is_staff_hired") and not gm.is_staff_hired("bartender") and not gm.is_staff_hired("desk_manager"),
+		"the demo profile starts with no staff hired (K-7, Raphael 2026-11-01, superseding K9: demo_start_staff is empty; staff_unlock lets them in)")
 	var gb = root.get_node_or_null("GuildBus")
 	check(gb != null and gb.has_signal("staff_hired") and gb.has_signal("staff_fired"), "GuildBus has staff_hired and staff_fired (Story 16.1's contract)")
 
@@ -4700,6 +4701,9 @@ func test_staff_runtime() -> void:
 	# the demo's first frame (AC 4, AC 7): hired at start by GameManager, seated and writing, the stool home
 	if stool:
 		stool.position.z = -0.3                           # so the reset to home cannot pass by doing nothing
+	var q0_rec: Dictionary = gm.staff_record("desk_manager")
+	var q0_was = q0_rec.get("hired")
+	q0_rec["hired"] = true   # Story 14.6 (K-7): the demo hires no staff at start; this is the hired-at-start body, by a fixture record
 	var q0 = (load(DEALER_SCENE) as PackedScene).instantiate()
 	q0.manual_tick = true
 	q0.hired_at_start_override = -1
@@ -4718,6 +4722,7 @@ func test_staff_runtime() -> void:
 		and rad_to_deg(q0_face.angle_to(Vector3(0, 0, 1))) < 5.0 and stool != null and stool.position.length() < 0.01
 		and q0.work_state() == "IDLE" and q0.anim_state() == "Write" and q0_quill != null and q0_quill.visible,
 		"hired at start (GameManager says so): she is seated at her seat root facing the room, the stool home, writing, her quill out (%s)" % q0.anim_state())
+	q0_rec["hired"] = q0_was
 	q0.queue_free()
 	await process_frame
 	var qd = (load(DEALER_SCENE) as PackedScene).instantiate()
@@ -5335,7 +5340,9 @@ func test_dialogue() -> void:
 		for k in GM_DIALOGUE_FIELDS:
 			var v = gm.get(k)
 			snap[k] = v.duplicate(true) if v is Array or v is Dictionary else v
+	var t20_profile = _pin_profile(dm, "full")   # Story 14.6: the bridge's tier checks read the full game's tiers
 	_check_dialogue_bridge(gm, dm)
+	_unpin_profile(dm, t20_profile)
 	_check_speakers()
 	var files := _check_dialogue_files()
 	_check_dialogue_guards()
@@ -8399,7 +8406,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"hired_tarot_cards", "adventurers_hired_this_run", "deaths_this_run", "dialogue_flags", "den_fa_state",
 	"_den_fa_tier_warnings", "saved_player_scene", "restored_patrons", "game_over_active", "pending_new_game_save",
 	"gold_peak", "last_run_summary", "_tax_warnings",   # Stories 13.1 / 13.4: the reset writes these too
-	"staff", "desk_round_day"]   # Story 16.1: the staff records; Story 16.4: the day of the Quest Dealer's last round
+	"staff", "desk_round_day",   # Story 16.1: the staff records; Story 16.4: the day of the Quest Dealer's last round
+	"_rep_warnings", "_death_mult_warnings"]   # Story 14.6: the reset re-arms these
 
 
 func test_load_and_resume() -> void:
@@ -8419,6 +8427,8 @@ func test_load_and_resume() -> void:
 	ss.save_path = D1_SAVE
 	if "codex_path" in ss:
 		ss.codex_path = D1_CODEX
+	var t26_dm = root.get_node_or_null("DataManager")
+	var t26_profile = _pin_profile(t26_dm, "full")   # Story 14.6: the fixtures' reputation and Den Fa state are the full game's
 	_check_d1_round_trip(gm, ss, wm, pm, ab)
 	_check_d1_resume(gm, ss, pm)
 	_check_d1_schema(gm, ss, pm)
@@ -8435,6 +8445,7 @@ func test_load_and_resume() -> void:
 	_check_d1_load_without_world(ss, wm)
 	_check_d1_codex_path(ss)
 	_check_d1_messages()
+	_unpin_profile(t26_dm, t26_profile)
 	_d1_restore(snap, gm, wm, pm, ss)
 	_d1_clear_dir(D1_DIR)
 	check(_d1_sha(REAL_SAVE_PATH) == real_sha, "Test 26 never touched the real save (sha256 %s…)" % real_sha.left(12))
@@ -11116,6 +11127,7 @@ func test_tax_cycle_bus() -> void:
 		return
 	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
 	var snap := _t28_snapshot(gm, wm, dm)
+	dm.game_config["profile"] = "full"   # Story 14.6: these are the full game's tax numbers (the demo's are Test 37's); restored with the snapshot
 	var warned_before = gm.get("_tax_warnings")
 	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
 	ss.run_active = false
@@ -11422,6 +11434,7 @@ func test_guild_falls() -> void:
 		return
 	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
 	var snap := _d1_snapshot(gm, wm, pm, ss)
+	var t32_profile = _pin_profile(dm, "full")   # Story 14.6: the full game's starting gold and tax (the demo's are Test 37's)
 	var archive_before = ss.get("last_archive_dir")
 	var real_runs := _t32_listing("user://fallen_runs")   # review P11: the player's own falls, compared at the end
 	_t32_rm_tree(T32_DIR)
@@ -11447,6 +11460,7 @@ func test_guild_falls() -> void:
 	paused = false
 	gm.game_over_active = false
 	gm.set_process_mode(Node.PROCESS_MODE_INHERIT)
+	_unpin_profile(dm, t32_profile)
 	_d1_restore(snap, gm, wm, pm, ss)
 	ss.set("last_archive_dir", archive_before)
 	capture.free()
@@ -12079,6 +12093,7 @@ func test_staff_records() -> void:
 		return
 	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
 	var snap := _t28_snapshot(gm, wm, dm)
+	dm.game_config["demo_start_staff"] = ["bartender", "desk_manager"]   # Story 14.6 (K-7): the shipped demo seeds none; K9's seed as a fixture, restored with the snapshot
 	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
 	ss.run_active = false
 	ss.save_path = T33_DIR + "/eternal_guild_save.json"
@@ -12733,6 +12748,7 @@ func test_bartender_serves() -> void:
 	var capture := _t28_capture()
 	_d1_set_scene(capture)
 	check(get_nodes_in_group("patrons").is_empty(), "precondition: no patrons in the tree before Test 35's small world")
+	dm.game_config["demo_start_staff"] = ["bartender", "desk_manager"]   # Story 14.6 (K-7): a fixture seed; restored with the snapshot
 	gm.staff = gm._seeded_staff()
 	gm.beer_stock = 5
 	eb.beer_changed.emit(5)
@@ -13089,6 +13105,7 @@ func test_quest_dealer_works() -> void:
 	ss.codex_path = "user://failsafe_t36/codex.dat"
 	var capture := _t28_capture()
 	_d1_set_scene(capture)
+	dm.game_config["demo_start_staff"] = ["bartender", "desk_manager"]   # Story 14.6 (K-7): a fixture seed; restored with the snapshot
 	gm.staff = gm._seeded_staff()
 	_check_t36_pure(gm, dm)
 	_check_t36_round(gm, wm, ab, capture)
@@ -13365,3 +13382,551 @@ func _check_t36_brain(gm, wm, gb) -> void:
 	check(qd.global_position == pos0 and brain.state() == st0, "tick(0.0) changes nothing")
 	world.queue_free()
 	await process_frame
+
+
+## Story 14.6: the shipped build is the demo (profiles.demo: 40 gold, a 20-gold tax every 3 days, faster tiers, no staff at
+## start). A test that checks a mechanism with the full game's numbers pins the full profile, then restores it.
+func _pin_profile(dm, profile: String):
+	if dm == null:
+		return null
+	var keep = dm.game_config.get("profile")
+	dm.game_config["profile"] = profile
+	return keep
+
+
+func _unpin_profile(dm, keep) -> void:
+	if dm == null:
+		return
+	if keep == null:
+		dm.game_config.erase("profile")
+	else:
+		dm.game_config["profile"] = keep
+
+
+# --- Test 37: The demo pacing profile (Story 14.6) ---
+# DataManager.get_config resolves the active profile's override first (game_config.json profiles.<profile>, whole values;
+# the top level is the full game). Reputation gains are config keys (the full game's are today's literals; the demo's
+# faster), adjust_reputation carries a reason and emits GuildBus.reputation_adjusted / reputation_tier_changed, a satisfied
+# patron is a source, a tier rise shows a banner. DP-12 (2026-10-31): the demo's 40 gold, its tax and demo_ending (10.7).
+# Raphael 2026-11-01: K-7 the demo's staff by a gold peak (the rule is a seam here), K-8 the demo's death chance x2, K-9 N 32.
+# Files: user://failsafe_t37/ (save_path and codex_path); the real save and codex are checked unchanged.
+const T37_DIR := "user://failsafe_t37"
+const T37_DEMO_THRESHOLDS := [0, 10, 24, 40, 70]
+const T37_FULL_THRESHOLDS := [0, 25, 50, 100, 200]
+const T37_LABELS := ["Unknown", "Known", "Trusted", "Respected", "Honored"]
+const T37_REP_FULL := {"rep_mission_success": 2, "rep_mission_failure": -1, "rep_party_mission_success": 0,
+	"rep_party_mission_failure": -1, "rep_dismiss": -1, "rep_patron_satisfied": 0}
+const T37_REP_DEMO := {"rep_mission_success": 3, "rep_mission_failure": -1, "rep_party_mission_success": 3,
+	"rep_party_mission_failure": -1, "rep_dismiss": -1, "rep_patron_satisfied": 1}
+## Keys tools read straight from game_config.json by file path (no DataManager): a profile can't override them.
+const T37_DIRECT_READ_KEYS := ["anime_look_preset", "anime_look_presets", "edge_pass", "tavern_light_mood",
+	"tavern_light_phase_default", "tavern_light_blend_seconds", "tavern_light_morning_hold_seconds", "tavern_light_moods",
+	"tavern_light_phases", "autosave_interval_seconds"]
+## The 40-gold model's typical row (sprint-change-proposal-2026-10-31.md; 14.6 "Run arc"): cumulative day-end medians.
+const T37_MODEL := {"patrons": [5, 10, 15, 20, 25, 30, 35, 40], "successes": [0, 1, 1, 2, 3, 4, 5, 6],
+	"failures": [0, 0, 0, 1, 1, 1, 2, 2]}
+
+
+func test_demo_pacing() -> void:
+	print("[Test 37] The demo pacing profile (Story 14.6)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	var nm = root.get_node_or_null("NotificationManager")
+	if gm == null or wm == null or dm == null or gb == null or ss == null or nm == null:
+		check(false, "the GameManager, WorldManager, DataManager, GuildBus, SaveSystem, NotificationManager autoloads")
+		return
+	_check_t37_resolver(dm)
+	_check_t37_shipped(dm)
+	_check_t37_one_source(dm)
+	_check_t37_features()
+	if not dm.has_method("resolve_config") or not gm.has_method("rep_gain") or not gm.has_method("patron_satisfied") \
+			or not gb.has_signal("reputation_adjusted") or not gb.has_signal("reputation_tier_changed"):
+		check(false, "DataManager.resolve_config, GameManager.rep_gain / patron_satisfied, GuildBus.reputation_adjusted / reputation_tier_changed")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
+	ss.run_active = false
+	ss.save_path = T37_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T37_DIR + "/codex.dat"
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	var events: Array = []
+	var recs := {
+		"reputation_adjusted": func(d, v, r): events.append(["adj", d, v, r]),
+		"reputation_tier_changed": func(o, n): events.append(["tier", o, n]),
+		"reputation_changed": func(v): events.append(["chg", v]),
+	}
+	for s in recs:
+		gb.connect(s, recs[s])
+
+	_check_t37_gains(gm, dm, events)
+	_check_t37_signals(gm, dm, events)
+	_check_t37_warnings(gm, dm)
+	_check_t37_banner(dm, nm, gb)
+	_check_t37_model(gm, dm)
+	_check_t37_arc(gm, dm)
+	_check_t37_staff(gm, dm)
+	_check_t37_death(gm, dm)
+	_check_t37_welcome(gm, dm)
+	_check_t37_sources()
+
+	for s in recs:
+		if gb.is_connected(s, recs[s]):
+			gb.disconnect(s, recs[s])
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	ss.codex_data = ss_saved[3]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	nm.clear_banners()
+	check(not FileAccess.file_exists(T37_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T37_DIR + "/codex.dat"),
+		"Test 37 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 37 never touched the real save or codex")
+	await process_frame
+	print("")
+
+
+## AC 1 (DP-1): the resolver, pure, on fixtures.
+func _check_t37_resolver(dm) -> void:
+	var dms = load("res://systems/DataManager.gd")
+	var ok: bool = dms is GDScript and (dms as GDScript).get_script_method_list().any(func(m): return m.name == "resolve_config")
+	check(ok and dm.has_method("get_profile") and dm.has_method("is_demo"), "DataManager has resolve_config (static), get_profile and is_demo")
+	if not ok:
+		return
+	var cfg := {"profile": "demo", "a": 1, "list": [1, 2, 3], "obj": {"x": 1, "y": 2}, "only_top": "top",
+		"profiles": {"demo": {"a": 2, "list": [9], "obj": {"x": 5}, "profile": "full", "profiles": {}, "only_demo": "d"}}}
+	var w: Array = []
+	var a = dms.resolve_config(cfg, "a", null, w)
+	var lst = dms.resolve_config(cfg, "list", null, w)
+	var obj = dms.resolve_config(cfg, "obj", null, w)
+	var top = dms.resolve_config(cfg, "only_top", null, w)
+	var miss = dms.resolve_config(cfg, "nothing", "fb", w)
+	var prof = dms.resolve_config(cfg, "profile", null, w)
+	var profs = dms.resolve_config(cfg, "profiles", null, w)
+	check(a == 2 and lst == [9] and obj == {"x": 5} and top == "top" and miss == "fb" and w.is_empty(),
+		"resolve_config: the profile's value wins, whole (an array and an object replaced, never merged); a key it lacks -> the top level -> the fallback")
+	check(prof == "demo" and profs is Dictionary and (profs as Dictionary).has("demo"),
+		"resolve_config: 'profile' and 'profiles' are never taken from a block")
+	var full := cfg.duplicate(true)
+	full["profile"] = "full"
+	var wf: Array = []
+	var fa = dms.resolve_config(full, "a", null, wf)
+	var none := {"profile": "full", "a": 1}
+	var fn = dms.resolve_config(none, "a", null, wf)
+	var noprof = dms.resolve_config({"a": 1, "profiles": {"demo": {"a": 2}}}, "a", null, wf)
+	check(fa == 1 and fn == 1 and noprof == 1 and wf.is_empty(),
+		"resolve_config: the full profile (or no profile key) reads the top level, silently, with or without a profiles block")
+	var wu: Array = []
+	var unk = dms.resolve_config({"profile": "dmeo", "a": 1, "profiles": {"demo": {"a": 2}}}, "a", null, wu)
+	var wb: Array = []
+	var bad = dms.resolve_config({"profile": "demo", "a": 1, "profiles": {"demo": [1]}}, "a", null, wb)
+	var wn: Array = []
+	var nob = dms.resolve_config({"profile": "demo", "a": 1}, "a", null, wn)
+	check(unk == 1 and wu.size() == 1 and str(wu[0]).begins_with("[DataManager] fallback: profile 'dmeo'")
+		and bad == 1 and wb.size() == 1 and str(wb[0]).contains("not an object") and nob == 1 and wn.size() == 1,
+		"resolve_config: an unknown profile, a block that isn't an object, a demo profile with no block -> the top level + one warning text (%s %s %s)" % [wu, wb, wn])
+
+
+## AC 2, AC 4, AC 9 (DP-4, DP-12; K-7, K-8, K-9): the shipped file under each profile.
+func _check_t37_shipped(dm) -> void:
+	var raw = _read_json(GAME_CONFIG_PATH)
+	check(raw is Dictionary and raw.get("profiles") is Dictionary and str(raw.profiles.get("_comment", "")).contains("Story 14.6")
+		and raw.profiles.get("demo") is Dictionary and str(raw.profiles.demo.get("_comment", "")) != ""
+		and str(raw.get("_reputation_gains_comment", "")) != "",
+		"game_config.json: a profiles block with its _comment (Story 14.6), a demo block with its own, and a _reputation_gains_comment")
+	if not dm.has_method("resolve_config") or not (raw is Dictionary):
+		return
+	var keep = dm.game_config.get("profile")
+	dm.game_config["profile"] = "demo"
+	var demo := _t37_resolved(dm)
+	dm.game_config["profile"] = "full"
+	var full := _t37_resolved(dm)
+	dm.game_config["profile"] = keep
+	check(demo.thresholds == T37_DEMO_THRESHOLDS and full.thresholds == T37_FULL_THRESHOLDS and demo.labels == T37_LABELS and full.labels == T37_LABELS
+		and demo.bonuses == full.bonuses,
+		"reputation_tiers: demo %s, full %s; the same labels and bonuses" % [demo.thresholds, full.thresholds])
+	check(demo.rep == T37_REP_DEMO and full.rep == T37_REP_FULL, "the rep_* gains: demo %s, full (today's) %s" % [demo.rep, full.rep])
+	check(demo.beer == 20 and full.beer == 5 and demo.gold == 40 and full.gold == 1000,
+		"starting values: demo 20 beer, 40 gold (K-1); full 5 beer, 1000 gold (%s %s / %s %s)" % [demo.beer, demo.gold, full.beer, full.gold])
+	check(demo.tax == [3, 3, 20, 0, [2, 1], 3] and full.tax == [30, 30, 1000, 5, [7, 3, 1], 3],
+		"the tax keys (due day, interval, base, per adventurer, warning days, grace): demo %s, full %s (DP-12)" % [demo.tax, full.tax])
+	check(demo.ending == [true, 32, 2] and full.ending == [false, 32, 2],
+		"demo_ending (Story 10.7's keys): demo enabled, N 32 (K-9), 2 taxes; full off (%s / %s)" % [demo.ending, full.ending])
+	check(demo.death == 2.0 and full.death == 1.0, "death_chance_multiplier: demo 2.0 (K-8), full 1.0 (%s / %s)" % [demo.death, full.death])
+	check(demo.unlock == {"rule": "gold_peak", "gold_peak": 300} and full.unlock == {"rule": "tier"} and demo.start == [] ,
+		"the staff (K-7): the demo hires nobody at start (demo_start_staff []) and unlocks them at a gold peak of 300; the full game by tier (%s / %s)" % [demo.unlock, full.unlock])
+	dm.game_config["profile"] = "demo"
+	var is_demo: bool = dm.is_demo() and dm.get_profile() == "demo"
+	dm.game_config["profile"] = "full"
+	var is_full: bool = not dm.is_demo() and dm.get_profile() == "full"
+	dm.game_config.erase("profile")
+	var none_full: bool = dm.get_profile() == "full"
+	dm.game_config["profile"] = keep
+	check(is_demo and is_full and none_full and str(raw.get("profile")) == "demo", "get_profile / is_demo follow the top-level profile (missing: full); the shipped build is the demo")
+
+
+func _t37_resolved(dm) -> Dictionary:
+	var tiers = dm.get_config("reputation_tiers", [])
+	var rep := {}
+	for k in T37_REP_FULL:
+		rep[k] = dm.get_config(k)
+	var ending = dm.get_config("demo_ending", {})
+	var unlock = dm.get_config("staff_unlock", {})
+	var u := {}
+	if unlock is Dictionary:
+		for k in unlock:
+			if not str(k).begins_with("_"):
+				u[k] = unlock[k]
+	return _t37_norm({"thresholds": tiers.map(func(t): return int(t.threshold)), "labels": tiers.map(func(t): return str(t.label)),
+		"bonuses": tiers.map(func(t): return [t.get("tip_bonus"), t.get("recruit_stat_bonus")]), "rep": rep,
+		"beer": dm.get_config("starting_beer"), "gold": dm.get_config("starting_gold"),
+		"tax": [dm.get_config("tax_due_day"), dm.get_config("tax_interval_days"), dm.get_config("tax_base_amount"),
+			dm.get_config("tax_per_adventurer"), dm.get_config("tax_warning_days"), dm.get_config("tax_grace_period_days")],
+		"ending": [ending.get("enabled"), ending.get("min_reputation"), ending.get("min_taxes_paid")] if ending is Dictionary else [],
+		"death": dm.get_config("death_chance_multiplier"), "unlock": u, "start": dm.get_config("demo_start_staff")})
+
+
+## JSON numbers are floats: a whole float becomes an int, through arrays and objects (Array == compares types too).
+static func _t37_norm(v):
+	if v is float and is_finite(v) and v == floorf(v):
+		return int(v)
+	if v is Array:
+		return (v as Array).map(func(x): return _t37_norm(x))
+	if v is Dictionary:
+		var out := {}
+		for k in v:
+			out[k] = _t37_norm(v[k])
+		return out
+	return v
+
+
+## AC 8 (DP-7): one source of truth on the shipped file.
+func _check_t37_one_source(dm) -> void:
+	var raw = _read_json(GAME_CONFIG_PATH)
+	if not (raw is Dictionary) or not (raw.get("profiles") is Dictionary):
+		check(false, "AC 8: game_config.json has a profiles block")
+		return
+	var bad := []
+	for p in raw.profiles:
+		if str(p).begins_with("_"):
+			continue
+		var block = raw.profiles[p]
+		if not (block is Dictionary):
+			bad.append("%s: not an object" % p)
+			continue
+		for k in block:
+			if str(k).begins_with("_"):
+				continue
+			if not raw.has(k):
+				bad.append("%s.%s: not at the top level" % [p, k])
+			if ["profile", "profiles", "demo_start_staff", "demo_party_missions"].has(k):
+				bad.append("%s.%s: never in a block" % [p, k])
+			if T37_DIRECT_READ_KEYS.has(k):
+				bad.append("%s.%s: read straight from the file by a tool" % [p, k])
+	check(bad.is_empty(), "every profile key exists at the top level; profile, profiles, demo_start_staff, demo_party_missions and the tool-read keys stay out of the blocks %s" % [bad])
+	var direct := []
+	for f in ["res://scripts/game/anime_look.gd", "res://scripts/game/edge_pass.gd", "res://scripts/game/tavern_lighting.gd", "res://scripts/dev/portrait_studio.gd"]:
+		if FileAccess.get_file_as_string(f).contains("GAME_CONFIG_PATH"):
+			direct.append(f.get_file())
+	check(direct.size() == 4, "the tools that read game_config.json by path are the ones the direct-read list covers %s" % [direct])
+
+
+## AC 6 (DP-9): no script names Farmland or the Apothecary without asking features.json.
+func _check_t37_features() -> void:
+	var files: Array[String] = []
+	for d in ["res://scripts", "res://scenes", "res://systems"]:
+		_t37_collect_gd(d, files)
+	var bad := []
+	for f in files:
+		var t := FileAccess.get_file_as_string(f)
+		var low := t.to_lower()
+		if (low.contains("farmland") or low.contains("apothecary")) and not t.contains("DataManager.get_feature("):
+			bad.append(f)
+	check(files.size() > 50 and bad.is_empty(), "no script under scripts/, scenes/, systems/ names Farmland or the Apothecary without DataManager.get_feature (%d scripts) %s" % [files.size(), bad])
+
+
+static func _t37_collect_gd(dir_path: String, out: Array[String]) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for sub in dir.get_directories():
+		_t37_collect_gd(dir_path.path_join(sub), out)
+	for f in dir.get_files():
+		if f.get_extension() == "gd":
+			out.append(dir_path.path_join(f))
+
+
+static func _t37_adv(id: int) -> Dictionary:
+	return {"id": id, "name": "T37_%d" % id, "status": AdventurerStatus.Status.READY, "recovery": 0, "missions_completed": 0,
+		"missions_failed": 0, "gold_earned": 0, "injuries_sustained": 0, "personality": "", "strength": 5, "dexterity": 5,
+		"intelligence": 5, "endurance": 5, "daily_wage": 1}
+
+
+## AC 3 (DP-3): each source under both profiles, with its reason; the full game's zero gains say nothing.
+func _check_t37_gains(gm, dm, events: Array) -> void:
+	var mission := {"name": "T37 Drill", "reward_range": [1, 1], "danger": -3, "tier": 1, "category": "combat"}
+	gm.mission_tier_unlocked = 1
+	gm.taxes_paid_count = 0
+	for prof in ["demo", "full"]:
+		dm.game_config["profile"] = prof
+		var want: Dictionary = T37_REP_DEMO if prof == "demo" else T37_REP_FULL
+		var got := {}
+		var cases := [
+			["rep_mission_success", "mission_success", func(): gm.complete_mission(_t37_adv(9301), mission, true, false)],
+			["rep_mission_failure", "mission_failure", func(): gm.complete_mission(_t37_adv(9302), mission, false, false)],
+			["rep_party_mission_success", "party_mission_success", func(): gm.complete_party_mission([_t37_adv(9303), _t37_adv(9304)], mission, true, false)],
+			["rep_party_mission_failure", "party_mission_failure", func(): gm.complete_party_mission([_t37_adv(9305), _t37_adv(9306)], mission, false, false)],
+			["rep_dismiss", "dismiss", func(): _t37_dismiss(gm)],
+			["rep_patron_satisfied", "patron_satisfied", func(): gm.patron_satisfied()],
+		]
+		for c in cases:
+			gm.tavern_reputation = 5
+			events.clear()
+			c[2].call()
+			var adj: Array = events.filter(func(e): return e[0] == "adj")
+			var chg: Array = events.filter(func(e): return e[0] == "chg")
+			var d: int = int(want[c[0]])
+			var ok: bool
+			if d == 0:
+				ok = events.is_empty() and gm.tavern_reputation == 5
+			else:
+				ok = adj.size() == 1 and adj[0] == ["adj", d, 5 + d, c[1]] and chg.size() == 1 and gm.tavern_reputation == 5 + d
+			got[c[0]] = ok
+		check(got.values().all(func(v): return v),
+			"%s profile: each source moves reputation by its key with its reason, once (a zero gain: no signal at all) %s" % [prof, got])
+	dm.game_config["profile"] = "demo"
+
+
+static func _t37_dismiss(gm) -> void:
+	var a := _t37_adv(9307)
+	gm.adventurers.append(a)
+	gm.gold = 50
+	gm.dismiss_adventurer(a)
+
+
+## AC 5 (DP-5): the order, the clamp, nothing on a zero, tier labels up and down, a jump is one change; loads and resets
+## stay silent.
+func _check_t37_signals(gm, dm, events: Array) -> void:
+	dm.game_config["profile"] = "demo"
+	gm.tavern_reputation = 8
+	events.clear()
+	gm.adjust_reputation(3, "t37_rise")
+	var rise := events.duplicate()
+	events.clear()
+	gm.adjust_reputation(-5, "t37_drop")
+	var drop := events.duplicate()
+	check(rise == [["adj", 3, 11, "t37_rise"], ["tier", "Unknown", "Known"], ["chg", 11]]
+		and drop == [["adj", -5, 6, "t37_drop"], ["tier", "Known", "Unknown"], ["chg", 6]],
+		"adjust_reputation: reputation_adjusted, then reputation_tier_changed (labels), then reputation_changed; up and down %s %s" % [rise, drop])
+	gm.tavern_reputation = 1
+	events.clear()
+	gm.adjust_reputation(-3, "t37_clamp")
+	var clamp := events.duplicate()
+	events.clear()
+	gm.adjust_reputation(-1, "t37_zero")
+	var zero := events.duplicate()
+	check(clamp == [["adj", -1, 0, "t37_clamp"], ["chg", 0]] and zero == [["chg", 0]],
+		"the clamp at 0 reports the change applied (-1); a change that applies nothing sends no reputation_adjusted %s %s" % [clamp, zero])
+	gm.tavern_reputation = 0
+	events.clear()
+	gm.adjust_reputation(30)
+	var jump := events.duplicate()
+	check(jump == [["adj", 30, 30, ""], ["tier", "Unknown", "Trusted"], ["chg", 30]],
+		"a jump across two tiers is one reputation_tier_changed; no reason is '' %s" % [jump])
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var load_body := _func_body(src, "load_save_data")
+	var reset_body := _func_body(src, "reset_game_state")
+	check(load_body.contains("tavern_reputation = _save_int(") and not load_body.contains("adjust_reputation(")
+		and reset_body.contains("tavern_reputation = 0") and not reset_body.contains("adjust_reputation(")
+		and not load_body.contains("reputation_tier_changed") and not reset_body.contains("reputation_adjusted"),
+		"a load and a New Game set reputation directly: no reputation_adjusted or reputation_tier_changed (10.3's rule: a signal is earned in play)")
+
+
+## AC 3: a bad rep_* value -> today's value + one warning a run (pure, and the live counter).
+func _check_t37_warnings(gm, dm) -> void:
+	var w: Array = []
+	var a: int = gm.rep_gain_from("rep_mission_success", "x", w)
+	var b: int = gm.rep_gain_from("rep_mission_success", 2.5, w)
+	var c: int = gm.rep_gain_from("rep_mission_success", null, w)
+	var d: int = gm.rep_gain_from("rep_dismiss", -2.0, w)
+	check(a == 2 and b == 2 and c == 2 and d == -2 and w.size() == 2 and str(w[0]).begins_with("[GameManager] fallback: rep_mission_success"),
+		"rep_gain_from: junk or a fraction -> today's value + a warning text; missing -> today's, silently; -2.0 reads -2 %s" % [w])
+	var keep = dm.game_config.get("rep_dismiss")
+	dm.game_config["profile"] = "full"
+	dm.game_config["rep_dismiss"] = "junk"
+	gm._rep_warnings = 0
+	var v1: int = gm.rep_gain("rep_dismiss")
+	var v2: int = gm.rep_gain("rep_dismiss")
+	var once: bool = gm._rep_warnings == 1
+	dm.game_config["rep_dismiss"] = keep
+	dm.game_config["profile"] = "demo"
+	check(v1 == -1 and v2 == -1 and once, "rep_gain: a bad config value reads today's (-1), warned once a run (_rep_warnings %d)" % gm._rep_warnings)
+	check(D1_GM_FIELDS.has("_rep_warnings") and D1_GM_FIELDS.has("_death_mult_warnings")
+		and _func_body(FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH), "reset_game_state").contains("_rep_warnings = 0"),
+		"New Game re-arms the rep and death warnings; Test 26's field list snapshots them")
+
+
+## AC 5 (DP-6): a tier rise shows a banner; a drop doesn't.
+func _check_t37_banner(dm, nm, gb) -> void:
+	dm.game_config["profile"] = "demo"
+	nm.clear_banners()
+	var before: int = _t37_live_banners(nm)
+	gb.reputation_tier_changed.emit("Unknown", "Known")
+	var after_rise: int = _t37_live_banners(nm)
+	var text := ""
+	var last = _t37_last_banner(nm)
+	if last:
+		for l in last.find_children("*", "Label", true, false):
+			text = (l as Label).text
+	gb.reputation_tier_changed.emit("Known", "Unknown")
+	var after_drop: int = _t37_live_banners(nm)
+	check(after_rise == before + 1 and text == "The guild is now Known." and after_drop == after_rise
+		and nm.has_method("tier_rise_text") and nm.tier_rise_text("Respected") == "The guild is now Respected.",
+		"NotificationManager: a tier rise shows 'The guild is now Known.'; a drop shows nothing ('%s', %d -> %d -> %d)" % [text, before, after_rise, after_drop])
+	nm.clear_banners()
+
+
+static func _t37_live_banners(nm) -> int:
+	return nm._container.get_children().filter(func(c): return not c.is_queued_for_deletion()).size()
+
+
+static func _t37_last_banner(nm):
+	var live: Array = nm._container.get_children().filter(func(c): return not c.is_queued_for_deletion())
+	return live[-1] if not live.is_empty() else null
+
+
+## AC 4 (+ R2): the 40-gold model's typical row reaches Known on Day 2, Trusted Day 4, N (32) Day 5, Respected at Day 6's
+## end under the shipped demo values; the full game's values leave it Unknown.
+func _check_t37_model(gm, dm) -> void:
+	var rows := {}
+	for prof in ["demo", "full"]:
+		dm.game_config["profile"] = prof
+		var tiers: Array = gm.reputation_tier_list(dm.get_config("reputation_tiers", []))
+		var reps: Array = []
+		var idx: Array = []
+		for d in 8:
+			var r: int = maxi(0, T37_MODEL.patrons[d] * gm.rep_gain("rep_patron_satisfied") + T37_MODEL.successes[d] * gm.rep_gain("rep_mission_success")
+				+ T37_MODEL.failures[d] * gm.rep_gain("rep_mission_failure"))
+			reps.append(r)
+			idx.append(gm.reputation_tier_index_for(r, tiers))
+		rows[prof] = {"reps": reps, "idx": idx}
+	dm.game_config["profile"] = "demo"
+	var demo: Dictionary = rows.demo
+	var n: int = int(dm.get_config("demo_ending", {}).get("min_reputation", 999))
+	check(demo.reps == [5, 13, 18, 25, 33, 41, 48, 56] and demo.idx[0] == 0 and demo.idx[1] == 1 and demo.idx[3] == 2 and demo.idx[5] == 3,
+		"the demo profile on the model's typical row: day-end reputation %s; Known during Day 2, Trusted Day 4, Respected at Day 6's end" % [demo.reps])
+	check(demo.reps[4] >= n and demo.reps[3] < n,
+		"N (%d) is reached at about the 2nd tax (Day 6's morning reads Day 5's end, %d), not before Day 5 (R2)" % [n, demo.reps[4]])
+	check(rows.full.reps == [0, 2, 2, 3, 5, 7, 8, 10] and rows.full.idx.all(func(i): return i == 0),
+		"the full profile on the same row: %s, still Unknown on Day 8 (the GDD pacing unchanged)" % [rows.full.reps])
+
+
+## AC 9, R2 (DP-12): the demo's tax passes 13.1's checks; a New Game under the demo starts with 40 gold and the first tax
+## due on Day 3.
+func _check_t37_arc(gm, dm) -> void:
+	dm.game_config["profile"] = "demo"
+	var raw := {}
+	for k in ["tax_due_day", "tax_interval_days", "tax_base_amount", "tax_per_adventurer", "tax_grace_period_days", "tax_warning_days"]:
+		raw[k] = dm.get_config(k)
+	var cfg: Dictionary = gm.tax_config_from(raw)
+	check(cfg.warnings.is_empty() and cfg.first_due_day == 3 and cfg.interval_days == 3 and gm.tax_amount_for(4, cfg) == 20 and cfg.warning_days == [2, 1],
+		"13.1's tax_config_from takes the demo's tax with no warning: due Day 3, every 3 days, 20 gold whatever the roster, warnings 2 and 1 days before")
+	gm._apply_config()
+	var demo_ok: bool = gm.gold == 40 and gm.gold_peak == 40 and gm.beer_stock == 20 and gm.tax_due_day == 3
+	dm.game_config["profile"] = "full"
+	gm._apply_config()
+	var full_ok: bool = gm.gold == 1000 and gm.beer_stock == 5 and gm.tax_due_day == 30
+	dm.game_config["profile"] = "demo"
+	check(demo_ok and full_ok, "_apply_config (a New Game): the demo starts with 40 gold (its peak too), 20 beer, the tax due on Day 3; the full game 1000, 5, Day 30")
+
+
+## AC 7 (DP-10, K-7): the demo's staff by a gold peak (the seam: staff_ctx carries the rule and the peak; Story 16.1's
+## staff_hire_block_for reads them in D5's review); the full game's tier locks on the demo's tiers.
+func _check_t37_staff(gm, dm) -> void:
+	var w: Array = []
+	var a: Dictionary = gm.staff_unlock_from({"rule": "tier"}, w)
+	var b: Dictionary = gm.staff_unlock_from({"rule": "gold_peak", "gold_peak": 300.0, "_comment": "x"}, w)
+	var c: Dictionary = gm.staff_unlock_from(null, w)
+	var n_silent: int = w.size()
+	var d: Dictionary = gm.staff_unlock_from({"rule": "gold_peak", "gold_peak": -5}, w)
+	var e: Dictionary = gm.staff_unlock_from({"rule": "luck"}, w)
+	var f: Dictionary = gm.staff_unlock_from([1], w)
+	check(a == {"rule": "tier"} and b == {"rule": "gold_peak", "gold_peak": 300} and c == {"rule": "tier"} and n_silent == 0
+		and d == {"rule": "tier"} and e == {"rule": "tier"} and f == {"rule": "tier"} and w.size() == 3,
+		"staff_unlock_from: tier, or gold_peak with a whole number >= 0; missing -> tier silently; a bad rule -> tier + a warning text %s" % [w])
+	dm.game_config["profile"] = "demo"
+	gm.gold_peak = 123
+	var ctx: Dictionary = gm.staff_ctx()
+	var seeded: Array = gm.staff_seed(gm.staff_roles(), "demo", dm.get_config("demo_start_staff", ["x"]), dm.get_config("staff_wages", {}))
+	check(ctx.get("unlock") == {"rule": "gold_peak", "gold_peak": 300} and ctx.get("gold_peak") == 123
+		and seeded.size() == 2 and seeded.all(func(r): return r.hired == false),
+		"K-7: the demo seeds no staff hired, and staff_ctx carries the unlock rule (gold peak 300) and the run's gold peak for staff_hire_block_for")
+	var roles: Dictionary = gm.staff_roles()
+	var labels: Array = gm.reputation_tier_list(dm.get_config("reputation_tiers", [])).map(func(t): return str(t.label))
+	var locks := []
+	for i in 5:
+		var cx := {"profile": "full", "start_staff": [], "tier_index": i, "tiers": labels, "gold": 99, "warn": []}
+		var bt := {"role": "bartender", "hired": false, "daily_wage": 3}
+		var dk := {"role": "desk_manager", "hired": false, "daily_wage": 4}
+		locks.append([gm.staff_hire_block_for(bt, roles.get("bartender", {}), cx) != "", gm.staff_hire_block_for(dk, roles.get("desk_manager", {}), cx) != ""])
+	check(locks == [[true, true], [true, true], [false, true], [false, false], [false, false]],
+		"the full game's locks on the active tiers: the Bartender below Trusted, the Quest Dealer below Respected %s" % [locks])
+
+
+## K-8: the demo's death chance (x2, still capped at 80%; the danger -3 fixture can't kill).
+func _check_t37_death(gm, dm) -> void:
+	var w: Array = []
+	var a: float = gm.death_multiplier_from(2.0, w)
+	var b: float = gm.death_multiplier_from(null, w)
+	var n_silent: int = w.size()
+	var c: float = gm.death_multiplier_from("x", w)
+	var d: float = gm.death_multiplier_from(-1, w)
+	check(a == 2.0 and b == 1.0 and n_silent == 0 and c == 1.0 and d == 1.0 and w.size() == 2,
+		"death_multiplier_from: a number >= 0; missing -> 1 silently; junk or negative -> 1 + a warning text %s" % [w])
+	gm.beer_shortage_days = 0
+	dm.game_config["profile"] = "demo"
+	var demo := [gm.calculate_death_chance(1, 1), gm.calculate_death_chance(1, 3), gm.calculate_death_chance(1, -3)]
+	dm.game_config["profile"] = "full"
+	var full := [gm.calculate_death_chance(1, 1), gm.calculate_death_chance(1, 3)]
+	dm.game_config["profile"] = "demo"
+	check(is_equal_approx(demo[0], 0.70) and is_equal_approx(demo[1], 0.8) and demo[2] <= 0.0 and is_equal_approx(full[0], 0.35)
+		and is_equal_approx(full[1], 0.56),
+		"calculate_death_chance: demo x2 (level 1: 70%%, capped at 80%%; danger -3 still can't kill), full unchanged (35%%, 56%%) %s %s" % [demo, full])
+
+
+## The hall's welcome text tells the active profile's tax (coordinator, 2026-11-01; deferred-work 13.1).
+func _check_t37_welcome(gm, dm) -> void:
+	var demo_cfg: Dictionary = gm.tax_config_from({"tax_due_day": 3, "tax_interval_days": 3, "tax_base_amount": 20, "tax_per_adventurer": 0})
+	var full_cfg: Dictionary = gm.tax_config_from({})
+	var dl: String = gm.tax_rule_line(demo_cfg, 3)
+	var fl: String = gm.tax_rule_line(full_cfg, 30)
+	var one: String = gm.tax_rule_line(gm.tax_config_from({"tax_interval_days": 1, "tax_base_amount": 7, "tax_per_adventurer": 0}), 9)
+	check(dl == "- Taxes: 20 gold every 3 days; the next is due on Day 3. Gold and beer are your lifelines: run out of both and it's over."
+		and fl == "- Taxes: 1000 gold, plus 5 for each adventurer, every 30 days; the next is due on Day 30. Gold and beer are your lifelines: run out of both and it's over."
+		and one.begins_with("- Taxes: 7 gold every day;"),
+		"tax_rule_line: the welcome text's tax line from the tax config ('%s' / '%s' / '%s')" % [dl, fl, one])
+	var tscn := FileAccess.get_file_as_string(TAVERN_SCENE_PATH)
+	var mt := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
+	check(tscn.contains("\n- Tax day comes every") and _func_body(mt, "_ready").contains("_fix_welcome_tax_line()")
+		and _func_body(mt, "_fix_welcome_tax_line").contains("tax_rule_line("),
+		"the hall replaces the scene's '- Tax day comes every …' line with the active tax at load (the marker is still in MainTavern.tscn)")
+
+
+## AC 3: the patron's call and no reputation literal left at the four sources.
+func _check_t37_sources() -> void:
+	var pat := _func_body(FileAccess.get_file_as_string("res://scripts/npcs/RealisticPatron.gd"), "on_drinking_timer_timeout")
+	var gold_at := pat.find("GameManager.add_gold(payment_amount)")
+	var sat_at := pat.find("GameManager.patron_satisfied()")
+	check(gold_at >= 0 and sat_at > gold_at, "RealisticPatron: a patron who finishes and pays calls GameManager.patron_satisfied() after add_gold")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var lit := []
+	for f in ["complete_mission", "complete_party_mission", "dismiss_adventurer"]:
+		var body := _func_body(src, f)
+		if body == "" or RegEx.create_from_string("adjust_reputation\\(\\s*-?\\d").search(body) != null:
+			lit.append(f)
+	check(lit.is_empty(), "no reputation literal left in complete_mission / complete_party_mission / dismiss_adventurer %s" % [lit])
