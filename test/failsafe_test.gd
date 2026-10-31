@@ -10157,6 +10157,7 @@ func test_hiring() -> void:
 	ss.save_path = T29_DIR + "/eternal_guild_save.json"
 	ss.codex_path = T29_DIR + "/codex.dat"
 	ss.codex_data = {"fallen_heroes": [], "artifacts_found": []}
+	DirAccess.make_dir_recursive_absolute(T29_DIR)   # the deaths (review P0) write the redirected codex here
 	var capture := _t28_capture()
 	_d1_set_scene(capture)
 	seed(4202)
@@ -10165,6 +10166,7 @@ func test_hiring() -> void:
 	_check_t29_traits(gm, dm)
 	_check_t29_hire(gm, ab, eb, capture)
 	_check_t29_ids(gm, ss)
+	_check_t29_death_status(gm, ss)
 	_check_t29_card_data(dm)
 	_check_t29_card_art()
 	_check_t29_card_view(dm)
@@ -10180,8 +10182,11 @@ func test_hiring() -> void:
 	ss.codex_data = ss_saved[3]
 	_t28_restore(snap, gm, wm, dm)
 	capture.free()
-	check(not FileAccess.file_exists(T29_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T29_DIR + "/codex.dat"),
-		"Test 29 wrote no save and no codex")
+	check(not FileAccess.file_exists(T29_DIR + "/eternal_guild_save.json"), "Test 29 wrote no save")
+	for f in [T29_DIR + "/codex.dat", T29_DIR + "/codex.dat.tmp", T29_DIR + "/codex.dat.prev"]:   # the deaths' codex (review P0), a redirected copy
+		if FileAccess.file_exists(f):
+			DirAccess.remove_absolute(f)
+	DirAccess.remove_absolute(T29_DIR)
 	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 29 never touched the real save or codex")
 	print("")
 
@@ -10377,6 +10382,57 @@ func _check_t29_hire(gm, ab, eb, capture: Node) -> void:
 
 
 ## DH-8: ids are never reused, the codex's fallen heroes included (a fixture codex, never Raphael's).
+## D3 review P0: a death sets the adventurer DEAD, so the morning report says so through the real resolver: a solo
+## report's `alive` is false, a party's `casualties` hold the dead and their member `fate` is "dead" (the Reveal's death
+## beat, Story 7.3, keys on exactly these), and the fallen hero is written to the codex SaveSystem points at (here a
+## redirected copy). Before the fix nothing ever set DEAD: every death read as a return.
+func _check_t29_death_status(gm, ss) -> void:
+	var S = AdventurerStatus.Status
+	gm.beer_shortage_days = 0
+	gm.active_missions = []
+	var mission := {"name": "Doom Drill", "danger": 10, "reward_range": [1, 1], "duration_days": 1, "category": "combat"}
+	var solo: Dictionary = {}
+	var victim: Dictionary = {}
+	for i in 15:   # a level-1 adventurer on danger 10 dies 80 % of the time (calculate_death_chance's cap)
+		var a := _t29_applicant(7400 + i, "Solo%d" % i, "Fighter", 0, "", "")
+		a["status"] = S.ON_MISSION
+		gm.adventurers = [a]
+		var r: Dictionary = gm._resolve_mission({"adventurer": a, "mission": mission.duplicate(true), "success_chance": 0,
+			"total_duration": 1, "days_remaining": 0})
+		if not r.get("alive", true):
+			solo = r
+			victim = a
+			break
+	check(not solo.is_empty() and solo.get("injured") == false and victim.get("status") == S.DEAD and not gm.adventurers.has(victim),
+		"a solo death through the resolver: the adventurer is DEAD, off the roster, and the report says alive = false (the death panel's key)")
+	var party: Dictionary = {}
+	for i in 15:
+		var p1 := _t29_applicant(7500 + 2 * i, "PartyA%d" % i, "Fighter", 0, "", "")
+		var p2 := _t29_applicant(7501 + 2 * i, "PartyB%d" % i, "Mage", 0, "", "")
+		p1["status"] = S.ON_MISSION
+		p2["status"] = S.ON_MISSION
+		gm.adventurers = [p1, p2]
+		var r: Dictionary = gm._resolve_mission({"party": [p1, p2], "mission": mission.duplicate(true), "success_chance": 0,
+			"is_party_mission": true, "total_duration": 1, "days_remaining": 0})
+		if not r.get("casualties", []).is_empty():
+			party = r
+			break
+	var dead: Array = party.get("casualties", [])
+	var fates: Array = party.get("members", []).map(func(m): return [m.get("name"), m.get("fate")])
+	var fates_ok := fates.all(func(f): return (f[1] == "dead") == dead.has(f[0]))
+	check(not dead.is_empty() and fates_ok and fates.any(func(f): return f[1] == "dead"),
+		"a party death: casualties hold the dead and their member fate reads 'dead' (the group panel's death beat) %s %s" % [dead, fates])
+	var on_disk := _d1_read_json(ss.codex_path)
+	var names: Array = on_disk.get("fallen_heroes", []).map(func(h): return h.get("name") if h is Dictionary else "")
+	check(ss.codex_path.begins_with(T29_DIR) and names.has(victim.get("name", "?")) and dead.all(func(n): return names.has(n)),
+		"the fallen are written to the codex SaveSystem points at (a redirected copy, never Raphael's) %s" % [names])
+	var mb_src := FileAccess.get_file_as_string("res://scenes/ui/script/morning_briefing.gd")
+	check(mb_src.contains("fate = \"dead\" if not alive") and mb_src.contains("_begin_death_pause()"),
+		"the morning briefing's death pause still keys on a report's alive = false (Story 7.3)")
+	gm.adventurers = []
+	ss.codex_data = {"fallen_heroes": [], "artifacts_found": []}
+
+
 func _check_t29_ids(gm, ss) -> void:
 	var cases := [[1, []], [1, [2, 4, 4242.0]], [100, [2, 4]], [5, ["x", null, 3.5, {}]], [5, ["7"]], [3, [-1, 2]]]
 	var got := cases.map(func(c): return gm.next_free_id(c[0], c[1]))
