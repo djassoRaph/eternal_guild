@@ -54,6 +54,7 @@ var taxes_paid_count: int = 0
 var active_missions: Array = []       # Missions currently in progress with countdown timers
 var pending_reports: Array = []       # Resolved mission results waiting to be shown in morning briefing
 var has_pending_briefing: bool = false # Flag for morning briefing UI to check
+var _party_missions_warned := false   # a bad demo_party_missions is warned about once a session (Story 6.5)
 
 # === Dialogue state (Story 10.2): what conversations may notice this run, read through dialogue_bridge.gd ===
 var adventurers_hired_this_run: int = 0
@@ -287,7 +288,8 @@ func get_max_adventurers() -> int:
 
 # === MISSION SYSTEM ===
 func send_on_mission(adventurer: Dictionary, mission: Dictionary, hex_id: String = ""):
-	"""Dispatch an adventurer on a mission. Does NOT resolve it — just starts the timer."""
+	"""Dispatch an adventurer on a mission. Does NOT resolve it — just starts the timer. It checks nothing: the World
+	Map goes through dispatch_adventurers() (Story 6.5), which checks first."""
 	var duration = mission.get("duration_days", 1)
 
 	adventurer.status = AStatus.ON_MISSION
@@ -298,12 +300,15 @@ func send_on_mission(adventurer: Dictionary, mission: Dictionary, hex_id: String
 		"mission": mission,
 		"days_remaining": duration,
 		"total_duration": duration,
-		"success_chance": calculate_mission_success_chance(adventurer, mission),
+		"success_chance": estimate_success([adventurer], mission),
 		"sent_day": current_day,
 		"hex_id": hex_id
 	}
+	active_entry.merge(deployment_record([adventurer], mission, hex_id, current_day))   # Story 6.5 (DD-4)
 
 	active_missions.append(active_entry)
+	_lock_hex(hex_id)
+	_log_dispatch(active_entry, [adventurer])
 
 	log_message("" + adventurer.name + " departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
 
@@ -312,7 +317,7 @@ func send_on_mission(adventurer: Dictionary, mission: Dictionary, hex_id: String
 
 
 func send_party_on_mission(party: Array, mission: Dictionary, hex_id: String = ""):
-	"""Dispatch a party on a mission. Does NOT resolve — starts the timer."""
+	"""Dispatch a party on a mission. Does NOT resolve — starts the timer. Checks nothing (see send_on_mission)."""
 	var duration = mission.get("duration_days", 1)
 
 	for adventurer in party:
@@ -325,11 +330,16 @@ func send_party_on_mission(party: Array, mission: Dictionary, hex_id: String = "
 		"days_remaining": duration,
 		"total_duration": duration,
 		"is_party_mission": true,
+		# Story 6.5 (DD-2): the chance the World Map showed is the one _resolve_party_mission rolls.
+		"success_chance": estimate_success(party, mission),
 		"sent_day": current_day,
 		"hex_id": hex_id
 	}
+	active_entry.merge(deployment_record(party, mission, hex_id, current_day))   # Story 6.5 (DD-4)
 
 	active_missions.append(active_entry)
+	_lock_hex(hex_id)
+	_log_dispatch(active_entry, party)
 
 	var names = ", ".join(party.map(func(a): return a.name))
 	log_message("Party departs on: " + mission.get("name", "?") + " (" + str(duration) + " day" + ("s" if duration > 1 else "") + ")")
@@ -337,6 +347,295 @@ func send_party_on_mission(party: Array, mission: Dictionary, hex_id: String = "
 
 	adventurer_roster_changed.emit()
 	mission_dispatched.emit(party, mission, hex_id)
+
+
+# --- Story 6.5: click-to-assign dispatch (the World Map's scroll) ---
+
+## The one way the World Map sends adventurers out (DD-3). Everything is checked first and nothing changes when it
+## refuses: returns "" when they're on their way, else a short reason the scroll shows (DRAFT text). Only READY
+## adventurers go (INTEGRATION_CONTRACT_DISPATCH.md §2), exactly as many as the mission needs, each once, and only onto
+## a hex that still holds this mission and nobody is out on. send_on_mission / send_party_on_mission do the work.
+func dispatch_adventurers(adventurer_ids: Array, mission: Dictionary, hex_id: String = "") -> String:
+	if mission.is_empty():
+		return "That contract is gone."
+	var party: Array = []
+	var seen := {}
+	for raw_id in adventurer_ids:
+		var key = _id_key(raw_id)
+		if seen.has(key):
+			return "Each adventurer can only go once."
+		seen[key] = true
+		var adv := find_adventurer(key)
+		if adv.is_empty():
+			return "That adventurer isn't in the guild."
+		var why := not_ready_reason(adv)
+		if why != "":
+			return why
+		party.append(adv)
+	var need := required_party_size(mission)
+	if party.size() != need:
+		return "Pick %d adventurer%s." % [need, "" if need == 1 else "s"]
+	if hex_id != "":
+		var hex := _hex_record(hex_id)
+		var on_hex = hex.get("active_mission")
+		if hex.is_empty() or not (on_hex is Dictionary and (is_same(on_hex, mission) or on_hex == mission)):
+			return "That contract is gone."
+		if hex.get("locked", false):
+			return "Someone is already out on this contract."
+	if need == 1:
+		send_on_mission(party[0], mission, hex_id)
+	else:
+		send_party_on_mission(party, mission, hex_id)
+	return ""
+
+
+## How many adventurers a mission needs (DD-5): `required_adventurers` (every template has it; Tier 3 says 3), else
+## `party_required` (true = 2, a number = that many), else 1.
+static func required_party_size(mission: Dictionary) -> int:
+	var req = mission.get("required_adventurers", 0)
+	if (req is int or req is float) and int(req) > 0:
+		return int(req)
+	var party_raw = mission.get("party_required", false)
+	if party_raw is bool:
+		return 2 if party_raw else 1
+	if party_raw is int or party_raw is float:
+		return maxi(1, int(party_raw))
+	return 1
+
+
+## The one success estimate (DD-2): the World Map's scroll shows it, dispatch stores it on the entry, the resolvers roll
+## it. One adventurer: calculate_mission_success_chance(); a party: party_chance_from() of their own chances.
+func estimate_success(party: Array, mission: Dictionary) -> int:
+	var chances: Array = []
+	for adv in party:
+		if adv is Dictionary:
+			chances.append(calculate_mission_success_chance(adv, mission))
+	return party_chance_from(chances)
+
+
+## A party's chance from its members' own: the integer average + 5 per extra member, clamped 10-95 (the party rule
+## since Epic 6). One member: theirs; nobody: 0.
+static func party_chance_from(chances: Array) -> int:
+	if chances.is_empty():
+		return 0
+	if chances.size() == 1:
+		return int(chances[0])
+	var total := 0
+	for c in chances:
+		total += int(c)
+	var average := int(float(total) / float(chances.size()))   # truncated, as the integer average always was
+	return clampi(average + (chances.size() - 1) * 5, 10, 95)
+
+
+## An adventurer's status as the enum (a loaded save may hold a float or a label).
+static func status_of(adventurer: Dictionary) -> int:
+	var s = adventurer.get("status", AStatus.READY)
+	if s is String:
+		return AdventurerStatus.from_save(s)
+	return int(s)
+
+
+## Why this adventurer can't be sent, as the scroll says it; "" = READY, the only status that may go. DRAFT text.
+static func not_ready_reason(adventurer: Dictionary) -> String:
+	var who := str(adventurer.get("name", "They"))
+	match status_of(adventurer):
+		AdventurerStatus.Status.READY:
+			return ""
+		AdventurerStatus.Status.ON_MISSION:
+			return "%s is out on a contract." % who
+		AdventurerStatus.Status.RESTING:
+			return "%s is resting." % who
+		AdventurerStatus.Status.WOUNDED:
+			return "%s is wounded." % who
+		AdventurerStatus.Status.DEAD:
+			return "%s is gone." % who
+	return "%s can't go." % who
+
+
+## The roster's own dictionary for an id (the World Map's ids: `id`, else `name`; a JSON float id matches its int, via
+## _id_key from Story 11.2). {} when nobody on the roster has it.
+func find_adventurer(adventurer_id) -> Dictionary:
+	var key = _id_key(adventurer_id)
+	for adv in adventurers:
+		if adv is Dictionary and _same_id(_id_key(adv.get("id", adv.get("name"))), key):
+			return adv
+	return {}
+
+
+static func _same_id(a, b) -> bool:
+	return typeof(a) == typeof(b) and a == b
+
+
+## An adventurer's trait as UI text, {name, description}, or {} when they have none (DD-10). The same lookup the
+## mission formula uses, so the scroll never shows a trait that isn't applied, and never a raw key. Today hiring erases
+## `personality`, so hired adventurers have none; Story 4.2 (D3) makes traits real.
+func trait_info(adventurer: Dictionary) -> Dictionary:
+	var key := str(adventurer.get("personality", "")).strip_edges()
+	if key == "":
+		return {}
+	var data := get_trait_data(key)
+	var shown := str(data.get("display_name", ""))
+	if shown == "":
+		return {}
+	return {"name": shown, "description": str(data.get("description", ""))}
+
+
+## The Deployment Record (DD-4, INTEGRATION_CONTRACT_DISPATCH.md §4), stored on the active_missions entry itself so it is
+## saved with it. adventurer_ids follow the party's order (Story 11.2's relink reads them by index). return_day: the day
+## process_mission_returns resolves it (days_remaining reaches 0 on that morning's advance).
+static func deployment_record(party: Array, mission: Dictionary, hex_id: String, day: int) -> Dictionary:
+	var duration := maxi(1, int(mission.get("duration_days", 1)))
+	var ids: Array = []
+	for a in party:
+		ids.append(a.get("id", a.get("name")) if a is Dictionary else null)
+	return {"adventurer_ids": ids, "mission_id": str(mission.get("id", mission.get("name", ""))), "location_id": hex_id,
+		"dispatch_day": day, "return_day": day + duration, "travel_duration": duration, "direction": "outbound"}
+
+
+## What a deployed marker says about an active entry (DD-8): who is out, the day they're back, the chance they left with
+## (-1 = not stored). An entry saved before Story 6.5 has no record: back day = today + the days left.
+static func deployment_view(entry: Dictionary, today: int) -> Dictionary:
+	var party: Array = []
+	if entry.get("party") is Array:
+		party = entry.party
+	elif entry.get("adventurer") is Dictionary:
+		party = [entry.adventurer]
+	var names: Array = []
+	for a in party:
+		if a is Dictionary:
+			names.append(str(a.get("name", "?")))
+	var back = entry.get("return_day")
+	var left = entry.get("days_remaining", 0)
+	var return_day: int = int(back) if (back is int or back is float) else today + maxi(0, int(left) if (left is int or left is float) else 0)
+	var sc = entry.get("success_chance")
+	return {"party": party, "names": names, "return_day": return_day, "chance": int(sc) if (sc is int or sc is float) else -1}
+
+
+## The active entry out on a hex, or {}.
+func deployment_for_hex(hex_id: String) -> Dictionary:
+	if hex_id == "":
+		return {}
+	for entry in active_missions:
+		if entry is Dictionary and str(entry.get("location_id", entry.get("hex_id", ""))) == hex_id:
+			return entry
+	return {}
+
+
+## deployment_view() of the entry out on a hex, with the estimate standing in for a chance an old entry never stored,
+## and its mission. {} when nobody is out there.
+func deployment_info(hex_id: String) -> Dictionary:
+	var entry := deployment_for_hex(hex_id)
+	if entry.is_empty():
+		return {}
+	var view := deployment_view(entry, current_day)
+	if int(view.chance) < 0 and entry.get("mission") is Dictionary:
+		view.chance = estimate_success(view.party, entry.mission)
+	view["mission"] = entry.get("mission", {})
+	return view
+
+
+## The day an adventurer out on a mission is back, or -1 (not out, or no entry for them).
+func return_day_for(adventurer: Dictionary) -> int:
+	var id = _id_key(adventurer.get("id", adventurer.get("name")))
+	for entry in active_missions:
+		if not (entry is Dictionary):
+			continue
+		var view := deployment_view(entry, current_day)
+		for a in view.party:
+			if is_same(a, adventurer) or (a is Dictionary and _same_id(_id_key(a.get("id", a.get("name"))), id)):
+				return int(view.return_day)
+	return -1
+
+
+## The World Map record for a hex id, or {}.
+func _hex_record(hex_id: String) -> Dictionary:
+	if hex_id == "":
+		return {}
+	for hex in WorldManager.world_map:
+		if hex is Dictionary and str(hex.get("id", "")) == hex_id:
+			return hex
+	return {}
+
+
+## The dispatched hex is locked by the owner of dispatch (it used to be the board's job); process_mission_returns unlocks
+## it. No hex (the legacy board) locks nothing.
+func _lock_hex(hex_id: String) -> void:
+	var hex := _hex_record(hex_id)
+	if not hex.is_empty():
+		hex["locked"] = true
+
+
+func _log_dispatch(entry: Dictionary, party: Array) -> void:
+	var names := ", ".join(party.map(func(a): return str(a.get("name", "?"))))
+	var where := str(entry.get("location_id", ""))
+	print("[GameManager] dispatch: %s -> %s (%s), back day %d, chance %d%%" % [names, entry.mission.get("name", "?"),
+		where if where != "" else "no hex", int(entry.get("return_day", 0)), int(entry.get("success_chance", 0))])
+
+
+## How many party missions a refresh must carry (DD-7). Party templates start at Tier 2, which the first tax (Day 30)
+## unlocks, so a demo session never meets one: the demo profile asks for `per_refresh` of them from `from_day`
+## (game_config.json demo_party_missions; per_refresh 0 = off). The full profile: 0 (Tier 2 brings them). A missing or
+## bad config gives 0 and one text in `warn`.
+static func party_missions_wanted(profile: String, cfg, day: int, warn: Array = []) -> int:
+	if profile != "demo":
+		return 0
+	if not (cfg is Dictionary):
+		warn.append("[GameManager] fallback: demo_party_missions is missing or not an object; no party missions before Tier 2")
+		return 0
+	var from_day = cfg.get("from_day")
+	var per = cfg.get("per_refresh")
+	if not (from_day is int or from_day is float) or not (per is int or per is float) or int(per) < 0:
+		warn.append("[GameManager] fallback: demo_party_missions needs a number from_day and a per_refresh of 0 or more; no party missions before Tier 2")
+		return 0
+	return int(per) if day >= int(from_day) else 0
+
+
+## A mission pool carrying at least `wanted` party missions: solo ones are replaced from the end by copies of
+## `party_templates`, in their order. The count stays; a party mission is never removed; the input isn't changed.
+static func with_party_missions(missions: Array, party_templates: Array, wanted: int) -> Array:
+	var out := missions.duplicate()
+	if wanted <= 0 or party_templates.is_empty():
+		return out
+	var have := 0
+	for m in out:
+		if m is Dictionary and required_party_size(m) >= 2:
+			have += 1
+	var t := 0
+	var i := out.size() - 1
+	while have < wanted and i >= 0:
+		var m = out[i]
+		if not (m is Dictionary and required_party_size(m) >= 2):
+			out[i] = (party_templates[t % party_templates.size()] as Dictionary).duplicate(true)
+			t += 1
+			have += 1
+		i -= 1
+	return out
+
+
+## This refresh's party rule from game_config.json: {wanted, max_tier}. A bad config is warned about once a session.
+func _party_missions_for_refresh() -> Dictionary:
+	var cfg = DataManager.get_config("demo_party_missions")
+	var warn: Array = []
+	var wanted := party_missions_wanted(str(DataManager.get_config("profile", "full")), cfg, current_day, warn)
+	if not warn.is_empty() and not _party_missions_warned:
+		_party_missions_warned = true
+		push_warning(warn[0])
+	var max_tier := 2
+	if cfg is Dictionary and (cfg.get("max_tier") is int or cfg.get("max_tier") is float):
+		max_tier = int(cfg.max_tier)
+	return {"wanted": wanted, "max_tier": max_tier}
+
+
+## Fresh copies of the party templates up to a tier, each varied like the daily pool's, shuffled.
+func _party_templates_up_to(max_tier: int) -> Array:
+	var out: Array = []
+	for t in DataManager.mission_types.get("mission_templates", []):
+		if t is Dictionary and int(t.get("tier", 1)) <= max_tier and required_party_size(t) >= 2:
+			var m: Dictionary = t.duplicate(true)
+			DataManager.add_mission_variety(m)
+			out.append(m)
+	out.shuffle()
+	return out
 
 
 func get_trait_data(personality: String) -> Dictionary:
@@ -587,13 +886,10 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 	var party = entry.party
 	var mission = entry.mission
 
-	var total_chance = 0
-	for adv in party:
-		total_chance += calculate_mission_success_chance(adv, mission)
-	var avg_chance = total_chance / party.size()
-
-	var party_bonus = (party.size() - 1) * 5
-	var final_chance = clampi(avg_chance + party_bonus, 10, 95)
+	# Story 6.5 (DD-2): roll the chance stored at dispatch (what the World Map showed). An entry saved before 6.5 has
+	# none: estimate_success() is the same average + 5 per extra member this always computed.
+	var stored = entry.get("success_chance")
+	var final_chance: int = int(stored) if (stored is int or stored is float) else estimate_success(party, mission)
 
 	var roll = randi() % 100 + 1
 	var success = roll <= final_chance
@@ -2193,14 +2489,17 @@ func get_tier_unlock_status(tier: int) -> Dictionary:
 	return status
 
 func refresh_available_missions():
-	"""Refresh the mission pool with tier restrictions"""
+	"""Refresh the mission pool with tier restrictions. Story 6.5: the demo profile's refresh also carries party
+	missions (DD-7), and missions_changed fires once the missions are on their hexes, so an open World Map draws them."""
 	if DataManager and DataManager.has_method("generate_daily_missions_with_tiers"):
 		var new_missions = DataManager.generate_daily_missions_with_tiers(6, mission_tier_unlocked)
+		var party_rule := _party_missions_for_refresh()
+		if int(party_rule.wanted) > 0:
+			new_missions = with_party_missions(new_missions, _party_templates_up_to(int(party_rule.max_tier)), int(party_rule.wanted))
 		available_missions.clear()
 		for mission in new_missions:
 			available_missions.append(mission)
 		mission_refresh_day = current_day
-		missions_changed.emit()
 		print("Refreshed missions (Tier ", mission_tier_unlocked, "): ", available_missions.size(), " missions loaded")
 	else:
 		# Fallback
@@ -2208,9 +2507,9 @@ func refresh_available_missions():
 		available_missions.clear()
 		for mission in fallback_missions:
 			available_missions.append(mission)
-		missions_changed.emit()   # the hall's notice board recounts on this too (Story 25.7 review)
 		print("Using fallback missions")
 	WorldManager.assign_missions_to_hexes(available_missions)
+	missions_changed.emit()   # after the hexes hold them (Story 6.5); the hall's notice board recounts on this too (Story 25.7 review)
 
 
 # === MOD-8 PLUGIN HOOKS ===
