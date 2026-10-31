@@ -356,6 +356,7 @@ func _initialize() -> void:
 	test_load_and_resume()
 	test_pause_menu_save_first()
 	await test_dispatch()
+	await test_hiring()
 
 	_finish()
 
@@ -10115,3 +10116,479 @@ func _check_d1_nan_save(gm, ss) -> void:
 	gm.fireplace_fuel = fuel
 	check(not ok and _d1_pause_shas() == shas and not FileAccess.file_exists(D1_PAUSE_SAVE + ".tmp"),
 		"a NaN in the run fails the save; the save on disk stays readable")
+
+# --- Test 29: Hiring (Story 4.2) ---
+# The hire desk: the pool on Day 1 (ensure_hire_pool), one hire authority checked before anything moves
+# (hire_block_reason, hire_adventurer), the hired record (READY, the trait kept, the Tarot card never reassigned), ids
+# never reused (the codex's fallen heroes included), traits real (drawn from traits.json, case-insensitive, the
+# generation-time effects, the one estimate reads them), the Tarot card (tarot_card.json, the silhouettes,
+# PortraitSocket.resolve_card_art, TarotCard and its frame fallback) and the panel's builder (columns, reasons, the
+# confirm bar). Fixture roster and pool; every GameManager / DataManager field touched is restored. SaveSystem points at
+# user://failsafe_t29/ and its codex_data is a fixture while ids are checked (never Raphael's codex); nothing is saved.
+const TAROT_CARD_SCENE_PATH := "res://scenes/ui/TarotCard.tscn"
+const TAROT_CARD_CONFIG_PATH := "res://data/config/tarot_card.json"
+const RECRUITMENT_POPUP_PATH := "res://scripts/ui/recruitment_popup.gd"
+const SILHOUETTE_STUDIO_SCENE := "res://scenes/dev/SilhouetteStudio.tscn"
+const SILHOUETTE_STUDIO_SCRIPT := "res://scripts/dev/silhouette_studio.gd"
+const T29_DIR := "user://failsafe_t29"
+const T29_TRAITS := ["brave", "lucky", "experienced", "reckless", "greedy"]
+
+func test_hiring() -> void:
+	print("[Test 29] Hiring (Story 4.2)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var ab = root.get_node_or_null("AdventurerBus")
+	var eb = root.get_node_or_null("EconomyBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	if gm == null or wm == null or dm == null or ab == null or eb == null or ss == null or not gm.has_method("hire_block_reason"):
+		check(false, "GameManager.hire_block_reason and the WorldManager, DataManager, AdventurerBus, EconomyBus, SaveSystem autoloads")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var traits_before = dm.character_traits
+	var warned_before = gm.get("_no_traits_warned")
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
+	ss.run_active = false
+	ss.save_path = T29_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T29_DIR + "/codex.dat"
+	ss.codex_data = {"fallen_heroes": [], "artifacts_found": []}
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	seed(4202)
+
+	_check_t29_pool(gm, ab)
+	_check_t29_traits(gm, dm)
+	_check_t29_hire(gm, ab, eb, capture)
+	_check_t29_ids(gm, ss)
+	_check_t29_card_data(dm)
+	_check_t29_card_art()
+	_check_t29_card_view(dm)
+	_check_t29_panel(gm)
+	await process_frame   # the panel's rebuilt nodes are freed
+
+	dm.character_traits = traits_before
+	gm.set("_no_traits_warned", warned_before)
+	PortraitSocket.set_card_config(null)
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	ss.codex_data = ss_saved[3]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	check(not FileAccess.file_exists(T29_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T29_DIR + "/codex.dat"),
+		"Test 29 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 29 never touched the real save or codex")
+	print("")
+
+
+## DH-1: a day that never had a pool gets one when the desk opens; a hired-out day stays empty.
+func _check_t29_pool(gm, ab) -> void:
+	var spy := [0]
+	var on_pool := func(): spy[0] += 1
+	ab.recruitment_pool_changed.connect(on_pool)
+	gm.adventurers = []
+	gm.active_missions = []
+	gm.hired_tarot_cards = []
+	gm.current_day = 1
+	gm.recruit_refresh_day = 0
+	gm.daily_recruits = []
+	var made: bool = gm.ensure_hire_pool()
+	var n: int = gm.daily_recruits.size()
+	check(made and n >= 3 and n <= 5 and spy[0] == 1 and gm.recruit_refresh_day == 1,
+		"Day 1 of a New Game (no pool, refresh day 0): ensure_hire_pool makes 3-5 applicants (%d) with one recruitment_pool_changed" % n)
+	var pool_before: Array = gm.daily_recruits
+	var again: bool = gm.ensure_hire_pool()
+	check(not again and is_same(gm.daily_recruits, pool_before) and spy[0] == 1, "a second open the same day changes nothing")
+	gm.daily_recruits = []
+	var hired_out: bool = gm.ensure_hire_pool()
+	check(not hired_out and gm.daily_recruits.is_empty() and spy[0] == 1, "hired out on the same day: the pool stays empty until the next morning")
+	ab.recruitment_pool_changed.disconnect(on_pool)
+	var src := FileAccess.get_file_as_string(RECRUITMENT_POPUP_PATH)
+	check(_func_body(src, "open_recruitment_desk").contains("GameManager.ensure_hire_pool()"), "the hire desk asks for the day's pool when it opens")
+
+
+## DH-7: applicants draw their trait from traits.json; the effects defined for the applicant act when they are made;
+## the lookup ignores case; the one estimate reads the trait.
+func _check_t29_traits(gm, dm) -> void:
+	var keys: Array = gm.trait_ids(dm.character_traits)
+	check(keys.size() == T29_TRAITS.size() and T29_TRAITS.all(func(k): return keys.has(k)), "trait_ids: traits.json's five keys %s" % [keys])
+	check(gm.trait_ids({}) == [] and gm.trait_ids({"positive_traits": "x"}) == [] and gm.trait_ids(null) == []
+		and gm.trait_ids({"negative_traits": {"odd": {}, "": {}, "flat": 3}}) == ["odd"],
+		"trait_ids: nothing, a bad group, null, and only named object entries count")
+	var seen := {}
+	var bad: Array = []
+	for b in 4:   # 4 x 50: the deck holds 78 cards and every applicant takes one
+		gm.adventurers = []
+		gm.hired_tarot_cards = []
+		for r in gm.generate_fallback_recruits(50):
+			var p := str(r.get("personality", "<none>"))
+			seen[p] = true
+			if not keys.has(p):
+				bad.append(p)
+	check(bad.is_empty() and T29_TRAITS.all(func(k): return seen.has(k)),
+		"200 applicants: every trait is a traits.json key and all five turn up (not keys: %s)" % [bad])
+	var greedy: Dictionary = gm.get_trait_data("greedy")
+	check([gm.trait_stat_bonus({}), gm.trait_stat_bonus(gm.get_trait_data("experienced")), gm.trait_stat_bonus({"all_stats": "x"})] == [0, 1, 0],
+		"trait_stat_bonus: none 0, Experienced +1, junk 0")
+	var wages := [gm.trait_wage(1, greedy), gm.trait_wage(2, greedy), gm.trait_wage(3, greedy), gm.trait_wage(2, {}),
+		gm.trait_wage(2, {"cost_multiplier": "x"}), gm.trait_wage(2, {"cost_multiplier": -1})]
+	check(wages == [2, 3, 5, 2, 2, 2], "trait_wage: Greedy x1.5 rounded up (1 -> 2, 2 -> 3, 3 -> 5); none or junk: the wage %s" % [wages])
+
+	var real_traits = dm.character_traits
+	dm.character_traits = {"positive_traits": {"t29_strong": {"display_name": "Strong", "description": "x", "all_stats": 50}}}
+	var strong: Array = gm.generate_fallback_recruits(12)
+	var top_tier = dm.get_config("experience_tiers", ["?"]).back()
+	var weak := strong.filter(func(r): return not (r.personality == "t29_strong" and r.strength >= 50 and r.dexterity >= 50 and r.intelligence >= 50 and r.endurance >= 50 and r.hiring_cost >= 400 and r.experience_tier == top_tier))
+	check(strong.size() == 12 and weak.is_empty(),
+		"all_stats acts before the cost and the tier are worked out (an injected +50: every stat >= 50, cost >= 400, the top tier)")
+	dm.character_traits = {"negative_traits": {"t29_costly": {"display_name": "Costly", "description": "x", "cost_multiplier": 10}}}
+	var costly: Array = gm.generate_fallback_recruits(12)
+	check(costly.size() == 12 and costly.all(func(r): return int(r.daily_wage) % 10 == 0 and int(r.daily_wage) >= 10 and int(r.daily_wage) <= 30),
+		"cost_multiplier acts on the daily wage (an injected x10: 10, 20 or 30) %s" % [costly.map(func(r): return r.daily_wage)])
+	gm.set("_no_traits_warned", false)
+	dm.character_traits = {}
+	var plain: Array = gm.generate_fallback_recruits(3)
+	check(plain.size() == 3 and plain.all(func(r): return r.personality == "") and gm.get("_no_traits_warned") == true,
+		"an empty traits.json: applicants come with no trait, warned once (no crash)")
+	dm.character_traits = real_traits
+
+	var same := ["Brave", "brave", "BRAVE", " brave "].map(func(p): return gm.get_trait_data(p))
+	check(not same[0].is_empty() and same.all(func(d): return d == same[0]) and gm.get_trait_data("Cautious").is_empty() and gm.get_trait_data("").is_empty(),
+		"get_trait_data ignores case and spaces (an old save's 'Brave' counts); 'Cautious' and '' have none")
+	var infos := T29_TRAITS.map(func(k): return gm.trait_info({"personality": k}))
+	check(infos.all(func(t): return str(t.get("name", "")) != "" and str(t.get("description", "")) != "")
+		and gm.trait_info({"personality": "Brave"}) == gm.trait_info({"personality": "brave"}) and gm.trait_info({"personality": "nope"}).is_empty(),
+		"trait_info: a name and a description for each of the five, case-insensitive, {} for an unknown one")
+
+	var base := {"name": "T", "strength": 3, "dexterity": 3, "intelligence": 3, "endurance": 3, "missions_completed": 0}
+	var m1 := {"success_factors": ["strength"], "danger": 1}
+	var m3 := {"success_factors": ["strength"], "danger": 3}
+	var c1 := {}
+	var c3 := {}
+	for p in ["", "brave", "experienced", "reckless", "lucky", "greedy"]:
+		var a: Dictionary = base.duplicate()
+		a["personality"] = p
+		c1[p] = gm.calculate_mission_success_chance(a, m1)
+		c3[p] = gm.calculate_mission_success_chance(a, m3)
+	check(c1.brave - c1[""] == 10 and c3.brave - c3[""] == 25 and c1.experienced - c1[""] == 5 and c1.reckless - c1[""] == -5
+		and c1.lucky == c1[""] and c1.greedy == c1[""],
+		"the chance with a trait: Brave +10 (+25 at danger 3), Experienced +5, Reckless -5, Lucky/Greedy 0 (formula unchanged) %s %s" % [c1, c3])
+	var hero: Dictionary = base.duplicate()
+	hero["personality"] = "brave"
+	check(gm.estimate_success([hero], m3) == gm.calculate_mission_success_chance(hero, m3) and gm.estimate_success([hero], m3) == c3.brave,
+		"estimate_success (Story 6.5's one estimate) reads a hired adventurer's trait")
+
+
+static func _t29_applicant(id: int, adv_name: String, cls: String, cost: int, personality: String, card: String) -> Dictionary:
+	return {"id": id, "name": adv_name, "class": cls, "status": AdventurerStatus.Status.READY, "recovery": 0, "missions_completed": 0,
+		"missions_failed": 0, "gold_earned": 0, "injuries_sustained": 0, "tarot_card": card, "tarot_name": "", "portrait": "",
+		"drink_preference": "mead", "strength": 5, "dexterity": 6, "intelligence": 4, "endurance": 7, "hiring_cost": cost,
+		"experience_tier": "Seasoned", "daily_wage": 2, "personality": personality, "background": "Village hero", "availability": 5}
+
+
+## DH-2 and AC 3: the reasons and their order; a refused hire changes nothing; a hire moves exactly what it should.
+func _check_t29_hire(gm, ab, eb, capture: Node) -> void:
+	var S = AdventurerStatus.Status
+	gm.adventurers = []
+	gm.active_missions = []
+	gm.hired_tarot_cards = []
+	gm.max_adventurers = 8
+	gm.current_day = 6
+	gm.recruit_refresh_day = 6
+	gm.gold = 100
+	gm.adventurers_hired_this_run = 0
+	var nina := _t29_applicant(7001, "Nina", "Ranger", 20, "brave", "wands_01_ace")
+	var bram := _t29_applicant(7002, "Bram", "Barbarian", 500, "greedy", "cups_04_four")
+	var gone := _t29_applicant(7003, "Gil", "Mage", 10, "", "swords_11_page")
+	gm.daily_recruits = [nina, bram]
+	var reasons := [gm.hire_block_reason(nina), gm.hire_block_reason(bram), gm.hire_block_reason(gone)]
+	check(reasons == ["", "Not enough gold", "No longer available"], "hire_block_reason: hireable, too dear, not in today's pool %s" % [reasons])
+	var loaded: Dictionary = nina.duplicate()
+	loaded["id"] = 7001.0
+	check(gm.hire_block_reason(loaded) == "", "a loaded save's float id still finds the applicant in the pool")
+	gm.max_adventurers = 0
+	reasons = [nina, bram, gone].map(func(x): return gm.hire_block_reason(x))
+	gm.max_adventurers = 8
+	check(reasons == ["Roster full", "Roster full", "No longer available"], "the order: the pool first, then a full roster, then the gold %s" % [reasons])
+
+	var gold_spy: Array = []
+	var roster_spy := [0]
+	var hired_spy: Array = []
+	var on_gold := func(v): gold_spy.append(v)
+	var on_roster := func(): roster_spy[0] += 1
+	var on_hired := func(d): hired_spy.append(d)
+	eb.gold_changed.connect(on_gold)
+	ab.adventurer_roster_changed.connect(on_roster)
+	ab.adventurer_hired.connect(on_hired)
+	var state := func(): return [gm.gold, gm.adventurers.size(), gm.daily_recruits.size(), gm.hired_tarot_cards.duplicate(),
+		gm.adventurers_hired_this_run, gold_spy.size(), roster_spy[0], hired_spy.size()]
+	var before: Array = state.call()
+	capture.lines.clear()
+	var refused := [gm.hire_adventurer(bram), gm.hire_adventurer(gone)]
+	gm.max_adventurers = 0
+	refused.append(gm.hire_adventurer(nina))
+	gm.max_adventurers = 8
+	check(refused == [false, false, false] and state.call() == before,
+		"a refused hire changes nothing and emits nothing (gold, roster, pool, cards, hire count, every signal): a full roster no longer spends and refunds")
+	check(capture.lines.has("Cannot hire Bram: Not enough gold.") and capture.lines.has("Cannot hire Nina: Roster full."),
+		"the log says why %s" % [capture.lines])
+
+	nina["status"] = "On Mission"   # whatever the applicant record says (a label from a save here), the hire is READY
+	capture.lines.clear()
+	var ok: bool = gm.hire_adventurer(nina)
+	var hired: Dictionary = gm.adventurers.back() if not gm.adventurers.is_empty() else {}
+	check(ok and gm.gold == 80 and gold_spy == [80], "hired: the gold drops by exactly the cost (100 -> 80) with one EconomyBus.gold_changed(80) %s" % [gold_spy])
+	check(gm.adventurers.size() == 1 and hired.get("status") == S.READY and hired.get("personality") == "brave" and int(hired.get("hire_day", -1)) == 6,
+		"on the roster READY, the trait kept (brave), hire day 6")
+	check(not ["hiring_cost", "background", "availability"].any(func(k): return hired.has(k)), "hiring_cost, background and availability are dropped")
+	check(gm.daily_recruits.size() == 1 and int(gm.daily_recruits[0].id) == 7002 and gm.hired_tarot_cards == ["wands_01_ace"] and gm.adventurers_hired_this_run == 1,
+		"out of the pool, the card never offered again this run, the run's hire counted")
+	check(roster_spy[0] == 1 and hired_spy.size() == 1 and is_same(hired_spy[0], hired),
+		"one AdventurerBus.adventurer_roster_changed and one adventurer_hired (with the roster's record)")
+	check(capture.lines.has("Hired Nina the Ranger for 20 gold!"), "the log line: 'Hired Nina the Ranger for 20 gold!'")
+	before = state.call()
+	check(not gm.hire_adventurer(nina) and state.call() == before and gm.hire_block_reason(nina) == "No longer available",
+		"the same applicant again: refused ('No longer available'), nothing changes")
+	eb.gold_changed.disconnect(on_gold)
+	ab.adventurer_roster_changed.disconnect(on_roster)
+	ab.adventurer_hired.disconnect(on_hired)
+
+	var record_keys := ["id", "name", "class", "strength", "dexterity", "intelligence", "endurance", "experience_tier", "tarot_card",
+		"tarot_name", "portrait", "drink_preference", "daily_wage", "hire_day", "status", "personality"]
+	check(record_keys.all(func(k): return hired.has(k)), "the hired record holds id, name, class, the stats, tier, Tarot card, drink, wage, hire day, status and trait")
+	var back = JSON.parse_string(JSON.stringify(hired))
+	if back is Dictionary:
+		gm._normalize_adventurer_ints(back)
+	check(back is Dictionary and record_keys.all(func(k): return back.get(k) == hired.get(k)), "a JSON round trip (as a save) keeps every key and value")
+	var re := RegEx.create_from_string("(\\.tarot_card|\\[\"tarot_card\"\\])\\s*=(?!=)")
+	var files: Array[String] = []
+	for d in ["res://scripts", "res://scenes", "res://systems"]:
+		_collect_files(d, ["gd"], files)
+	var hits: Array = []
+	for f in files:
+		if re.search(FileAccess.get_file_as_string(f)) != null:
+			hits.append(f)
+	check(files.size() > 50 and hits.is_empty(), "no script reassigns an adventurer's tarot_card (only the generator's record sets it; %d scripts) %s" % [files.size(), hits])
+
+
+## DH-8: ids are never reused, the codex's fallen heroes included (a fixture codex, never Raphael's).
+func _check_t29_ids(gm, ss) -> void:
+	var cases := [[1, []], [1, [2, 4, 4242.0]], [100, [2, 4]], [5, ["x", null, 3.5, {}]], [5, ["7"]], [3, [-1, 2]]]
+	var got := cases.map(func(c): return gm.next_free_id(c[0], c[1]))
+	check(got == [1, 4243, 100, 5, 8, 3], "next_free_id: past every taken id (whole floats and number strings count, junk doesn't) %s" % [got])
+	gm.adventurers = [{"id": 10, "name": "A"}]
+	gm.daily_recruits = [{"id": 11.0, "name": "B"}]
+	gm.active_missions = [{"adventurer": {"id": 12}}, {"party": [{"id": 13}], "adventurer_ids": [14]}]
+	ss.codex_data = {"fallen_heroes": [{"id": 4242.0, "name": "Testla"}, {"id": 2}, "junk"], "artifacts_found": []}
+	var keys: Array = gm._taken_ids().map(func(v): return gm._id_key(v))
+	check([10, 11, 12, 13, 14, 4242, 2].all(func(k): return keys.has(k)), "_taken_ids: the roster, the pool, everyone out (and the record's ids), the codex's fallen %s" % [keys])
+	gm.next_adventurer_id = 1
+	var a: int = gm.generate_unique_id()
+	var b: int = gm.generate_unique_id()
+	check(a == 4243 and b == 4244 and gm.next_adventurer_id == 4245,
+		"a fresh session's counter (1) jumps past the fallen hero 4242: new ids %d, %d (a reused id would die unrecorded)" % [a, b])
+	ss.codex_data = {"fallen_heroes": [], "artifacts_found": []}
+
+
+## DH-5, DH-6: tarot_card.json, the frame, the six silhouettes and their import, the studio scene.
+func _check_t29_card_data(dm) -> void:
+	var cfg = _read_json(TAROT_CARD_CONFIG_PATH)
+	var need := ["frame", "aspect", "header", "window", "footer", "field_color", "silhouette_tint", "silhouettes", "suits", "silhouette_render"]
+	var ok: bool = cfg is Dictionary and need.all(func(k): return cfg.has(k))
+	check(ok, "tarot_card.json parses with %s" % [need])
+	if not ok:
+		return
+	check(ResourceLoader.exists(str(cfg.frame)) and load(str(cfg.frame)) is Texture2D, "the configured frame loads (%s)" % cfg.frame)
+	var classes: Array = dm.get_config("adventurer_classes", [])
+	check(not classes.is_empty() and classes.all(func(c): return cfg.silhouettes.has(c)) and cfg.silhouettes.size() == classes.size(),
+		"a silhouette for each class of game_config's adventurer_classes %s" % [cfg.silhouettes.keys()])
+	check(["wands", "cups", "swords", "pentacles"].all(func(s): return cfg.suits.get(s) is Dictionary and str(cfg.suits[s].get("label", "")) != ""),
+		"the four suits have a label (and a colour, an icon path)")
+	var want := Vector2i(int(cfg.silhouette_render.size[0]), int(cfg.silhouette_render.size[1]))
+	var margin := float(cfg.silhouette_render.margin)
+	var bad: Array = []
+	var imports_bad: Array = []
+	for c in classes:
+		var path := str(cfg.silhouettes.get(c, ""))
+		var tex = load(path) if ResourceLoader.exists(path) else null
+		var img: Image = (tex as Texture2D).get_image() if tex is Texture2D else null
+		if img == null:
+			bad.append("%s: no texture" % c)
+			continue
+		img.convert(Image.FORMAT_RGBA8)
+		var w := img.get_width()
+		var h := img.get_height()
+		var u := img.get_used_rect()
+		var corners := [img.get_pixel(0, 0).a, img.get_pixel(w - 1, 0).a, img.get_pixel(0, h - 1).a, img.get_pixel(w - 1, h - 1).a]
+		if img.get_size() != want or corners.any(func(a): return a > 0.01) or u.size.y < 0.7 * h or u.size.x >= 0.95 * w \
+				or absi(u.end.y - (h - int(round(h * margin)))) > 2:
+			bad.append("%s: size %s, used %s, corners %s" % [c, img.get_size(), u, corners])
+		var imp := FileAccess.get_file_as_string(path + ".import")
+		if not (imp.contains("compress/mode=0") and imp.contains("mipmaps/generate=false") and imp.contains("detect_3d/compress_to=0")):
+			imports_bad.append(path)
+	check(bad.is_empty(), "the six silhouettes: %dx%d, transparent corners, a figure (at least 70%% of the height, less than 95%% of the width) standing on the bottom margin %s" % [want.x, want.y, bad])
+	var frame_imp := FileAccess.get_file_as_string(str(cfg.frame) + ".import")
+	check(imports_bad.is_empty() and frame_imp.contains("compress/mode=0") and frame_imp.contains("detect_3d/compress_to=0"),
+		"the frame and the silhouettes import lossless, no mipmaps, detect_3d off %s" % [imports_bad])
+	var ps = load(SILHOUETTE_STUDIO_SCENE)
+	var inst: Node = (ps as PackedScene).instantiate() if ps is PackedScene else null   # not added: its _ready never runs
+	var root_script = inst.get_script() if inst != null else null
+	var groups: Array = inst.get_groups() if inst != null else []
+	if inst != null:
+		inst.free()
+	check(root_script is GDScript and (root_script as GDScript).resource_path == SILHOUETTE_STUDIO_SCRIPT and not "player_scene" in groups,
+		"SilhouetteStudio.tscn: its root runs silhouette_studio.gd, not in player_scene (PlayerManager stands down)")
+	var sscript = load(SILHOUETTE_STUDIO_SCRIPT)
+	var classes_json = _read_json("res://data/characters/classes.json")
+	var plan_ok: Dictionary = sscript.plan(PackedStringArray(["classes=all"]), classes_json, cfg)
+	var plan_bad := [sscript.plan(PackedStringArray([]), classes_json, cfg).error, sscript.plan(PackedStringArray(["classes=Juggler"]), classes_json, cfg).error,
+		sscript.plan(PackedStringArray(["classes=all", "out=relative/dir"]), classes_json, cfg).error, sscript.plan(PackedStringArray(["nope"]), classes_json, cfg).error]
+	check(str(plan_ok.error) == "" and plan_ok.jobs.size() == classes.size() and plan_bad.all(func(e): return str(e) != ""),
+		"the studio plans all six from the data and refuses no classes, an unknown class, a relative out= and an unknown argument %s" % [plan_bad])
+
+
+## DH-5/DH-9: the card art resolver: the painting, else the class silhouette (tinted), else the plate; never null.
+func _check_t29_card_art() -> void:
+	PortraitSocket.set_card_config(null)
+	var cfg: Dictionary = PortraitSocket.card_config()
+	var painting: Dictionary = PortraitSocket.resolve_card_art({"class": "Fighter", "portrait": "res://assets/portraits/fighter.png"})
+	check(painting.get("texture") is Texture2D and (painting.texture as Texture2D).resource_path == "res://assets/portraits/fighter.png"
+		and painting.get("painting") == true and painting.get("tint") == Color.WHITE,
+		"a file at the card's portrait path is the art (a painting, untinted): commissioned art drops in with no code change")
+	var sil: Dictionary = PortraitSocket.resolve_card_art({"class": "Mage", "portrait": "res://assets/characters/portraits/tarot/major_01_the_magician.png"})
+	check(sil.get("texture") is Texture2D and (sil.texture as Texture2D).resource_path == str(cfg.get("silhouettes", {}).get("Mage", "?"))
+		and sil.get("painting") == false and (sil.tint as Color).is_equal_approx(PortraitSocket.class_color("Mage")),
+		"no painting yet (the demo): the class silhouette, tinted the class colour")
+	var plate: Dictionary = PortraitSocket.resolve_card_art({"class": "Juggler"})
+	var nothing: Dictionary = PortraitSocket.resolve_card_art({})
+	check(plate.get("texture") is Texture2D and nothing.get("texture") is Texture2D and plate.get("painting") == false and plate.get("tint") == Color.WHITE,
+		"an unknown class or an empty record: the class-coloured plate, never a null texture")
+	var ink: Dictionary = cfg.duplicate(true)
+	ink["silhouette_tint"] = "#101010"
+	PortraitSocket.set_card_config(ink)
+	var inked: Dictionary = PortraitSocket.resolve_card_art({"class": "Mage"})
+	PortraitSocket.set_card_config({"silhouettes": {}})
+	var bare: Dictionary = PortraitSocket.resolve_card_art({"class": "Mage"})
+	PortraitSocket.set_card_config(null)
+	check((inked.tint as Color).is_equal_approx(Color("#101010")) and bare.get("texture") is Texture2D and (bare.texture as Texture2D).resource_path == "",
+		"silhouette_tint as a colour inks every silhouette; a config without the class's silhouette draws the plate")
+	check(PortraitSocket.resolve_texture({"class": "Mage"}) is Texture2D, "resolve_texture (the Reveal's, the Codex's) is unchanged and still resolves")
+
+
+## The card view: numeral or suit, the name, compact, the frame and its fallback.
+func _check_t29_card_view(dm) -> void:
+	var scene = load(TAROT_CARD_SCENE_PATH)
+	if not scene is PackedScene:
+		check(false, "TarotCard.tscn loads")
+		return
+	var card = (scene as PackedScene).instantiate()
+	card.size = Vector2(170, 283)
+	var cfg: Dictionary = PortraitSocket.card_config()
+	var chariot: Dictionary = dm.get_tarot_card("major_07_the_chariot")
+	var four: Dictionary = dm.get_tarot_card("cups_04_four")
+	card.set_card(chariot, PortraitSocket.resolve_card_art({"class": "Fighter"}))
+	var s: Dictionary = card.shown()
+	check(s.header == "VII" and s.name == "The Chariot" and s.art is Texture2D and not s.frame_fallback and s.frame is Texture2D
+		and (s.frame as Texture2D).resource_path == str(cfg.get("frame")),
+		"a Major card: its numeral (VII) on the frame's band, its name below, the configured frame %s" % [[s.header, s.name]])
+	card.set_card(four, PortraitSocket.resolve_card_art({"class": "Rogue"}))
+	s = card.shown()
+	check(s.header == "Cups" and (s.header_color as Color).is_equal_approx(Color(str(cfg.suits.cups.color))) and s.name == "Four of Cups",
+		"a Minor card: its suit's label in the suit colour, its name %s" % [[s.header, s.name]])
+	card.set_card({}, PortraitSocket.resolve_card_art({}))
+	s = card.shown()
+	check(s.header == "" and s.name == "" and s.art is Texture2D, "no card: empty bands, the art still drawn, no error")
+	card.set_card(chariot, PortraitSocket.resolve_card_art({"class": "Fighter"}))
+	card.compact = true
+	s = card.shown()
+	check(s.header == "" and s.name == "" and s.art is Texture2D, "compact (the roster's thumbnail): no header, no name")
+	card.compact = false
+	var cs = card.get_script()
+	var romans := [0, 1, 4, 9, 14, 19, 21].map(func(n): return cs.roman(n))
+	check(romans == ["0", "I", "IV", "IX", "XIV", "XIX", "XXI"], "roman: 0, I, IV, IX, XIV, XIX, XXI %s" % [romans])
+	var bad_cfg: Dictionary = cfg.duplicate(true)
+	bad_cfg["frame"] = "res://assets/ui/tarot/t29_no_such_frame.png"
+	PortraitSocket.set_card_config(bad_cfg)
+	cs.reset_frame_warnings()
+	card.set_card(chariot, PortraitSocket.resolve_card_art({"class": "Fighter"}))
+	card.set_card(four, PortraitSocket.resolve_card_art({"class": "Rogue"}))
+	s = card.shown()
+	check(s.frame_fallback and s.frame == null and s.header == "Cups" and cs.frame_warning_count() == 1,
+		"a frame that doesn't load: the plain border, the card still reads, one warning however many cards")
+	var icon_cfg: Dictionary = cfg.duplicate(true)
+	icon_cfg.suits.cups["icon"] = "res://assets/ui/tarot/silhouettes/mage.png"   # any texture stands in for 25.22's icon
+	PortraitSocket.set_card_config(icon_cfg)
+	card.set_card(four, PortraitSocket.resolve_card_art({"class": "Rogue"}))
+	s = card.shown()
+	check(s.icon is Texture2D and s.header == "" and s.name == "Four of Cups", "a suit icon in the config replaces the label (25.22's P7 swap)")
+	PortraitSocket.set_card_config(null)
+	cs.reset_frame_warnings()
+	card.free()
+
+
+## DH-3, DH-4: the panel's builder off the tree: columns, the reasons on the buttons, pick, Not now, a refusal in the
+## bar, the hire, a full roster, no applicants.
+func _check_t29_panel(gm) -> void:
+	var popup_script = load(RECRUITMENT_POPUP_PATH)
+	var popup = popup_script.new()
+	var box := VBoxContainer.new()
+	gm.adventurers = []
+	gm.active_missions = []
+	gm.hired_tarot_cards = []
+	gm.max_adventurers = 8
+	gm.gold = 100
+	gm.current_day = 9
+	gm.recruit_refresh_day = 9
+	gm.daily_recruits = [_t29_applicant(7101, "Ada", "Fighter", 20, "brave", "major_07_the_chariot"),
+		_t29_applicant(7102, "Bo", "Mage", 300, "", "cups_04_four"), _t29_applicant(7103, "Cy", "Healer", 30, "greedy", "swords_11_page")]
+	popup.build_hire_content(box)
+	var cols := box.find_children("Applicant_*", "PanelContainer", true, false)
+	var col_a: Node = box.find_child("Applicant_7101", true, false)
+	var card_a = col_a.find_child("Card", true, false) if col_a else null
+	check(cols.size() == 3 and card_a != null and card_a.has_method("shown") and card_a.shown().header == "VII" and card_a.shown().name == "The Chariot"
+		and (card_a.shown().art as Texture2D).resource_path == str(PortraitSocket.card_config().silhouettes.Fighter),
+		"one column per applicant (3), each with its Tarot card: The Chariot, VII, the Fighter's silhouette")
+	var lines: Array = []
+	for n in ["NameLine", "TierLine", "TraitLine", "DrinkLine", "StatsLine", "CostLine"]:
+		var l = col_a.find_child(n, true, false) if col_a else null
+		lines.append((l as Label).text if l is Label else "<none>")
+	check(lines[0] == "Ada the Fighter" and lines[1] == "Seasoned" and str(lines[2]).begins_with("Brave: ") and lines[3] == "Drinks mead"
+		and lines[4] == "STR 5 · DEX 6 · INT 4 · END 7" and lines[5] == "20 gold to hire · 2 a day", "the applicant's lines %s" % [lines])
+	var col_b: Node = box.find_child("Applicant_7102", true, false)
+	var hire_b = col_b.find_child("HireButton", true, false) if col_b else null
+	check(hire_b is Button and hire_b.disabled and hire_b.text == "Not enough gold" and col_b.find_child("TraitLine", true, false) == null,
+		"a too-dear applicant's Hire is disabled and says 'Not enough gold'; no trait, no trait line")
+	(col_a.find_child("HireButton", true, false) as Button).pressed.emit()
+	var bar: Node = box.find_child("ConfirmBar", true, false)
+	var bar_text: String = (bar.find_child("ConfirmText", true, false) as Label).text if bar else "<no bar>"
+	check(popup.selected_id == 7101 and bar_text == "Hire Ada the Fighter for 20 gold? Wages: 2 gold a day." and gm.adventurers.is_empty() and gm.gold == 100,
+		"Hire picks (nothing moves yet) and the confirm bar asks: '%s'" % bar_text)
+	(box.find_child("ConfirmCancel", true, false) as Button).pressed.emit()
+	check(popup.selected_id == null and box.find_child("ConfirmBar", true, false) == null and gm.adventurers.is_empty() and gm.gold == 100,
+		"Not now: the bar goes, nothing changed")
+	(box.find_child("Applicant_7101", true, false).find_child("HireButton", true, false) as Button).pressed.emit()
+	gm.gold = 5   # the gold moved after the pick
+	(box.find_child("ConfirmHire", true, false) as Button).pressed.emit()
+	var refused_text: String = (box.find_child("ConfirmText", true, false) as Label).text if box.find_child("ConfirmText", true, false) else "<none>"
+	check(refused_text == "Can't hire Ada the Fighter: Not enough gold." and gm.adventurers.is_empty() and gm.gold == 5
+		and (box.find_child("ConfirmHire", true, false) as Button).disabled,
+		"a confirm the gold no longer covers is refused in the bar, nothing moves: '%s'" % refused_text)
+	gm.gold = 100
+	popup.build_hire_content(box)
+	(box.find_child("ConfirmHire", true, false) as Button).pressed.emit()
+	check(gm.adventurers.size() == 1 and gm.gold == 80 and box.find_children("Applicant_*", "PanelContainer", true, false).size() == 2
+		and box.find_child("Applicant_7101", true, false) == null and box.find_child("ConfirmBar", true, false) == null,
+		"the bar's Hire hires; the desk rebuilds in place: 2 columns, Ada gone, no bar")
+	check((box.find_child("GuildHeader", true, false) as Label).text == "Your guild (1/8)" and (box.find_child("StatusLine", true, false) as Label).text == "Gold 80 · Roster 1/8",
+		"the guild list and the top line follow (Your guild (1/8); Gold 80 · Roster 1/8)")
+	gm.max_adventurers = 1
+	popup.build_hire_content(box)
+	var hires := box.find_children("HireButton", "Button", true, false)
+	check(hires.size() == 2 and hires.all(func(b): return b.disabled and b.text == "Roster full"), "a full roster: every Hire reads 'Roster full', disabled")
+	gm.max_adventurers = 8
+	gm.daily_recruits = []
+	popup.build_hire_content(box)
+	check(box.find_child("NoApplicants", true, false) is Label and box.find_children("Applicant_*", "", true, false).is_empty(), "no applicants: the empty line")
+	popup.free()
+	box.free()
