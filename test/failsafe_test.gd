@@ -9136,15 +9136,27 @@ func test_dispatch() -> void:
 	var spy: Array = []
 	var on_dispatch := func(a, m, h): spy.append([a, m, h])
 	ab.mission_dispatched.connect(on_dispatch)
+	# A resolution may reach SaveSystem (the reveal pre-save): no live run, and never the real files (review P1).
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active]
+	ss.run_active = false
+	ss.save_path = "user://failsafe_t28/eternal_guild_save.json"
+	ss.codex_path = "user://failsafe_t28/codex.dat"
 
 	_check_t28_party_size(gm, dm)
 	_check_t28_estimates(gm, dm)
-	_check_t28_dispatch(gm, wm, spy)
+	_check_t28_dispatch(gm, wm, spy, capture)
+	_check_t28_stale_lock(gm, wm)
 	_check_t28_resolution(gm, wm)
+	_check_t28_release(gm, wm)
 	_check_t28_party_rule(gm, dm, wm)
+	_check_t28_legacy_board()
 	await _check_t28_board(gm, wm, spy)
 
 	ab.mission_dispatched.disconnect(on_dispatch)
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	check(not FileAccess.file_exists("user://failsafe_t28/eternal_guild_save.json"), "Test 28 wrote no save (no live run)")
 	_t28_restore(snap, gm, wm, dm)
 	capture.free()
 	var codex_after := [ss.codex_data.get("fallen_heroes", []).size(), ss.codex_data.get("artifacts_found", []).size()]
@@ -9199,7 +9211,7 @@ func _check_t28_estimates(gm, dm) -> void:
 
 
 ## DD-3 / DD-4: refusals change nothing; a dispatch sets ON_MISSION, records, locks, signals once.
-func _check_t28_dispatch(gm, wm, spy: Array) -> void:
+func _check_t28_dispatch(gm, wm, spy: Array, capture: Node) -> void:
 	var S = AdventurerStatus.Status
 	var m := _t28_missions()
 	var ada := _t28_adv(9001, "Ada", S.READY, 8, 8)
@@ -9220,6 +9232,7 @@ func _check_t28_dispatch(gm, wm, spy: Array) -> void:
 	wm.world_map = [center, hex_a, hex_b, hex_c]
 	wm.chosen_center = center
 	spy.clear()
+	capture.lines.clear()
 
 	var before := _t28_state(gm, wm, spy)
 	var refusals := [
@@ -9245,6 +9258,9 @@ func _check_t28_dispatch(gm, wm, spy: Array) -> void:
 		"travel_duration": 2, "direction": "outbound", "success_chance": est_ada}
 	check(_t28_has_all(e, rec_solo), "solo: the Deployment Record (ids, mission, hex, day 5, back day 7) and the chance shown (%d) %s" % [est_ada, _t28_pick(e, rec_solo)])
 	check(hex_a.get("locked", false) == true, "solo: GameManager locked hex t28_a")
+	var line: String = gm.dispatch_line(e, [ada])
+	check(line == "[GameManager] dispatch: Ada -> Clear the Cellar (t28_a), back day 7, chance 82%", "the [GameManager] dispatch line: '%s'" % line)
+	check(capture.lines.has("Ada departs on: Clear the Cellar (2 days)"), "the player log says 'Ada departs on: Clear the Cellar (2 days)' %s" % [capture.lines])
 	var again: String = gm.dispatch_adventurers([9002], m.solo, "t28_a")
 	check(again == "Someone is already out on this contract." and bram.status == S.READY and spy.size() == 1, "a locked hex refuses a second dispatch: '%s'" % again)
 
@@ -9257,6 +9273,8 @@ func _check_t28_dispatch(gm, wm, spy: Array) -> void:
 		"return_day": 8, "travel_duration": 3, "direction": "outbound", "success_chance": est_party}
 	check(_t28_has_all(e, rec_party), "party: the record lists the ids in party order and keeps the chance shown (%d) %s" % [est_party, _t28_pick(e, rec_party)])
 	check(spy.size() == 2 and hex_b.get("locked", false), "party: one more signal, hex t28_b locked")
+	check(capture.lines.has("Party departs on: Guard the Caravan (3 days)") and capture.lines.has("   Party: Bram, Cole"),
+		"the player log: 'Party departs on: Guard the Caravan (3 days)' (a JSON 3.0 reads as 3) and the party %s" % [capture.lines])
 
 	var n_before: int = gm.active_missions.size()
 	gm.send_on_mission(hal, m.solo)
@@ -9281,6 +9299,76 @@ func _check_t28_dispatch(gm, wm, spy: Array) -> void:
 	info = gm.deployment_info("t28_c")
 	check(int(info.get("chance", -1)) == gm.estimate_success([gareth, mira], m.party) and int(info.get("return_day", 0)) == 8,
 		"deployment_info of that old entry: the estimate stands in for the chance; back day 5 + 3")
+
+
+## Review P6: a hex locked with no active entry (a debug reset clears the entries, not the locks) is stale: not taken,
+## and a dispatch onto it goes through.
+func _check_t28_stale_lock(gm, wm) -> void:
+	var S = AdventurerStatus.Status
+	var m := _t28_missions()
+	var kit := _t28_adv(9020, "Kit", S.READY, 5, 5)
+	gm.adventurers = [kit]
+	gm.active_missions = []
+	var hex_s := _t28_hex("t28_s", 1, 1, m.solo)
+	hex_s["locked"] = true
+	var center := _t28_center()
+	wm.world_map = [center, hex_s]
+	wm.chosen_center = center
+	var taken_before: bool = gm.is_hex_taken(hex_s)
+	var why: String = gm.dispatch_adventurers([9020], m.solo, "t28_s")
+	check(not taken_before and why == "" and kit.status == S.ON_MISSION and hex_s.get("locked", false) and gm.is_hex_taken(hex_s),
+		"a stale lock (no one out) isn't 'taken': Kit is sent and the hex is locked for her '%s'" % why)
+
+
+## Review P1: a resolved contract leaves its hex and the pool, so it can't be run twice.
+func _check_t28_release(gm, wm) -> void:
+	var S = AdventurerStatus.Status
+	var m := _t28_missions()
+	var lea := _t28_adv(9021, "Lea", S.READY, 3, 3)
+	var mo := _t28_adv(9022, "Mo", S.READY, 3, 3)
+	var other := {"id": "t28_other", "name": "Another Job", "duration_days": 1, "danger": 1, "required_adventurers": 1}
+	gm.adventurers = [lea, mo]
+	gm.active_missions = []
+	gm.available_missions = [m.safe, other]
+	var hex_e := _t28_hex("t28_e", 2, 3, m.safe)
+	var center := _t28_center()
+	wm.world_map = [center, hex_e]
+	wm.chosen_center = center
+	var why: String = gm.dispatch_adventurers([9021, 9022], m.safe, "t28_e")
+	var entry: Dictionary = gm.active_missions.back() if why == "" else {}
+	if entry.is_empty():
+		check(false, "fixture: Lea and Mo are sent on t28_e '%s'" % why)
+		return
+	entry["days_remaining"] = 1
+	var changed := [0]
+	var on_changed := func(): changed[0] += 1
+	gm.missions_changed.connect(on_changed)
+	gm.process_mission_returns()
+	gm.missions_changed.disconnect(on_changed)
+	check(hex_e.get("active_mission") == null and not hex_e.get("locked", false) and gm.active_missions.is_empty(),
+		"a resolved contract leaves its hex (no mission, no lock) and the active list")
+	check(gm.available_missions.size() == 1 and is_same(gm.available_missions[0], other) and changed[0] == 1,
+		"...and today's pool (the other contract stays); missions_changed fires once (%d)" % changed[0])
+	lea.status = S.READY
+	mo.status = S.READY
+	var again: String = gm.dispatch_adventurers([9021, 9022], m.safe, "t28_e")
+	check(again == "That contract is gone.", "the same contract can't be sent again: '%s'" % again)
+	var copy_pool := [m.safe.duplicate(true), other]
+	var hex_f := _t28_hex("t28_f", 3, 3, copy_pool[0])
+	wm.world_map = [center, hex_f]
+	gm.available_missions = copy_pool
+	gm.active_missions = [{"party": [lea, mo], "mission": m.safe.duplicate(true), "days_remaining": 3, "hex_id": "t28_f"}]
+	hex_f["locked"] = true
+	gm._release_hex(gm.active_missions[0])
+	check(hex_f.get("active_mission") == null and not hex_f.get("locked", false) and gm.available_missions.size() == 1,
+		"_release_hex also matches a loaded copy of the contract (equal, not the same dictionary)")
+
+
+## Review P11: the hidden legacy board uses the one estimate too.
+func _check_t28_legacy_board() -> void:
+	var src := FileAccess.get_file_as_string("res://scenes/ui/script/mission_board.gd")
+	check(src.contains("GameManager.estimate_success(party, mission)") and not src.contains("var party_bonus = (party.size() - 1) * 5"),
+		"the legacy mission_board.gd's party chance is GameManager.estimate_success (no formula of its own)")
 
 
 ## DD-2: the resolver rolls the stored chance; an entry without one is computed as before.
@@ -9309,6 +9397,11 @@ func _check_t28_resolution(gm, wm) -> void:
 	var expect: int = gm.estimate_success([ivy, jon], m.safe)
 	report = gm._resolve_mission(old)
 	check(int(report.get("success_chance", -1)) == expect, "a party entry saved before 6.5 (no chance stored) rolls the estimate, as before (%d)" % expect)
+	var solo_safe := {"id": "t28_safe_solo", "name": "Solo Drill", "duration_days": 1, "danger": -3, "reward_range": [5, 5],
+		"success_factors": ["strength"], "required_adventurers": 1, "category": "delivery"}
+	ivy.status = S.ON_MISSION
+	report = gm._resolve_mission({"adventurer": ivy, "mission": solo_safe, "success_chance": 77, "days_remaining": 0, "total_duration": 1})
+	check(int(report.get("success_chance", -1)) == 77, "a solo entry rolls its stored chance (77): %s" % report.get("success_chance"))
 
 
 ## DD-7: party missions in the demo profile, per_refresh 0 and the full profile unchanged; missions_changed after placing.
@@ -9375,6 +9468,28 @@ func _check_t28_party_rule(gm, dm, wm) -> void:
 	check(day1 == 0 and off == 0 and full == 0, "today's Tier 1 behaviour stays: before from_day %d, per_refresh 0 %d, the full profile %d party missions" % [day1, off, full])
 	gm.missions_changed.disconnect(on_changed)
 
+	gm.set("_party_missions_warned", false)
+	gm.set("_party_missions_warnings", [])
+	dm.game_config["profile"] = "demo"
+	dm.game_config["demo_party_missions"] = {"from_day": 2, "per_refresh": 1, "max_tier": 0}
+	gm.mission_tier_unlocked = 1
+	gm.current_day = 3
+	gm.refresh_available_missions()
+	gm.refresh_available_missions()
+	var warned: Array = gm.get("_party_missions_warnings") if gm.get("_party_missions_warnings") is Array else []
+	check(warned.size() == 1 and str(warned[0]).contains("no party templates up to tier 0"),
+		"no party template up to max_tier: one fallback warning a session, not one a refresh %s" % [warned])
+	gm.set("_party_missions_warned", false)
+	gm.set("_party_missions_warnings", [])
+	dm.game_config["demo_party_missions"] = "junk"
+	gm.refresh_available_missions()
+	gm.refresh_available_missions()
+	warned = gm.get("_party_missions_warnings") if gm.get("_party_missions_warnings") is Array else []
+	check(warned.size() == 1 and str(warned[0]).contains("demo_party_missions is missing or not an object"),
+		"a bad demo_party_missions: warned once over two refreshes %s" % [warned])
+	dm.game_config["demo_party_missions"] = {"from_day": 2, "per_refresh": 1, "max_tier": 2}
+	dm.game_config["profile"] = "full"
+
 	gm.mission_tier_unlocked = 1
 	gm.taxes_paid_count = 1
 	gm.current_day = 30
@@ -9408,8 +9523,10 @@ func _check_t28_board(gm, wm, spy: Array) -> void:
 	var hex_c := _t28_hex("t28_c", -3, 1, m.party3)
 	var hex_d := _t28_hex("t28_d", -4, 4, m.solo.duplicate(true))
 	hex_d["locked"] = true
+	var hex_g := _t28_hex("t28_g", 0, 5, m.solo.duplicate(true))
+	hex_g["locked"] = true   # a stale lock: nobody is out there (review P6)
 	var center := _t28_center()
-	wm.world_map = [center, hex_a, hex_b, hex_c, hex_d]
+	wm.world_map = [center, hex_a, hex_b, hex_c, hex_d, hex_g]
 	wm.chosen_center = center
 	# Dara is out on t28_d with an entry saved before 6.5 (no record keys).
 	gm.active_missions = [{"adventurer": dara, "mission": hex_d.active_mission, "days_remaining": 2, "total_duration": 2,
@@ -9417,14 +9534,31 @@ func _check_t28_board(gm, wm, spy: Array) -> void:
 	var spy0 := spy.size()
 
 	var board: Control = (load(WORLD_MAP_BOARD_PATH) as PackedScene).instantiate()
-	root.add_child(board)
+	var layer: CanvasLayer = board.attach_to(root)   # zone_interactions' path (review P14)
 	board.open_mission_board()
 	await process_frame
 	await process_frame
+	# The layers the hall's UI really runs at: GameUI's script (ZonePromptUI.gd) sets 100 in _ready over the scene's 1.
+	var game_ui_layer := maxi(_t28_tavern_layer("GameUI"), _t28_script_layer("res://scripts/game/ZonePromptUI.gd"))
+	var pause_layer := _t28_tavern_layer("PauseMenu")
+	var briefing_layer := _t28_script_layer("res://scenes/ui/script/morning_briefing.gd")
+	var dialogue_layer := 110
+	var box_state := (load("res://scenes/ui/DialogueBox.tscn") as PackedScene).get_state()
+	for p in box_state.get_node_property_count(0):
+		if box_state.get_node_property_name(0, p) == "layer":
+			dialogue_layer = int(box_state.get_node_property_value(0, p))
+	check(is_instance_valid(layer) and board.get_parent() == layer and layer.layer == board.CANVAS_LAYER and game_ui_layer >= 100
+		and layer.layer > game_ui_layer and layer.layer > pause_layer and layer.layer > briefing_layer and layer.layer < dialogue_layer,
+		"the board draws on its own CanvasLayer (%d) above the hall's GameUI as it runs (%d: top bar, event log, roster strip), the pause menu (%d) and the briefing (%d), under the dialogue box (%d)"
+		% [layer.layer, game_ui_layer, pause_layer, briefing_layer, dialogue_layer])
+	var ready_now := 3
+	check(board._header.text == board.header_text(5, int(gm.gold), ready_now, 6) and board._header.text.begins_with("Day 5"),
+		"the board's own top line: '%s'" % board._header.text)
 	var ids: Array = board._markers.map(func(x): return x.hex_id)
-	check(ids.size() == 4 and ["t28_a", "t28_b", "t28_c", "t28_d"].all(func(h): return ids.has(h)), "markers: one per hex with a mission %s" % [ids])
+	check(ids.size() == 5 and ["t28_a", "t28_b", "t28_c", "t28_d", "t28_g"].all(func(h): return ids.has(h)), "markers: one per hex with a mission %s" % [ids])
 	check(board._badges == {"t28_b": 2, "t28_c": 3}, "party markers carry their size, the solo ones don't %s" % [board._badges])
-	check(str(board._chips.get("t28_d", "")) == "Dara · back day 7", "the deployed hex shows Dara's chip: '%s'" % board._chips.get("t28_d"))
+	check(str(board._chips.get("t28_d", "")) == "Dara · back day 7" and not board._chips.has("t28_g"),
+		"the deployed hex shows Dara's chip; the stale-locked one shows none: '%s'" % board._chips.get("t28_d"))
 	board._show_bubble(hex_b, Vector2(10, 10))
 	var party_line: String = board._bubble_mission.text
 	board._show_bubble(hex_d, Vector2(10, 10))
@@ -9453,16 +9587,19 @@ func _check_t28_board(gm, wm, spy: Array) -> void:
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
-	click.position = mp + Vector2(8, -6)
+	# 30 px at 1080 lines, scaled to this viewport (64 x 64 in a headless run): outside t28_a's hex, inside its marker.
+	click.position = mp + Vector2(0, -30) * (board.get_viewport().get_visible_rect().size.y / 1080.0)
+	var under: String = str(board._record_at_screen(click.position).get("id", ""))
 	board._input(click)
-	check(board._detail_panel != null and str(board._panel_rec.get("id", "")) == "t28_a" and not board._panel_read_only,
-		"a click on t28_a's marker opens its scroll")
+	check(board._detail_panel != null and str(board._panel_rec.get("id", "")) == "t28_a" and not board._panel_read_only and under != "t28_a",
+		"a click 30 px (at 1080 lines) off t28_a's marker, where the raycast finds '%s', opens t28_a's scroll (marker_hit, not the raycast) [opened %s]"
+		% [under, board._panel_rec.get("id", "-")])
 	var c_cole: int = gm.estimate_success([cole], m.solo)
 	check(board._token_order == [9001, 9003, 9002, 9004, 9005, 9006], "tokens: READY by chance (Ada 82, Cole %d, Bram 52), then the others in roster order %s" % [c_cole, board._token_order])
 	check(board._good_fit == [9001], "Good fit: Ada only (82 >= 70, the best for a party of 1) %s" % [board._good_fit])
 	var tt := [board._token_text(9001), board._token_text(9004), board._token_text(9005), board._token_text(9006)]
-	check(tt[0].contains("82%") and tt[0].contains("Good fit") and tt[1].contains("Out, back day 7") and tt[2].contains("Resting, 1 day")
-		and tt[3].contains("Wounded, 3 days"), "token texts: Ada's chance and Good fit; the others' status %s" % [tt])
+	check(tt[0].contains("82%") and tt[0].contains("Good fit") and tt[1].contains("Fighter · Out, back day 7") and tt[2].contains("Fighter · Resting, 1 day")
+		and tt[3].contains("Fighter · Wounded, 3 days"), "token texts: Ada's chance and Good fit; the others' class and status %s" % [tt])
 	check(board._chance_label.text == "Chance of success: — (pick an adventurer)" and board._accept_btn.disabled and not board._need_label.visible,
 		"before a pick: no chance yet, Send disabled")
 	check(board._slots.size() == 1 and not board._slots[0]._can_drop_data(Vector2.ZERO, {"type": "adventurer", "id": 9006})
@@ -9479,7 +9616,12 @@ func _check_t28_board(gm, wm, spy: Array) -> void:
 		and board._token_text(9001).contains("Assigned") and not board._reason_label.visible,
 		"a click on Ada fills the place, the chance shows, Send enables, the reason clears")
 	board._on_token_pressed(9001)
-	check(board._assigned_ids == [null] and board._accept_btn.disabled, "a second click on Ada takes her back out")
+	check(board._assigned_ids == [9001] and not board._reason_label.visible, "a second click on Ada's token keeps her in the place (a double-click can't undo it)")
+	var place_click := InputEventMouseButton.new()
+	place_click.button_index = MOUSE_BUTTON_LEFT
+	place_click.pressed = true
+	board._slots[0]._gui_input(place_click)
+	check(board._assigned_ids == [null] and board._accept_btn.disabled, "a click on the filled place empties it")
 	board._on_token_pressed(9001)
 	var before := _t28_state(gm, wm, spy)
 	var esc := InputEventKey.new()
@@ -9497,7 +9639,9 @@ func _check_t28_board(gm, wm, spy: Array) -> void:
 	board._open_detail_panel(hex_b)
 	check(board._panel_n == 2 and board._slots.size() == 2 and board._party_label.visible and board._party_label.text == "Party of 2"
 		and board._uses_label.text == "Uses: Strength, Intelligence", "the party scroll: 2 places, 'Party of 2', the stats it uses ('%s')" % board._uses_label.text)
-	board._on_token_pressed(9002)
+	board._slots[0]._drop_data(Vector2.ZERO, {"type": "adventurer", "id": 9002})
+	check(board._assigned_ids == [9002, null] and not board._slots[1]._can_drop_data(Vector2.ZERO, {"type": "adventurer", "id": 9002}),
+		"a roster drag fills a place (Bram), and the same adventurer can't be dropped into the second")
 	var partial: int = gm.estimate_success([bram], m.party)
 	check(board._chance_label.text == "Chance of success: %d%% (1 of 2 chosen)" % partial and board._accept_btn.disabled and not board._trait_label.visible,
 		"one of two chosen: the chance so far, Send still disabled, no trait line for Bram")
@@ -9511,6 +9655,31 @@ func _check_t28_board(gm, wm, spy: Array) -> void:
 	check(bram.status == S.ON_MISSION and cole.status == S.ON_MISSION and int(e.get("success_chance", -1)) == full and hex_b.get("locked", false)
 		and board._detail_panel == null and spy.size() == spy0 + 1, "Send: Bram and Cole go through dispatch_adventurers at the chance shown (%d)" % full)
 	check(str(board._chips.get("t28_b", "")) == "Bram +1 · back day 8", "after Send the hex shows the deployed chip '%s'" % board._chips.get("t28_b"))
+	check(board._header.text == board.header_text(5, int(gm.gold), 1, 6), "the top line follows: one ready now ('%s')" % board._header.text)
+	var mp_a: Vector2 = board._markers.filter(func(x): return x.hex_id == "t28_a")[0].pos
+	var dbl := InputEventMouseButton.new()
+	dbl.button_index = MOUSE_BUTTON_LEFT
+	dbl.pressed = true
+	dbl.double_click = true
+	dbl.position = mp_a
+	board._input(dbl)
+	var after_dbl: bool = board._detail_panel == null
+	var plain := InputEventMouseButton.new()
+	plain.button_index = MOUSE_BUTTON_LEFT
+	plain.pressed = true
+	plain.position = mp_a
+	board._input(plain)
+	var same_frame: bool = board._detail_panel == null
+	await process_frame
+	await process_frame
+	board._input(plain)
+	check(after_dbl and same_frame and board._detail_panel != null and str(board._panel_rec.get("id", "")) == "t28_a",
+		"right after Send a double-click or a click in the closing frame opens nothing; a later click does (review P4)")
+	board._close_detail_panel()
+	board._open_detail_panel(hex_g)
+	check(board._detail_panel != null and not board._panel_read_only and board._slots.size() == 1,
+		"a stale-locked hex opens the dispatch scroll, not a read-only one (review P6)")
+	board._close_detail_panel()
 
 	board._open_detail_panel(hex_c)
 	check(board._slots.size() == 3 and board._need_label.visible and board._need_label.text == "Needs 3 ready adventurers. You have 1."
@@ -9539,14 +9708,33 @@ func _check_t28_board(gm, wm, spy: Array) -> void:
 	ada["status"] = S.READY
 	board._close()
 	await process_frame
-	check(not is_instance_valid(board), "the board frees on close")
+	check(not is_instance_valid(board) and not is_instance_valid(layer), "the board frees on close, and its CanvasLayer with it")
+
+
+## The `layer` a node of MainTavern.tscn sets (CanvasLayer's default 1 when it sets none); -1 when the node is missing.
+static func _t28_tavern_layer(node_name: String) -> int:
+	var st := (load(TAVERN_SCENE_PATH) as PackedScene).get_state()
+	for i in st.get_node_count():
+		if st.get_node_name(i) != node_name:
+			continue
+		for p in st.get_node_property_count(i):
+			if st.get_node_property_name(i, p) == "layer":
+				return int(st.get_node_property_value(i, p))
+		return 1
+	return -1
+
+
+## The CanvasLayer layer a script sets in code (`layer = N`, its first such line); -1 when it sets none.
+static func _t28_script_layer(path: String) -> int:
+	var m := RegEx.create_from_string("(?m)^\\s*layer\\s*=\\s*(\\d+)").search(FileAccess.get_file_as_string(path))
+	return int(m.get_string(1)) if m else -1
 
 
 static func _t28_missions() -> Dictionary:
 	return {
 		"solo": {"id": "t28_solo", "name": "Clear the Cellar", "duration_days": 2, "danger": 1, "reward_range": [10, 12],
 			"success_factors": ["strength", "endurance"], "required_adventurers": 1, "party_required": false, "tier": 1},
-		"party": {"id": "t28_party", "name": "Guard the Caravan", "duration_days": 3, "danger": 2, "reward_range": [20, 24],
+		"party": {"id": "t28_party", "name": "Guard the Caravan", "duration_days": 3.0, "danger": 2, "reward_range": [20, 24],
 			"success_factors": ["strength", "intelligence", "charisma"], "required_adventurers": 2, "party_required": true, "tier": 2},
 		"party3": {"id": "t28_party3", "name": "Scout the Lair", "duration_days": 3, "danger": 4, "reward_range": [40, 50],
 			"success_factors": ["dexterity"], "required_adventurers": 3, "party_required": true, "tier": 3},
@@ -9607,7 +9795,8 @@ func _t28_snapshot(gm, wm, dm) -> Dictionary:
 		var v = gm.get(k)
 		g[k] = v.duplicate(true) if v is Array or v is Dictionary else v
 	return {"gm": g, "world_map": wm.world_map, "chosen_center": wm.chosen_center, "config": dm.game_config.duplicate(true),
-		"artifacts": dm.artifacts, "scene": current_scene, "warned": gm.get("_party_missions_warned")}
+		"artifacts": dm.artifacts, "scene": current_scene, "warned": gm.get("_party_missions_warned"),
+		"warnings": gm.get("_party_missions_warnings")}
 
 
 func _t28_restore(s: Dictionary, gm, wm, dm) -> void:
@@ -9619,6 +9808,8 @@ func _t28_restore(s: Dictionary, gm, wm, dm) -> void:
 	dm.artifacts = s.artifacts
 	if s.warned != null:
 		gm.set("_party_missions_warned", s.warned)
+	if s.warnings != null:
+		gm.set("_party_missions_warnings", s.warnings)
 	_d1_set_scene(s.scene)
 
 
