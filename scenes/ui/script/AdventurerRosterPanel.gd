@@ -19,6 +19,12 @@ var is_refreshing: bool = false
 const HIDDEN_X := 1920.0
 const SHOWN_X := 1546.0
 
+# Story 4.3: each entry shows its adventurer's Tarot card (compact) in CardContent/ArtSlot.
+const TAROT_CARD_SCENE := "res://scenes/ui/TarotCard.tscn"
+const ART_SIZE := Vector2(64, 106)                 # the card's aspect (tarot_card.json, 0.6)
+const DEPLOYED_ART := Color(0.45, 0.45, 0.5, 1.0)  # a deployed adventurer's card art, greyed under the badge
+const NOT_READY := Color(0.55, 0.55, 0.55, 0.80)   # the whole card, as before, for anyone not Ready
+
 # Explicit open/closed state. Do NOT derive this from the animating position.x —
 # rapid Tab presses or roster changes during the 0.3s slide would race against each
 # other and leave the panel stuck (the "adventurers not displaying" bug).
@@ -142,30 +148,9 @@ func _get_adventurer_level(adventurer: Dictionary) -> int:
 	else:
 		return 6
 
-func _coerce_status(s) -> int:
-	# Godot JSON loads saved statuses as floats (and roster ones as strings); coerce to the enum int.
-	if s is String:
-		return AdventurerStatus.from_save(s)
-	return int(s)
-
-func _get_status_display(adventurer: Dictionary) -> String:
-	match _coerce_status(adventurer.get("status", AdventurerStatus.Status.READY)):
-		AdventurerStatus.Status.READY:
-			return "Ready"
-		AdventurerStatus.Status.ON_MISSION:
-			var mission_name = adventurer.get("current_mission", "Unknown Mission")
-			return "On Mission: " + str(mission_name)
-		AdventurerStatus.Status.WOUNDED:
-			var days = int(adventurer.get("recovery", 0))
-			return "Wounded (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
-		AdventurerStatus.Status.RESTING:
-			var days = int(adventurer.get("recovery", 0))
-			return "Resting (" + str(days) + " day" + ("s" if days != 1 else "") + ")"
-		_:
-			return "Unknown"
-
 func create_adventurer_card(adventurer: Dictionary):
-	"""Spawn and populate a single adventurer card"""
+	"""Spawn and populate a single adventurer card (Story 4.3: their Tarot card's art, name, class, trait, status
+	with the days left, the card's name, wage and drink, all read from the record)."""
 	# id computed first so the drag script receives it before _ready() fires
 	var adventurer_id = adventurer.get("id", adventurer.get("name"))
 
@@ -173,58 +158,92 @@ func create_adventurer_card(adventurer: Dictionary):
 	card.set_script(preload("res://scenes/ui/script/adventurer_card.gd"))
 	card.adventurer_id = adventurer_id
 	roster_list.add_child(card)
-	
-	# Get references to the card's internal nodes
-	var card_content = card.get_node("CardContent")
-	var portrait = card_content.get_node("Portrait")
-	var info_container = card_content.get_node("InfoContainer")
-	
-	# Populate the labels
-	var name_label = info_container.get_node("NameLabel")
-	var class_label = info_container.get_node("ClassLabel")
-	var status_label = info_container.get_node("StatusLabel")
-	var wage_label = info_container.get_node("WageLabel")
-	
-	name_label.text = adventurer.get("name", "Unknown")
-	
-	# Class and level
-	var adv_class = adventurer.get("class", "Adventurer")
-	var level = _get_adventurer_level(adventurer)  # FIXED: Use the function
-	class_label.text = adv_class + " (Level " + str(level) + ")"
-	
-	# Status with color coding
-	var status = _coerce_status(adventurer.get("status", AdventurerStatus.Status.READY))
-	status_label.text = "Status: " + _get_status_display(adventurer)
-
-	match status:
-		AdventurerStatus.Status.READY:
-			status_label.add_theme_color_override("font_color", Color.GREEN)
-		AdventurerStatus.Status.RESTING:
-			status_label.add_theme_color_override("font_color", Color.YELLOW)
-		AdventurerStatus.Status.WOUNDED:
-			status_label.add_theme_color_override("font_color", Color.RED)
-		AdventurerStatus.Status.ON_MISSION:
-			status_label.add_theme_color_override("font_color", Color.CYAN)
-	
-	# Daily wage
-	wage_label.text = "Daily Cost: 1 gold"
-	
-	# Portrait via shared socket: Tarot art → class portrait → class-colored silhouette (Story 7.5)
-	portrait.texture = PortraitSocket.resolve_texture(adventurer)
-	
-	# Grey out cards for adventurers who aren't currently Ready
-	var is_ready := false
-	for adv in GameManager.get_ready_adventurers():
-		if adv.get("id", adv.get("name")) == adventurer_id:
-			is_ready = true
-			break
-	if not is_ready:
-		card.modulate = Color(0.55, 0.55, 0.55, 0.80)
+	fill_card(card, adventurer, entry_view(adventurer, {
+		"level": _get_adventurer_level(adventurer),
+		"return_day": GameManager.return_day_for(adventurer),
+		"today": GameManager.current_day,
+		"card": GameManager.tarot_card_of(adventurer),
+		"trait": GameManager.trait_info(adventurer),
+		"wage": GameManager.wage_of(adventurer),
+		"drink": GameManager.drink_text(adventurer),
+	}))
 
 	# Store card reference
 	adventurer_cards[adventurer_id] = card
 
 	print("Created card for: ", adventurer.get("name"))
+
+
+## Put an entry_view() onto an AdventurerCard.tscn instance: the labels, the compact Tarot card (the shared card art,
+## PortraitSocket.resolve_card_art), the Deployed badge and the greys. Non-Ready cards are dimmed as before; a deployed
+## adventurer's art is greyed further.
+static func fill_card(card: Control, adventurer: Dictionary, view: Dictionary) -> void:
+	var info := card.get_node("CardContent/InfoContainer")
+	(info.get_node("NameLabel") as Label).text = view.name
+	(info.get_node("ClassLabel") as Label).text = view.class_line
+	var status_label := info.get_node("StatusLabel") as Label
+	status_label.text = view.status_line
+	status_label.add_theme_color_override("font_color", view.status_color)
+	var card_label := info.get_node("CardLabel") as Label
+	card_label.text = view.card_name
+	card_label.visible = view.card_name != ""
+	(info.get_node("WageLabel") as Label).text = view.wage_line
+
+	var slot := card.get_node("CardContent/ArtSlot") as Control
+	var thumb = slot.get_node_or_null("Card")
+	if thumb == null:
+		thumb = (load(TAROT_CARD_SCENE) as PackedScene).instantiate()   # tarot_card.gd (by path, no class_name)
+		thumb.name = "Card"
+		thumb.compact = true
+		thumb.custom_minimum_size = ART_SIZE
+		slot.add_child(thumb)
+		thumb.size = ART_SIZE       # after add_child: a size set before entering the tree gives way to the scene's offsets
+		slot.move_child(thumb, 0)   # under the Deployed badge
+	thumb.set_card(GameManager.tarot_card_of(adventurer), PortraitSocket.resolve_card_art(adventurer))
+	thumb.modulate = DEPLOYED_ART if view.deployed else Color.WHITE
+	(slot.get_node("DeployedBadge") as Label).visible = view.deployed
+	card.modulate = NOT_READY if view.greyed else Color.WHITE
+
+
+## One roster entry's lines (Story 4.3, pure): {name, class_line, status_line, status_color, deployed, greyed,
+## card_name, wage_line}. `ctx`: level, return_day (GameManager.return_day_for: the day a deployed adventurer is back,
+## the same day the World Map shows; -1 unknown), today, card (their deck card, GameManager.tarot_card_of), trait
+## (GameManager.trait_info), wage (GameManager.wage_of: the wage the morning deducts) and drink (the drink line).
+## Status lines are a DRAFT.
+static func entry_view(adv: Dictionary, ctx: Dictionary) -> Dictionary:
+	var S = AdventurerStatus.Status
+	var status: int = GameManager.status_of(adv)
+	var trait_name := str((ctx.trait as Dictionary).get("name", "")) if ctx.get("trait") is Dictionary else ""
+	var class_line := "%s · Level %d" % [str(adv.get("class", "Adventurer")), int(ctx.get("level", 1))]
+	if trait_name != "":
+		class_line += " · " + trait_name
+	var line := "Unknown"
+	var color := Color.GRAY
+	match status:
+		S.READY:
+			line = "Ready"
+			color = Color.GREEN
+		S.ON_MISSION:
+			var back := int(ctx.get("return_day", -1))
+			var left := back - int(ctx.get("today", 0)) if back >= 0 else -1
+			line = ("Deployed · returns in %d day%s" % [left, "" if left == 1 else "s"]) if left >= 1 else "Deployed"
+			color = Color.CYAN
+		S.RESTING, S.WOUNDED:
+			var base := "Resting" if status == S.RESTING else "Wounded"
+			var rec = adv.get("recovery", 0)
+			var days := int(rec) if (rec is int or rec is float) else 0
+			line = ("%s · available in %d day%s" % [base, days, "" if days == 1 else "s"]) if days >= 1 else base
+			color = Color.YELLOW if status == S.RESTING else Color.RED
+		S.DEAD:
+			line = "Fallen"
+	var card = ctx.get("card", {})
+	var drink := str(ctx.get("drink", ""))
+	var wage_line := "%d gold a day" % int(ctx.get("wage", 1))
+	if drink != "":
+		wage_line += " · " + drink
+	return {"name": str(adv.get("name", "Unknown")), "class_line": class_line, "status_line": line, "status_color": color,
+		"deployed": status == S.ON_MISSION, "greyed": not AdventurerStatus.is_available(status),
+		"card_name": str(card.get("name", "")) if card is Dictionary else "", "wage_line": wage_line}
 
 func _on_roster_changed():
 	"""Roster data changed — rebuild the cards. Visibility stays under the player's control
