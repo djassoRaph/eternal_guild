@@ -36,10 +36,6 @@ SettingsManager="*res://scripts/autoload/settings_manager.gd"
 NotificationManager="*res://scripts/autoload/notification_manager.gd"
 SfxManager="*res://scripts/autoload/sfx_manager.gd"
 
-[dialogue_manager]
-
-editor/translations/update_pot_files_automatically=false
-
 [display]
 
 window/size/viewport_width=1920
@@ -89,6 +85,10 @@ interact={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":69,"key_label":0,"unicode":101,"location":0,"echo":false,"script":null)
 ]
 }
+
+[internationalization]
+
+locale/translations_pot_files=PackedStringArray("res://data/dialogue/den_fa.dialogue")
 
 [rendering]
 

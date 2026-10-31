@@ -8,7 +8,6 @@
 [ext_resource type="Script" uid="uid://c8juuxi6e6yrg" path="res://scripts/world/exit_zone_interior.gd" id="4_xtcff"]
 [ext_resource type="ArrayMesh" uid="uid://c07jxt0ggvyo5" path="res://assets/environment/furniture/Chair 5.obj" id="5_x2ury"]
 [ext_resource type="PackedScene" uid="uid://b1g6kl84dss3e" path="res://assets/environment/furniture/barrel.glb" id="6_0nrlt"]
-[ext_resource type="Shader" uid="uid://dluc7tau70k3i" path="res://assets/shaders/edge_detection.gdshader" id="7_0exie"]
 [ext_resource type="Script" uid="uid://bc1jjl5acmb7" path="res://scripts/camera/camera_3d.gd" id="8_bianl"]
 [ext_resource type="ArrayMesh" uid="uid://r2qda15dy2cp" path="res://assets/environment/decorations/coin_stack_medium.obj" id="8_wqxad"]
 [ext_resource type="Script" uid="uid://bdcg61kndww6t" path="res://scripts/game/zone_interactions.gd" id="8_x2ury"]
@@ -43,6 +42,7 @@
 [ext_resource type="PackedScene" uid="uid://b2m46soecam60" path="res://scenes/ui/debug_panel.tscn" id="32_ocxae"]
 [ext_resource type="Script" uid="uid://bkmu2w0hiyj1n" path="res://scenes/game_over_screen.gd" id="33_xtcff"]
 [ext_resource type="Script" uid="uid://b7ph34uiot0rh" path="res://scripts/menus/pause_menu.gd" id="36_u7xbe"]
+[ext_resource type="Shader" uid="uid://uqpthorhne6x" path="res://edge_detection-old.gdshader" id="54_056vv"]
 [ext_resource type="PackedScene" uid="uid://btchp2m8ft71r" path="res://assets/environment/custom/b9_beam.gltf" id="s253_b9_beam"]
 [ext_resource type="PackedScene" uid="uid://dwe8y7kaqv8e6" path="res://assets/environment/custom/b9_floor.gltf" id="s253_b9_floor"]
 [ext_resource type="PackedScene" uid="uid://cdk0krfwpjifh" path="res://assets/environment/custom/b9_post_full.gltf" id="s253_b9_post_full"]
@@ -222,7 +222,7 @@ size = Vector2(2, 2)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_cwghm"]
 render_priority = 0
-shader = ExtResource("7_0exie")
+shader = ExtResource("54_056vv")
 shader_parameter/lightIntensity = 1.25
 shader_parameter/lineAlpha = 0.7
 shader_parameter/useLighting = true
