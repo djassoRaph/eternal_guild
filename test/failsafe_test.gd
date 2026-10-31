@@ -361,6 +361,7 @@ func _initialize() -> void:
 	await test_tax_cycle_bus()
 	await test_guild_falls()
 	await test_staff_records()
+	await test_staff_panel()
 
 	_finish()
 
@@ -12555,3 +12556,149 @@ static func _t33_last_banner(nm) -> String:
 	for l in nm._container.get_child(n - 1).find_children("*", "Label", true, false):
 		text = (l as Label).text
 	return text
+
+
+# --- Test 34: The staff panel (Story 16.2) ---
+# A placeholder Staff section in Tavern Management (E at the Bar): one row per staff.json role, hired (Working, or On
+# strike with Pay N gold; Dismiss with a confirm), a candidate (Hire N gold, or disabled with its reason) or locked
+# (Joins at <tier>). Every action goes through GameManager (hire_staff, dismiss_staff, pay_staff_back_wage).
+const STAFF_PANEL_SCRIPT := "res://scripts/ui/staff_panel.gd"
+const TAVERN_MGMT_SCRIPT := "res://scripts/ui/tavern_management.gd"
+
+
+func test_staff_panel() -> void:
+	print("[Test 34] The staff panel (Story 16.2)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	if not ResourceLoader.exists(STAFF_PANEL_SCRIPT) or gm == null or gb == null or not gm.has_method("hire_staff"):
+		check(false, "scripts/ui/staff_panel.gd and GameManager's staff authority")
+		return
+	var sp = load(STAFF_PANEL_SCRIPT)
+	var methods: Array = sp.get_script_method_list().map(func(m): return m.name) if sp is Script else []
+	check(sp is GDScript and (sp as GDScript).get_global_name() == "" and methods.has("staff_rows") and methods.has("refresh")
+		and sp.get_instance_base_type() == "VBoxContainer",
+		"staff_panel.gd: a VBoxContainer section with staff_rows() and refresh(), loaded by path (no class_name)")
+	var snap := _t28_snapshot(gm, wm, dm)
+	_check_t34_rows(gm, sp)
+	await _check_t34_live(gm, gb, sp)
+	var src := FileAccess.get_file_as_string(TAVERN_MGMT_SCRIPT)
+	var pop := _func_body(src, "create_beer_ui") + _func_body(src, "populate_popup_content")
+	check(src.contains(STAFF_PANEL_SCRIPT) and pop.contains("staff") and src.contains("acted"),
+		"Tavern Management builds the Staff section (staff_panel.gd) and refreshes after an action")
+	_t28_restore(snap, gm, wm, dm)
+	print("")
+
+
+## AC 1, 3–6 (16.2): staff_rows, pure.
+func _check_t34_rows(gm, sp) -> void:
+	var recs: Array = gm.staff_seed(T33_ROLES, "demo", ["bartender", "desk_manager"], T33_WAGES)
+	var demo := {"profile": "demo", "start_staff": ["bartender", "desk_manager"], "tier_index": 0, "tiers": T33_TIERS, "gold": 100}
+	var full := {"profile": "full", "start_staff": [], "tier_index": 0, "tiers": T33_TIERS, "gold": 100}
+	var rows: Array = sp.staff_rows(recs, T33_ROLES, demo)
+	check(rows.size() == 2 and rows.all(func(v): return v.state == "working" and v.line == "Working" and _t34_acts(v) == ["dismiss:Dismiss:true"])
+		and rows[0].name == "The Bartender" and rows[0].wage == 3 and rows[1].name == "The Quest Dealer" and rows[1].wage == 4,
+		"staff_rows, the demo: both Working, each with Dismiss %s" % [rows])
+	recs[1].on_strike = true
+	recs[1].owed = 4
+	rows = sp.staff_rows(recs, T33_ROLES, demo.merged({"gold": 3}, true))
+	var s1: Dictionary = rows[1]
+	var rows2: Array = sp.staff_rows(recs, T33_ROLES, demo.merged({"gold": 4}, true))
+	check(s1.state == "on_strike" and s1.line == "On strike, owed 4 gold" and _t34_acts(s1) == ["pay:Pay 4 gold:false", "dismiss:Dismiss:true"]
+		and s1.actions[0].reason == "Not enough gold" and _t34_acts(rows2[1]) == ["pay:Pay 4 gold:true", "dismiss:Dismiss:true"],
+		"a striker: On strike, owed 4 gold; Pay 4 gold (disabled with the reason when short) and Dismiss %s" % [_t34_acts(s1)])
+	var free_recs: Array = gm.staff_seed(T33_ROLES, "full", [], T33_WAGES)
+	var locked: Array = sp.staff_rows(free_recs, T33_ROLES, full)
+	var at_trusted: Array = sp.staff_rows(free_recs, T33_ROLES, full.merged({"tier_index": 2}, true))
+	var poor: Array = sp.staff_rows(free_recs, T33_ROLES, full.merged({"tier_index": 3, "gold": 2}, true))
+	check(locked.all(func(v): return v.state == "locked" and v.actions.is_empty()) and locked[0].line == "Joins at Trusted"
+		and locked[1].line == "Joins at Respected"
+		and at_trusted[0].state == "candidate" and at_trusted[0].line == "Not hired" and _t34_acts(at_trusted[0]) == ["hire:Hire (3 gold):true"]
+		and at_trusted[1].state == "locked"
+		and poor.all(func(v): return v.state == "candidate" and v.actions.size() == 1 and v.actions[0].enabled == false and v.actions[0].reason == "Not enough gold")
+		and _t34_acts(poor[0]) == ["hire:Hire (3 gold):false"],
+		"the full profile: locked rows say the tier (no button); a candidate shows Hire (3 gold), disabled with \"Not enough gold\" when short %s %s" % [_t34_acts(at_trusted[0]), _t34_acts(poor[0])])
+	var with_unknown: Array = recs.duplicate(true) + [{"role": "garden_manager", "staff_id": "garden_manager/x", "name": "x", "daily_wage": 1, "hired": true}]
+	check(sp.staff_rows(with_unknown, T33_ROLES, demo).size() == 2, "a record for a role staff.json doesn't name is not shown")
+
+
+## A view's actions as "id:text:enabled" strings.
+static func _t34_acts(v: Dictionary) -> Array:
+	var out := []
+	for a in v.get("actions", []):
+		out.append("%s:%s:%s" % [a.id, a.text, a.enabled])
+	return out
+
+
+## AC 2–5 (16.2): the section live: Pay, Dismiss with its confirm, Hire, through GameManager.
+func _check_t34_live(gm, gb, sp) -> void:
+	var events: Array = []
+	var recs := {
+		"staff_hired": func(id, r): events.append(["hired", id]),
+		"staff_fired": func(id, r): events.append(["fired", id]),
+		"staff_strike_changed": func(id, on): events.append(["strike", id, on]),
+	}
+	for s in recs:
+		gb.connect(s, recs[s])
+	var capture := _t28_capture()
+	var scene_before := current_scene
+	_d1_set_scene(capture)
+	gm.staff = gm.staff_seed(gm.staff_roles(), "demo", ["bartender", "desk_manager"], {"daily_wage": {"bartender": 3, "desk_manager": 4}})
+	var d: Dictionary = gm.staff_record("desk_manager")
+	d.on_strike = true
+	d.owed = 4
+	gm.gold = 10
+	var sec = sp.new()
+	root.add_child(sec)
+	var acted: Array = []
+	sec.acted.connect(func(role, action, why): acted.append([role, action, why]))
+	sec.refresh()
+	var state_d: String = _t34_text(sec, "desk_manager_state")
+	var pay = sec.find_child("desk_manager_pay", true, false)
+	check(_t34_text(sec, "bartender_state") == "Working" and state_d == "On strike, owed 4 gold" and pay is Button and (pay as Button).text == "Pay 4 gold"
+		and not (pay as Button).disabled and sec.find_child("bartender_dismiss", true, false) is Button,
+		"the section: one row per role, the state line, Pay 4 gold on the striker, Dismiss on each ('%s')" % state_d)
+	(pay as Button).pressed.emit()
+	await process_frame
+	check(d.on_strike == false and gm.gold == 6 and events == [["strike", "desk_manager/silver_elf", false]] and acted == [["desk_manager", "pay", ""]]
+		and _t34_text(sec, "desk_manager_state") == "Working",
+		"Pay: the back wage paid through GameManager, the row back to Working %s" % [events])
+	events.clear()
+	var dis = sec.find_child("bartender_dismiss", true, false)
+	(dis as Button).pressed.emit()
+	await process_frame
+	var armed = sec.find_child("bartender_dismiss", true, false)
+	var armed_ok: bool = armed is Button and (armed as Button).text == "Sure? Dismiss" and gm.is_staff_hired("bartender") and events.is_empty()
+	(armed as Button).pressed.emit()
+	await process_frame
+	var hire = sec.find_child("bartender_hire", true, false)
+	check(armed_ok and gm.is_staff_hired("bartender") == false and events == [["fired", "bartender/barkeep"]]
+		and _t34_text(sec, "bartender_state") == "Not hired" and hire is Button and (hire as Button).text == "Hire (3 gold)",
+		"Dismiss asks first (Sure? Dismiss, nothing changes), then dismisses: one staff_fired, the row a candidate %s" % [events])
+	gm.gold = 2
+	sec.refresh()
+	hire = sec.find_child("bartender_hire", true, false)
+	var poor_ok: bool = hire is Button and (hire as Button).disabled and (hire as Button).text == "Hire (3 gold)" \
+		and _t34_text(sec, "bartender_reason") == "Not enough gold"
+	gm.gold = 10
+	sec.refresh()
+	events.clear()
+	(sec.find_child("bartender_hire", true, false) as Button).pressed.emit()
+	await process_frame
+	check(poor_ok and gm.is_staff_hired("bartender") and gm.gold == 7 and events == [["hired", "bartender/barkeep"]]
+		and _t34_text(sec, "bartender_state") == "Working",
+		"Hire: disabled with \"Not enough gold\" when short; with the gold, hired through GameManager (one staff_hired), back to Working %s" % [events])
+	sec.queue_free()
+	for s in recs:
+		if gb.is_connected(s, recs[s]):
+			gb.disconnect(s, recs[s])
+	_d1_set_scene(scene_before)
+	capture.free()
+	await process_frame
+
+
+## A Label's text found by name under `n` ("" when missing).
+static func _t34_text(n: Node, label_name: String) -> String:
+	var l = n.find_child(label_name, true, false)
+	return (l as Label).text if l is Label else ""
