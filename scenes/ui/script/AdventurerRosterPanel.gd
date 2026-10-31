@@ -21,9 +21,14 @@ const SHOWN_X := 1546.0
 
 # Story 4.3: each entry shows its adventurer's Tarot card (compact) in CardContent/ArtSlot.
 const TAROT_CARD_SCENE := "res://scenes/ui/TarotCard.tscn"
-const ART_SIZE := Vector2(64, 106)                 # the card's aspect (tarot_card.json, 0.6)
+const ART_WIDTH := 64.0                            # the height follows tarot_card.json's aspect (PortraitSocket.card_height)
 const DEPLOYED_ART := Color(0.45, 0.45, 0.5, 1.0)  # a deployed adventurer's card art, greyed under the badge
-const NOT_READY := Color(0.55, 0.55, 0.55, 0.80)   # the whole card, as before, for anyone not Ready
+const NOT_READY := Color(0.55, 0.55, 0.55, 0.80)   # the art and the other lines of anyone not Ready; never the status (review P14)
+
+
+## The roster thumbnail's size: ART_WIDTH wide at the card's aspect (Story 4.3 review P3).
+static func art_size() -> Vector2:
+	return Vector2(ART_WIDTH, PortraitSocket.card_height(ART_WIDTH))
 
 # Explicit open/closed state. Do NOT derive this from the animating position.x —
 # rapid Tab presses or roster changes during the 0.3s slide would race against each
@@ -175,8 +180,8 @@ func create_adventurer_card(adventurer: Dictionary):
 
 
 ## Put an entry_view() onto an AdventurerCard.tscn instance: the labels, the compact Tarot card (the shared card art,
-## PortraitSocket.resolve_card_art), the Deployed badge and the greys. Non-Ready cards are dimmed as before; a deployed
-## adventurer's art is greyed further.
+## PortraitSocket.resolve_card_art), the Deployed badge and the greys. A non-Ready adventurer's art and lines are dimmed,
+## but never the status line: it is the news (review P14); a deployed adventurer's art is greyed further.
 static func fill_card(card: Control, adventurer: Dictionary, view: Dictionary) -> void:
 	var info := card.get_node("CardContent/InfoContainer")
 	(info.get_node("NameLabel") as Label).text = view.name
@@ -188,21 +193,33 @@ static func fill_card(card: Control, adventurer: Dictionary, view: Dictionary) -
 	card_label.text = view.card_name
 	card_label.visible = view.card_name != ""
 	(info.get_node("WageLabel") as Label).text = view.wage_line
+	var dim: Color = NOT_READY if view.greyed else Color.WHITE
+	for n in ["NameLabel", "ClassLabel", "CardLabel", "WageLabel"]:
+		(info.get_node(n) as Label).modulate = dim
+	status_label.modulate = Color.WHITE
+	# Review F10: a line longer than the panel used to widen the card, and the panel (anchored right, growing to the
+	# left) slid into view while "hidden". Every line clips with an ellipsis instead, so the card fits the panel.
+	for n in ["NameLabel", "ClassLabel", "StatusLabel", "CardLabel", "WageLabel"]:
+		var l := info.get_node(n) as Label
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 	var slot := card.get_node("CardContent/ArtSlot") as Control
+	var art := art_size()
+	slot.custom_minimum_size = art
 	var thumb = slot.get_node_or_null("Card")
 	if thumb == null:
 		thumb = (load(TAROT_CARD_SCENE) as PackedScene).instantiate()   # tarot_card.gd (by path, no class_name)
 		thumb.name = "Card"
 		thumb.compact = true
-		thumb.custom_minimum_size = ART_SIZE
 		slot.add_child(thumb)
-		thumb.size = ART_SIZE       # after add_child: a size set before entering the tree gives way to the scene's offsets
 		slot.move_child(thumb, 0)   # under the Deployed badge
+	thumb.custom_minimum_size = art
+	thumb.size = art                # after add_child: a size set before entering the tree gives way to the scene's offsets
 	thumb.set_card(GameManager.tarot_card_of(adventurer), PortraitSocket.resolve_card_art(adventurer))
-	thumb.modulate = DEPLOYED_ART if view.deployed else Color.WHITE
+	thumb.modulate = DEPLOYED_ART if view.deployed else dim
 	(slot.get_node("DeployedBadge") as Label).visible = view.deployed
-	card.modulate = NOT_READY if view.greyed else Color.WHITE
+	card.modulate = Color.WHITE
 
 
 ## One roster entry's lines (Story 4.3, pure): {name, class_line, status_line, status_color, deployed, greyed,
