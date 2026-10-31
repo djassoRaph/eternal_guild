@@ -354,6 +354,7 @@ func _initialize() -> void:
 	await test_player_body()
 	await test_light_and_mood()
 	test_load_and_resume()
+	test_pause_menu_save_first()
 
 	_finish()
 
@@ -8776,3 +8777,283 @@ static func _d1_clear_dir(dir: String) -> void:
 	for f in d.get_files():
 		d.remove(f)
 	DirAccess.remove_absolute(dir)
+
+
+# --- Test 27: Pause menu save-first (Story 11.3) ---
+# Save & Exit leaves for the main menu only after a confirmed write; a failed save keeps the menu open with the
+# message, the session and every file on disk untouched; the write is verified before it replaces the save; the
+# backups keep three and a failed save rotates nothing; no scene wires a PauseMenu button in a [connection] block;
+# the menu builds its own buttons where the scene has none (outside), reads Esc there and pauses the tree; Save
+# closes it through its owner (the hall thaws its world) with a banner. Files: user://failsafe_d1_pause/.
+const D1_PAUSE_DIR := "user://failsafe_d1_pause"
+const D1_PAUSE_SAVE := "user://failsafe_d1_pause/eternal_guild_save.json"
+const D1_NO_DIR_SAVE := "user://failsafe_d1_pause/no_such_dir/eternal_guild_save.json"
+const D1_SAVE_FIRST_MARKER := "# Fix: save-first handler — previously bypassed by stale .tscn signal connection"
+const D1_SAVE_FAILED_TEXT := "Save failed — please check disk space"
+const EXTERIOR_WORLD_SCRIPT_PATH := "res://scripts/world/exteriorworld.gd"
+
+
+func test_pause_menu_save_first() -> void:
+	print("[Test 27] Pause menu save-first (Story 11.3)")
+	var gm = root.get_node_or_null("GameManager")
+	var ss = root.get_node_or_null("SaveSystem")
+	var nm = root.get_node_or_null("NotificationManager")
+	if gm == null or ss == null or nm == null or not ("save_path" in ss):
+		check(false, "SaveSystem.save_path and the GameManager, NotificationManager autoloads")
+		return
+	var real_sha := _d1_sha(REAL_SAVE_PATH)
+	var g := {}
+	for k in D1_GM_FIELDS:
+		var v = gm.get(k)
+		g[k] = v.duplicate(true) if v is Array or v is Dictionary else v
+	var path_before: String = ss.save_path
+	var scene_before = current_scene
+	var pm_node = root.get_node_or_null("PlayerManager")
+	var last_scene_name = pm_node._last_scene_name if pm_node != null else ""
+	_d1_remove_tmp_dir()
+	_d1_clear_dir(D1_PAUSE_DIR)
+	DirAccess.make_dir_recursive_absolute(D1_PAUSE_DIR)
+	ss.save_path = D1_PAUSE_SAVE
+	var hall := Node3D.new()
+	hall.name = "D1PauseHall"
+	hall.scene_file_path = TAVERN_SCENE_PATH
+	hall.add_to_group("player_scene")
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	_check_d1_write_and_rotation(gm, ss)
+	_check_d1_pause_scene_scan()
+	current_scene = null
+	hall.free()
+	_check_d1_pause_menu_outside(gm, ss, nm)
+	_check_d1_pause_menu_hall(ss, nm)
+	paused = false
+	for k in g:
+		gm.set(k, g[k])
+	ss.save_path = path_before
+	ss.save_in_progress = false
+	current_scene = scene_before
+	if pm_node != null:
+		pm_node._last_scene_name = last_scene_name
+	_d1_remove_tmp_dir()
+	_d1_clear_dir(D1_PAUSE_DIR)
+	check(_d1_sha(REAL_SAVE_PATH) == real_sha, "Test 27 never touched the real save (sha256 %s…)" % real_sha.left(12))
+	print("")
+
+
+## The write is confirmed before it replaces the save; three backups; a failed save rotates nothing.
+func _check_d1_write_and_rotation(gm, ss) -> void:
+	for i in 4:
+		gm.gold = 100 + i
+		ss.save_game()
+	var golds := []
+	for suffix in ["", ".backup1", ".backup2", ".backup3"]:
+		golds.append(int(_d1_read_json(D1_PAUSE_SAVE + suffix).get("gold", -1)))
+	check(golds == [103, 102, 101, 100], "after four saves the save and .backup1..3 hold the last four, newest first %s" % [golds])
+	var shas := _d1_pause_shas()
+	# A write that can't happen: the tmp file's place is taken by a folder.
+	DirAccess.make_dir_absolute(D1_PAUSE_SAVE + ".tmp")
+	gm.gold = 999
+	var ok: bool = ss.save_game()
+	check(not ok and _d1_pause_shas() == shas, "a failed save returns false and leaves the save and every backup byte-identical")
+	_d1_remove_tmp_dir()
+	var verify_ok: bool = ss.has_method("written_size_ok")
+	if verify_ok:
+		_d1_write_text(D1_PAUSE_DIR + "/short.txt", "abc")
+		verify_ok = ss.written_size_ok(D1_PAUSE_DIR + "/short.txt", 3) and not ss.written_size_ok(D1_PAUSE_DIR + "/short.txt", 10) \
+			and not ss.written_size_ok(D1_PAUSE_DIR + "/missing.txt", 3)
+		DirAccess.remove_absolute(D1_PAUSE_DIR + "/short.txt")
+	check(verify_ok, "written_size_ok(): a short or missing tmp file is refused (a full disk writes short)")
+	var wrote: bool = ss._write_file_atomic(D1_NO_DIR_SAVE, {"a": 1})
+	check(not wrote and not FileAccess.file_exists(D1_NO_DIR_SAVE) and not FileAccess.file_exists(D1_NO_DIR_SAVE + ".tmp"),
+		"a write into a folder that doesn't exist fails cleanly (no file, no .tmp)")
+
+
+## No scene wires a PauseMenu button in a [connection] block (the 2026-07-05 bypass), and the handler says why.
+func _check_d1_pause_scene_scan() -> void:
+	var bad := []
+	var files := _d1_tscn_files("res://scenes")
+	for path in files:
+		for line in FileAccess.get_file_as_string(path).split("\n"):
+			if line.begins_with("[connection") and line.contains("from=\"PauseMenu"):
+				bad.append("%s: %s" % [path.get_file(), line])
+	check(files.size() > 5 and bad.is_empty(), "no scene wires a PauseMenu button in a [connection] block (%d scenes scanned) %s" % [files.size(), bad])
+	var src := FileAccess.get_file_as_string(PAUSE_MENU_SCRIPT_PATH)
+	check(src.contains(D1_SAVE_FIRST_MARKER + "\nfunc _on_save_exit_pressed("), "the save-first handler carries the fix comment")
+
+
+## Outside: the menu builds its buttons, reads Esc, pauses the tree; Save & Exit only leaves after a confirmed write.
+func _check_d1_pause_menu_outside(gm, ss, nm) -> void:
+	var outside := Node3D.new()
+	outside.name = "D1PauseOutside"
+	outside.scene_file_path = EXTERIOR_SCENE_PATH
+	outside.add_to_group("player_scene")
+	root.add_child(outside)
+	_d1_set_scene(outside)
+	var menu := _d1_pause_menu_probe()
+	if "handles_escape" in menu:
+		menu.handles_escape = true
+	outside.add_child(menu)
+	var names := []
+	for b in menu.find_children("*", "Button", true, false):
+		names.append(str(b.name) if not str(b.name).begins_with("@") else b.text)
+	var want := ["MainMenuButton", "Load", "Save", "Save&Exit", "QuitButton", "Settings", "Codex"]
+	check(want.all(func(n): return names.has(n)) and menu.save_exit_button != null and menu.save_button != null,
+		"a scene without a pause menu of its own gets one built in code: the five buttons + Settings + Codex %s" % [names])
+	var esc := InputEventAction.new()
+	esc.action = "ui_cancel"
+	esc.pressed = true
+	var has_esc: bool = "handles_escape" in menu
+	if has_esc:
+		menu._unhandled_input(esc)
+	check(has_esc and menu.visible and paused, "outside, Esc opens the menu and pauses the game")
+	if has_esc:
+		menu._unhandled_input(esc)
+	check(has_esc and not menu.visible and not paused, "Esc again closes it and unpauses")
+	var board := Control.new()
+	board.add_to_group("mission_board")
+	root.add_child(board)
+	if has_esc:
+		menu._unhandled_input(esc)
+	check(has_esc and not menu.visible and not paused, "while a mission board is open, Esc is the board's, not the menu's")
+	board.free()
+	paused = false
+
+	# Save & Exit fails: a folder takes the tmp file's place.
+	if menu.has_method("open_menu"):
+		menu.open_menu()
+	else:
+		menu.visible = true
+		paused = true
+	gm.gold = 4242
+	DirAccess.make_dir_absolute(D1_PAUSE_SAVE + ".tmp")
+	var shas := _d1_pause_shas()
+	menu.save_exit_button.pressed.emit()
+	var msg := _d1_dialog_text(menu)
+	check(menu.exits.is_empty() and menu.visible and paused and current_scene == outside,
+		"Save & Exit with a failed save: no exit, the menu stays open, the game stays paused")
+	check(msg == D1_SAVE_FAILED_TEXT, "…and says \"%s\" (shown: \"%s\")" % [D1_SAVE_FAILED_TEXT, msg])
+	check(_d1_pause_shas() == shas and gm.gold == 4242, "…the save on disk and the session are untouched")
+	_d1_free_dialogs(menu)
+	_d1_remove_tmp_dir()
+	# The Stage D hook: save_path inside a folder that doesn't exist.
+	ss.save_path = D1_NO_DIR_SAVE
+	menu.save_exit_button.pressed.emit()
+	check(menu.exits.is_empty() and menu.visible and _d1_dialog_text(menu) == D1_SAVE_FAILED_TEXT
+		and not FileAccess.file_exists(D1_NO_DIR_SAVE + ".tmp"), "a save_path in a missing folder fails the same way, nothing left behind")
+	_d1_free_dialogs(menu)
+	ss.save_path = D1_PAUSE_SAVE
+	# The Save button fails the same way.
+	DirAccess.make_dir_absolute(D1_PAUSE_SAVE + ".tmp")
+	menu.save_button.pressed.emit()
+	check(menu.visible and _d1_dialog_text(menu) == D1_SAVE_FAILED_TEXT, "Save with a failed save keeps the menu open with the message")
+	_d1_free_dialogs(menu)
+	_d1_remove_tmp_dir()
+	# Save works: the menu closes, the game runs again, a banner says so.
+	menu.save_button.pressed.emit()
+	var saved := _d1_read_json(D1_PAUSE_SAVE)
+	check(not menu.visible and not paused and int(saved.get("gold", -1)) == 4242,
+		"Save works: the menu closes and the game runs again (saved gold %s)" % saved.get("gold"))
+	var banner := ""
+	var n: int = nm._container.get_child_count()
+	if n > 0:
+		for l in nm._container.get_child(n - 1).find_children("*", "Label", true, false):
+			banner = l.text
+	check(banner == "Game saved" and _d1_dialog_text(menu) == "", "…with a \"Game saved\" banner instead of a modal (newest banner: \"%s\")" % banner)
+	# Save & Exit works: the exit comes after the file holds the new save.
+	if menu.has_method("open_menu"):
+		menu.open_menu()
+	gm.gold = 4343
+	menu.save_exit_button.pressed.emit()
+	var at_exit = JSON.parse_string(menu.exits[0]) if menu.exits.size() == 1 else null
+	check(menu.exits.size() == 1 and at_exit is Dictionary and int(at_exit.get("gold", -1)) == 4343
+		and at_exit.get("save_type", "") == "manual_save" and at_exit.get("player_scene", "") == EXTERIOR_SCENE_PATH,
+		"Save & Exit leaves once, and only after the file holds the new save (gold 4343, outside)")
+	paused = false
+	current_scene = null
+	outside.free()
+	var ext := FileAccess.get_file_as_string(EXTERIOR_WORLD_SCRIPT_PATH)
+	check(_lm_in_func(ext, "_ready", "pause_menu.gd") and _lm_in_func(ext, "_ready", "handles_escape = true"),
+		"ExteriorWorld adds the pause menu and lets it read Esc")
+
+
+## The hall: the menu closes through its owner (main_tavern.gd's toggle_pause_menu thaws the world), never pausing
+## the tree.
+func _check_d1_pause_menu_hall(ss, nm) -> void:
+	var owner_script := GDScript.new()
+	owner_script.source_code = "extends Node3D\nvar calls := 0\nvar menu: Node\nfunc toggle_pause_menu():\n\tcalls += 1\n\tmenu.visible = not menu.visible\n"
+	owner_script.reload()
+	var hall := Node3D.new()
+	hall.set_script(owner_script)
+	hall.scene_file_path = TAVERN_SCENE_PATH
+	hall.add_to_group("player_scene")
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var menu := _d1_pause_menu_probe()
+	hall.menu = menu
+	hall.add_child(menu)
+	if menu.has_method("open_menu"):
+		menu.open_menu()
+	check(menu.has_method("open_menu") and hall.calls == 1 and menu.visible and not paused,
+		"in the hall the menu opens through its owner (toggle_pause_menu), without pausing the tree")
+	menu.save_button.pressed.emit()
+	check(hall.calls == 2 and not menu.visible and not paused, "Save closes it through the owner too (the hall's world runs again)")
+	current_scene = null
+	hall.free()
+
+
+## Makes `node` the current scene and tells PlayerManager its name, so PlayerManager's tree_changed hook doesn't defer
+## a _handle_new_scene() onto a stand-in the test frees right after (an "Error calling deferred method" otherwise).
+func _d1_set_scene(node: Node) -> void:
+	current_scene = node
+	var pm = root.get_node_or_null("PlayerManager")
+	if pm != null and node != null:
+		pm._last_scene_name = node.name
+
+
+## A pause menu whose scene change is recorded instead of made: `exits` holds the save file's text at that moment.
+func _d1_pause_menu_probe() -> CanvasLayer:
+	var s := GDScript.new()
+	s.source_code = "extends \"%s\"\nvar exits: Array = []\nfunc _return_to_main_menu():\n\tvar p: String = SaveSystem.save_path\n\texits.append(FileAccess.get_file_as_string(p) if FileAccess.file_exists(p) else \"\")\n" % PAUSE_MENU_SCRIPT_PATH
+	s.reload()
+	var menu := CanvasLayer.new()
+	menu.name = "PauseMenu"
+	menu.set_script(s)
+	return menu
+
+
+func _d1_dialog_text(menu: Node) -> String:
+	for c in menu.get_children():
+		if c is AcceptDialog and not (c is ConfirmationDialog) and not c.is_queued_for_deletion():
+			return c.dialog_text
+	return ""
+
+
+func _d1_free_dialogs(menu: Node) -> void:
+	for c in menu.get_children():
+		if c is AcceptDialog:
+			c.free()
+
+
+static func _d1_pause_shas() -> Array:
+	var out := []
+	for suffix in ["", ".backup1", ".backup2", ".backup3"]:
+		out.append(_d1_sha(D1_PAUSE_SAVE + suffix))
+	return out
+
+
+static func _d1_remove_tmp_dir() -> void:
+	if DirAccess.dir_exists_absolute(D1_PAUSE_SAVE + ".tmp"):
+		DirAccess.remove_absolute(D1_PAUSE_SAVE + ".tmp")
+
+
+static func _d1_tscn_files(dir: String) -> Array:
+	var out := []
+	var d := DirAccess.open(dir)
+	if d == null:
+		return out
+	for f in d.get_files():
+		if f.ends_with(".tscn"):
+			out.append(dir.path_join(f))
+	for sub in d.get_directories():
+		out.append_array(_d1_tscn_files(dir.path_join(sub)))
+	return out
