@@ -50,8 +50,23 @@ func _ready() -> void:
 		EconomyBus.staff_wage_unpaid.connect(_on_staff_wage_unpaid)   # Story 16.5: an event each, no cooldown
 	if GuildBus:
 		GuildBus.staff_strike_changed.connect(_on_staff_strike_changed)
+		GuildBus.reputation_tier_changed.connect(_on_reputation_tier_changed)   # Story 14.6 (DP-6)
 	if GameBus:
 		GameBus.game_over_triggered.connect(func(_cause: String): clear_banners())   # Story 13.4 review P8
+
+
+## Story 14.6 (DP-6): a tier rise shows a banner; a drop shows nothing (14.3's subdued drop is deferred). The order is the
+## active profile's reputation_tiers; a label it doesn't have shows nothing.
+func _on_reputation_tier_changed(old_tier: String, new_tier: String) -> void:
+	var labels: Array = GameManager.reputation_tier_list(DataManager.get_config("reputation_tiers", [])).map(func(t): return str(t.get("label", "")))
+	var a := labels.find(old_tier)
+	var b := labels.find(new_tier)
+	if a >= 0 and b > a:
+		show_banner(tier_rise_text(new_tier))
+
+## Story 14.6: the tier rise banner. DRAFT (Raphael rewrites).
+static func tier_rise_text(tier: String) -> String:
+	return "The guild is now %s." % tier
 
 
 ## Story 16.5: a staff wage unpaid this morning, worded from the record GameManager has already updated.

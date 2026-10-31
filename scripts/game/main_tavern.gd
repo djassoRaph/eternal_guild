@@ -34,6 +34,7 @@ func _ready():
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_init_zone_prompts()
+	_fix_welcome_tax_line()   # Story 14.6: the welcome text states the active profile's tax
 	log_message("Game started successfully!")
 	add_to_group("main_tavern")
 	# Epic 16 (Stories 16.3, 16.4): the hall's staff work by themselves (their brains); elsewhere they stay cosmetic
@@ -223,6 +224,17 @@ func toggle_pause_menu():
 
 # Pause-menu buttons (Main Menu / Save / Load / Save & Exit / Quit) are owned by
 # pause_menu.gd, attached to the PauseMenu CanvasLayer. main_tavern only shows/hides it.
+
+## Story 14.6: the welcome text (MainTavern.tscn's EventLog) said "Tax day comes every 30 days! ... 1000 gold coins"
+## whatever the profile; its "- Tax day comes every" line is replaced from the active tax config at load.
+func _fix_welcome_tax_line() -> void:
+	if not (game_log is RichTextLabel):
+		return
+	var lines: PackedStringArray = game_log.text.split("\n")
+	for i in lines.size():
+		if lines[i].begins_with("- Tax day comes every"):
+			lines[i] = GameManager.tax_rule_line(GameManager.tax_config(), GameManager.tax_due_day)
+	game_log.text = "\n".join(lines)
 
 # === LOGGING SYSTEM ===
 func log_message(message: String):
