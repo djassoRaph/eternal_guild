@@ -15,6 +15,17 @@ extends Node3D
 
 var reputation_label: Label  # code-built (Epic 14) — no scene-file changes needed
 
+const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
+
+
+## Story 4.2 review P4: the event log sits on the hall's HUD layer, which draws over the hall's popups (the hire desk,
+## the bar's stock, the bedroom): while one is open (ZonePromptUI.modal_open, the one rule) the log steps aside, its
+## panel too (GameUI/MainArea holds only the log; it also stopped the mouse over the popup's left side).
+func _process(_delta: float) -> void:
+	var log_area = get_node_or_null("GameUI/MainArea")
+	if log_area:
+		log_area.visible = not ZONE_PROMPT_UI.modal_open(get_tree())
+
 
 func _ready():
 	await get_tree().process_frame

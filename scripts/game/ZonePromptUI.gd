@@ -7,8 +7,9 @@
 # shows only its prompt. Zones that act on E ask owns_e(self) first, so one key press never does two
 # things where zones crowd together (the hearth's fire, the cat and Den Fa sit within 2.5 m). owns_e()
 # is also closed by a gate decided once per frame: a patron waiting to be served in range (they take E
-# first, zone_interactions.gd), a paused tree, Game Over, an open mission screen, or an open dialogue box
-# (Story 10.2: the box's prompt area is where this label draws, and E is the box's). Because the gate is
+# first, zone_interactions.gd), a paused tree, Game Over, an open mission screen, an open dialogue box
+# (Story 10.2: the box's prompt area is where this label draws, and E is the box's), or any other open panel
+# (modal_open(): the hire desk, the bar's stock, the bedroom; Story 4.2 review P6). Because the gate is
 # cached, input handled this frame sees the state from before any serve that same press made. While the
 # gate is closed the prompt is hidden too, so it never names an action E won't do.
 extends CanvasLayer
@@ -185,13 +186,22 @@ func _gate_open(player: Node3D) -> bool:
 	var gm := get_node_or_null("/root/GameManager")
 	if gm and gm.get("game_over_active"):
 		return false
-	for board in get_tree().get_nodes_in_group("mission_board"):
-		if board.get("visible"):
-			return false
+	if modal_open(get_tree()):
+		return false
 	for p in get_tree().get_nodes_in_group("patrons"):
 		if p.has_method("can_be_served_by") and p.can_be_served_by(player.global_position):
 			return false
 	return true
+
+## A screen holds the player: a visible member of "mission_board" (the World Map) or "blocks_player" (the hire desk,
+## the bar's stock, the bedroom, the dialogue box). The one rule for "a modal panel is open" (Story 4.2 review P4/P6):
+## the E gate closes and its prompt hides, and the hall hides its event log (main_tavern.gd), which would draw over it.
+static func modal_open(tree: SceneTree) -> bool:
+	for group in ["mission_board", "blocks_player"]:
+		for n in tree.get_nodes_in_group(group):
+			if n.get("visible"):
+				return true
+	return false
 
 func _anchor_position(zone: Area3D) -> Vector3:
 	var a = _anchors.get(zone)
