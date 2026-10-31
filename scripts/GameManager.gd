@@ -55,6 +55,7 @@ var active_missions: Array = []       # Missions currently in progress with coun
 var pending_reports: Array = []       # Resolved mission results waiting to be shown in morning briefing
 var has_pending_briefing: bool = false # Flag for morning briefing UI to check
 var _party_missions_warned := false   # a bad demo_party_missions is warned about once a session (Story 6.5)
+var _party_missions_warnings: Array = []   # what that gate let through (Story 6.5 review P7, P8)
 
 # === Dialogue state (Story 10.2): what conversations may notice this run, read through dialogue_bridge.gd ===
 var adventurers_hired_this_run: int = 0
@@ -660,13 +661,20 @@ func _party_missions_for_refresh() -> Dictionary:
 	var cfg = DataManager.get_config("demo_party_missions")
 	var warn: Array = []
 	var wanted := party_missions_wanted(str(DataManager.get_config("profile", "full")), cfg, current_day, warn)
-	if not warn.is_empty() and not _party_missions_warned:
-		_party_missions_warned = true
-		push_warning(warn[0])
+	if not warn.is_empty():
+		_warn_party_missions_once(warn[0])
 	var max_tier := 2
 	if cfg is Dictionary and (cfg.get("max_tier") is int or cfg.get("max_tier") is float):
 		max_tier = int(cfg.max_tier)
 	return {"wanted": wanted, "max_tier": max_tier}
+
+
+func _warn_party_missions_once(text: String) -> void:
+	if _party_missions_warned:
+		return
+	_party_missions_warned = true
+	_party_missions_warnings.append(text)
+	push_warning(text)
 
 
 ## Fresh copies of the party templates up to a tier, each varied like the daily pool's, shuffled.
@@ -2569,7 +2577,10 @@ func refresh_available_missions():
 		var new_missions = DataManager.generate_daily_missions_with_tiers(6, mission_tier_unlocked)
 		var party_rule := _party_missions_for_refresh()
 		if int(party_rule.wanted) > 0:
-			new_missions = with_party_missions(new_missions, _party_templates_up_to(int(party_rule.max_tier)), int(party_rule.wanted))
+			var party_templates := _party_templates_up_to(int(party_rule.max_tier))
+			if party_templates.is_empty():
+				_warn_party_missions_once("[GameManager] fallback: no party templates up to tier %d; no party missions this refresh" % int(party_rule.max_tier))
+			new_missions = with_party_missions(new_missions, party_templates, int(party_rule.wanted))
 		available_missions.clear()
 		for mission in new_missions:
 			available_missions.append(mission)
