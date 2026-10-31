@@ -71,6 +71,9 @@ var _state_len := {}            # state name -> its clip length (s)
 var _wanted := ""               # the state last asked for (the tree's current node lags a pending travel by a frame)
 var _spec := {}                 # the variant spec the body was loaded from (its look and body numbers; read once, at load)
 var anime_look_path := ANIME_LOOK   # the toon look's script (tests point it at a missing file)
+## Epic 16's automation (Stories 16.3, 16.4): the role's brain, made by enable_automation() (the hall calls it; tests
+## and LookDev keep the cosmetic body). null until then.
+var brain: Node = null
 
 
 # ------------------------------------------------------------------ the parts a role fills in
@@ -107,10 +110,15 @@ func _bubble_height() -> float:
 func _prop_nodes() -> Array:
 	return []
 
+## The role's brain (subclasses: Stories 16.3, 16.4); null: no automation for this role.
+func _make_brain() -> Node:
+	return null
+
 
 # ------------------------------------------------------------------ setup
 
 func _ready() -> void:
+	add_to_group("staff")         # Epic 16: the hall turns their automation on through the group (main_tavern.gd)
 	_load_data()
 	_load_model()
 	_build_tree()
@@ -138,6 +146,20 @@ func hired_at_start() -> bool:
 ## The cosmetic autopilot on or off. Stories 16.3 and 16.4 turn it off before they drive the API.
 func set_autopilot(on: bool) -> void:
 	autopilot = on
+
+
+## Epic 16 (Stories 16.3, 16.4): give this staff member the role's brain (a LimboAI state machine, staff_ai.gd), once.
+## The brain is updated from tick() and drives the API above; without it the body stays 25.13's cosmetic one.
+func enable_automation() -> void:
+	if brain != null:
+		return
+	var b := _make_brain()
+	if b == null:
+		return
+	brain = b
+	brain.name = "Brain"
+	add_child(brain)
+	brain.setup(self)
 
 
 func _load_data() -> void:
@@ -356,6 +378,8 @@ func tick(delta: float) -> void:
 				done.call()
 	if not present:                  # the walk-out ended this tick (_gone): no work, no new hold on the door
 		return
+	if brain:
+		brain.update(delta)          # Epic 16: the role's state machine, before the role's own per-tick work
 	_tick_work(delta)
 	_update_door()
 	if tree:

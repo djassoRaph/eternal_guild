@@ -216,6 +216,24 @@ func work_state() -> String:
 func _driveable() -> bool:
 	return present and not _leaving and _route_phase == ""
 
+## The same, for his brain (Story 16.3).
+func can_drive() -> bool:
+	return _driveable()
+
+## The serve station whose facing stools hold a seat root within 0.3 m of `pos` (the rule _patron_near uses), or -1: a
+## table seat or anywhere else (Story 16.3: he serves the stools only, from inside the ring).
+func station_for_patron(pos: Vector3) -> int:
+	for i in _facing_roots.size():
+		for root in _facing_roots[i]:
+			var rv: Vector3 = root
+			if Vector2(pos.x - rv.x, pos.z - rv.z).length() < 0.3:
+				return i
+	return -1
+
+## His brain (Story 16.3): IDLE / SERVING / RESTOCKING on LimboAI (bartender_ai.gd).
+func _make_brain() -> Node:
+	return load("res://scripts/game/bartender_ai.gd").new()
+
 
 ## Stop and stand at his station (wiping at a serve station). False when refused.
 func enter_idle() -> bool:
