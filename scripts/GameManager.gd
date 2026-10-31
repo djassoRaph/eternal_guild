@@ -1585,7 +1585,7 @@ func load_save_data(data: Dictionary):
 	if world_data is Dictionary and not world_data.is_empty():
 		WorldManager.load_save_data(world_data)
 	else:
-		WorldManager.reset_run_state()
+		WorldManager.clear_world()   # review P13: no map, tavern hex or rumours from the run before
 
 	# Player position — hand it to PlayerManager so the loaded scene spawns the player there
 	# (SaveSystem.resume_scene() drops it again when the saved scene can't be resumed).

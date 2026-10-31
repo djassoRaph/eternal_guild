@@ -60,9 +60,16 @@ func load_save_data(data: Dictionary) -> void:
 	_reserve_ruin_if_missing()
 
 
-## Story 11.2: what belongs to one run and isn't the map itself (New Game, or a save without a world).
+## Story 11.2: what belongs to one run and isn't the map itself (New Game).
 func reset_run_state() -> void:
 	overheard_rumours.clear()
+
+
+## Story 11.2 review (P13): a loaded save without a world keeps nothing of the run before it.
+func clear_world() -> void:
+	world_map = []
+	chosen_center = {}
+	reset_run_state()
 
 
 ## Saves made before Story 25.2 have no Prior Ruins hex: reserve one now with the generator's own
