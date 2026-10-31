@@ -42,6 +42,7 @@ signal reputation_changed(new_value: int)
 var mission_refresh_day: int = 1
 var recruit_refresh_day: int = 1
 var daily_recruits: Array = []
+var _no_traits_warned := false   # an empty traits.json is warned about once a session (Story 4.2)
 var game_over_active: bool = false
 var beer_shortage_days: int = 0
 var adventurer_morale: Dictionary = {}  # adventurer_id -> morale level (1-3)
@@ -469,8 +470,8 @@ static func _same_id(a, b) -> bool:
 
 
 ## An adventurer's trait as UI text, {name, description}, or {} when they have none (DD-10). The same lookup the
-## mission formula uses, so the scroll never shows a trait that isn't applied, and never a raw key. Today hiring erases
-## `personality`, so hired adventurers have none; Story 4.2 (D3) makes traits real.
+## mission formula uses, so the scroll never shows a trait that isn't applied, and never a raw key. Since Story 4.2 every
+## applicant draws a trait from traits.json and keeps it when hired; the hire panel and the roster show it with this too.
 func trait_info(adventurer: Dictionary) -> Dictionary:
 	var key := str(adventurer.get("personality", "")).strip_edges()
 	if key == "":
@@ -690,11 +691,15 @@ func _party_templates_up_to(max_tier: int) -> Array:
 
 
 func get_trait_data(personality: String) -> Dictionary:
-	"""Look up trait modifiers from DataManager. Returns empty dict if not found."""
+	"""Look up trait modifiers from DataManager. Returns empty dict if not found. The key is matched in lower case
+	(Story 4.2): traits.json's keys are lower case, and saves from before 4.2 hold applicants' "Brave" / "Greedy"."""
+	var key := personality.strip_edges().to_lower()
+	if key == "":
+		return {}
 	var traits = DataManager.character_traits
 	var positive = traits.get("positive_traits", {})
 	var negative = traits.get("negative_traits", {})
-	return positive.get(personality, negative.get(personality, {}))
+	return positive.get(key, negative.get(key, {}))
 
 func calculate_mission_success_chance(adventurer: Dictionary, mission: Dictionary) -> int:
 	"""Calculate success chance — extracted from mission_board.gd for reuse"""
@@ -1120,6 +1125,11 @@ func generate_fallback_recruits(count: int) -> Array:
 	var deck_available = not DataManager.get_all_tarot_ids().is_empty()
 	var available_cards = _get_available_tarot_ids()
 	var reputation_stat_bonus: int = get_reputation_tier().get("recruit_stat_bonus", 0)  # Epic 14
+	# Story 4.2 (DH-7): every applicant draws one trait from traits.json (MOD-2: the keys come from the data)
+	var trait_keys := trait_ids(DataManager.character_traits)
+	if trait_keys.is_empty() and not _no_traits_warned:
+		_no_traits_warned = true
+		push_warning("[GameManager] fallback: data/characters/traits.json defines no traits; applicants come without one")
 
 	# Avoid handing out a name already on the roster (or already picked earlier in this same
 	# batch) — the 10-name pool collides fast once you've hired a few adventurers. Falls back
@@ -1169,17 +1179,25 @@ func generate_fallback_recruits(count: int) -> Array:
 		for stat in bonus:
 			recruit[stat] += bonus[stat]
 
+		# The trait (Story 4.2, DH-7), kept in `personality`, the field the mission maths read. The effects traits.json
+		# defines for the applicant themself act now, so the panel shows true numbers: all_stats before the cost and the
+		# tier are worked out, cost_multiplier on the daily wage.
+		var personality: String = trait_keys[randi() % trait_keys.size()] if not trait_keys.is_empty() else ""
+		var trait_data := get_trait_data(personality)
+		var plus := trait_stat_bonus(trait_data)
+		for stat in ["strength", "dexterity", "intelligence", "endurance"]:
+			recruit[stat] += plus
+
 		# Calculate hiring cost based on stats
 		var stat_total = recruit.strength + recruit.dexterity + recruit.intelligence + recruit.endurance
 		recruit.hiring_cost = max(8, stat_total * 2 + randi_range(-5, 10))
 		recruit.experience_tier = _tier_for_stat_total(stat_total, tiers)
-		recruit.daily_wage = _wage_for_tier(recruit.experience_tier, tiers, wage_min, wage_max)
-		
-		# Add personality and background flavor
-		var personalities = ["Brave", "Cautious", "Greedy", "Noble", "Mysterious", "Cheerful", "Grim", "Ambitious"]
+		recruit.daily_wage = trait_wage(_wage_for_tier(recruit.experience_tier, tiers, wage_min, wage_max), trait_data)
+
+		# Background flavour
 		var backgrounds = ["Former soldier", "Ex-bandit", "Scholar's apprentice", "Village hero", "Wandering mercenary", "Fallen noble", "Guild dropout", "Self-taught warrior"]
-		
-		recruit.personality = personalities[randi() % personalities.size()]
+
+		recruit.personality = personality
 		recruit.background = backgrounds[randi() % backgrounds.size()]
 		recruit.availability = randi_range(3, 7)  # Days they'll stay available
 		
@@ -1240,12 +1258,134 @@ func _wage_for_tier(tier: String, tiers: Array, wmin: int, wmax: int) -> int:
 	return int(round(wmin + frac * (wmax - wmin)))
 
 func generate_unique_id() -> int:
+	"""An id no adventurer has ever had (Story 4.2, DH-8): the counter first jumps past every id in use or remembered."""
+	next_adventurer_id = next_free_id(next_adventurer_id, _taken_ids())
 	var id = next_adventurer_id
 	next_adventurer_id += 1
 	return id
 
 func generate_recruit_id() -> int:
 	return generate_unique_id()
+
+## The larger of `counter` and one above every id in `taken` (Story 4.2, DH-8, pure). Ids are ints; a loaded save's
+## whole floats and number strings count as ints (_id_key); anything else is ignored.
+static func next_free_id(counter: int, taken: Array) -> int:
+	var next := counter
+	for raw in taken:
+		var k = _id_key(raw)
+		if k is int and k >= next:
+			next = k + 1
+	return next
+
+## Every adventurer id in use or remembered: the roster, the hire pool, everyone out on a mission (and the ids their
+## Deployment Records list), and the codex's fallen heroes. The codex outlives the run and the counter restarts at 1 in
+## a fresh session, while SaveSystem.record_fallen_hero skips a death whose id is already there: a new run must never
+## hand out a fallen hero's id.
+func _taken_ids() -> Array:
+	var out: Array = []
+	for list in [adventurers, daily_recruits]:
+		for a in list:
+			if a is Dictionary:
+				out.append(a.get("id"))
+	for e in active_missions:
+		if not (e is Dictionary):
+			continue
+		if e.get("adventurer") is Dictionary:
+			out.append(e.adventurer.get("id"))
+		if e.get("party") is Array:
+			for p in e.party:
+				if p is Dictionary:
+					out.append(p.get("id"))
+		if e.get("adventurer_ids") is Array:
+			out.append_array(e.adventurer_ids)
+	var fallen = SaveSystem.codex_data.get("fallen_heroes", [])
+	if fallen is Array:
+		for h in fallen:
+			if h is Dictionary:
+				out.append(h.get("id"))
+	return out
+
+## Story 4.2 (DH-1): the hire desk always has the day's applicants. advance_day makes the pool each morning; a day that
+## never had one (Day 1 of a New Game, a run that never slept) gets it when the desk first opens. Hired out on the same
+## day, it stays empty until the next morning. True when a pool was made.
+func ensure_hire_pool() -> bool:
+	if daily_recruits.is_empty() and recruit_refresh_day < current_day:
+		generate_daily_recruits()
+		return true
+	return false
+
+## Story 4.2 (DH-2): why this applicant can't be hired now, as the hire panel says it; "" when they can. Checked in this
+## order: still in today's pool (by id), a free place on the roster, the gold. DRAFT text.
+func hire_block_reason(recruit: Dictionary) -> String:
+	if not _in_hire_pool(recruit):
+		return "No longer available"
+	if adventurers.size() >= max_adventurers:
+		return "Roster full"
+	if gold < int(recruit.get("hiring_cost", 10)):
+		return "Not enough gold"
+	return ""
+
+func _in_hire_pool(recruit: Dictionary) -> bool:
+	var key = _id_key(recruit.get("id"))
+	if key == null:
+		return false
+	for r in get_available_recruits():
+		if r is Dictionary and _same_id(_id_key(r.get("id")), key):
+			return true
+	return false
+
+## The trait keys traits.json defines, positive then negative (Story 4.2, DH-7, pure): what applicants draw from.
+static func trait_ids(traits) -> Array:
+	var out: Array = []
+	if not (traits is Dictionary):
+		return out
+	for group in ["positive_traits", "negative_traits"]:
+		var g = traits.get(group)
+		if g is Dictionary:
+			for k in g:
+				if k is String and k != "" and g[k] is Dictionary:
+					out.append(k)
+	return out
+
+## +N to each of the four stats when an applicant is made: traits.json's all_stats (Experienced). Pure.
+static func trait_stat_bonus(trait_data: Dictionary) -> int:
+	var v = trait_data.get("all_stats", 0)
+	return int(v) if (v is int or v is float) else 0
+
+## An applicant's daily wage under traits.json's cost_multiplier (Greedy x1.5), rounded up; none: the wage. Pure.
+static func trait_wage(wage: int, trait_data: Dictionary) -> int:
+	var m = trait_data.get("cost_multiplier", 1.0)
+	if not (m is int or m is float) or float(m) <= 0.0:
+		return wage
+	return ceili(float(wage) * float(m))
+
+## An adventurer's daily wage as the record holds it (1 when it holds none). Story 4.3 (DR-3): the hire panel, the roster
+## and apply_daily_wages read it here, so the wage shown is the wage paid.
+static func wage_of(adventurer: Dictionary) -> int:
+	var w = adventurer.get("daily_wage", 1)
+	return int(w) if (w is int or w is float) else 1
+
+## A drink preference as the UI says it, from game_config.json's drink_labels (MOD-2): "Drinks mead"; an id with no
+## label: "Drinks <id>"; no preference: "". Pure.
+static func drink_label(drink, labels) -> String:
+	if drink == null or str(drink) == "":
+		return ""
+	if labels is Dictionary and labels.get(str(drink)) is String:
+		return labels[str(drink)]
+	return "Drinks %s" % str(drink)
+
+## An adventurer's or applicant's drink line (drink_label with the game's labels).
+func drink_text(adventurer: Dictionary) -> String:
+	return drink_label(adventurer.get("drink_preference"), DataManager.get_config("drink_labels", {}))
+
+## The deck card an adventurer or applicant carries (Story 4.2): the deck's entry for their `tarot_card`, else just the
+## name their record kept ({name: tarot_name}), else {}.
+func tarot_card_of(adventurer: Dictionary) -> Dictionary:
+	var card := DataManager.get_tarot_card(str(adventurer.get("tarot_card", "")))
+	if not card.is_empty():
+		return card
+	var shown := str(adventurer.get("tarot_name", ""))
+	return {"name": shown} if shown != "" else {}
 
 func get_available_recruits() -> Array:
 	"""Get current list of available recruits"""
@@ -1412,27 +1552,24 @@ func dismiss_adventurer(adventurer: Dictionary) -> bool:
 	return true
 
 func hire_adventurer(recruit: Dictionary) -> bool:
-	"""Enhanced adventurer hiring with recruit pool management"""
-	var hiring_cost = recruit.get("hiring_cost", 10)
-	
-	if not spend_gold(hiring_cost):
-		log_message("Insufficient gold to hire " + recruit.name + " (Need " + str(hiring_cost) + " gold)")
+	"""Hire an applicant from today's pool. Story 4.2 (DH-2): everything is checked first (hire_block_reason), so a
+	refused hire changes nothing and emits nothing (a full roster used to spend, then refund). The trait is kept
+	(`personality`, DH-7) and the adventurer joins READY."""
+	var why := hire_block_reason(recruit)
+	if why != "":
+		log_message("Cannot hire " + str(recruit.get("name", "?")) + ": " + why + ".")
 		return false
-		
-	if adventurers.size() >= max_adventurers:
-		print("Roster full! Cannot hire ", recruit.name)
-		add_gold(hiring_cost)  # Refund
-		log_message("Roster full! Cannot hire more adventurers (Maximum: " + str(max_adventurers) + ")")
-		return false
-	
+	var hiring_cost := int(recruit.get("hiring_cost", 10))
+	spend_gold(hiring_cost)  # deducts + emits gold_changed → EconomyBus (hire_block_reason checked the gold)
+
 	# Clean recruit data and add to roster
 	var new_adventurer = recruit.duplicate()
 	new_adventurer.erase("hiring_cost")
-	new_adventurer.erase("personality")
-	new_adventurer.erase("background") 
+	new_adventurer.erase("background")
 	new_adventurer.erase("availability")
-	
+
 	_normalize_adventurer_ints(new_adventurer)  # coerce JSON-loaded floats/strings → int (status "Unknown" fix)
+	new_adventurer["status"] = AStatus.READY   # whatever the applicant record held
 	new_adventurer["hire_day"] = current_day  # Story 7.1 — cemetery record shows "served day X→Y"
 	adventurers.append(new_adventurer)
 	var hired_card = new_adventurer.get("tarot_card", "")
