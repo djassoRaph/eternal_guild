@@ -152,7 +152,7 @@ func _refresh_state_tab() -> void:
 	# Story 13.1 (DT-7): the cycle as the morning check will see it
 	var tax_cfg: Dictionary = gm.tax_config()
 	_sl("tax",                     "due Day %d (in %d d) · %d g · grace %d/%d · paid %d" % [gm.tax_due_day,
-		gm.tax_due_day - gm.current_day, gm.tax_amount_for(gm.adventurers.size(), tax_cfg), gm.tax_grace_days,
+		gm.tax_due_day - gm.current_day, gm.current_tax_amount(), gm.tax_grace_days,
 		int(tax_cfg.grace_days), gm.taxes_paid_count])
 	_sl("adventurers_count",       str(gm.adventurers.size()) + " / " + str(gm.max_adventurers))
 	_sl("active_missions_count",   str(gm.active_missions.size()) + " active")
@@ -288,11 +288,28 @@ func _force_fuel(v: float) -> void:
 	GameManager.fireplace_fuel = v
 	GameManager.fireplace_fuel_changed.emit(v)
 
-## Story 13.1 (DT-7): today becomes the due day and the real morning check runs: a demand, then paid or overdue.
+## Story 13.1 (DT-7) and its review (P5): collect the tax now. With too little gold nothing changes (a press used to
+## move the due day and count as a grace morning: three ended the run); with enough it asks, then today becomes the due
+## day and the real morning check pays it. A fall is tested with Failures > Game Over: Bankruptcy.
 func _debug_trigger_tax() -> void:
+	var amount: int = GameManager.current_tax_amount()
+	if GameManager.gold < amount:
+		GameManager.log_message("[Debug] can't pay the tax (%d gold): nothing changed. To test a fall, use Failures > Game Over: Bankruptcy." % amount)
+		return
+	var d := ConfirmationDialog.new()
+	d.title = "Trigger Tax Event"
+	d.dialog_text = "Collect the tax now (%d gold)? The next due day moves to Day %d." % [amount, GameManager.current_day + int(GameManager.tax_config().interval_days)]
+	d.confirmed.connect(func():
+		d.queue_free()
+		_debug_collect_tax())
+	d.canceled.connect(d.queue_free)
+	add_child(d)
+	d.popup_centered()
+
+func _debug_collect_tax() -> void:
 	GameManager.tax_due_day = GameManager.current_day
 	GameManager.check_tax_deadline()
-	print("Debug: tax event triggered (due day %d)" % GameManager.current_day)
+	print("Debug: tax collected (due day %d)" % GameManager.current_day)
 	_refresh_state_tab()
 
 func _debug_force_beer_shortage() -> void:
