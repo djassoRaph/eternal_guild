@@ -1678,15 +1678,18 @@ func _load_hired_tarot_cards(v) -> void:
 
 ## In play an active_missions entry holds the roster's own adventurer dicts (send_on_mission); a JSON load brings
 ## back copies, so the mission's resolution updated the copy and left the roster adventurer On Mission for good.
-## Each entry's adventurer / party member becomes the roster dict with the same id again (the entry's
-## "adventurer_ids", Story 6.5, first when it matches the party); an id not on the roster keeps the saved copy,
-## normalised, with a warning.
+## Each entry's adventurer / party member becomes the roster dict with the same id again: the member's own id when
+## it is on the roster (review P9: a reordered "adventurer_ids" can't swap two adventurers), else the entry's
+## "adventurer_ids" (Story 6.5) at the same place; an id on neither keeps the saved copy, normalised, with a
+## warning. The entry's day counts and chance come back as ints (review P8: JSON makes them floats).
 func _relink_active_missions() -> void:
 	var by_id := {}
 	for adv in adventurers:
 		by_id[_id_key(adv.get("id"))] = adv
 	for entry in active_missions:
 		var ids = entry.get("adventurer_ids", [])
+		if not (ids is Array):
+			ids = []
 		if entry.has("party"):
 			var party = entry.get("party")
 			if not (party is Array):
@@ -1695,13 +1698,25 @@ func _relink_active_missions() -> void:
 			var linked: Array = []
 			for i in party.size():
 				var member = party[i]
-				var id = ids[i] if ids is Array and ids.size() == party.size() else (member.get("id") if member is Dictionary else null)
-				linked.append(_roster_or_copy(by_id, id, member, entry))
+				linked.append(_roster_or_copy(by_id, _member_id(by_id, member, ids, i), member, entry))
 			entry["party"] = linked
 		elif entry.get("adventurer") is Dictionary:
 			var a: Dictionary = entry["adventurer"]
-			var id = ids[0] if ids is Array and ids.size() == 1 else a.get("id")
-			entry["adventurer"] = _roster_or_copy(by_id, id, a, entry)
+			entry["adventurer"] = _roster_or_copy(by_id, _member_id(by_id, a, ids, 0), a, entry)
+		for k in ["days_remaining", "total_duration", "sent_day", "success_chance", "dispatch_day", "return_day", "travel_duration"]:
+			if entry.get(k) is float:
+				entry[k] = int(entry[k])
+		if entry.get("adventurer_ids") is Array:
+			entry["adventurer_ids"] = (entry["adventurer_ids"] as Array).map(func(i): return _id_key(i))
+
+## The id a saved member re-links by: its own when that is on the roster, else adventurer_ids[i], else its own.
+static func _member_id(by_id: Dictionary, member, ids: Array, i: int):
+	var own = member.get("id") if member is Dictionary else null
+	if by_id.has(_id_key(own)):
+		return own
+	if i < ids.size():
+		return ids[i]
+	return own
 
 func _roster_or_copy(by_id: Dictionary, id, saved, entry: Dictionary):
 	var key = _id_key(id)
