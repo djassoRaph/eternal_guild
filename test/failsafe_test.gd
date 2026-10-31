@@ -50,6 +50,7 @@ const EXTERIOR_SCENE_PATH := "res://scenes/world/ExteriorWorld.tscn"
 const EXIT_ZONE_SCRIPT_PATH := "res://scripts/world/exit_zone_interior.gd"
 const ENTRANCE_ZONE_SCRIPT_PATH := "res://scripts/world/entrance_zone_exterior.gd"
 const EDGE_SHADER_PATH := "res://assets/shaders/edge_detection.gdshader"
+const EDGE_SHADER_OLD_PATH := "res://edge_detection-old.gdshader"
 const PLAYER_RADIUS := 0.5   # Player.tscn CapsuleShape3D radius
 # Story 25.29: the exterior terrain (hill, path, stream), bridge, village and forest.
 const TERRAIN_PATH := "res://assets/environment/custom/a6_exterior_terrain.gltf"
@@ -7312,11 +7313,19 @@ func test_dialogue_portraits() -> void:
 	var shader_src := FileAccess.get_file_as_string(EDGE_SHADER_PATH)
 	# Every scene and material that uses the edge shader (found by its path or uid, not a list) keeps linePixels at
 	# its default: only the studio widens it; no script sets it either.
-	var shader_uid := FileAccess.get_file_as_string(EDGE_SHADER_PATH + ".uid").strip_edges()
+	# Raphael's copy at the project root (edge_detection-old.gdshader, MainTavern's since 2026-10-08) counts as the
+	# edge shader too.
+	var edge_refs: Array[String] = []
+	for shader_path in [EDGE_SHADER_PATH, EDGE_SHADER_OLD_PATH]:
+		if not FileAccess.file_exists(shader_path):
+			continue
+		edge_refs.append(shader_path)
+		var uid_text := FileAccess.get_file_as_string(shader_path + ".uid").strip_edges()
+		if uid_text.begins_with("uid://"):
+			edge_refs.append(uid_text)
 	var res_files: Array[String] = []
 	_collect_files("res://", ["tscn", "tres", "material", "gd"], res_files)
-	var users := res_files.filter(func(p): return p.get_extension() != "gd" and (FileAccess.get_file_as_string(p).contains(EDGE_SHADER_PATH)
-		or (shader_uid.begins_with("uid://") and FileAccess.get_file_as_string(p).contains(shader_uid))))
+	var users := res_files.filter(func(p): return p.get_extension() != "gd" and edge_refs.any(func(r): return FileAccess.get_file_as_string(p).contains(r)))
 	# A game scene may carry linePixels at its default 1.0 (Godot's editor writes the default out on a re-save,
 	# 2026-10-04); it fails only when a value is > 1 or can't be read.
 	var game_scenes_wide := users.filter(func(p): return p != PORTRAIT_STUDIO_SCENE and _edge_line_pixels_widened(FileAccess.get_file_as_string(p)))
