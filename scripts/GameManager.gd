@@ -2301,7 +2301,7 @@ func apply_daily_wages() -> int:
 	for adv in adventurers:
 		if adv.get("status") == AStatus.DEAD:
 			continue  # dead adventurers draw no wage (defensive — should be removed at Reveal)
-		total += int(adv.get("daily_wage", 1))
+		total += wage_of(adv)   # the wage the roster shows (Story 4.3)
 	if total <= 0:
 		return 0  # nothing owed — no deduction, no signal
 	var paid := total
