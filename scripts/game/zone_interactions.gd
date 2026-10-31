@@ -203,7 +203,8 @@ func open_mission_board() -> void:
 	print("Opening mission board...")
 	
 	current_mission_board_instance = WorldMapBoardScene.instantiate()
-	get_tree().root.add_child(current_mission_board_instance)
+	# Story 6.5 review P14: on its own CanvasLayer, above the hall's HUD (top bar, event log, roster strip).
+	current_mission_board_instance.attach_to(get_tree().root)
 	
 	if GameManager.available_missions.is_empty():
 		GameManager.refresh_available_missions()

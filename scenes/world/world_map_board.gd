@@ -23,6 +23,11 @@ const INK_RED := Color(0.62, 0.13, 0.10, 1.0)
 const INK_GREEN := Color(0.13, 0.42, 0.15, 1.0)
 const INK_GOLD := Color(0.52, 0.38, 0.03, 1.0)
 const UNFURL_SECONDS := 0.18
+## Story 6.5 review P14: the board draws on its own CanvasLayer above the hall's GameUI (ZonePromptUI.gd sets it to 100
+## at runtime: the top bar, the event log, the roster strip, popups, the E prompt), the morning briefing (100) and the
+## lighting dev overlay (101), so the map is a clean full screen while it is open; the dialogue box (110) and the Codex
+## (128) still draw above it. attach_to() makes the layer.
+const CANVAS_LAYER := 105
 
 var _sv: SubViewport
 var _svc: SubViewportContainer
@@ -41,6 +46,7 @@ var _chips: Dictionary = {}       # hex_id -> the deployed chip's text
 
 var _detail_panel: Control = null
 var _closed_frame := -10          # the process frame a scroll last closed in (review P4: no click through a closing scroll)
+var _header: Label = null         # the board's own top line: day, gold, who is ready (review P14)
 
 # Scroll state — valid only while _detail_panel != null
 var _panel_mission: Dictionary = {}
@@ -109,6 +115,7 @@ func _ready() -> void:
 
 	_build_bubble()
 	_build_news_panel()
+	_build_header()
 
 	var hint := Label.new()
 	hint.text = "Press ESC to close"
@@ -152,6 +159,58 @@ func _build_bubble() -> void:
 	_bubble_danger.add_theme_font_size_override("font_size", 12)
 	_bubble_danger.visible = false
 	vbox.add_child(_bubble_danger)
+
+
+## Review P14: hosts the board on its own CanvasLayer under `parent` (zone_interactions passes the root). The layer is
+## freed when the board leaves the tree. Returns the layer.
+func attach_to(parent: Node) -> CanvasLayer:
+	var layer := CanvasLayer.new()
+	layer.name = "WorldMapLayer"
+	layer.layer = CANVAS_LAYER
+	layer.add_child(self)
+	parent.add_child(layer)
+	tree_exited.connect(layer.queue_free)
+	return layer
+
+
+## The board's own top line (the hall's top bar is under the map): top centre, clear of Latest News (top left).
+func _build_header() -> void:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.offset_top = 16.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.08, 0.07, 0.90)
+	style.border_color = Color(0.80, 0.60, 0.20, 0.70)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 14.0
+	style.content_margin_right = 14.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
+	panel.add_theme_stylebox_override("panel", style)
+	add_child(panel)
+	_header = Label.new()
+	_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_header.add_theme_font_size_override("font_size", 15)
+	_header.add_theme_color_override("font_color", Color(0.95, 0.88, 0.62, 1.0))
+	panel.add_child(_header)
+	_refresh_header()
+
+
+func _refresh_header() -> void:
+	if _header == null:
+		return
+	var ready := 0
+	for adv in GameManager.adventurers:
+		if adv is Dictionary and GameManager.not_ready_reason(adv) == "":
+			ready += 1
+	_header.text = header_text(GameManager.current_day, GameManager.gold, ready, GameManager.adventurers.size())
+
+
+static func header_text(day: int, gold: int, ready: int, roster: int) -> String:
+	return "Day %d  ·  %d gold  ·  %d of %d ready" % [day, gold, ready, roster]
 
 
 # ── Latest News (Epic 6 / FR-19b) — drains WorldManager.overheard_rumours ──────
@@ -471,6 +530,7 @@ func _build_markers() -> void:
 				tags.append([screen_pos + Vector2(34.0, 12.0), "×%d" % n])
 	for tag in tags:
 		_spawn_tag(tag[0], tag[1])
+	_refresh_header()
 
 
 func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
