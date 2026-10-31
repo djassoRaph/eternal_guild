@@ -96,6 +96,8 @@ When GameManager sets an adventurer to `DEPLOYED`, it stores a small record. Thi
 
 Nothing reads `location_id` / `travel_duration` / `direction` in the near-term build. They exist so that, much later, `ExteriorWorld.tscn` can reconstruct an adventurer's road position from departure time — without simulating anything. Store it now; ignore it until Layer D. (See `05_Technical_Architecture.md` §6.2.)
 
+**As built (Story 6.5, 2026-10-31):** the WorldMap calls `GameManager.dispatch_adventurers(adventurer_ids, mission, hex_id) -> String` ("" = sent, else the reason; nothing changes on a refusal). The signal is the existing `GameManager.mission_dispatched(adventurers, mission, hex_id)`, bridged to `AdventurerBus.mission_dispatched`. The record lives on the `active_missions` entry itself (saved with it): `adventurer_ids` (party order), `mission_id`, `location_id`, `dispatch_day`, `return_day`, `travel_duration`, `direction`. The status field is `AdventurerStatus.Status` (READY, ON_MISSION, RESTING, WOUNDED, DEAD); "available" = READY, asked of GameManager (`not_ready_reason`).
+
 ---
 
 ## 5. What Each System Owns (no overlap)

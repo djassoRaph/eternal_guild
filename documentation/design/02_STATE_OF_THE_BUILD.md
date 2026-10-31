@@ -13,7 +13,7 @@ any other document.** Update it when a feature ships, not before.
 | Tavern core loop (patrons, beer, gold, taxes) | GameManager | MVP running |
 | Firewood / comfort system | GameManager + fireplace_zone | ⚠ two competing drain authorities — see TECH_DEBT |
 | Recruitment + roster (5 cap) | GameManager | Roster panel with portraits (old anime set) |
-| Dispatch (`send_on_mission` / `send_party_on_mission`) | GameManager :191/:215 | Works; `location_id` now carried (done) |
+| Dispatch (`send_on_mission` / `send_party_on_mission`, behind the checked `dispatch_adventurers`) | GameManager | Works; the Deployment Record and the hex lock on each active entry; one success estimate (`estimate_success`) shown and rolled (Story 6.5, 2026-10-31) |
 | Party mission UI | — | done |
 | F12 debug menu | — | done |
 | Morning briefing + deferred missions | — | done |
@@ -22,9 +22,9 @@ any other document.** Update it when a feature ships, not before.
 | PlayerManager spawn-bleed fix (`player_scene` group) | PlayerManager | done |
 | WorldMapBoard (mission board = world map) | WorldMapBoard.tscn / world_map_board.gd | SubViewport re-render, no reveal anim |
 | Hover-to-inspect hexes (Area3D raycast + 2D bubble) | world_map_board.gd | done 2026-06-07 |
-| `required_adventurers` on all 19 mission templates | mission_types.json | capped at 3 |
+| `required_adventurers` on all 19 mission templates | mission_types.json + `GameManager.required_party_size` | capped at 3; read since Story 6.5 (Tier 3 asks for 3) |
 | Daily missions pinned to hexes | WorldManager.assign_missions_to_hexes() ← GameManager.refresh_available_missions() | done |
-| Dispatch from the map (click adventurer → hex mission) | WorldMapBoard + GameManager | done — verified in-game 2026-06-14 |
+| Dispatch from the map: click a marker, click adventurers in the scroll, Send; deployed hexes show who is out; group missions in the demo from day 2 | world_map_board.gd + mission_slot.gd (UI), GameManager (rules); failsafe Test 28 | done 2026-10-31 (Story 6.5, in review); scroll art is a placeholder (U11) |
 | MainMenu "Continue" → real SaveSystem.load_game() | main_menu.gd | done 2026-06-14 — orphan `savegame.dat` stub removed |
 | Save & resume: a save returns you to the scene and spot you saved in, with the run exactly as it was (deployed adventurers, morale, hired tarot cards, rumours, the world); a missing scene falls back to the tavern's spawn point; a broken save falls back to a backup; the timer autosave runs only in the hall or outside | `systems/SaveSystem.gd` (`save_path`, `read_save`, `load_game` → state, `player_spot`, `resume_scene`, `can_autosave`), `GameManager.load_save_data()`, `WorldManager.get_save_data()`, `PlayerManager.clear_pending_spawn()`; Continue (main_menu.gd) and the pause menu's Load share `resume_scene()`; failsafe Test 26 | built 2026-10-31 (Story 11.2, in review). The world has been on disk since f604ec8 |
 | Pause menu, in the hall and outside (Esc): Save closes it with a "Game saved" banner; Save & Exit leaves only after a confirmed save (a failed save keeps you in the game with a message); outside it pauses the game. Saves are written to a tmp file, checked, then swapped in; three backups | `scripts/menus/pause_menu.gd` (the hall's buttons from MainTavern.tscn, outside built in code; `open_menu` / `close_menu` through `main_tavern.gd`'s `toggle_pause_menu()` in the hall, `get_tree().paused` outside), `scripts/world/exteriorworld.gd` (adds it), `SaveSystem._write_file_atomic` / `written_size_ok` / `_create_save_backup`; failsafe Test 27 | built 2026-10-31 (Story 11.3, in review) |
