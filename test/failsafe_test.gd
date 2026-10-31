@@ -359,6 +359,7 @@ func _initialize() -> void:
 	await test_hiring()
 	await test_roster_panel()
 	await test_tax_cycle_bus()
+	await test_guild_falls()
 
 	_finish()
 
@@ -8392,7 +8393,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"total_missions_completed", "tavern_reputation", "taxes_paid_count", "mission_tier_unlocked", "active_missions",
 	"pending_reports", "has_pending_briefing", "mission_refresh_day", "next_adventurer_id", "tax_grace_days",
 	"hired_tarot_cards", "adventurers_hired_this_run", "deaths_this_run", "dialogue_flags", "den_fa_state",
-	"_den_fa_tier_warnings", "saved_player_scene", "restored_patrons", "game_over_active", "pending_new_game_save"]
+	"_den_fa_tier_warnings", "saved_player_scene", "restored_patrons", "game_over_active", "pending_new_game_save",
+	"gold_peak", "last_run_summary", "_tax_warnings"]   # Stories 13.1 / 13.4: the reset writes these too
 
 
 func test_load_and_resume() -> void:
@@ -9857,7 +9859,7 @@ func _check_d1_run_gate(gm, ss) -> void:
 	var hall := _d1_stand_in(TAVERN_SCENE_PATH)
 	ss.run_active = false
 	ss._on_autosave_timer_timeout()
-	ss._on_game_over("test")
+	ss.end_run({"cause": "test"})   # Story 13.4: the game-over save moved into end_run()
 	var day_end: bool = ss.save_end_of_day()
 	check(not FileAccess.file_exists(D1_SAVE) and not ss.can_autosave() and not day_end,
 		"no live run (a scene launched straight from the editor): the timer, a game over and the end of a day save nothing")
@@ -11043,3 +11045,406 @@ func _check_t31_debug_panel(gm, events: Array) -> void:
 		"Trigger Tax Event NOW: today becomes the due day and the real check runs (one demand, then paid; next due 80) %s" % [events])
 	panel.queue_free()
 	await process_frame
+
+
+# --- Test 32: The Guild Falls (Story 13.4) ---
+# The fall carries its cause key on GameManager and GameBus; before anything hears it, the run is recorded in codex.dat's
+# guild_history (the summary the screen shows) and its save and backups leave the slot for fallen_runs/<stamp>/, so
+# Continue can't resume it; a fallen run is never saved again. The soft-lock rule (no one alive, gold under the config's
+# line, no applicant the hire authority accepts), gold at its peak, the screen (it waits for the morning briefing; its
+# words from data/reveal/guild_falls.json; New Run and Return to Main Menu ask once, then route through begin_new_run /
+# reset). Every file lives in user://failsafe_t32/ (save_path and codex_path); the real save and codex are checked
+# unchanged; GameManager is restored with the D1 snapshot.
+const T32_DIR := "user://failsafe_t32"
+const T32_SAVE := "user://failsafe_t32/eternal_guild_save.json"
+const T32_CODEX := "user://failsafe_t32/codex.dat"
+const GAME_OVER_SCREEN_SCRIPT_PATH := "res://scenes/game_over_screen.gd"
+const GUILD_FALLS_TEXT_PATH := "res://data/reveal/guild_falls.json"
+const DEBUG_PANEL_SCRIPT_PATH := "res://scenes/ui/debug_panel.gd"
+const T32_ENTRY_FIELDS := ["cause", "ending", "end_day", "days_survived", "adventurers_lost", "adventurers_hired", "survivors",
+	"gold_peak", "gold_at_end", "missions_completed", "taxes_paid", "reputation", "legacy_adventurer", "timestamp"]
+
+func test_guild_falls() -> void:
+	print("[Test 32] The Guild Falls (Story 13.4)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var pm = root.get_node_or_null("PlayerManager")
+	var ss = root.get_node_or_null("SaveSystem")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GameBus")
+	if gm == null or wm == null or pm == null or ss == null or dm == null or gb == null or not gm.has_method("run_summary") \
+			or not ss.has_method("end_run"):
+		check(false, "GameManager.run_summary, SaveSystem.end_run and the WorldManager, PlayerManager, DataManager, GameBus autoloads")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _d1_snapshot(gm, wm, pm, ss)
+	var archive_before = ss.get("last_archive_dir")
+	_t32_rm_tree(T32_DIR)
+	DirAccess.make_dir_recursive_absolute(T32_DIR)
+	ss.save_path = T32_SAVE
+	ss.codex_path = T32_CODEX
+	ss.codex_data = ss._default_codex()
+	ss.run_active = false
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+
+	_check_t32_soft_lock_rule(gm)
+	_check_t32_gold_peak(gm)
+	_check_t32_summary(gm)
+	_check_t32_fall(gm, ss, gb, capture)
+	_check_t32_no_live_run(gm, ss)
+	_check_t32_soft_lock_fall(gm, ss, dm, gb)
+	_check_t32_text()
+	await _check_t32_screen(gm)
+	_check_t32_sources()
+
+	paused = false
+	gm.game_over_active = false
+	gm.set_process_mode(Node.PROCESS_MODE_INHERIT)
+	_d1_restore(snap, gm, wm, pm, ss)
+	ss.set("last_archive_dir", archive_before)
+	capture.free()
+	_t32_rm_tree(T32_DIR)
+	check(not DirAccess.dir_exists_absolute(T32_DIR) and [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas
+		and not DirAccess.dir_exists_absolute("user://fallen_runs"),
+		"Test 32 cleaned its folder and never touched the real save, the real codex or user://fallen_runs")
+	print("")
+
+
+## Removes a folder and everything under it (Test 32's fallen_runs/<stamp>/ subfolders).
+static func _t32_rm_tree(path: String) -> void:
+	var d := DirAccess.open(path)
+	if d == null:
+		return
+	for f in d.get_files():
+		d.remove(f)
+	for sub in d.get_directories():
+		_t32_rm_tree(path.path_join(sub))
+	DirAccess.remove_absolute(path)
+
+
+## Fixture applicants (Story 4.2's hire authority checks the id, the roster and the gold).
+static func _t32_applicants(costs: Array) -> Array:
+	var out := []
+	for i in costs.size():
+		out.append({"id": 9320 + i, "name": "Applicant%d" % i, "class": "Fighter", "hiring_cost": costs[i], "availability": 5,
+			"strength": 3, "dexterity": 3, "intelligence": 3, "endurance": 3, "daily_wage": 1})
+	return out
+
+
+## AC 4 (DG-9): the soft-lock rule, and what the hire authority counts as an applicant the gold can take.
+func _check_t32_soft_lock_rule(gm) -> void:
+	var rows := [[0, 7, 0, 8, true], [0, 0, 0, 8, true], [0, 7, 1, 8, false], [0, 8, 0, 8, false], [1, 0, 0, 8, false], [0, 10, 0, 12, true]]
+	var bad := []
+	for r in rows:
+		if gm.is_soft_locked(r[0], r[1], r[2], r[3]) != r[4]:
+			bad.append(r)
+	check(bad.is_empty(), "is_soft_locked(alive, gold, hireable, line): only no one alive + gold under the line + no hireable applicant (wrong rows: %s)" % [bad])
+	gm.adventurers = []
+	gm.current_day = 5
+	gm.recruit_refresh_day = 5
+	gm.gold = 7
+	gm.daily_recruits = _t32_applicants([8, 12])
+	var none: int = gm.hireable_count()
+	gm.daily_recruits = _t32_applicants([8, 5])
+	var one: int = gm.hireable_count()
+	check(none == 0 and one == 1, "hireable_count(): the applicants hire_block_reason() accepts with 7 gold (costs 8 / 12 → %d; 8 / 5 → %d)" % [none, one])
+
+
+## AC 2 (DG-4): gold at its peak.
+func _check_t32_gold_peak(gm) -> void:
+	gm._apply_config()
+	var start: int = gm.gold_peak
+	gm.add_gold(250)
+	var up: int = gm.gold_peak
+	gm.spend_gold(1100)
+	var after_spend: int = gm.gold_peak
+	gm.add_gold(100)
+	check(start == 1000 and up == 1250 and after_spend == 1250 and gm.gold_peak == 1250 and gm.gold == 250,
+		"gold_peak: the starting gold (%d), raised by add_gold (%d), never lowered by spending (%d, then %d at 250 gold)" % [start, up, after_spend, gm.gold_peak])
+	var loads := [gm.gold_peak_from_save(900.0, 150), gm.gold_peak_from_save(null, 150), gm.gold_peak_from_save("junk", 300),
+		gm.gold_peak_from_save(100, 300)]
+	var save_has: bool = gm.get_save_data().get("gold_peak") == 1250
+	check(loads == [900, 150, 300, 300] and save_has,
+		"saved as gold_peak; a load takes the saved peak, never below the loaded gold; an old save (no key) or junk: the loaded gold %s" % [loads])
+
+
+## AC 2 (DG-3): the run's numbers at the fall.
+func _check_t32_summary(gm) -> void:
+	var S = AdventurerStatus.Status
+	gm.adventurers = [_d1_adv(9330, "Alive", S.READY, ""), _d1_adv(9331, "Gone", S.DEAD, "")]
+	gm.current_day = 12
+	gm.deaths_this_run = 2
+	gm.adventurers_hired_this_run = 4
+	gm.gold = 40
+	gm.gold_peak = 1250
+	gm.total_missions_completed = 6
+	gm.taxes_paid_count = 0
+	gm.tavern_reputation = 9
+	var s: Dictionary = gm.run_summary("bankruptcy")
+	var has_all := true
+	for k in T32_ENTRY_FIELDS:
+		has_all = has_all and s.has(k)
+	check(has_all and s.cause == "bankruptcy" and s.ending == "fall" and s.end_day == 12 and s.days_survived == 11 and s.adventurers_lost == 2
+		and s.adventurers_hired == 4 and s.survivors == 1 and s.gold_peak == 1250 and s.gold_at_end == 40 and s.missions_completed == 6
+		and s.reputation == 9 and s.legacy_adventurer == null,
+		"run_summary: every DG-3 field; days survived = day - 1; the dead don't count as survivors; no heir %s" % [s])
+	gm.current_day = 1
+	check(gm.run_summary("soft_lock").days_survived == 0, "a fall on Day 1 survived 0 days")
+
+
+## AC 1, 2, 8 (DG-1, DG-2): the bankruptcy fall through the real tax path, in a live run.
+func _check_t32_fall(gm, ss, gb, capture) -> void:
+	gm.adventurers = [_d1_adv(9332, "Last", AdventurerStatus.Status.READY, "")]
+	gm.current_day = 33
+	gm.tax_due_day = 31
+	gm.tax_grace_days = 2
+	gm.gold = 0
+	gm.gold_peak = 1300
+	gm.deaths_this_run = 1
+	gm.game_over_active = false
+	ss.run_active = true
+	ss.codex_data = ss._default_codex()
+	for suffix in ["", ".backup1", ".backup2"]:
+		_d1_write_json(T32_SAVE + suffix, D1_DAY_FIXTURE)
+	var gm_got: Array = []
+	var gb_got: Array = []
+	var on_gm := func(r): gm_got.append(r)
+	var on_gb := func(r): gb_got.append([r, (ss.codex_data.get("guild_history", []) as Array).size(), FileAccess.file_exists(T32_SAVE)])
+	gm.game_over_triggered.connect(on_gm)
+	gb.game_over_triggered.connect(on_gb)
+	capture.lines.clear()
+	gm.check_tax_deadline()
+	var failure_logged := false
+	for l in capture.lines:
+		failure_logged = failure_logged or str(l).begins_with("FAILURE: Failed to pay taxes")
+	check(gm_got == ["bankruptcy"] and gb_got.size() == 1 and gb_got[0][0] == "bankruptcy" and failure_logged and gm.game_over_active
+		and gm.process_mode == Node.PROCESS_MODE_DISABLED,
+		"the grace runs out: GameManager and GameBus each send 'bankruptcy' once (a key, not a sentence); the sentence is in the log %s" % [gm_got])
+	check(gb_got.size() == 1 and gb_got[0][1] == 1 and gb_got[0][2] == false,
+		"a GameBus listener already finds the run in codex.dat and no save in the slot (recorded before it is announced) %s" % [gb_got])
+	var hist: Array = ss.codex_data.get("guild_history", [])
+	var e: Dictionary = hist[0] if hist.size() == 1 and hist[0] is Dictionary else {}
+	var same := e.size() > 0
+	for k in T32_ENTRY_FIELDS:
+		same = same and e.get(k) == gm.last_run_summary.get(k)
+	var disk := _d1_read_json(T32_CODEX)
+	var disk_hist = disk.get("guild_history", [])
+	check(same and int(e.get("run", 0)) == 1 and e.cause == "bankruptcy" and e.end_day == 33 and e.adventurers_lost == 1 and e.gold_peak == 1300
+		and int(ss.codex_data.get("total_runs", 0)) == 1 and int(ss.codex_data.get("best_day_reached", 0)) == 33
+		and disk_hist is Array and disk_hist.size() == 1 and disk_hist[0].get("cause") == "bankruptcy",
+		"codex.dat's guild_history gets one entry = last_run_summary (+ run 1), total_runs 1, best day 33, on disk too %s" % [e])
+	var arch: String = str(ss.get("last_archive_dir"))
+	var moved := true
+	for suffix in ["", ".backup1", ".backup2", ".backup3"]:   # the last save rotated the two fixture backups down
+		moved = moved and not FileAccess.file_exists(T32_SAVE + suffix) and FileAccess.file_exists(arch.path_join("eternal_guild_save.json" + suffix))
+	var last := _d1_read_json(arch.path_join("eternal_guild_save.json"))
+	check(arch.begins_with(T32_DIR + "/fallen_runs/") and moved and last.get("save_type") == "game_over_save" and int(last.get("current_day", 0)) == 33
+		and not ss.has_save_file() and not ss.run_active,
+		"the save and its backups moved to %s; the fallen state was saved there first (game_over_save, day 33); no save is left (Continue is off); the run is over" % arch)
+	# an interrupted swap's .prev / .tmp go too (read_save would put them back as the save)
+	for suffix in ["", ".prev", ".tmp"]:
+		_d1_write_json(T32_SAVE + suffix, D1_DAY_FIXTURE)
+	var arch2: String = ss.archive_run_save()
+	var swept := arch2 != "" and arch2 != arch
+	for suffix in ["", ".prev", ".tmp"]:
+		swept = swept and not FileAccess.file_exists(T32_SAVE + suffix) and FileAccess.file_exists(arch2.path_join("eternal_guild_save.json" + suffix))
+	check(swept and ss.read_save().is_empty() and ss.archive_run_save() == "",
+		"archive_run_save() also takes .prev and .tmp (nothing for read_save() to put back), each fall in its own folder (%s); nothing to move: ''" % arch2)
+	gm.trigger_game_over("soft_lock", "again")
+	check(gm_got.size() == 1 and (ss.codex_data.get("guild_history", []) as Array).size() == 1, "a second fall while fallen does nothing")
+	ss.run_active = true
+	var hall := _d1_stand_in(TAVERN_SCENE_PATH)
+	var saved: bool = ss.save_game_state("manual_save")
+	var timer_ok: bool = ss.can_autosave()
+	check(not saved and not FileAccess.file_exists(T32_SAVE) and not timer_ok,
+		"while fallen nothing saves the run again: save_game_state('manual_save') refuses, can_autosave() is false (even with a live run in the hall)")
+	_d1_drop_stand_in(hall)
+	_d1_set_scene(capture)
+	ss.run_active = false
+	gm.game_over_triggered.disconnect(on_gm)
+	gb.game_over_triggered.disconnect(on_gb)
+	gm.game_over_active = false
+	gm.set_process_mode(Node.PROCESS_MODE_INHERIT)
+
+
+## DG-2 (the 11.2 run gate): no live run (a scene launched straight from the editor): the fall still shows, but nothing
+## is recorded or moved.
+func _check_t32_no_live_run(gm, ss) -> void:
+	ss.run_active = false
+	var codex_before: Dictionary = ss.codex_data.duplicate(true)
+	_d1_write_json(T32_SAVE, D1_DAY_FIXTURE)
+	var got: Array = []
+	var on_gm := func(r): got.append(r)
+	gm.game_over_triggered.connect(on_gm)
+	gm.trigger_game_over("soft_lock", "no live run")
+	var direct: String = ss.end_run({"cause": "test"})
+	check(got == ["soft_lock"] and ss.codex_data == codex_before and FileAccess.file_exists(T32_SAVE) and direct == "",
+		"no live run: the fall is announced, but codex.dat and the save are left alone (end_run returns '')")
+	gm.game_over_triggered.disconnect(on_gm)
+	DirAccess.remove_absolute(T32_SAVE)
+	gm.game_over_active = false
+	gm.set_process_mode(Node.PROCESS_MODE_INHERIT)
+
+
+## AC 4 (DG-9): the morning's soft-lock check falls with soft_lock; an applicant the gold covers keeps the guild going.
+func _check_t32_soft_lock_fall(gm, ss, dm, gb) -> void:
+	gm.adventurers = []
+	gm.current_day = 9
+	gm.recruit_refresh_day = 9
+	gm.gold = 7
+	gm.game_over_active = false
+	gm.daily_recruits = _t32_applicants([5])
+	ss.run_active = true
+	var got: Array = []
+	var on_gb := func(r): got.append(r)
+	gb.game_over_triggered.connect(on_gb)
+	gm._check_soft_lock()
+	var spared: bool = got.is_empty() and not gm.game_over_active
+	gm.daily_recruits = _t32_applicants([8, 12])
+	_d1_write_json(T32_SAVE, D1_DAY_FIXTURE)
+	gm._check_soft_lock()
+	var hist: Array = ss.codex_data.get("guild_history", [])
+	var arch: String = str(ss.get("last_archive_dir"))
+	check(spared and got == ["soft_lock"] and hist.size() == 2 and hist[1].get("cause") == "soft_lock" and int(hist[1].get("run", 0)) == 2
+		and FileAccess.file_exists(arch.path_join("eternal_guild_save.json")) and not FileAccess.file_exists(T32_SAVE)
+		and float(dm.game_config.get("soft_lock_gold_below", -1)) == 8.0,
+		"soft-lock: 7 gold, no one alive, an applicant at 5 gold: the guild goes on; applicants at 8 and 12: the fall (soft_lock), the second guild_history entry, its own archive folder; the line is game_config's soft_lock_gold_below (8) %s" % [got])
+	gb.game_over_triggered.disconnect(on_gb)
+	ss.run_active = false
+	gm.game_over_active = false
+	gm.set_process_mode(Node.PROCESS_MODE_INHERIT)
+
+
+## AC 7 (DG-12): the screen's words in data, keyed by cause.
+func _check_t32_text() -> void:
+	var data = JSON.parse_string(FileAccess.get_file_as_string(GUILD_FALLS_TEXT_PATH)) if FileAccess.file_exists(GUILD_FALLS_TEXT_PATH) else null
+	var ok: bool = data is Dictionary and str(data.get("_comment", "")).contains("DRAFT") and data.get("title") is String
+	for section in [["reasons", ["bankruptcy", "soft_lock", "no_survivors", "fallback"]], ["stats", ["days_survived", "adventurers_lost", "gold_peak"]],
+			["buttons", ["new_run", "main_menu"]], ["confirm", ["new_run", "main_menu"]]]:
+		var sec = data.get(section[0]) if data is Dictionary else null
+		ok = ok and sec is Dictionary
+		for k in section[1]:
+			ok = ok and sec is Dictionary and sec.get(k) is String and str(sec.get(k)) != ""
+	check(ok, "guild_falls.json: DRAFT, the title, reasons (bankruptcy, soft_lock, no_survivors, fallback), stat labels, buttons, confirms")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var re := RegEx.new()
+	re.compile("trigger_game_over\\(\"([a-z_]+)\"")
+	var missing := []
+	for m in re.search_all(_code_lines(src)):   # code only: a commented-out fall is not a cause
+		var cause := m.get_string(1)
+		if not (data is Dictionary and data.get("reasons") is Dictionary and data.reasons.has(cause)):
+			missing.append(cause)
+	check(missing.is_empty(), "every cause GameManager falls with has a reason line (missing: %s)" % [missing])
+
+
+## AC 3, 5, 6 (DG-5, DG-6, DG-7, DG-11): the screen, through a probe whose scene change and pause are recorded.
+func _check_t32_screen(gm) -> void:
+	var data = JSON.parse_string(FileAccess.get_file_as_string(GUILD_FALLS_TEXT_PATH))
+	if not (data is Dictionary):
+		check(false, "guild_falls.json parses (the screen checks need it)")
+		return
+	var probe := _t32_screen_probe(true)
+	gm.last_run_summary = {"cause": "soft_lock", "days_survived": 11, "adventurers_lost": 2, "gold_peak": 1250}
+	gm.game_over_active = true
+	var fake := Node.new()
+	fake.add_to_group("morning_briefing")
+	root.add_child(fake)
+	probe.show_game_over("soft_lock")
+	await process_frame
+	await process_frame
+	var waited: bool = not probe.visible and not probe.shown and probe.pauses.is_empty()
+	fake.free()
+	await process_frame
+	await process_frame
+	check(waited and probe.visible and probe.shown and probe.pauses == [true] and probe.layer == 110 and probe.get_node_or_null("ColorRect") == null
+		and probe.get_node_or_null("CenterContainer") == null and probe.has_method("_on_main_menu_button_pressed"),
+		"the screen waits while a morning briefing is open, then shows on layer 110 and pauses; the scene's old children are gone; the scene's connection target stays")
+	var stats_ok: bool = probe._stats.days_survived.text == "11" and probe._stats.adventurers_lost.text == "2" and probe._stats.gold_peak.text == "1250"
+	check(probe._title.text == data.title and probe._reason.text == data.reasons.soft_lock and stats_ok
+		and probe._stat_names.days_survived.text == data.stats.days_survived and probe.new_run_button.text == data.buttons.new_run
+		and probe.main_menu_button.text == data.buttons.main_menu,
+		"the title, the soft_lock line, Days survived 11, Adventurers lost 2, Gold at its peak 1250, New Run, Return to Main Menu (from the data file)")
+	probe.new_run_button.pressed.emit()
+	var dlg := _t32_dialog(probe)
+	var asked: bool = dlg != null and dlg.dialog_text == data.confirm.new_run
+	if dlg:
+		dlg.canceled.emit()
+	await process_frame
+	check(asked and probe.routes.is_empty() and _t32_dialog(probe) == null and gm.game_over_active,
+		"New Run asks first; Cancel closes the question and changes nothing")
+	probe.new_run_button.pressed.emit()
+	dlg = _t32_dialog(probe)
+	if dlg:
+		dlg.confirmed.emit()
+	check(probe.routes == [gm.NEW_RUN_SCENE] and probe.pauses == [true, false] and gm.current_day == 1 and not gm.game_over_active
+		and gm.pending_new_game_save and gm.gold == 1000 and gm.last_run_summary.is_empty(),
+		"New Run, confirmed: unpaused, begin_new_run() (Day 1, 1000 gold, the hall's first save pending), then %s %s" % [gm.NEW_RUN_SCENE, probe.routes])
+	probe.queue_free()
+	await process_frame
+
+	var probe2 := _t32_screen_probe(false)
+	gm.game_over_active = true
+	gm.last_run_summary = {"days_survived": 3, "adventurers_lost": 0, "gold_peak": 1000}
+	probe2.show_game_over("no_such_cause")
+	await process_frame
+	await process_frame
+	check(probe2.shown and probe2._reason.text == data.reasons.fallback, "a cause with no line: the fallback line ('%s')" % probe2._reason.text)
+	probe2.main_menu_button.pressed.emit()
+	var dlg2 := _t32_dialog(probe2)
+	var asked2: bool = dlg2 != null and dlg2.dialog_text == data.confirm.main_menu
+	if dlg2:
+		dlg2.confirmed.emit()
+	check(asked2 and probe2.routes == ["res://scenes/MainMenu.tscn"] and not gm.game_over_active and probe2.pauses == [true, false],
+		"Return to Main Menu asks, then resets the run and goes to the main menu %s" % [probe2.routes])
+	probe2.queue_free()
+	await process_frame
+
+
+## A GameOverScreen whose scene changes and pauses are recorded (never made); `old_children` gives it the scene's.
+func _t32_screen_probe(old_children: bool) -> CanvasLayer:
+	var s := GDScript.new()
+	s.source_code = "extends \"%s\"\nvar routes: Array = []\nvar pauses: Array = []\nfunc _go_to(path: String) -> void:\n\troutes.append(path)\nfunc _pause(on: bool) -> void:\n\tpauses.append(on)\n" % GAME_OVER_SCREEN_SCRIPT_PATH
+	s.reload()
+	var n := CanvasLayer.new()
+	if old_children:
+		var c := ColorRect.new()
+		c.name = "ColorRect"
+		n.add_child(c)
+		var cc := CenterContainer.new()
+		cc.name = "CenterContainer"
+		n.add_child(cc)
+	n.set_script(s)
+	root.add_child(n)
+	return n
+
+
+static func _t32_dialog(screen: Node) -> ConfirmationDialog:
+	for c in screen.get_children():
+		if c is ConfirmationDialog and not c.is_queued_for_deletion():
+			return c
+	return null
+
+
+## AC 1, 3, 5, 8: the wiring the checks above can't reach.
+func _check_t32_sources() -> void:
+	var mt := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
+	var first := ""
+	for l in _code_lines(_func_body(mt, "_input")).split("\n"):
+		if l.strip_edges() != "" and not l.strip_edges().begins_with("func "):
+			first = l.strip_edges()
+			break
+	check(first.contains("GameManager.game_over_active") and first.contains("return") and not mt.contains("KEY_B")
+		and _lm_in_func(mt, "_ready", "GameBus.game_over_triggered.connect("),
+		"main_tavern: _input's first line stands down while fallen ('%s'); the B test key is gone; the screen listens on GameBus" % first)
+	var brief := FileAccess.get_file_as_string(BRIEFING_SCRIPT)
+	var mm := FileAccess.get_file_as_string(MAIN_MENU_SCRIPT_PATH)
+	var sv := FileAccess.get_file_as_string(SAVE_SYSTEM_PATH)
+	var gms := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var dbg := FileAccess.get_file_as_string(DEBUG_PANEL_SCRIPT_PATH)
+	check(_lm_in_func(brief, "_ready", "add_to_group(\"morning_briefing\")") and _lm_in_func(mm, "_start_new_game", "GameManager.begin_new_run()")
+		and _lm_in_func(mm, "_start_new_game", "GameManager.NEW_RUN_SCENE") and not sv.contains("func _on_game_over")
+		and not _lm_in_func(sv, "_ready", "game_over_triggered") and _lm_in_func(gms, "advance_day", "_check_soft_lock()")
+		and not _lm_in_func(gms, "advance_day", "gold < 8") and _lm_in_func(gms, "load_save_data", "gold_peak_from_save(")
+		and _lm_in_func(dbg, "_go_bankruptcy", "check_tax_deadline()") and not _lm_in_func(dbg, "_go_bankruptcy", "daily_operating_cost"),
+		"the briefing joins morning_briefing; New Game goes through begin_new_run() / NEW_RUN_SCENE; SaveSystem's own game-over save is gone; advance_day calls _check_soft_lock(); a load reads gold_peak; F12's bankruptcy runs the real tax path")
