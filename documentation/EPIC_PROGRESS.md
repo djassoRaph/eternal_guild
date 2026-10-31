@@ -156,7 +156,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 4: The Adventurer Roster
-**Status: 4.1 / 4.4 / 4.5 DONE (2026-07-08); 4.2 built 2026-10-31, in review (the hire desk: applicants as Tarot cards, class silhouettes in a placeholder frame, pick and confirm; traits real; ids never reused; the pool on Day 1). 4.3 built 2026-10-31, in review (each roster entry: the adventurer's Tarot card, card name, trait, wage and drink from the record, a Deployed badge with "returns in N days", "available in N days"). Class list reconciled 2026-08-18. The duplicate-generator consolidation is still open (TECH_DEBT).**
+**Status: DONE. 4.1 / 4.4 / 4.5 (2026-07-08); 4.2 done 2026-10-31 after its code review (the hire desk: applicants as Tarot cards, class silhouettes in a placeholder frame, pick and confirm; traits real; ids never reused; the pool on Day 1). 4.3 done 2026-10-31 after its code review (each roster entry: the adventurer's Tarot card, card name, trait, wage and drink from the record, a Deployed badge with "returns in N days", "available in N days"). Class list reconciled 2026-08-18. The duplicate-generator consolidation is still open (TECH_DEBT).**
 
 ### Story 4.1: Daily Hire Pool Generation — ✅ DONE
 - [x] 3–5 recruits/day from config (`hire_pool_min/max`)
@@ -165,7 +165,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] Unique-card rule: no dupe in pool, none on roster, none re-offered after hire (`hired_tarot_cards`)
 - [x] `AdventurerBus.recruitment_pool_changed` emitted; verified (78 = 22 major/56 minor, pool 3–5, 0 dupes)
 
-### Story 4.2: Hire an Adventurer — 🔍 IN REVIEW (built 2026-10-31, demo roadmap D3; decision D-1: class silhouettes in the card frame)
+### Story 4.2: Hire an Adventurer — ✅ DONE (2026-10-31, demo roadmap D3, after its code review; decision D-1: class silhouettes in the card frame)
 - [x] `hire_adventurer()` — gold gate, unique ID, adds READY, removes from pool; Tarot card carried onto the roster record
 - [x] **One hire authority** — `GameManager.hire_block_reason()` ("No longer available" / "Roster full" / "Not enough gold", in that order) is checked before anything moves: a refused hire changes nothing and emits nothing (a full roster used to spend, then refund); the same applicant can't be hired twice; status forced READY at hire
 - [x] **The pool on Day 1** — `GameManager.ensure_hire_pool()` on opening the desk: a day that never had a pool gets one (every New Game's Day 1 used to offer nobody: the pool was only made by `advance_day`)
@@ -176,8 +176,9 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] **Traits are real** — applicants draw one trait from `data/characters/traits.json` (was 8 hard-coded words, only 2 matching); hiring keeps it (`personality` used to be erased); `get_trait_data` ignores case; Experienced's +1 to every stat and Greedy's x1.5 wage act when the applicant is made; `trait_info()` shows it. The mission formula is unchanged; `estimate_success` now sees traits (Brave +10, +25 at danger 3; Experienced +5; Reckless -5)
 - [x] **IDs never reused** — `generate_unique_id()` jumps past every id in use or remembered, the codex's fallen heroes included (a fresh session restarted at 1, and `record_fallen_hero` skips an id already in the codex, so a new run's adventurer could die unrecorded)
 - [x] Failsafe Test 29 (66 checks); Stage D shots in `eternal_guild_art/shots/demo/4-2/`
+- [x] **Code review patches (2026-10-31, 28db8b1..c7847a0)**: a hired-out carried-over pool doesn't refill the same day; traits do what the desk says (Reckless hurt on a success, the party bonus, the trait-named bonus line, Lucky's unused crit_chance dropped); the card's size from tarot_card.json's aspect; the event log and the E prompt step aside while a panel is open (one rule, `ZonePromptUI.modal_open`); the bar's row kept so the desk never grows; the desk follows gold while open; the dealt deck said and in the soft-lock rule; old saves' applicants healed and re-keyed; the codex dedupes a hero by id + name + hire day; six columns on screen. Review shots in `eternal_guild_art/shots/demo/d3-review/`
 
-### Story 4.3: Roster Panel Display — 🔍 IN REVIEW (built 2026-10-31, demo roadmap D3)
+### Story 4.3: Roster Panel Display — ✅ DONE (2026-10-31, demo roadmap D3, after its code review: the status line never dims, lines clip so the closed panel never peeks, the thumbnail at the data's aspect)
 - [x] Panel renders name, class+level, color-coded status, wage; greys non-Ready; refreshes on roster/day change (audit done)
 - [x] **Tab-toggle display bug fixed** (2026-07-12) — panel derived open/closed from the animating `position.x` and force-showed on every roster change, so Tab raced the slide and often hid instead of showing ("adventurers not displaying"). Now uses an explicit `is_open` flag + single reused tween; Tab is the sole authority
 - [x] **Portrait socket wired** (Story 7.5) — `PortraitSocket.resolve_texture(adventurer)`: Tarot portrait when present, else class portrait, else class-colored silhouette (never blank). *(Since Stories 4.2/4.3 the roster and the hire desk show the card art instead, `resolve_card_art`: never the class paintings, D-1; the Reveal and the Codex keep `resolve_texture`.)*
@@ -264,6 +265,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Report contains**: mission name, adventurer name/class, success/fail, alive/injured/dead status
 - [x] **Solo + party report types** with different data shapes
 - [x] **Mission resolution consequences** — success: +gold, +1 day rest. Failure: injury (2-5 days), possible death
+- [x] **A death reads as a death (fixed 2026-10-31, 110e8c3, the D3 review's P0)** — `handle_adventurer_death` never set the status to DEAD, so every report showed the dead as returned and Story 7.3's death pause never ran. It is set first now; Test 29 checks a solo and a party death through the real resolver; Stage D shot `eternal_guild_art/shots/demo/d3-review/p0_1_death_panel_paused.png`
 - [x] **Personality trait effects on resolution** — Reckless = extra injury chance, Lucky = bonus reward
 - [x] **Three visual variants** (RETURNED warm / WOUNDED muted / DEAD dark) — **Story 7.2**, single reveal panel recolors by fate via stored `panel_style`
 - [x] **Forced death pause** — **Story 7.3**, continue button hidden, `reveal_death_pause_seconds` (2.0) timer, then fade back in; input blocked during the pause
