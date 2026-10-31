@@ -121,6 +121,8 @@ func _bridge_signals_to_buses():
 
 func _on_data_ready():
 	_apply_config()
+	if staff.is_empty():
+		_reset_staff_state()   # Story 16.1: the profile's starting staff before any New Game or load (a direct hall launch)
 	print("Config applied - Gold: ", gold, " Beer: ", beer_stock, " Max adventurers: ", max_adventurers)
 	refresh_missions()
 
@@ -162,11 +164,254 @@ func adjust_reputation(delta: int) -> void:
 static func staff_hired_by_profile(profile: String, start_staff: Array, role: String) -> bool:
 	return profile == "demo" and start_staff.has(role)
 
-## Whether a staff role is hired (Story 25.13 stub). Story 16.1 replaces this with the staff records,
-## keeping the demo's starting staff.
+# === STAFF (Epic 16) ===
+# Story 16.1: one record per staff role in data/characters/staff.json, owned here (the single authority, like
+# den_fa_state) and saved as "staff": {staff_id "<role>/<variant>", role, variant, name (the role's display name: no
+# personal names yet, 25.13 K8), daily_wage (game_config.json staff_wages, so a profile can override it), hired,
+# on_strike, owed, missed_days}. Seeded from the profile (staff_hired_by_profile: the demo's starting staff, K9) on New
+# Game, on a save without staff, and once at data-ready. hire_staff / dismiss_staff are the one way in and out; they
+# emit GuildBus.staff_hired / staff_fired, which the hall's staff walk in and out on. GameManager never listens to them
+# (Test 19 drives the bodies by emitting them itself). Story 16.5 pays the staff each morning (apply_staff_wages).
+const STAFF_DATA_PATH := "res://data/characters/staff.json"
+var staff: Array = []
+var _staff_roles_cache = null      # staff.json's roles, read once a session
+var _staff_warned := {}            # warning text -> true: each bad staff config is warned about once a session
+
+## staff.json's roles (role -> its data), read once ({} with a warning when the file has none).
+func staff_roles() -> Dictionary:
+	if _staff_roles_cache == null:
+		var data = JSON.parse_string(FileAccess.get_file_as_string(STAFF_DATA_PATH)) if FileAccess.file_exists(STAFF_DATA_PATH) else null
+		var roles = data.get("roles") if data is Dictionary else null
+		_staff_roles_cache = roles if roles is Dictionary else {}
+		if _staff_roles_cache.is_empty():
+			_staff_warn("[GameManager] missing: no staff roles in %s" % STAFF_DATA_PATH)
+	return _staff_roles_cache
+
+func _staff_warn(text: String) -> void:
+	if not _staff_warned.has(text):
+		_staff_warned[text] = true
+		push_warning(text)
+
+static func staff_id_for(role: String, variant: String) -> String:
+	return "%s/%s" % [role, variant]
+
+## A staff name at the start of a sentence ("the Bartender" -> "The Bartender").
+static func staff_title(staff_name: String) -> String:
+	return staff_name.substr(0, 1).to_upper() + staff_name.substr(1)
+
+## A role's daily wage from game_config.json's staff_wages ({daily_wage: {role: N}}; Story 16.1, pure). A missing, bad
+## or non-positive value is 1, with a warning text appended to `warn`.
+static func staff_wage_from(cfg, role: String, warn: Array = []) -> int:
+	var table = cfg.get("daily_wage") if cfg is Dictionary else null
+	var v = table.get(role) if table is Dictionary else null
+	if (v is int or v is float) and int(v) > 0:
+		return int(v)
+	warn.append("[GameManager] fallback: staff_wages.daily_wage.%s is %s: 1 gold a day" % [role, v])
+	return 1
+
+## A fresh record for a role (pure): its default variant and display name, its wage from `wage_cfg`, nothing owed.
+static func staff_record_for(role: String, data: Dictionary, wage_cfg, hired: bool, warn: Array = []) -> Dictionary:
+	var variant := str(data.get("default_variant", ""))
+	return {"staff_id": staff_id_for(role, variant), "role": role, "variant": variant, "name": str(data.get("display_name", role)),
+		"daily_wage": staff_wage_from(wage_cfg, role, warn), "hired": hired, "on_strike": false, "owed": 0, "missed_days": 0}
+
+## A run's starting staff (Story 16.1, SR-3, pure): one record per role in `roles`, sorted by role id, hired by the
+## profile's rule (staff_hired_by_profile: in "demo" the roles in `start_staff`; in "full" nobody).
+static func staff_seed(roles: Dictionary, profile: String, start_staff: Array, wage_cfg, warn: Array = []) -> Array:
+	var ids: Array = roles.keys().filter(func(k): return k is String and roles[k] is Dictionary)
+	ids.sort()
+	var out: Array = []
+	for role in ids:
+		out.append(staff_record_for(role, roles[role], wage_cfg, staff_hired_by_profile(profile, start_staff, role), warn))
+	return out
+
+func _staff_profile() -> String:
+	return str(DataManager.get_config("profile", "full"))
+
+func _staff_start() -> Array:
+	var s = DataManager.get_config("demo_start_staff", [])
+	return s if s is Array else []
+
+## The starting staff for today's config (warnings pushed once).
+func _seeded_staff() -> Array:
+	var warn: Array = []
+	var out := staff_seed(staff_roles(), _staff_profile(), _staff_start(), DataManager.get_config("staff_wages", {}), warn)
+	for w in warn:
+		_staff_warn(w)
+	return out
+
+## A role's record ({} for a role with none). The dictionary itself: GameManager's code writes it, others only read.
+func staff_record(role: String) -> Dictionary:
+	for r in staff:
+		if r is Dictionary and r.get("role") == role:
+			return r
+	return {}
+
+func staff_record_by_id(staff_id: String) -> Dictionary:
+	for r in staff:
+		if r is Dictionary and r.get("staff_id") == staff_id:
+			return r
+	return {}
+
+## Whether a staff role is hired: its record (Story 16.1); a role with no record follows the profile's rule (25.13's,
+## so nothing changes before the records are seeded). The hall's staff ask this when they load (staff_npc.gd).
 func is_staff_hired(role: String) -> bool:
-	var start = DataManager.get_config("demo_start_staff", [])
-	return staff_hired_by_profile(str(DataManager.get_config("profile", "full")), start if start is Array else [], role)
+	var r := staff_record(role)
+	if not r.is_empty():
+		return r.get("hired") == true
+	return staff_hired_by_profile(_staff_profile(), _staff_start(), role)
+
+## Hired and not on strike: the staff's automation runs only then (Stories 16.3, 16.4).
+func is_staff_working(role: String) -> bool:
+	return is_staff_hired(role) and staff_record(role).get("on_strike") != true
+
+## Why a role can't be hired now (Story 16.1, pure; Story 16.2's panel shows it): "" when it can. In order: an unknown
+## role, already hired, locked (the full profile below the role's unlock_tier; a role among the demo's starting staff is
+## never locked in the demo profile), then the first day's wage (Story 16.5, SW-5). ctx: profile, start_staff,
+## tier_index, tiers (the reputation tier labels, lowest first), gold; optionally warn (an Array). DRAFT text.
+static func staff_hire_block_for(record: Dictionary, role_data: Dictionary, ctx: Dictionary) -> String:
+	if record.is_empty() or role_data.is_empty():
+		return "Unknown staff."
+	if record.get("hired") == true:
+		return "Already hired."
+	var start = ctx.get("start_staff", [])
+	var demo_start: bool = ctx.get("profile") == "demo" and start is Array and (start as Array).has(record.get("role"))
+	var need := staff_unlock_index(role_data, ctx)
+	if not demo_start and int(ctx.get("tier_index", 0)) < need:
+		var tiers: Array = ctx.get("tiers", [])
+		return "Joins at %s." % (tiers[need] if need >= 0 and need < tiers.size() else "a higher reputation")
+	if int(ctx.get("gold", 0)) < int(record.get("daily_wage", 1)):
+		return "Not enough gold."
+	return ""
+
+## The tier index (in ctx.tiers) a role unlocks at (staff.json unlock_tier); an unknown label counts as the highest tier,
+## with a warning text in ctx.warn (pure).
+static func staff_unlock_index(role_data: Dictionary, ctx: Dictionary) -> int:
+	var tiers: Array = ctx.get("tiers", [])
+	var label := str(role_data.get("unlock_tier", ""))
+	var i := tiers.find(label)
+	if i < 0:
+		var w = ctx.get("warn")
+		if w is Array:
+			w.append("[GameManager] fallback: unknown unlock_tier '%s' for %s: the highest tier" % [label, role_data.get("display_name", "?")])
+		i = maxi(0, tiers.size() - 1)
+	return i
+
+## The live context staff_hire_block_for reads (today's profile, reputation tier and gold).
+func staff_ctx() -> Dictionary:
+	var tiers := reputation_tier_list(DataManager.get_config("reputation_tiers", []))
+	return {"profile": _staff_profile(), "start_staff": _staff_start(), "tier_index": reputation_tier_index_for(tavern_reputation, tiers),
+		"tiers": tiers.map(func(t): return str(t.get("label", ""))), "gold": gold, "warn": []}
+
+## Why `role` can't be hired now ("" when it can): staff_hire_block_for with today's values.
+func staff_hire_block_reason(role: String) -> String:
+	var ctx := staff_ctx()
+	var data = staff_roles().get(role)
+	var why := staff_hire_block_for(staff_record(role), data if data is Dictionary else {}, ctx)
+	for w in ctx.warn:
+		_staff_warn(w)
+	return why
+
+## Hire a staff role (Story 16.1; Story 16.2's panel calls it): "" when hired, else the reason, with nothing changed.
+## The first day's wage is paid at once through spend_gold (Story 16.5, SW-5); then GuildBus.staff_hired: the body
+## walks in through the front door (25.13).
+func hire_staff(role: String) -> String:
+	var why := staff_hire_block_reason(role)
+	if why != "":
+		return why
+	var rec := staff_record(role)
+	var wage := int(rec.get("daily_wage", 1))
+	if not spend_gold(wage):
+		return "Not enough gold."
+	rec.hired = true
+	rec.on_strike = false
+	rec.owed = 0
+	rec.missed_days = 0
+	log_message("[GameManager] staff: hired %s (%d gold a day)" % [rec.name, wage])
+	log_message("%s is on the payroll. %d gold a day." % [staff_title(str(rec.name)), wage])
+	GuildBus.staff_hired.emit(str(rec.staff_id), role)
+	return ""
+
+## Dismiss a hired staff role (Story 16.1; the panel's Dismiss): "" when done, else the reason. The record is cleared
+## first (not hired, no strike, the debt dropped: Story 16.5's SW-4), then a striker's staff_strike_changed(false), then
+## GuildBus.staff_fired: the body walks out.
+func dismiss_staff(role: String) -> String:
+	var rec := staff_record(role)
+	if rec.is_empty():
+		return "Unknown staff."
+	if rec.get("hired") != true:
+		return "Not hired."
+	_release_staff(rec, "[GameManager] staff: dismissed %s" % rec.name, "%s leaves the guild's service." % staff_title(str(rec.name)))
+	return ""
+
+## Clear a staff record and tell the bus (dismissed, or left unpaid: Story 16.5).
+func _release_staff(rec: Dictionary, system_line: String, player_line: String) -> void:
+	var was_striking: bool = rec.get("on_strike") == true
+	rec.hired = false
+	rec.on_strike = false
+	rec.owed = 0
+	rec.missed_days = 0
+	log_message(system_line)
+	log_message(player_line)
+	if was_striking:
+		GuildBus.staff_strike_changed.emit(str(rec.staff_id), false)
+	GuildBus.staff_fired.emit(str(rec.staff_id), str(rec.role))
+
+## F12 (Story 16.1): a hired role's strike flag set by hand (testers, Stage D); staff_strike_changed on a change.
+func debug_set_staff_strike(role: String, on: bool) -> void:
+	var rec := staff_record(role)
+	if rec.is_empty() or rec.get("hired") != true or (rec.get("on_strike") == true) == on:
+		return
+	rec.on_strike = on
+	log_message("[GameManager] staff: debug strike %s for %s" % ["on" if on else "off", rec.name])
+	GuildBus.staff_strike_changed.emit(str(rec.staff_id), on)
+
+func _staff_save_data() -> Dictionary:
+	return {"staff": staff.duplicate(true)}
+
+## Story 16.1: the saved staff, read defensively (Story 11.2's rule) and silently (no staff signal: the hall's staff read
+## the records when it loads). No key (every save before 16.1): the profile's starting staff; not a list: the same, with a
+## warning. Junk entries, unknown and duplicate roles are dropped; each value is checked; a role the save lacks is not hired.
+func _load_staff_data(data: Dictionary) -> void:
+	var raw = data.get("staff")
+	if raw == null:
+		_reset_staff_state()
+		return
+	if not (raw is Array):
+		_staff_warn("[GameManager] load: staff is not a list: the profile's starting staff")
+		_reset_staff_state()
+		return
+	var roles := staff_roles()
+	var cfg = DataManager.get_config("staff_wages", {})
+	var by_role := {}
+	for e in raw:
+		if not (e is Dictionary) or not (e.get("role") is String) or not roles.has(e.role) or by_role.has(e.role) \
+				or not (roles[e.role] is Dictionary):
+			continue
+		var rec := staff_record_for(e.role, roles[e.role], cfg, false)
+		var variants = roles[e.role].get("variants")
+		if e.get("variant") is String and variants is Dictionary and variants.has(e.variant):
+			rec.variant = e.variant
+			rec.staff_id = staff_id_for(e.role, e.variant)
+		if e.get("name") is String and (e.name as String).strip_edges() != "":
+			rec.name = e.name
+		var w := _save_int(e.get("daily_wage"), int(rec.daily_wage))
+		rec.daily_wage = w if w > 0 else int(rec.daily_wage)
+		rec.hired = e.get("hired") is bool and e.hired
+		rec.on_strike = rec.hired and e.get("on_strike") is bool and e.on_strike
+		rec.owed = maxi(0, _save_int(e.get("owed"), 0)) if rec.on_strike else 0
+		rec.missed_days = maxi(0, _save_int(e.get("missed_days"), 0)) if rec.on_strike else 0
+		by_role[e.role] = rec
+	var ids: Array = roles.keys().filter(func(k): return k is String and roles[k] is Dictionary)
+	ids.sort()
+	var out: Array = []
+	for role in ids:
+		out.append(by_role[role] if by_role.has(role) else staff_record_for(role, roles[role], cfg, false))
+	staff = out
+
+## New Game (and a save without staff): the profile's starting staff.
+func _reset_staff_state() -> void:
+	staff = _seeded_staff()
 
 func get_reputation_tier() -> Dictionary:
 	"""Highest reputation_tiers entry (data/config/game_config.json) the guild currently qualifies
@@ -1875,6 +2120,7 @@ func get_save_data() -> Dictionary:
 		"patrons_active": _gather_patrons_save(),
 	}
 	data.merge(_dialogue_save_data())  # run counters + conversation flags (Story 10.2)
+	data.merge(_staff_save_data())     # the staff records (Story 16.1)
 
 	print("   Saved: ", data.keys().size(), " fields")
 	print("   Day: ", data.current_day, ", Gold: ", data.gold)
@@ -1941,6 +2187,7 @@ func load_save_data(data: Dictionary):
 
 	# Run counters + conversation flags (Story 10.2; older saves have none)
 	_load_dialogue_data(data)
+	_load_staff_data(data)   # the staff records (Story 16.1; an older save: the profile's starting staff)
 
 	# World map (restore hex grid so mission board works after load) + the Latest News rumours (Story 11.2)
 	var world_data = data.get("world_data", {})
@@ -2349,7 +2596,8 @@ func reset_game_state():
 	tax_grace_days = 0
 	mission_tier_unlocked = 1
 	_reset_dialogue_state()  # run counters + conversation flags (Story 10.2)
-	
+	_reset_staff_state()     # the profile's starting staff (Story 16.1)
+
 	# Game state
 	game_over_active = false
 	last_run_summary = {}   # Story 13.4
