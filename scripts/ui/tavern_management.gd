@@ -71,9 +71,10 @@ func create_purchase_buttons():
 	
 	# Buy 1 pint button
 	var buy_1_button = Button.new()
-	buy_1_button.text = "Buy 1 Pint of Beer (1 gold)"
+	var pint_price := int(DataManager.get_config("beer_pint_price", 1))   # Story 13.4 review P2: the soft-lock rule reads it too
+	buy_1_button.text = "Buy 1 Pint of Beer (%d gold)" % pint_price
 	buy_1_button.custom_minimum_size = Vector2(300, 35)
-	buy_1_button.pressed.connect(func(): buy_beer_pints(1, 1))
+	buy_1_button.pressed.connect(func(): buy_beer_pints(1, pint_price))
 	button_container.add_child(buy_1_button)
 	
 	# Buy 5 pints button (no discount for clarity)
