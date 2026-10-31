@@ -127,8 +127,9 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ### Story 2.4: Pause Menu & Save Handler — DONE
 - [x] Full pause menu: Save, Load, Save & Exit, Main Menu, Quit
 - [x] Confirmation dialogs on destructive actions (Main Menu, Load, Quit)
-- [x] Save & Exit: saves then returns to main menu
-- [x] Load: validates save exists, loads, reloads scene
+- [x] Save & Exit: saves, and only after a confirmed write returns to the main menu; a failed save keeps you in the game with a message (Story 11.3, 2026-10-31)
+- [x] Load: validates save exists, loads, and goes to the saved scene (Story 11.2, 2026-10-31; it used to reload the current scene)
+- [x] The pause menu outside too (Esc in ExteriorWorld; Story 11.3)
 - [x] Toggle pause with `get_tree().paused`
 - [x] `process_mode = PROCESS_MODE_ALWAYS` (works while paused)
 
@@ -297,10 +298,10 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 11: Campaign Save & Load
-**Status: ~85% — 11.1 done, 11.2 in review (2026-10-31: load & resume), 11.3 next (pause menu save-first), 11.4 done. The world map has been saved to disk since commit f604ec8 (`world_data`: every hex record + the tavern hex).**
+**Status: ~95% — 11.1 done, 11.2 and 11.3 in review (2026-10-31: load & resume; pause menu save-first), 11.4 done. The world map has been saved to disk since commit f604ec8 (`world_data`: every hex record + the tavern hex).**
 
 - [x] **Single-file JSON save** — `user://eternal_guild_save.json` (Story 11.2 decision: the real name stays; the epic's `savegame.dat` is the early name)
-- [x] **3-backup rotation** — `create_save_backup()` rotates backup1→2→3
+- [x] **3-backup rotation** — `create_save_backup()` rotates backup1→2→3 (it only ever kept two until Story 11.3 fixed the loop)
 - [x] **Comprehensive state saved**: gold, beer, day, tax_due_day, adventurers (full array), max_adventurers, firewood, fuel, recruits, missions, active_missions, patron_pool, reputation, tier, morale
 - [x] **Save metadata**: timestamp, date string, game version, playtime, save type
 - [x] **Autosave** — every 5 minutes + on day change (after day 1)
@@ -328,6 +329,13 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Not saved, by decision:** the map seed (the hex records are the world), the morning reports (the reveal is cosmetic), the hall's day phase, scripted NPC positions. `bard_performed_today` waits for Story 9.2.
 - [x] **`SaveSystem.save_path`** — the save a session reads and writes; the suite and Stage D runs point it at a copy.
 - Failsafe Test 26 (suite 966 / 0); Stage D 25/25 on a copy of the real save (Continue into the hall at the saved spot, out to the village square, save, menu, Continue outside at the same spot with the same values, the missing-scene fallback, the pause menu's Load); shots in `eternal_guild_art/shots/demo/11-2/`.
+
+### Story 11.3: Pause Menu Save-First Handler Fix — IN REVIEW (2026-10-31)
+- [x] **Save & Exit saves first** — it returns to the main menu only when the save is written and confirmed; a failed save keeps the menu open, the game paused and the file on disk untouched, with "Save failed — please check disk space". The handler carries the fix comment. The stale `.tscn` `[connection]` blocks were already stripped on 2026-07-05 (f366c76); Test 27 now fails if a scene wires a PauseMenu button again.
+- [x] **Confirmed writes** — `_write_file_atomic` checks the tmp file (every byte on disk) before it replaces the save; the backups rotate only after that, and the rotation now keeps three.
+- [x] **A pause menu outside** — Esc in ExteriorWorld opens the same menu (built in code, no scene edit) and pauses the game: villagers and the cat stop and start again, the E prompt comes back, Settings/Codex keep Esc first, an open dialogue box keeps Esc.
+- [x] **Save no longer freezes the hall** — Save closed the menu with its own toggle and left the hall's world frozen until Esc twice; it now closes through main_tavern's toggle and shows a "Game saved" banner.
+- Failsafe Test 27 (suite 988 / 0); Stage D 24/24 + 7/7 on a copy of the real save (Save in the hall, outside pause with villagers / cat / prompt / dialogue box, a failed Save & Exit, Save & Exit + Continue back to the spot); shots in `eternal_guild_art/shots/demo/11-3/`.
 
 ---
 
