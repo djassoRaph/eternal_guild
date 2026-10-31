@@ -106,7 +106,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] `MainMenu.tscn` + `main_menu.gd` — Start, Continue, Quit buttons exist
 - [x] Continue button disabled when no save file exists (`has_save_game()` check)
 - [x] New Game → **resets all game state** (`reset_game_state()`) then transitions to HexMapTest — fixed 2026-07-12 (was inheriting the prior session's Day/gold/roster in-memory; see Epic 11)
-- [~] Continue → loads save then transitions to MainTavern — load has known issues
+- [x] Continue → loads the save and resumes in the saved scene at the saved spot (Story 11.2, 2026-10-31: `SaveSystem.resume_scene()`; a broken save falls back to a backup, else a message)
 - [x] Quit → `get_tree().quit()`
 - [x] "Overwrite existing save" confirmation on New Game when a save exists (2026-07-05)
 - [x] Settings button wired — opens the settings overlay from Main Menu + Pause Menu (2026-07-05)
@@ -227,7 +227,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Rumour-driven missions** (2026-08-18) — eavesdropped rumours are no longer pure flavor: each has a `rumour_mission_chance` (default 20%, `game_config.json`) to also spawn a real, dispatch-ready mission via `PatronSpawner._maybe_spawn_rumour_mission()` + `WorldManager.assign_one_mission()` (reuses the same tiered generator and distance-band placement as the daily refresh). Latest News shows a follow-up line when it happens.
 - [x] **Mission-count display cap fixed** (2026-08-20) — `DataManager.generate_daily_missions_with_tiers()` used `for i in range(min(count, available_templates.size()))`, so whenever a tier's template pool was smaller than the requested count, the board silently showed fewer missions. Tier 1 (the whole first ~30 days, before the first tax unlocks Tier 2) only has 4 templates total, so the board was hard-capped at 4 regardless of the requested 6. Fixed by cycling the shuffled template pool with wrap-around (`available_templates[i % available_templates.size()]`) so the requested count always generates; `add_mission_variety()` still randomizes each repeat's name/location/client so duplicates don't read as identical. Tier 2/3 (12/19 templates) were already unaffected. Verified headless (Tier 1: 4→6 missions generated and placed on hexes) and live in-game via the World Map board.
 - [ ] **Hex Strategy Map plugin evaluation** — not documented
-- [~] **World NOT yet saved to disk** per WorldManager comment: "Saving to disk is a later step (gated on the load-game fix)"
+- [x] **World saved to disk** — since commit f604ec8 (`WorldManager.get_save_data()` / `load_save_data()`, saved as `world_data`: every hex record + the tavern hex; the map redraws the stored records). The Latest News rumours are saved with it since Story 11.2 (2026-10-31). The old "not yet saved" note here was stale.
 - **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). ~~only ~3-4 missions shown at once~~ **fixed 2026-08-20**. Still to rework: post-30-day group missions aren't displayed.
 
 ---
@@ -297,9 +297,9 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 11: Campaign Save & Load
-**Status: ~65% — save + player/patron position restore work; New Game reset + fire-fuel load fixed 2026-07-12; disk-save overwrite window fixed 2026-08-18. Remaining: full architecture-compliance.**
+**Status: ~85% — 11.1 done, 11.2 in review (2026-10-31: load & resume), 11.3 next (pause menu save-first), 11.4 done. The world map has been saved to disk since commit f604ec8 (`world_data`: every hex record + the tavern hex).**
 
-- [x] **Single-file JSON save** — `user://eternal_guild_save.json`
+- [x] **Single-file JSON save** — `user://eternal_guild_save.json` (Story 11.2 decision: the real name stays; the epic's `savegame.dat` is the early name)
 - [x] **3-backup rotation** — `create_save_backup()` rotates backup1→2→3
 - [x] **Comprehensive state saved**: gold, beer, day, tax_due_day, adventurers (full array), max_adventurers, firewood, fuel, recruits, missions, active_missions, patron_pool, reputation, tier, morale
 - [x] **Save metadata**: timestamp, date string, game version, playtime, save type
@@ -316,6 +316,18 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **New Game state-reset fixed** (2026-07-12) — `reset_game_state()` now also clears `active_missions`, `pending_reports`, `has_pending_briefing`, `tavern_reputation`, `taxes_paid_count`, `tax_grace_days`, `mission_tier_unlocked`; `_start_new_game()` calls it so a New Game no longer inherits the prior session's state.
 - [x] **Disk-save overwrite window fixed** (2026-08-18) — New Game now force-saves (`save_type: "new_game_start"`) the moment the tavern loads, via `GameManager.pending_new_game_save` set in `main_menu.gd` and consumed in `main_tavern.gd`'s `_ready()`. Fixes New Game → quit before Day 2 → Continue loading the previous run. Verified with a headless regression script (planted a stale save, ran the real code path, confirmed disk flipped to fresh state).
 - **NOTE (Raphael):** Load pass — (a) ~~fireplace fuel loads as 0%~~ **fixed 2026-07-12**; (b) ~~old disk save isn't overwritten until the new game's Day-2 autosave~~ **fixed 2026-08-18**; (c) ~~player + patron positions~~ **DONE 2026-07-12** (player scene+position; patrons rebuilt at exact position/state/model).
+
+### Story 11.2: Full State Load & Resume — IN REVIEW (2026-10-31)
+- [x] **The menu autosave no longer overwrites the run.** The 300 s autosave ran in every scene: in the main menu it saved the menu as the resume scene (Continue reopened the menu), and on a fresh launch it wrote a Day-1 default over the run. It now runs only in a player scene (`SaveSystem.can_autosave()`: the hall, outside).
+- [x] **One resume path** — `SaveSystem.resume_scene()` for Continue and the pause menu's Load (Load used to reload the current scene). A missing scene, or one that isn't a player scene (menu, hex map), goes to the tavern's PlayerSpawnPoint with `[SaveSystem] warn: saved scene not found, falling back to default spawn`, and the saved spot is dropped.
+- [x] **`load_game()` returns the state it applied** (`{}` on failure); `read_save()` falls back to the newest readable backup; `player_spot(data)` gives `{scene, x, y, z}`; a failed load shows "Couldn't load the save." (DRAFT) instead of doing nothing.
+- [x] **Deployed adventurers re-linked on load** — after a load a mission held copies, so its resolution left the roster adventurer On Mission for good (found by the Story 6.5 agent).
+- [x] **Morale survives a load** — JSON brought its keys back as Strings, so every adventurer read as neutral after a load.
+- [x] **Also saved now:** the tarot cards hired this run (`hired_tarot_cards`, Epic 4.1's never-again rule) and the Latest News rumours (in `world_data`; New Game clears them).
+- [x] **Best-effort load** — null or junk values load as defaults instead of aborting the load half-way; a newer schema loads its known fields.
+- [x] **Not saved, by decision:** the map seed (the hex records are the world), the morning reports (the reveal is cosmetic), the hall's day phase, scripted NPC positions. `bard_performed_today` waits for Story 9.2.
+- [x] **`SaveSystem.save_path`** — the save a session reads and writes; the suite and Stage D runs point it at a copy.
+- Failsafe Test 26 (suite 966 / 0); Stage D 25/25 on a copy of the real save (Continue into the hall at the saved spot, out to the village square, save, menu, Continue outside at the same spot with the same values, the missing-scene fallback, the pause menu's Load); shots in `eternal_guild_art/shots/demo/11-2/`.
 
 ---
 
@@ -605,13 +617,13 @@ A player can:
 **Epic 1 groundwork is 100% complete** — the old pre-flight checklist that lived here (AdventurerStatus enum, 6 EventBuses, config spine, `schema_version`, `codex.dat` skeleton, MinigameInterface, ZonePromptUI de-autoload) is all done and verified (27/27 failsafe GREEN). The one item never actually done — **install GdUnit4** — turned out to be unnecessary; the failsafe suite is a standalone headless script.
 
 **Current blockers / rework (2026-07-11):**
-1. **Load / Continue rework** (Epic 11) — Raphael reports load isn't behaving; needs a debugging pass. Blocks world-to-disk save (Epic 6) and Continue polish (Epic 2.1).
+1. ~~**Load / Continue rework** (Epic 11)~~ — **done:** fixes 2026-07-12 and 2026-08-18, the world on disk since f604ec8, and Story 11.2 (2026-10-31: one resume path, deployed adventurers and morale restored, no menu autosave).
 2. **World Map dispatch rework** (Epic 6) — only 3 random missions shown; not the desired system; post-30-day group missions not surfaced.
 3. ~~**Guilo Tarot portraits**~~ — **no longer a demo blocker (2026-09-24):** the demo ships class silhouettes inside the Tarot card frame (Story 25.22); commissioned art swaps in later via data, zero code change. Story 4.2 is unparked.
 4. **Class list — DECIDED 2026-09-24 (supersedes the 2026-08-18 reconcile to the GDD's 4):** demo ships 6 classes — Fighter, Rogue, Mage, Healer, Barbarian, Ranger. Story 25.9 writes that list into `classes.json`, `game_config.json`, `class_colors.json`, `flavor_lines.json` and builds the missing Healer (`Cleric.glb`) + Ranger models.
 5. **Duplicate recruit generator** in `DataManager` — consolidate with the active GameManager path.
 
-**Current plan (2026-10-03):** `_bmad-output/planning-artifacts/demo-roadmap-2026-10-03.md` (BMAD workspace) supersedes the list below: Phase A closes the review queue, Phase B is the dialogue box (10.2, 10.3), then a scope correct-course, the realistic cast (25.31, 25.32; 25.23 between S1 and S2) and the demo systems critical path (save/load, dispatch, hire UI, staff, the Bard, Codex, memorial, legacy, audio, tutorial). Of the 2026-07-11 blockers above, the load rework got its fixes on 2026-07-12 and 2026-08-18 (11.2 still open: the world isn't saved to disk), and the dispatch rework is Story 6.5.
+**Current plan (2026-10-03):** `_bmad-output/planning-artifacts/demo-roadmap-2026-10-03.md` (BMAD workspace) supersedes the list below: Phase A closes the review queue, Phase B is the dialogue box (10.2, 10.3), then a scope correct-course, the realistic cast (25.31, 25.32; 25.23 between S1 and S2) and the demo systems critical path (save/load, dispatch, hire UI, staff, the Bard, Codex, memorial, legacy, audio, tutorial). Of the 2026-07-11 blockers above, the load rework got its fixes on 2026-07-12 and 2026-08-18 (the world was already on disk; Story 11.2 closed the rest on 2026-10-31), and the dispatch rework is Story 6.5.
 
 **Highest-value next work for the Kickstarter demo (2026-07-11 list, kept for history; Epic 8 items and the basic Codex viewer are done):**
 - **Codex / Memorial viewer** (Epics 18/19) — cemetery data now writes to `codex.dat` (Story 7.1) but has no in-game viewer; the Dragon Eye Book / memorial wall makes those deaths visible & meaningful.
