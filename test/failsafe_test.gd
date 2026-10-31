@@ -355,6 +355,7 @@ func _initialize() -> void:
 	await test_light_and_mood()
 	test_load_and_resume()
 	test_pause_menu_save_first()
+	await test_dispatch()
 
 	_finish()
 
@@ -9057,3 +9058,516 @@ static func _d1_tscn_files(dir: String) -> Array:
 	for sub in d.get_directories():
 		out.append_array(_d1_tscn_files(dir.path_join(sub)))
 	return out
+
+# --- Test 28: Dispatch (Story 6.5) ---
+# Click-to-assign on the World Map: GameManager.dispatch_adventurers (the checked front door) and its Deployment Record,
+# the one success estimate (shown = rolled, solo and party), deployed markers, the demo profile's party missions, and the
+# board's scroll (tokens, picks, refusals, Accept, read-only scrolls). Fixture roster, missions and a small world; every
+# GameManager / WorldManager / DataManager field touched is restored. Resolution uses Test 14's codex-safe fixture
+# (danger -3, DataManager.artifacts emptied), and the codex counts are compared.
+const WORLD_MAP_BOARD_PATH := "res://scenes/world/WorldMapBoard.tscn"
+const T28_TILE := "res://assets/environment/hexagons/base/hex_grass.gltf"
+
+func test_dispatch() -> void:
+	print("[Test 28] Dispatch (Story 6.5)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var ab = root.get_node_or_null("AdventurerBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	if gm == null or wm == null or dm == null or ab == null or ss == null or not gm.has_method("dispatch_adventurers"):
+		check(false, "GameManager.dispatch_adventurers and the WorldManager, DataManager, AdventurerBus, SaveSystem autoloads")
+		return
+	var real_sha := _d1_sha(REAL_SAVE_PATH)
+	var snap := _t28_snapshot(gm, wm, dm)
+	var codex_before := [ss.codex_data.get("fallen_heroes", []).size(), ss.codex_data.get("artifacts_found", []).size()]
+	dm.artifacts = {}
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	var spy: Array = []
+	var on_dispatch := func(a, m, h): spy.append([a, m, h])
+	ab.mission_dispatched.connect(on_dispatch)
+
+	_check_t28_party_size(gm, dm)
+	_check_t28_estimates(gm, dm)
+	_check_t28_dispatch(gm, wm, spy)
+	_check_t28_resolution(gm, wm)
+	_check_t28_party_rule(gm, dm, wm)
+	await _check_t28_board(gm, wm, spy)
+
+	ab.mission_dispatched.disconnect(on_dispatch)
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	var codex_after := [ss.codex_data.get("fallen_heroes", []).size(), ss.codex_data.get("artifacts_found", []).size()]
+	check(codex_after == codex_before, "Test 28 left the codex untouched (fallen heroes, artifacts found: %s)" % [codex_after])
+	check(_d1_sha(REAL_SAVE_PATH) == real_sha, "Test 28 never touched the real save")
+	print("")
+
+
+## DD-5: required_adventurers wins, else party_required (true = 2, a number = that many), else 1; the shipped templates agree.
+func _check_t28_party_size(gm, dm) -> void:
+	var cases := [
+		[{"required_adventurers": 3}, 3], [{"required_adventurers": 2, "party_required": true}, 2], [{"required_adventurers": 2.0}, 2],
+		[{"party_required": true}, 2], [{"party_required": false}, 1], [{"party_required": 3}, 3], [{}, 1],
+		[{"required_adventurers": "x", "party_required": true}, 2], [{"required_adventurers": 0, "party_required": false}, 1],
+		[{"required_adventurers": 1, "party_required": true}, 1]]
+	var got := cases.map(func(c): return gm.required_party_size(c[0]))
+	var want := cases.map(func(c): return c[1])
+	check(got == want, "required_party_size: required_adventurers, else party_required (true = 2, a number), else 1 %s" % [got])
+	var templates: Array = dm.mission_types.get("mission_templates", [])
+	var off := templates.filter(func(t): return gm.required_party_size(t) != int(t.get("required_adventurers", -1)))
+	var tier3 := templates.filter(func(t): return int(t.get("tier", 1)) == 3)
+	check(not templates.is_empty() and off.is_empty() and not tier3.is_empty() and tier3.all(func(t): return gm.required_party_size(t) == 3),
+		"the %d mission templates: party size = required_adventurers; every Tier 3 one needs 3 (it used to get 2 slots)" % templates.size())
+
+
+## DD-2 and DD-10: one estimate for one or a party; trait text only from a real trait.
+func _check_t28_estimates(gm, dm) -> void:
+	var S = AdventurerStatus.Status
+	var m := _t28_missions()
+	var ada := _t28_adv(9001, "Ada", S.READY, 8, 8)
+	var bram := _t28_adv(9002, "Bram", S.READY, 2, 2)
+	var cole := _t28_adv(9003, "Cole", S.READY, 5, 5)
+	var solo: int = gm.estimate_success([ada], m.solo)
+	check(solo == gm.calculate_mission_success_chance(ada, m.solo) and solo == 82, "estimate_success, one adventurer: their own chance (Ada 82): %d" % solo)
+	var a: int = gm.calculate_mission_success_chance(ada, m.party)
+	var b: int = gm.calculate_mission_success_chance(bram, m.party)
+	var c: int = gm.calculate_mission_success_chance(cole, m.party3)
+	var a3: int = gm.calculate_mission_success_chance(ada, m.party3)
+	var b3: int = gm.calculate_mission_success_chance(bram, m.party3)
+	check(gm.estimate_success([ada, bram], m.party) == clampi(int((a + b) / 2.0) + 5, 10, 95)
+		and gm.estimate_success([ada, bram, cole], m.party3) == clampi(int((a3 + b3 + c) / 3.0) + 10, 10, 95),
+		"estimate_success, a party: the average + 5 per extra member (the resolver's rule)")
+	var pc := [gm.party_chance_from([10, 10]), gm.party_chance_from([95, 95]), gm.party_chance_from([50, 61]),
+		gm.party_chance_from([70]), gm.party_chance_from([])]
+	check(pc == [15, 95, 60, 70, 0], "party_chance_from: [10,10] 15, [95,95] clamped 95, [50,61] 60, one 70, none 0: %s" % [pc])
+	check(gm.estimate_success([], m.solo) == 0, "estimate_success of nobody is 0")
+	var none := [gm.trait_info({"name": "X"}), gm.trait_info({"personality": ""}), gm.trait_info({"personality": "Cautious"})]
+	check(none.all(func(t): return t is Dictionary and t.is_empty()), "trait_info: no trait, an empty one or one traits.json lacks -> {} (never a raw key)")
+	var brave: Dictionary = gm.trait_info({"personality": "brave"})
+	var want_desc := str(dm.character_traits.get("positive_traits", {}).get("brave", {}).get("description", "?"))
+	check(brave == {"name": "Brave", "description": want_desc}, "trait_info: a real trait gives its display name and description %s" % [brave])
+
+
+## DD-3 / DD-4: refusals change nothing; a dispatch sets ON_MISSION, records, locks, signals once.
+func _check_t28_dispatch(gm, wm, spy: Array) -> void:
+	var S = AdventurerStatus.Status
+	var m := _t28_missions()
+	var ada := _t28_adv(9001, "Ada", S.READY, 8, 8)
+	var bram := _t28_adv(9002, "Bram", S.READY, 2, 2)
+	var cole := _t28_adv(9003, "Cole", S.READY, 5, 5)
+	var dara := _t28_adv(9004, "Dara", S.ON_MISSION, 4, 4)
+	var esk := _t28_adv(9005, "Esk", S.RESTING, 4, 4)
+	var finn := _t28_adv(9006, "Finn", S.WOUNDED, 4, 4)
+	var gil := _t28_adv(9007, "Gil", S.DEAD, 4, 4)
+	var hal := _t28_adv(9008, "Hal", S.READY, 4, 4)
+	gm.adventurers = [ada, bram, cole, dara, esk, finn, gil, hal]
+	gm.active_missions = []
+	gm.current_day = 5
+	var hex_a := _t28_hex("t28_a", 2, 1, m.solo)
+	var hex_b := _t28_hex("t28_b", 3, 2, m.party)
+	var hex_c := _t28_hex("t28_c", -2, 1, m.party3)
+	var center := _t28_center()
+	wm.world_map = [center, hex_a, hex_b, hex_c]
+	wm.chosen_center = center
+	spy.clear()
+
+	var before := _t28_state(gm, wm, spy)
+	var refusals := [
+		[[12345], m.solo, "t28_a"], [[9001, 9001], m.party, "t28_b"], [[9004], m.solo, "t28_a"], [[9005], m.solo, "t28_a"],
+		[[9006], m.solo, "t28_a"], [[9007], m.solo, "t28_a"], [[9001], m.party, "t28_b"], [[9001, 9002], m.solo, "t28_a"],
+		[[9001, 9002], m.party3, "t28_c"], [[9001], {}, "t28_a"], [[9001], m.solo, "t28_nowhere"], [[9001], m.solo, "t28_b"],
+		[[], m.solo, "t28_a"]]
+	var reasons := refusals.map(func(r): return gm.dispatch_adventurers(r[0], r[1], r[2]))
+	check(reasons.all(func(t): return t is String and t != ""), "dispatch_adventurers refuses all %d bad requests with a reason %s" % [refusals.size(), reasons])
+	check(reasons[2] == "Dara is out on a contract." and reasons[3] == "Esk is resting." and reasons[4] == "Finn is wounded."
+		and reasons[6] == "Pick 2 adventurers." and reasons[7] == "Pick 1 adventurer." and reasons[8] == "Pick 3 adventurers."
+		and reasons[11] == "That contract is gone.",
+		"the refusals read as drafted (out, resting, wounded, the count, another hex's contract)")
+	check(_t28_state(gm, wm, spy) == before, "a refusal changes nothing: statuses, active missions, hex locks, gold, no signal")
+
+	var est_ada: int = gm.estimate_success([ada], m.solo)
+	var why: String = gm.dispatch_adventurers([9001.0], m.solo, "t28_a")   # a JSON float id still finds Ada
+	var e: Dictionary = gm.active_missions.back() if not gm.active_missions.is_empty() else {}
+	check(why == "" and ada.status == S.ON_MISSION and is_same(e.get("adventurer"), ada), "solo: Ada is sent (a float id from a save still finds her) '%s'" % why)
+	check(spy.size() == 1 and spy[0][2] == "t28_a" and spy[0][0].size() == 1 and is_same(spy[0][0][0], ada) and is_same(spy[0][1], m.solo),
+		"solo: AdventurerBus.mission_dispatched fires once with Ada, the mission and the hex")
+	var rec_solo := {"adventurer_ids": [9001], "mission_id": "t28_solo", "location_id": "t28_a", "dispatch_day": 5, "return_day": 7,
+		"travel_duration": 2, "direction": "outbound", "success_chance": est_ada}
+	check(_t28_has_all(e, rec_solo), "solo: the Deployment Record (ids, mission, hex, day 5, back day 7) and the chance shown (%d) %s" % [est_ada, _t28_pick(e, rec_solo)])
+	check(hex_a.get("locked", false) == true, "solo: GameManager locked hex t28_a")
+	var again: String = gm.dispatch_adventurers([9002], m.solo, "t28_a")
+	check(again == "Someone is already out on this contract." and bram.status == S.READY and spy.size() == 1, "a locked hex refuses a second dispatch: '%s'" % again)
+
+	var est_party: int = gm.estimate_success([bram, cole], m.party)
+	why = gm.dispatch_adventurers([9002, 9003], m.party, "t28_b")
+	e = gm.active_missions.back()
+	check(why == "" and bram.status == S.ON_MISSION and cole.status == S.ON_MISSION and e.get("party", []).size() == 2
+		and is_same(e.party[0], bram) and is_same(e.party[1], cole), "party: Bram and Cole are sent together '%s'" % why)
+	var rec_party := {"adventurer_ids": [9002, 9003], "mission_id": "t28_party", "location_id": "t28_b", "dispatch_day": 5,
+		"return_day": 8, "travel_duration": 3, "direction": "outbound", "success_chance": est_party}
+	check(_t28_has_all(e, rec_party), "party: the record lists the ids in party order and keeps the chance shown (%d) %s" % [est_party, _t28_pick(e, rec_party)])
+	check(spy.size() == 2 and hex_b.get("locked", false), "party: one more signal, hex t28_b locked")
+
+	var n_before: int = gm.active_missions.size()
+	gm.send_on_mission(hal, m.solo)
+	e = gm.active_missions.back()
+	check(gm.active_missions.size() == n_before + 1 and e.get("location_id", "x") == "" and e.get("adventurer_ids", []) == [9008]
+		and int(e.get("return_day", 0)) == 7 and not hex_c.get("locked", false),
+		"send_on_mission without a hex (the legacy board) still records (location_id empty) and locks nothing")
+
+	var info: Dictionary = gm.deployment_info("t28_b")
+	check(info.get("names", []) == ["Bram", "Cole"] and int(info.get("return_day", 0)) == 8 and int(info.get("chance", -1)) == est_party,
+		"deployment_info(t28_b): Bram and Cole, back day 8, the chance they left with %s" % [[info.get("names"), info.get("return_day"), info.get("chance")]])
+	check(gm.deployment_info("t28_c").is_empty() and gm.return_day_for(cole) == 8 and gm.return_day_for(dara) == -1,
+		"nobody is out on t28_c; Cole is back day 8; Dara (no entry) has no known day")
+	var gareth := _t28_adv(74, "Gareth", S.ON_MISSION, 5, 5)
+	var mira := _t28_adv(60, "Mira", S.ON_MISSION, 4, 6)
+	var old := {"party": [gareth, mira], "mission": m.party, "days_remaining": 3, "total_duration": 4, "is_party_mission": true,
+		"sent_day": 3, "hex_id": "t28_c"}
+	var view: Dictionary = gm.deployment_view(old, 30)
+	check(view.get("names") == ["Gareth", "Mira"] and int(view.get("return_day")) == 33 and int(view.get("chance")) == -1,
+		"deployment_view of an entry saved before 6.5: names, back day = today + days left (33), chance not stored")
+	gm.active_missions.append(old)
+	info = gm.deployment_info("t28_c")
+	check(int(info.get("chance", -1)) == gm.estimate_success([gareth, mira], m.party) and int(info.get("return_day", 0)) == 8,
+		"deployment_info of that old entry: the estimate stands in for the chance; back day 5 + 3")
+
+
+## DD-2: the resolver rolls the stored chance; an entry without one is computed as before.
+func _check_t28_resolution(gm, wm) -> void:
+	var S = AdventurerStatus.Status
+	var m := _t28_missions()
+	var ivy := _t28_adv(9009, "Ivy", S.READY, 3, 3)
+	var jon := _t28_adv(9010, "Jon", S.READY, 3, 3)
+	gm.adventurers = [ivy, jon]
+	gm.active_missions = []
+	var center := _t28_center()
+	wm.world_map = [center, _t28_hex("t28_d", 1, 3, m.safe)]
+	wm.chosen_center = center
+	var death: float = gm.calculate_death_chance(1, int(m.safe.danger))
+	check(death <= 0.0, "fixture: danger %d can't kill (death chance %.2f), so no codex write" % [int(m.safe.danger), death])
+	if death > 0.0:
+		return
+	var why: String = gm.dispatch_adventurers([9009, 9010], m.safe, "t28_d")
+	var entry: Dictionary = gm.active_missions.back() if why == "" else {}
+	entry["success_chance"] = 77   # what the scroll showed: the roll must use it
+	var report: Dictionary = gm._resolve_mission(entry) if not entry.is_empty() else {}
+	check(why == "" and int(report.get("success_chance", -1)) == 77, "a party rolls the chance stored at dispatch (77), not a fresh one: %s" % report.get("success_chance"))
+	ivy.status = S.ON_MISSION
+	jon.status = S.ON_MISSION
+	var old := {"party": [ivy, jon], "mission": m.safe, "days_remaining": 0, "total_duration": 1, "is_party_mission": true}
+	var expect: int = gm.estimate_success([ivy, jon], m.safe)
+	report = gm._resolve_mission(old)
+	check(int(report.get("success_chance", -1)) == expect, "a party entry saved before 6.5 (no chance stored) rolls the estimate, as before (%d)" % expect)
+
+
+## DD-7: party missions in the demo profile, per_refresh 0 and the full profile unchanged; missions_changed after placing.
+func _check_t28_party_rule(gm, dm, wm) -> void:
+	var cfg := {"from_day": 2, "per_refresh": 1, "max_tier": 2}
+	var w: Array = []
+	var got := [gm.party_missions_wanted("full", cfg, 9, w), gm.party_missions_wanted("demo", cfg, 1, w), gm.party_missions_wanted("demo", cfg, 2, w),
+		gm.party_missions_wanted("demo", cfg, 9, w), gm.party_missions_wanted("demo", {"from_day": 2, "per_refresh": 0, "max_tier": 2}, 9, w),
+		gm.party_missions_wanted("demo", {"from_day": 1.0, "per_refresh": 2.0, "max_tier": 2}, 1, w)]
+	check(got == [0, 0, 1, 1, 0, 2] and w.is_empty(), "party_missions_wanted: full 0; demo before from_day 0, from it per_refresh; per_refresh 0 is off %s" % [got])
+	var bad_got: Array = []
+	for b in [null, "junk", {"from_day": "x", "per_refresh": 1}, {"from_day": 2, "per_refresh": -1}]:
+		var ww: Array = []
+		bad_got.append([gm.party_missions_wanted("demo", b, 9, ww), ww.size()])
+	check(bad_got == [[0, 1], [0, 1], [0, 1], [0, 1]], "a missing or bad demo_party_missions gives 0 and one fallback text %s" % [bad_got])
+
+	var solos: Array = []
+	for i in 6:
+		solos.append({"name": "S%d" % i, "required_adventurers": 1})
+	var p1 := {"name": "P1", "required_adventurers": 2}
+	var p2 := {"name": "P2", "required_adventurers": 2}
+	var one: Array = gm.with_party_missions(solos, [p1, p2], 1)
+	check(one.size() == 6 and one[5].name == "P1" and not is_same(one[5], p1) and range(5).all(func(i): return is_same(one[i], solos[i]))
+		and solos[5].name == "S5", "with_party_missions(1): the last solo mission becomes a copy of the first template; the input is untouched")
+	var two: Array = gm.with_party_missions(solos, [p1, p2], 2)
+	check(two.size() == 6 and two[5].name == "P1" and two[4].name == "P2", "with_party_missions(2): the last two, in template order")
+	var mixed := solos.duplicate()
+	mixed[2] = {"name": "Px", "party_required": true}
+	var kept: Array = gm.with_party_missions(mixed, [p1], 1)
+	check(range(6).all(func(i): return is_same(kept[i], mixed[i])), "with_party_missions: a pool that already has one keeps every mission")
+	var zero: Array = gm.with_party_missions(solos, [p1], 0)
+	var empty_t: Array = gm.with_party_missions(solos, [], 2)
+	check(zero.size() == 6 and range(6).all(func(i): return is_same(zero[i], solos[i]) and is_same(empty_t[i], solos[i])),
+		"with_party_missions: wanted 0 or no templates leaves the pool as it was")
+
+	var hexes: Array = [_t28_center()]
+	for i in 8:
+		hexes.append(_t28_hex("t28_r%d" % i, i - 4, 2 + (i % 3), null))
+	wm.world_map = hexes
+	wm.chosen_center = hexes[0]
+	var placed_at_emit: Array = []
+	var on_changed := func(): placed_at_emit.append(wm.world_map.filter(func(h): return h.get("active_mission") != null).size())
+	gm.missions_changed.connect(on_changed)
+	dm.game_config["profile"] = "demo"
+	dm.game_config["demo_party_missions"] = {"from_day": 2, "per_refresh": 1, "max_tier": 2}
+	gm.mission_tier_unlocked = 1
+	gm.current_day = 2
+	gm.refresh_available_missions()
+	var party_n: int = gm.available_missions.filter(func(x): return gm.required_party_size(x) >= 2).size()
+	var tiers_ok: bool = gm.available_missions.all(func(x): return int(x.get("tier", 1)) <= 2)
+	check(gm.available_missions.size() == 6 and party_n >= 1 and tiers_ok, "demo profile, day 2, Tier 1: the refresh carries a party mission (%d of 6, all tier <= 2)" % party_n)
+	check(placed_at_emit == [6], "missions_changed fires once the hexes hold the new missions (%s placed when it fired)" % [placed_at_emit])
+	gm.current_day = 1
+	gm.refresh_available_missions()
+	var day1: int = gm.available_missions.filter(func(x): return gm.required_party_size(x) >= 2).size()
+	dm.game_config["demo_party_missions"] = {"from_day": 2, "per_refresh": 0, "max_tier": 2}
+	gm.current_day = 4
+	gm.refresh_available_missions()
+	var off: int = gm.available_missions.filter(func(x): return gm.required_party_size(x) >= 2).size()
+	dm.game_config["demo_party_missions"] = {"from_day": 2, "per_refresh": 1, "max_tier": 2}
+	dm.game_config["profile"] = "full"
+	gm.refresh_available_missions()
+	var full: int = gm.available_missions.filter(func(x): return gm.required_party_size(x) >= 2).size()
+	check(day1 == 0 and off == 0 and full == 0, "today's Tier 1 behaviour stays: before from_day %d, per_refresh 0 %d, the full profile %d party missions" % [day1, off, full])
+	gm.missions_changed.disconnect(on_changed)
+
+	gm.mission_tier_unlocked = 1
+	gm.taxes_paid_count = 1
+	gm.current_day = 30
+	seed(28061)
+	gm.check_tier_unlocks()
+	party_n = gm.available_missions.filter(func(x): return gm.required_party_size(x) >= 2).size()
+	tiers_ok = gm.available_missions.all(func(x): return int(x.get("tier", 1)) <= 2)
+	check(gm.mission_tier_unlocked == 2 and party_n >= 1 and tiers_ok, "full profile: after the first tax Tier 2 unlocks and the refresh holds party missions (%d)" % party_n)
+
+
+## The board: markers, badges, chips, hover lines, the scroll's tokens and picks, refusals, Close/ESC, Accept, read-only scrolls.
+func _check_t28_board(gm, wm, spy: Array) -> void:
+	if not ResourceLoader.exists(WORLD_MAP_BOARD_PATH):
+		check(false, "WorldMapBoard.tscn present")
+		return
+	var S = AdventurerStatus.Status
+	var m := _t28_missions()
+	var ada := _t28_adv(9001, "Ada", S.READY, 8, 8)
+	var bram := _t28_adv(9002, "Bram", S.READY, 2, 2)
+	var cole := _t28_adv(9003, "Cole", S.READY, 5, 5)
+	cole["personality"] = "brave"
+	var dara := _t28_adv(9004, "Dara", S.ON_MISSION, 4, 4)
+	var esk := _t28_adv(9005, "Esk", S.RESTING, 4, 4)
+	esk["recovery"] = 1
+	var finn := _t28_adv(9006, "Finn", S.WOUNDED, 4, 4)
+	finn["recovery"] = 3
+	gm.adventurers = [ada, bram, cole, dara, esk, finn]
+	gm.current_day = 5
+	var hex_a := _t28_hex("t28_a", 2, 1, m.solo)
+	var hex_b := _t28_hex("t28_b", 4, 4, m.party)
+	var hex_c := _t28_hex("t28_c", -3, 1, m.party3)
+	var hex_d := _t28_hex("t28_d", -4, 4, m.solo.duplicate(true))
+	hex_d["locked"] = true
+	var center := _t28_center()
+	wm.world_map = [center, hex_a, hex_b, hex_c, hex_d]
+	wm.chosen_center = center
+	# Dara is out on t28_d with an entry saved before 6.5 (no record keys).
+	gm.active_missions = [{"adventurer": dara, "mission": hex_d.active_mission, "days_remaining": 2, "total_duration": 2,
+		"success_chance": 64, "sent_day": 4, "hex_id": "t28_d"}]
+	var spy0 := spy.size()
+
+	var board: Control = (load(WORLD_MAP_BOARD_PATH) as PackedScene).instantiate()
+	root.add_child(board)
+	board.open_mission_board()
+	await process_frame
+	await process_frame
+	var ids: Array = board._markers.map(func(x): return x.hex_id)
+	check(ids.size() == 4 and ["t28_a", "t28_b", "t28_c", "t28_d"].all(func(h): return ids.has(h)), "markers: one per hex with a mission %s" % [ids])
+	check(board._badges == {"t28_b": 2, "t28_c": 3}, "party markers carry their size, the solo ones don't %s" % [board._badges])
+	check(str(board._chips.get("t28_d", "")) == "Dara · back day 7", "the deployed hex shows Dara's chip: '%s'" % board._chips.get("t28_d"))
+	board._show_bubble(hex_b, Vector2(10, 10))
+	var party_line: String = board._bubble_mission.text
+	board._show_bubble(hex_d, Vector2(10, 10))
+	var out_line: String = board._bubble_mission.text
+	board._hide_bubble()
+	check(party_line.contains("Party of 2") and out_line == "Out: Dara (back day 7)", "hover: a party mission says 'Party of 2'; the deployed hex '%s'" % out_line)
+
+	var hits := [board.marker_hit([{"hex_id": "a", "pos": Vector2(100, 100)}, {"hex_id": "b", "pos": Vector2(140, 100)}], Vector2(100, 100), 36.0),
+		board.marker_hit([{"hex_id": "a", "pos": Vector2(100, 100)}, {"hex_id": "b", "pos": Vector2(140, 100)}], Vector2(125, 100), 36.0),
+		board.marker_hit([{"hex_id": "a", "pos": Vector2(100, 100)}], Vector2(100, 140), 36.0), board.marker_hit([], Vector2(1, 1), 36.0)]
+	check(hits == ["a", "b", "", ""], "marker_hit: on a marker, the nearer of two, outside the radius, none %s" % [hits])
+	var fits := [board.strong_fits({1: 80, 2: 72, 3: 60}, 1, 70), board.strong_fits({1: 80, 2: 72, 3: 60}, 2, 70),
+		board.strong_fits({1: 80, 2: 72, 3: 60}, 2, 75), board.strong_fits({}, 1, 70), board.strong_fits({1: 80}, 1, 90)]
+	var tie: Array = board.strong_fits({1: 80, 2: 80, 3: 50}, 1, 70)
+	check(fits == [[1], [1, 2], [1], [], []] and tie.size() == 2 and tie.has(1) and tie.has(2), "strong_fits: the best N at or over the bar, ties included %s %s" % [fits, tie])
+	var bars := [board.strong_fit_min(null), board.strong_fit_min(85), board.strong_fit_min(70.0), board.strong_fit_min(150), board.strong_fit_min("x"), board.strong_fit_min(-5)]
+	check(bars == [70, 85, 70, 70, 70, 70], "dispatch_strong_fit_min_chance: a number 0-100 is used, anything else falls back to 70 %s" % [bars])
+	var texts := [board.chance_text(-1, 0, 1), board.chance_text(58, 1, 2), board.chance_text(61, 2, 2),
+		board.token_status_text(S.ON_MISSION, 0, 7), board.token_status_text(S.RESTING, 1, -1), board.token_status_text(S.WOUNDED, 3, -1),
+		board.chip_text(["Gareth", "Mira"], 33), board.chip_text(["Ada"], -1), board.need_text(3, 1), board.need_text(1, 0), board.need_text(2, 2)]
+	check(texts == ["Chance of success: — (pick an adventurer)", "Chance of success: 58% (1 of 2 chosen)", "Chance of success: 61%",
+		"Out, back day 7", "Resting, 1 day", "Wounded, 3 days", "Gareth +1 · back day 33", "Ada",
+		"Needs 3 ready adventurers. You have 1.", "Needs 1 ready adventurer. You have 0.", ""], "the scroll's draft lines %s" % [texts])
+
+	var mp: Vector2 = board._markers.filter(func(x): return x.hex_id == "t28_a")[0].pos
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = mp + Vector2(8, -6)
+	board._input(click)
+	check(board._detail_panel != null and str(board._panel_rec.get("id", "")) == "t28_a" and not board._panel_read_only,
+		"a click on t28_a's marker opens its scroll")
+	var c_cole: int = gm.estimate_success([cole], m.solo)
+	check(board._token_order == [9001, 9003, 9002, 9004, 9005, 9006], "tokens: READY by chance (Ada 82, Cole %d, Bram 52), then the others in roster order %s" % [c_cole, board._token_order])
+	check(board._good_fit == [9001], "Good fit: Ada only (82 >= 70, the best for a party of 1) %s" % [board._good_fit])
+	var tt := [board._token_text(9001), board._token_text(9004), board._token_text(9005), board._token_text(9006)]
+	check(tt[0].contains("82%") and tt[0].contains("Good fit") and tt[1].contains("Out, back day 7") and tt[2].contains("Resting, 1 day")
+		and tt[3].contains("Wounded, 3 days"), "token texts: Ada's chance and Good fit; the others' status %s" % [tt])
+	check(board._chance_label.text == "Chance of success: — (pick an adventurer)" and board._accept_btn.disabled and not board._need_label.visible,
+		"before a pick: no chance yet, Send disabled")
+	check(board._slots.size() == 1 and not board._slots[0]._can_drop_data(Vector2.ZERO, {"type": "adventurer", "id": 9006})
+		and board._slots[0]._can_drop_data(Vector2.ZERO, {"type": "adventurer", "id": 9001}),
+		"a drag from the roster panel: Finn (wounded) can't be dropped, Ada can")
+	var refused: Array = []
+	for rid in [9004, 9005, 9006]:
+		board._on_token_pressed(rid)
+		refused.append(board._reason_label.text if board._reason_label.visible else "")
+	check(refused == ["Dara is out on a contract.", "Esk is resting.", "Finn is wounded."] and board._assigned_ids == [null],
+		"a click on someone not ready is refused with the reason; the place stays empty %s" % [refused])
+	board._on_token_pressed(9001)
+	check(board._assigned_ids == [9001] and not board._accept_btn.disabled and board._chance_label.text == "Chance of success: 82%"
+		and board._token_text(9001).contains("Assigned") and not board._reason_label.visible,
+		"a click on Ada fills the place, the chance shows, Send enables, the reason clears")
+	board._on_token_pressed(9001)
+	check(board._assigned_ids == [null] and board._accept_btn.disabled, "a second click on Ada takes her back out")
+	board._on_token_pressed(9001)
+	var before := _t28_state(gm, wm, spy)
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
+	esc.pressed = true
+	board._input(esc)
+	check(board._detail_panel == null and not board.is_queued_for_deletion() and _t28_state(gm, wm, spy) == before and ada.status == S.READY,
+		"ESC closes the scroll (not the board) and nobody was sent (AC 7)")
+	board._open_detail_panel(hex_a)
+	board._on_token_pressed(9001)
+	board._close_detail_panel()
+	check(_t28_state(gm, wm, spy) == before and ada.status == S.READY and not hex_a.get("locked", false), "Close: nobody sent, the hex not locked (AC 7)")
+
+	board._open_detail_panel(hex_b)
+	check(board._panel_n == 2 and board._slots.size() == 2 and board._party_label.visible and board._party_label.text == "Party of 2"
+		and board._uses_label.text == "Uses: Strength, Intelligence", "the party scroll: 2 places, 'Party of 2', the stats it uses ('%s')" % board._uses_label.text)
+	board._on_token_pressed(9002)
+	var partial: int = gm.estimate_success([bram], m.party)
+	check(board._chance_label.text == "Chance of success: %d%% (1 of 2 chosen)" % partial and board._accept_btn.disabled and not board._trait_label.visible,
+		"one of two chosen: the chance so far, Send still disabled, no trait line for Bram")
+	board._on_token_pressed(9003)
+	var full: int = gm.estimate_success([bram, cole], m.party)
+	check(board._chance_label.text == "Chance of success: %d%%" % full and not board._accept_btn.disabled
+		and board._trait_label.visible and board._trait_label.text.contains("Cole") and board._trait_label.text.contains("Brave"),
+		"both chosen: the party chance (%d), Send enabled, Cole's trait shown ('%s')" % [full, board._trait_label.text])
+	board._on_accept_pressed()
+	var e: Dictionary = gm.active_missions.back()
+	check(bram.status == S.ON_MISSION and cole.status == S.ON_MISSION and int(e.get("success_chance", -1)) == full and hex_b.get("locked", false)
+		and board._detail_panel == null and spy.size() == spy0 + 1, "Send: Bram and Cole go through dispatch_adventurers at the chance shown (%d)" % full)
+	check(str(board._chips.get("t28_b", "")) == "Bram +1 · back day 8", "after Send the hex shows the deployed chip '%s'" % board._chips.get("t28_b"))
+
+	board._open_detail_panel(hex_c)
+	check(board._slots.size() == 3 and board._need_label.visible and board._need_label.text == "Needs 3 ready adventurers. You have 1."
+		and board._accept_btn.disabled, "a party of 3 with one ready adventurer: 'Needs 3 ready adventurers. You have 1.'")
+	board._close_detail_panel()
+
+	board._open_detail_panel(hex_b)
+	var ro_b: String = board._readonly_label.text if board._readonly_label != null else ""
+	check(board._panel_read_only and board._slots.is_empty() and board._accept_btn == null and ro_b.contains("Bram, Cole")
+		and ro_b.contains("Back on day 8.") and ro_b.contains("%d%% chance" % full), "a deployed hex opens read-only: who, the chance, the day ('%s')" % ro_b)
+	board._close_detail_panel()
+	board._open_detail_panel(hex_d)
+	var ro_d: String = board._readonly_label.text if board._readonly_label != null else ""
+	check(board._panel_read_only and ro_d.contains("Dara") and ro_d.contains("Back on day 7.") and ro_d.contains("64% chance"),
+		"an entry saved before 6.5 opens read-only too ('%s')" % ro_d)
+	board._close_detail_panel()
+
+	board._open_detail_panel(hex_a)
+	board._on_token_pressed(9001)
+	ada["status"] = S.WOUNDED
+	ada["recovery"] = 2
+	var before2 := _t28_state(gm, wm, spy)
+	board._on_accept_pressed()
+	check(board._detail_panel != null and board._reason_label.visible and board._reason_label.text == "Ada is wounded." and _t28_state(gm, wm, spy) == before2,
+		"a Send GameManager refuses shows its reason and changes nothing")
+	ada["status"] = S.READY
+	board._close()
+	await process_frame
+	check(not is_instance_valid(board), "the board frees on close")
+
+
+static func _t28_missions() -> Dictionary:
+	return {
+		"solo": {"id": "t28_solo", "name": "Clear the Cellar", "duration_days": 2, "danger": 1, "reward_range": [10, 12],
+			"success_factors": ["strength", "endurance"], "required_adventurers": 1, "party_required": false, "tier": 1},
+		"party": {"id": "t28_party", "name": "Guard the Caravan", "duration_days": 3, "danger": 2, "reward_range": [20, 24],
+			"success_factors": ["strength", "intelligence", "charisma"], "required_adventurers": 2, "party_required": true, "tier": 2},
+		"party3": {"id": "t28_party3", "name": "Scout the Lair", "duration_days": 3, "danger": 4, "reward_range": [40, 50],
+			"success_factors": ["dexterity"], "required_adventurers": 3, "party_required": true, "tier": 3},
+		"safe": {"id": "t28_safe", "name": "Payout Drill", "duration_days": 1, "danger": -3, "reward_range": [10, 10],
+			"success_factors": ["strength"], "required_adventurers": 2, "party_required": true, "category": "delivery"},
+	}
+
+
+static func _t28_adv(id: int, adv_name: String, status: int, strength: int, endurance: int) -> Dictionary:
+	return {"id": id, "name": adv_name, "class": "Fighter", "status": status, "strength": strength, "dexterity": 3, "intelligence": 3,
+		"endurance": endurance, "missions_completed": 0, "missions_failed": 0, "gold_earned": 0, "recovery": 0, "portrait": "",
+		"tarot_card": "", "injuries_sustained": 0}
+
+
+static func _t28_hex(id: String, col: int, row: int, mission) -> Dictionary:
+	return {"id": id, "coord": Vector2i(col, row), "biome": "grass", "is_center": false, "is_zone": false, "location_name": "",
+		"active_mission": mission, "base_path": T28_TILE, "base_rot_y": 0.0, "topper_paths": []}
+
+
+static func _t28_center() -> Dictionary:
+	var c := _t28_hex("t28_home", 0, 0, null)
+	c["is_center"] = true
+	c["biome"] = "tavern_site"
+	return c
+
+
+## Everything a dispatch may change: each status, the active missions, each hex lock, gold, the signals seen.
+func _t28_state(gm, wm, spy: Array) -> Array:
+	return [gm.adventurers.map(func(a): return a.get("status")), gm.active_missions.size(),
+		wm.world_map.map(func(h): return h.get("locked", false)), gm.gold, spy.size()]
+
+
+static func _t28_has_all(e: Dictionary, want: Dictionary) -> bool:
+	return want.keys().all(func(k): return e.has(k) and typeof(e[k]) == typeof(want[k]) and e[k] == want[k])
+
+
+static func _t28_pick(e: Dictionary, want: Dictionary) -> Dictionary:
+	var out := {}
+	for k in want:
+		out[k] = e.get(k, "<missing>")
+	return out
+
+
+func _t28_capture() -> Node:
+	var s := GDScript.new()
+	s.source_code = "extends Node\nvar lines: Array[String] = []\nfunc log_message(m: String) -> void:\n\tlines.append(m)\n"
+	s.reload()
+	var n := Node.new()
+	n.name = "T28LogCapture"
+	n.set_script(s)
+	root.add_child(n)
+	return n
+
+
+func _t28_snapshot(gm, wm, dm) -> Dictionary:
+	var g := {}
+	for k in D1_GM_FIELDS:
+		var v = gm.get(k)
+		g[k] = v.duplicate(true) if v is Array or v is Dictionary else v
+	return {"gm": g, "world_map": wm.world_map, "chosen_center": wm.chosen_center, "config": dm.game_config.duplicate(true),
+		"artifacts": dm.artifacts, "scene": current_scene, "warned": gm.get("_party_missions_warned")}
+
+
+func _t28_restore(s: Dictionary, gm, wm, dm) -> void:
+	for k in s.gm:
+		gm.set(k, s.gm[k])
+	wm.world_map = s.world_map
+	wm.chosen_center = s.chosen_center
+	dm.game_config = s.config
+	dm.artifacts = s.artifacts
+	if s.warned != null:
+		gm.set("_party_missions_warned", s.warned)
+	_d1_set_scene(s.scene)
