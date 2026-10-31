@@ -207,7 +207,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 6: World Map, World Generation & Mission Dispatch
-**Status: ~70% — Generation + distance-aware placement work; Latest News feed + rumour-driven missions shipped (2026-08-18); mission-count display cap fixed (2026-08-20); post-30-day group-mission display still needs rework**
+**Status: ~85% — Generation + distance-aware placement work; Latest News feed + rumour-driven missions shipped (2026-08-18); mission-count display cap fixed (2026-08-20); click-to-assign dispatch with the estimated success % and group missions in the demo (Story 6.5, 2026-10-31, in review). Left: Story 6.1 (plugin evaluation) and the deferred items in Story 6.5's file**
 
 - [x] **Hex map generation** — seeded RNG, simplex noise + radial falloff, biomes (sea/grass/forest/mountain)
 - [x] **Settlement placement** — configurable count, minimum spacing enforcement
@@ -215,21 +215,32 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Ruin hex reserved next to the tavern** (Story 6.2 AC) and the **"Unknown Ruins" hover** (Story 6.3 AC). Done 2026-09-24 via Story 25.2: `HexMapGenerator._reserve_ruin()` (seeded, no RNG drift), records gain `is_ruin` / `ruin_discovered`, the D1 Prior Ruins topper is used, and `WorldManager.is_mission_eligible()` keeps missions off it
 - [x] **Tavern hex selection** — player picks center (signal `tavern_hex_selected`)
 - [x] **Missions assigned to hexes** — `WorldManager.assign_missions_to_hexes()` is now **distance-aware** (2026-07-12): a quest's distance from the tavern scales with `duration_days` (+ a touch of danger), so 1-day errands land near and long/dangerous ones sit far. Tunable via `mission_hexes_per_day` / `mission_distance_spread`
-- [x] **Mission dispatch** — `send_on_mission()` / `send_party_on_mission()` with duration tracking
+- [x] **Mission dispatch** — `send_on_mission()` / `send_party_on_mission()` with duration tracking; since Story 6.5 the World Map goes through `GameManager.dispatch_adventurers()` (below)
 - [x] **Active mission timers** — tick down daily in `process_mission_returns()`
-- [x] **Hex lock** — dispatched hex marked `locked`, freed on resolution
+- [x] **Hex lock** — dispatched hex marked `locked` (by GameManager since Story 6.5, not the board), freed on resolution
 - [x] **Mission success formula** (FR-18) — `50% ± 3%/stat ± 2%/exp − 8%/danger`, clamped 10-95% ✅ EXACT MATCH
-- [x] **Party missions** — average chance + party_size bonus (5% per extra member)
+- [x] **Party missions** — average chance + party_size bonus (5% per extra member); party size = `required_adventurers` since Story 6.5 (Tier 3 needs 3)
 - [x] **Mission board UI** — SingleMissionCard + PartyMissionCard scenes
 - [x] **World map assets** — coast variants, forest/mountain toppers, decorative props, tavern building
 - [x] **Data-driven missions** — `data/missions/mission_types.json` + fallback generation
-- [~] **Pre-dispatch panel** (FR-19) — mission board shows info, but unclear if full "estimated success %" is shown before confirm
+- [x] **Pre-dispatch panel** (FR-19) — the World Map's dispatch scroll (Story 6.5): name, danger, duration, reward, party size, the stats used, the estimated success %, traits, places, and a token per adventurer; see the Story 6.5 bullets below
 - [x] **Latest News feed** (FR-19b, 2026-08-18) — top-left panel on the World Map board drains `WorldManager.overheard_rumours` (Story 8.5), 5 most recent, newest first; placeholder message when empty. `scenes/world/world_map_board.gd`
 - [x] **Rumour-driven missions** (2026-08-18) — eavesdropped rumours are no longer pure flavor: each has a `rumour_mission_chance` (default 20%, `game_config.json`) to also spawn a real, dispatch-ready mission via `PatronSpawner._maybe_spawn_rumour_mission()` + `WorldManager.assign_one_mission()` (reuses the same tiered generator and distance-band placement as the daily refresh). Latest News shows a follow-up line when it happens.
 - [x] **Mission-count display cap fixed** (2026-08-20) — `DataManager.generate_daily_missions_with_tiers()` used `for i in range(min(count, available_templates.size()))`, so whenever a tier's template pool was smaller than the requested count, the board silently showed fewer missions. Tier 1 (the whole first ~30 days, before the first tax unlocks Tier 2) only has 4 templates total, so the board was hard-capped at 4 regardless of the requested 6. Fixed by cycling the shuffled template pool with wrap-around (`available_templates[i % available_templates.size()]`) so the requested count always generates; `add_mission_variety()` still randomizes each repeat's name/location/client so duplicates don't read as identical. Tier 2/3 (12/19 templates) were already unaffected. Verified headless (Tier 1: 4→6 missions generated and placed on hexes) and live in-game via the World Map board.
 - [ ] **Hex Strategy Map plugin evaluation** — not documented
 - [x] **World saved to disk** — since commit f604ec8 (`WorldManager.get_save_data()` / `load_save_data()`, saved as `world_data`: every hex record + the tavern hex; the map redraws the stored records). The Latest News rumours are saved with it since Story 11.2 (2026-10-31). The old "not yet saved" note here was stale.
-- **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). ~~only ~3-4 missions shown at once~~ **fixed 2026-08-20**. Still to rework: post-30-day group missions aren't displayed.
+- **NOTE (Raphael):** ~~randomly placed~~ **fixed 2026-07-12** (now distance-aware — 1-day quests no longer spawn across the map). ~~only ~3-4 missions shown at once~~ **fixed 2026-08-20**. ~~post-30-day group missions aren't displayed~~ **2026-10-31 (Story 6.5)**: group missions only exist from Tier 2, which the first tax (Day 30) unlocks, so a demo never met one; the demo profile now brings one from day 2 (below).
+
+### Story 6.5: Click-to-Assign Dispatch — in review (2026-10-31, demo roadmap D2)
+- [x] **The dispatch scroll** — a click on a mission marker (or its hex) unfurls a parchment scroll (placeholder art): the mission's name, danger, duration, reward, "Party of N", the stats it uses, the chance line, traits, N places, Send/Close. `scenes/world/world_map_board.gd`
+- [x] **Click-to-assign** — a token per adventurer (portrait, name, class, their chance): READY first by chance with "Good fit" marks (`dispatch_strong_fit_min_chance`, 70), the others greyed with their status ("Out, back day 40", "Wounded, 2 days"). A click on a READY token fills a place (again: takes it out); anyone else is refused with the reason. The Tab roster drag still works through the same check (`mission_slot.gd`)
+- [x] **The estimated success %** — `GameManager.estimate_success()` is the one formula: the scroll shows it, dispatch stores it, the resolver rolls it (a party's chance was recomputed at resolution and the old panel showed only the first member's)
+- [x] **Checked dispatch** — `GameManager.dispatch_adventurers(ids, mission, hex_id)`: only READY roster adventurers, each once, as many as the mission needs, onto a hex that still holds it and isn't taken; a refusal changes nothing and the scroll shows why. A dispatched hex could be dispatched to again before; not any more
+- [x] **Deployment Record** — on each `active_missions` entry: `adventurer_ids` (party order; Story 11.2's load relink reads them), `mission_id`, `location_id`, `dispatch_day`, `return_day`, `travel_duration`, `direction`; a `[GameManager] dispatch:` log line
+- [x] **Deployed markers** — a taken hex shows a chip ("Gareth +1 · back day 40"), its hover says who is out, its click opens the scroll read-only (also for missions sent before 6.5)
+- [x] **Group missions in the demo** — `game_config.json` `demo_party_missions` (`from_day` 2, `per_refresh` 1, `max_tier` 2; 0 = off): in the demo profile each refresh from day 2 carries a party mission. The full profile is unchanged. Party markers carry "×2"; the hover says "Party of 2". `missions_changed` now fires after the missions are placed
+- [x] **Tests** — failsafe Test 28 (68 checks); suite 1056/0. Stage D on Raphael's save (a copy): `eternal_guild_art/shots/demo/6-5/`
+- [ ] Deferred (in Story 6.5's file and deferred-work.md): beer/morale never touch missions; traits never reach the roster (Story 4.2); WorldManager's hex distance; a resolved contract can be run again; the legacy hidden MissionBoard; the HUD and event log draw over the World Map
 
 ---
 
