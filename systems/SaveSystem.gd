@@ -29,6 +29,12 @@ var codex_data: Dictionary = {}
 ## Story 13.4: the folder the last fallen run's save went to (end_run), "" until a run fell this session. Epic 22's
 ## legacy transition can read the fallen run there (the save slot is already empty).
 var last_archive_dir := ""
+## Story 13.4 review P3: a fallen run's tombstone beside the save (<save_path>.fallen), written before anything moves and
+## kept while any of its files stayed behind: the slot reads as empty until a new run's first save.
+const FALLEN_SUFFIX := ".fallen"
+## Test seam (Test 32, review P3): "rename" makes every archive rename fail (the copy + remove fallback runs); a file
+## suffix (".backup1") makes that file's move fail altogether.
+var debug_fail_archive := ""
 
 signal save_completed(success: bool)
 signal load_completed(success: bool)
@@ -75,6 +81,8 @@ func save_end_of_day() -> bool:
 
 ## Review P1: New Game's first save (the hall's _ready) starts the run.
 func start_new_run_save() -> bool:
+	if FileAccess.file_exists(save_path + FALLEN_SUFFIX):
+		DirAccess.remove_absolute(save_path + FALLEN_SUFFIX)   # Story 13.4 review P3: the new run takes the slot
 	run_active = true
 	return save_game_state("new_game_start", true)
 
@@ -89,9 +97,36 @@ func end_run(summary: Dictionary) -> String:
 		return ""
 	record_run_end(summary)
 	save_game_state("game_over_save", true)
+	_write_fallen_mark()   # review P3: before anything moves, so a half-moved slot is never resumed
 	var dir := archive_run_save()
 	run_active = false
 	return dir
+
+## Review P3: the slot holds a fallen run: its tombstone is there, or the save on disk is a game-over save (the old B key).
+func slot_fallen() -> bool:
+	if FileAccess.file_exists(save_path + FALLEN_SUFFIX):
+		return true
+	if FileAccess.file_exists(save_path):
+		return str(_read_json_file(save_path).get("save_type", "")) == "game_over_save"
+	return false
+
+func _write_fallen_mark() -> void:
+	var f := FileAccess.open(save_path + FALLEN_SUFFIX, FileAccess.WRITE)
+	if f == null:
+		push_error("[SaveSystem] error: couldn't mark the fallen run (%s)" % (save_path + FALLEN_SUFFIX))
+		return
+	f.store_string(Time.get_datetime_string_from_system())
+	f.close()
+
+## Moves one file (review P3: a rename that fails, e.g. a file held by an antivirus, falls back to copy + remove).
+func _move_file(src: String, dst: String) -> bool:
+	if debug_fail_archive != "" and debug_fail_archive != "rename" and src.ends_with(debug_fail_archive):
+		return false
+	if debug_fail_archive != "rename" and DirAccess.rename_absolute(src, dst) == OK:
+		return true
+	if DirAccess.copy_absolute(src, dst) != OK:
+		return false
+	return DirAccess.remove_absolute(src) == OK
 
 ## Story 13.4: moves the save, its .prev / .tmp (read_save() would put those back) and every backup into a new folder
 ## <save folder>/fallen_runs/<YYYYMMDD-HHMMSS> (-2, -3... when it exists; no ':' in the name). Returns the folder, or ""
@@ -118,11 +153,13 @@ func archive_run_save() -> String:
 		return ""
 	var failed: Array[String] = []
 	for f in files:
-		if DirAccess.rename_absolute(f, dir.path_join(f.get_file())) != OK:
+		if not _move_file(f, dir.path_join(f.get_file())):
 			failed.append(f.get_file())
 	if not failed.is_empty():
-		push_error("[SaveSystem] error: couldn't archive the fallen run (%s stayed in %s)" % [", ".join(failed), save_path.get_base_dir()])
+		push_error("[SaveSystem] error: couldn't archive the fallen run (%s stayed in %s; its .fallen tombstone keeps it from loading)" % [", ".join(failed), save_path.get_base_dir()])
 		return ""
+	if FileAccess.file_exists(save_path + FALLEN_SUFFIX):
+		DirAccess.remove_absolute(save_path + FALLEN_SUFFIX)   # everything moved: the slot is simply empty
 	last_archive_dir = dir
 	print("[SaveSystem] archive: the fallen run's save moved to ", dir)
 	return dir
@@ -216,6 +253,9 @@ func load_game() -> Dictionary:
 func read_save() -> Dictionary:
 	last_loaded_from = ""
 	last_loaded_day = 0
+	if slot_fallen():   # Story 13.4 review P3: a fallen run is never resumed
+		print("[SaveSystem] The slot holds a fallen run: nothing to load at ", save_path)
+		return {}
 	var recovered := ""
 	if not FileAccess.file_exists(save_path):
 		recovered = _recover_interrupted_swap()
@@ -667,6 +707,8 @@ func _validate_save_data(data: Dictionary) -> bool:
 
 ## Story 11.2: a backup counts (load_game() falls back to it when the main file is missing or broken).
 func has_save_file() -> bool:
+	if slot_fallen():   # Story 13.4 review P3
+		return false
 	if FileAccess.file_exists(save_path):
 		return true
 	for i in range(1, _max_backups() + 1):
