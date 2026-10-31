@@ -151,12 +151,64 @@ func spend_gold(amount: int) -> bool:
 		print("Insufficient gold. Need ", amount, " but have ", gold)
 		return false
 
-func adjust_reputation(delta: int) -> void:
+func adjust_reputation(delta: int, reason := "") -> void:
 	"""Single-authority reputation mutator (Epic 14) — clamps at 0, moves Den Fa's state forward (Story 10.3),
-	emits reputation_changed."""
+	then (Story 14.6, DP-5) GuildBus.reputation_adjusted(the change applied, the new value, reason) when it moved,
+	GuildBus.reputation_tier_changed(old label, new label) when the tier changed, and reputation_changed as before.
+	A load and a New Game set the value directly: the new signals mean "earned in play"."""
+	var old := tavern_reputation
+	var tiers := reputation_tier_list(DataManager.get_config("reputation_tiers", []))
+	var old_tier := reputation_tier_index_for(old, tiers)
 	tavern_reputation = maxi(0, tavern_reputation + delta)
 	_update_den_fa_state()
+	var applied := tavern_reputation - old
+	if applied != 0:
+		print("[GameManager] reputation: %+d %s (now %d)" % [applied, reason, tavern_reputation])
+		GuildBus.reputation_adjusted.emit(applied, tavern_reputation, reason)
+	var new_tier := reputation_tier_index_for(tavern_reputation, tiers)
+	if new_tier != old_tier:
+		GuildBus.reputation_tier_changed.emit(str(tiers[old_tier].get("label", "")), str(tiers[new_tier].get("label", "")))
 	reputation_changed.emit(tavern_reputation)
+
+# === Reputation gains (Story 14.6, DP-3) ===
+# Each source's gain is a game_config.json key (a profile can override it: the demo's are faster). The top level is the
+# full game's: today's numbers, so a group success and a satisfied patron give 0 there, and a zero gain makes no call.
+const REP_DEFAULTS := {"rep_mission_success": 2, "rep_mission_failure": -1, "rep_party_mission_success": 0,
+	"rep_party_mission_failure": -1, "rep_dismiss": -1, "rep_patron_satisfied": 0}
+var _rep_warnings: int = 0          # a bad rep_* value is warned about once a run (New Game re-arms it)
+var _death_mult_warnings: int = 0   # a bad death_chance_multiplier, the same (Story 14.6, K-8)
+
+## A gain's value (pure): a whole number as itself; missing -> REP_DEFAULTS' (today's), silently; anything else -> today's,
+## with a warning text appended to `warn`.
+static func rep_gain_from(key: String, v, warn: Array = []) -> int:
+	var d: int = int(REP_DEFAULTS.get(key, 0))
+	if v == null:
+		return d
+	var n = _whole_number(v)
+	if n == null:
+		warn.append("[GameManager] fallback: %s is %s, not a whole number; using %d" % [key, v, d])
+		return d
+	return int(n)
+
+## A reputation source's gain for the active profile (rep_gain_from on game_config.json), warned once a run.
+func rep_gain(key: String) -> int:
+	var warn: Array = []
+	var g := rep_gain_from(key, DataManager.get_config(key), warn)
+	if not warn.is_empty() and _rep_warnings == 0:
+		_rep_warnings += 1
+		push_warning(warn[0])
+	return g
+
+## Move reputation by a source's gain, with its reason; a zero gain makes no call (no signal).
+func _gain_reputation(key: String, reason: String) -> void:
+	var d := rep_gain(key)
+	if d != 0:
+		adjust_reputation(d, reason)
+
+## A patron finished their drink and paid (RealisticPatron, whoever served them): rep_patron_satisfied (Story 14.6; PRD
+## §4.9, reputation from fulfilled patron service; 0 in the full game).
+func patron_satisfied() -> void:
+	_gain_reputation("rep_patron_satisfied", "patron_satisfied")
 
 ## Staff at the start (Story 25.13, K9: "Available right away in the demo. But then have to unlock in the
 ## real game"): in the demo profile the roles listed in demo_start_staff are hired from the first morning;
@@ -297,11 +349,42 @@ static func staff_unlock_index(role_data: Dictionary, ctx: Dictionary) -> int:
 		i = maxi(0, tiers.size() - 1)
 	return i
 
-## The live context staff_hire_block_for reads (today's profile, reputation tier and gold).
+## The live context staff_hire_block_for reads (today's profile, reputation tier and gold). Story 14.6 (K-7): also the
+## active unlock rule (`unlock`: staff_unlock_rule()) and the run's gold peak; staff_hire_block_for reads them from D5's
+## review on (until then every role unlocks by its tier).
 func staff_ctx() -> Dictionary:
 	var tiers := reputation_tier_list(DataManager.get_config("reputation_tiers", []))
 	return {"profile": _staff_profile(), "start_staff": _staff_start(), "tier_index": reputation_tier_index_for(tavern_reputation, tiers),
-		"tiers": tiers.map(func(t): return str(t.get("label", ""))), "gold": gold, "warn": []}
+		"tiers": tiers.map(func(t): return str(t.get("label", ""))), "gold": gold, "warn": [],
+		"unlock": staff_unlock_rule(), "gold_peak": gold_peak}
+
+# Story 14.6 (K-7, Raphael 2026-11-01: "in the demo the Bartender and the Quest Dealer are not hired at start; they become
+# hireable once the guild has reached 300 gold, and stay unlocked"): game_config.json staff_unlock, by profile.
+const STAFF_UNLOCK_DEFAULT := {"rule": "tier"}
+
+## The staff unlock rule (pure): {"rule": "tier"} (each role at its staff.json unlock_tier: the full game, Story 16.1) or
+## {"rule": "gold_peak", "gold_peak": N} (every role once the run's gold peak reaches N). Missing: tier, silently; anything
+## else: tier, with a warning text in `warn`.
+static func staff_unlock_from(cfg, warn: Array = []) -> Dictionary:
+	if cfg == null:
+		return STAFF_UNLOCK_DEFAULT.duplicate()
+	if cfg is Dictionary:
+		var rule := str(cfg.get("rule", ""))
+		if rule == "tier":
+			return {"rule": "tier"}
+		var n = _whole_number(cfg.get("gold_peak"))
+		if rule == "gold_peak" and n != null and int(n) >= 0:
+			return {"rule": "gold_peak", "gold_peak": int(n)}
+	warn.append("[GameManager] fallback: staff_unlock %s is not {rule: tier} or {rule: gold_peak, gold_peak: a whole number >= 0}; by tier" % [cfg])
+	return STAFF_UNLOCK_DEFAULT.duplicate()
+
+## The active profile's staff unlock rule (game_config.json staff_unlock; the demo's: a gold peak of 300).
+func staff_unlock_rule() -> Dictionary:
+	var warn: Array = []
+	var r := staff_unlock_from(DataManager.get_config("staff_unlock"), warn)
+	for w in warn:
+		_staff_warn(w)
+	return r
 
 ## Why `role` can't be hired now ("" when it can): staff_hire_block_for with today's values.
 func staff_hire_block_reason(role: String) -> String:
@@ -1190,14 +1273,14 @@ func complete_mission(adventurer: Dictionary, mission: Dictionary, success: bool
 		_trait_hurt_on_success(adventurer)
 
 		total_missions_completed += 1
-		adjust_reputation(2)
+		_gain_reputation("rep_mission_success", "mission_success")   # Story 14.6: the gain is config
 		GameManager.check_tier_unlocks()
 
 		if announce:
 			_log_solo_success(adventurer, mission, reward)
 	else:
 		adventurer.missions_failed += 1
-		adjust_reputation(-1)
+		_gain_reputation("rep_mission_failure", "mission_failure")   # Story 14.6
 		log_message("FAILED! " + adventurer.name + " failed the mission: " + mission.name)
 
 		# FAILURE ONLY: Handle injury and death consequences (they set the status: WOUNDED or DEAD). The old
@@ -1241,12 +1324,13 @@ func complete_party_mission(party: Array, mission: Dictionary, success: bool, an
 			check_adventurer_level_up(adventurer)
 		reward += bonuses
 		add_gold(reward)
+		_gain_reputation("rep_party_mission_success", "party_mission_success")   # Story 14.6: once a mission (0 in the full game)
 
 		if announce:
 			_log_party_success(mission, reward)
 	else:
 		log_message("PARTY FAILED! Mission " + mission.name + " was catastrophic")
-		adjust_reputation(-1)  # one reputation hit per failed mission, not per party member
+		_gain_reputation("rep_party_mission_failure", "party_mission_failure")  # one hit per failed mission, not per member
 		for adventurer in party:
 			handle_party_failure_consequences(adventurer, mission)
 			# CRITICAL FIX: Emit signal so UI updates
@@ -1555,6 +1639,16 @@ static func tax_warning_log_line(days_left: int, amount: int) -> String:
 	if days_left == 1:
 		return "Tax payment due TOMORROW! Need " + str(amount) + " gold!"
 	return "Tax payment due in " + str(days_left) + " days. Need " + str(amount) + " gold."
+
+## The hall's welcome text's tax line (Story 14.6: MainTavern.tscn said "every 30 days, 1000 gold" whatever the profile;
+## main_tavern.gd puts this in its place at load). Pure. DRAFT wording (Raphael rewrites).
+static func tax_rule_line(cfg: Dictionary, next_due_day: int) -> String:
+	var interval := int(cfg.get("interval_days", TAX_DEFAULTS.interval_days))
+	var base := int(cfg.get("base_amount", TAX_DEFAULTS.base_amount))
+	var per := int(cfg.get("per_adventurer", TAX_DEFAULTS.per_adventurer))
+	var amount := ("%d gold" % base) if per <= 0 else ("%d gold, plus %d for each adventurer," % [base, per])
+	var every := "every day" if interval == 1 else ("every %d days" % interval)
+	return "- Taxes: %s %s; the next is due on Day %d. Gold and beer are your lifelines: run out of both and it's over." % [amount, every, next_due_day]
 
 ## Runs each morning (advance_day): a warning on a configured day before the due day; from the due day on, the payment.
 func check_tax_deadline():
@@ -2137,7 +2231,7 @@ func dismiss_adventurer(adventurer: Dictionary) -> bool:
 		return false  # blocked — adventurer remains, nothing deducted
 
 	spend_gold(severance)  # deducts + emits gold_changed → EconomyBus
-	adjust_reputation(-1)
+	_gain_reputation("rep_dismiss", "dismiss")   # Story 14.6
 	adventurers.erase(adventurer)
 	log_message("" + adventurer.get("name", "?") + " has been dismissed (paid " + str(severance) + " gold, -1 reputation).")
 	adventurer_roster_changed.emit()
@@ -2744,6 +2838,8 @@ func begin_new_run() -> void:
 func reset_game_state():
 	print("Resetting game state...")
 	_tax_warnings = 0   # a bad tax config is warned about again in the new run (Story 13.1)
+	_rep_warnings = 0          # Story 14.6: the rep gains and the death multiplier, too
+	_death_mult_warnings = 0
 	_apply_config()
 	current_day = 1
 
@@ -3262,10 +3358,30 @@ func calculate_death_chance(adventurer_level: int, mission_danger: int) -> float
 	if beer_shortage_days > 0:
 		beer_penalty = beer_shortage_days * 0.1  # +10% death chance per day of shortage
 	
-	var final_death_chance = base_death_chance * danger_multiplier + beer_penalty
+	var final_death_chance = base_death_chance * danger_multiplier * death_chance_multiplier() + beer_penalty   # Story 14.6, K-8
 	
 	# Cap at 80% max death chance (always some hope)
 	return min(final_death_chance, 0.8)
+
+## Story 14.6 (K-8, Raphael 2026-11-01: deaths likelier in the demo): game_config.json death_chance_multiplier scales the
+## level's base x the danger step (the beer penalty is added after; the 80% cap stays). Pure: a number >= 0 as itself;
+## missing -> 1, silently; anything else -> 1, with a warning text in `warn`.
+static func death_multiplier_from(v, warn: Array = []) -> float:
+	if v == null:
+		return 1.0
+	if (v is int or v is float) and is_finite(float(v)) and float(v) >= 0.0:
+		return float(v)
+	warn.append("[GameManager] fallback: death_chance_multiplier is %s, not a number >= 0; using 1" % [v])
+	return 1.0
+
+## The active profile's death multiplier (the demo's 2, the full game's 1), warned once a run.
+func death_chance_multiplier() -> float:
+	var warn: Array = []
+	var m := death_multiplier_from(DataManager.get_config("death_chance_multiplier"), warn)
+	if not warn.is_empty() and _death_mult_warnings == 0:
+		_death_mult_warnings += 1
+		push_warning(warn[0])
+	return m
 
 func get_adventurer_level(adventurer: Dictionary) -> int:
 	"""Calculate adventurer level based on completed missions"""

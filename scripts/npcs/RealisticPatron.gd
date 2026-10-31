@@ -662,6 +662,7 @@ func on_drinking_timer_timeout():
 	if current_state == PatronState.DRINKING:
 		print("", patron_name, " finished drinking. Pays ", payment_amount, "g")
 		GameManager.add_gold(payment_amount)
+		GameManager.patron_satisfied()   # Story 14.6: reputation from a satisfied patron (rep_patron_satisfied; 0 in the full game)
 
 		# Coin-burst juice at the patron (Story 3.4 visual reward + SFX)
 		var coin_burst = preload("res://scripts/fx/coin_reward.gd").new()

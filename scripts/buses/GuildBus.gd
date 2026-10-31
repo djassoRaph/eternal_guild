@@ -4,6 +4,14 @@ extends Node
 # GameManager owns every value behind them and is the only emitter; scenes and UI listen.
 
 signal reputation_changed(new_value: int)
+# Story 14.6 (DP-5): adjust_reputation(delta, reason), the one authority, also says what moved it: the change it applied
+# (the clamp at 0 can shrink it; none is sent when nothing changed), the new value and the reason ("mission_success",
+# "mission_failure", "party_mission_success", "party_mission_failure", "dismiss", "patron_satisfied"; Story 14.4 adds
+# "disturbance_resolved" / "disturbance_ignored"; "" from the debug panel). Then, when the tier changed, the old and new tier
+# labels (reputation_tiers of the active profile; a jump across two tiers is one change). Then reputation_changed as before.
+# Loading a save and New Game set the value silently: these mean "earned in play".
+signal reputation_adjusted(delta: int, new_value: int, reason: String)
+signal reputation_tier_changed(old_tier: String, new_tier: String)
 
 # Den Fa's state (Story 10.3): "early" -> "mid" -> "late", forward only. GameManager owns it
 # (den_fa_state, moved by adjust_reputation() at game_config.json's den_fa_state_tiers) and emits this when
