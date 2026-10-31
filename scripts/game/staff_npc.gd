@@ -645,10 +645,17 @@ func bark() -> void:
 	if gm and gm.get("game_over_active"):
 		return
 	_last_bark = pick_line(_barks.size(), _last_bark, randf())
+	say(_barks[_last_bark])
+
+
+## One line in a bubble over the head (barks; Story 16.4's round lines); the previous bubble goes first.
+func say(line: String) -> void:
+	if line == "" or not is_inside_tree():
+		return
 	for c in get_children():          # one line at a time: a new one replaces the last
 		if c is PatronSpeechBubble:
 			c.queue_free()
 	var bubble := PatronSpeechBubble.new()
 	add_child(bubble)
 	bubble.position.y = _bubble_height() - PatronSpeechBubble.HEAD_HEIGHT
-	bubble.say(_barks[_last_bark], 3.5)
+	bubble.say(line, 3.5)

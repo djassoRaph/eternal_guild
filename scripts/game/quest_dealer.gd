@@ -295,10 +295,40 @@ func _tick_work(delta: float) -> void:
 func _briefing_open() -> bool:
 	if _popup and is_instance_valid(_popup) and _popup.get("visible"):
 		return true
-	for b in get_tree().get_nodes_in_group("mission_board"):
-		if b.get("visible"):
-			return true
+	for group in ["mission_board", "morning_briefing"]:   # Story 16.4: the morning reports too (13.4's group)
+		for b in get_tree().get_nodes_in_group(group):
+			if b.get("visible"):
+				return true
 	return false
+
+
+# ------------------------------------------------------------------ for her brain (Story 16.4)
+
+## A screen she briefs over is up (the hire desk, a mission screen, the morning reports).
+func screen_open() -> bool:
+	return is_inside_tree() and _briefing_open()
+
+## The player stands at the desk front (the RecruitmentDesk zone).
+func player_at_desk() -> bool:
+	return is_inside_tree() and _player_at_desk()
+
+## Her brain may drive her: present and seated at the desk, not arriving or leaving.
+func can_drive() -> bool:
+	return present and _seated and not _leaving and _route_phase == ""
+
+## The pose a work state plays (Write, Brief, Available).
+func pose_for(work: String) -> String:
+	return _state_for(work)
+
+## The BRIEFING bark's rule (25.13): a line as a screen opens, at most one per BARK_GAP.
+func brief_bark() -> void:
+	if _bark_cd <= 0.0:
+		bark()
+		_bark_cd = BARK_GAP
+
+## Her brain (Story 16.4): IDLE / BRIEFING / AVAILABLE on LimboAI and the morning round (quest_dealer_ai.gd).
+func _make_brain() -> Node:
+	return load("res://scripts/game/quest_dealer_ai.gd").new()
 
 
 func _player_at_desk() -> bool:
