@@ -368,12 +368,14 @@ func debug_set_staff_strike(role: String, on: bool) -> void:
 	GuildBus.staff_strike_changed.emit(str(rec.staff_id), on)
 
 func _staff_save_data() -> Dictionary:
-	return {"staff": staff.duplicate(true)}
+	return {"staff": staff.duplicate(true), "desk_round_day": desk_round_day}
 
 ## Story 16.1: the saved staff, read defensively (Story 11.2's rule) and silently (no staff signal: the hall's staff read
 ## the records when it loads). No key (every save before 16.1): the profile's starting staff; not a list: the same, with a
 ## warning. Junk entries, unknown and duplicate roles are dropped; each value is checked; a role the save lacks is not hired.
+## Story 16.4: the day of the Quest Dealer's last morning round (junk or none: 0).
 func _load_staff_data(data: Dictionary) -> void:
+	desk_round_day = maxi(0, _save_int(data.get("desk_round_day"), 0))
 	var raw = data.get("staff")
 	if raw == null:
 		_reset_staff_state()
@@ -413,6 +415,7 @@ func _load_staff_data(data: Dictionary) -> void:
 ## New Game (and a save without staff): the profile's starting staff.
 func _reset_staff_state() -> void:
 	staff = _seeded_staff()
+	desk_round_day = 0
 
 ## Story 16.5 (SW-2): a hired staff member leaves on the morning this many wages in a row went unpaid
 ## (game_config.json staff_wages.missed_days_to_leave, so a profile can override it). Missing or bad: 3, with a warning.
@@ -482,6 +485,114 @@ func pay_staff_back_wage(role: String) -> String:
 	EconomyBus.staff_wage_paid.emit(str(rec.staff_id), owed)
 	GuildBus.staff_strike_changed.emit(str(rec.staff_id), false)
 	return ""
+
+# --- Story 16.4: the Quest Dealer's morning round (FR-65; GDD: the Desk Manager "auto-distributes minor quests to Minor
+# Arcana; the player keeps full Major Arcana dispatch control") ---
+# Once a morning, while she works, her brain (quest_dealer_ai.gd) calls desk_round(): the READY Minor Arcana with the
+# best odds go out on open solo contracts of tier <= desk_auto_max_tier, only at desk_auto_min_chance or better, at most
+# desk_auto_per_day, each through dispatch_adventurers (Story 6.5's one front door). Major Arcana, party contracts and long
+# odds stay the player's. The numbers are staff_automation's in game_config.json (a profile can override them).
+var desk_round_day: int = 0      # the day her last round ran (saved with the staff records; New Game 0)
+const DESK_DEFAULTS := {"per_day": 1, "max_tier": 1, "min_chance": 70}   # 70: the World Map's "Good fit" line (Story 6.5)
+
+## The open contracts on the map (pure): [{hex_id, mission}] for each hex record holding a contract nobody is out on.
+static func open_map_contracts_in(records: Array) -> Array:
+	var out: Array = []
+	for rec in records:
+		if rec is Dictionary and rec.get("active_mission") is Dictionary and rec.get("locked") != true:
+			out.append({"hex_id": str(rec.get("id", "")), "mission": rec.active_mission})
+	return out
+
+## Whether an adventurer's Tarot card is a Minor Arcana one (pure; `card_lookup`: card id -> the deck's card). An empty or
+## unknown card is not: the player decides for them.
+static func is_minor_arcana(adv: Dictionary, card_lookup: Callable) -> bool:
+	var id := str(adv.get("tarot_card", ""))
+	if id == "":
+		return false
+	var card = card_lookup.call(id)
+	return card is Dictionary and card.get("arcana") == "minor"
+
+## The round's picks (pure): [{id, mission, hex_id, chance}]. `ready`: the READY Minor Arcana; `contracts`:
+## open_map_contracts_in's; `cfg`: per_day, max_tier, min_chance; `estimate`: (adventurer, mission) -> chance. Solo
+## contracts of tier <= max_tier only, chance >= min_chance; the best chance first (ties: roster order, then map order);
+## each adventurer and each contract once; at most per_day.
+static func desk_contract_picks(ready: Array, contracts: Array, cfg: Dictionary, estimate: Callable) -> Array:
+	var pairs: Array = []
+	for ai in ready.size():
+		var adv = ready[ai]
+		if not (adv is Dictionary):
+			continue
+		for ci in contracts.size():
+			var c = contracts[ci]
+			var m = c.get("mission") if c is Dictionary else null
+			if not (m is Dictionary) or required_party_size(m) != 1 or int(m.get("tier", 99)) > int(cfg.get("max_tier", 1)):
+				continue
+			var chance := int(estimate.call(adv, m))
+			if chance < int(cfg.get("min_chance", 75)):
+				continue
+			pairs.append({"id": adv.get("id"), "mission": m, "hex_id": str(c.get("hex_id", "")), "chance": chance, "ai": ai, "ci": ci})
+	pairs.sort_custom(func(x, y): return x.chance > y.chance or (x.chance == y.chance and (x.ai < y.ai or (x.ai == y.ai and x.ci < y.ci))))
+	var out: Array = []
+	var used_a := {}
+	var used_c := {}
+	for p in pairs:
+		if out.size() >= int(cfg.get("per_day", 1)):
+			break
+		if used_a.has(p.ai) or used_c.has(p.ci):
+			continue
+		used_a[p.ai] = true
+		used_c[p.ci] = true
+		out.append({"id": p.id, "mission": p.mission, "hex_id": p.hex_id, "chance": p.chance})
+	return out
+
+## staff_automation's desk_auto_* (pure): {per_day, max_tier, min_chance}; a bad or missing value takes DESK_DEFAULTS',
+## with a warning text in `warn`.
+static func desk_config_from(cfg, warn: Array = []) -> Dictionary:
+	var out := {}
+	for k in [["desk_auto_per_day", "per_day", 0], ["desk_auto_max_tier", "max_tier", 1], ["desk_auto_min_chance", "min_chance", 0]]:
+		var v = cfg.get(k[0]) if cfg is Dictionary else null
+		if (v is int or v is float) and float(v) == float(int(v)) and int(v) >= int(k[2]):
+			out[k[1]] = int(v)
+		else:
+			out[k[1]] = DESK_DEFAULTS[k[1]]
+			warn.append("[GameManager] fallback: staff_automation.%s is %s: %s" % [k[0], v, DESK_DEFAULTS[k[1]]])
+	return out
+
+## The Quest Dealer's morning round (Story 16.4): what she sent ([{name, mission, hex_id, chance}]). Nothing (and the day
+## not spent) unless she works (hired, not on strike) and today's round hasn't run.
+func desk_round() -> Array:
+	if game_over_active or not is_staff_working("desk_manager") or desk_round_day == current_day:
+		return []
+	desk_round_day = current_day
+	var warn: Array = []
+	var cfg := desk_config_from(DataManager.get_config("staff_automation", {}), warn)
+	for w in warn:
+		_staff_warn(w)
+	var ready: Array = []
+	for adv in adventurers:
+		if adv is Dictionary and not_ready_reason(adv) == "" and is_minor_arcana(adv, func(id): return DataManager.get_tarot_card(id)):
+			ready.append(adv)
+	var picks := desk_contract_picks(ready, open_map_contracts_in(WorldManager.world_map), cfg,
+		func(a, m): return estimate_success([a], m))
+	var sent: Array = []
+	for p in picks:
+		var who := str(find_adventurer(p.id).get("name", "?"))
+		var title := str(p.mission.get("name", "a contract"))
+		var why := dispatch_adventurers([p.id], p.mission, p.hex_id)
+		if why != "":
+			push_warning("[GameManager] desk: %s -> %s (%s) refused: %s" % [who, title, p.hex_id, why])
+			continue
+		log_message("[GameManager] desk: %s -> %s (%s), chance %d%%" % [who, title, p.hex_id, p.chance])
+		log_message("The Quest Dealer sent %s on %s." % [who, title])
+		sent.append({"name": who, "mission": title, "hex_id": p.hex_id, "chance": p.chance})
+	if sent.is_empty():
+		print("[GameManager] desk: no minor contract for a Minor Arcana on day %d" % current_day)
+	return sent
+
+## Story 16.4 (SQ-5): the morning reports wait at the guild desk while the Quest Dealer isn't working (not hired, or on
+## strike); the bedroom shows them at once only while she is.
+func briefing_waits_at_desk() -> bool:
+	return not is_staff_working("desk_manager")
 
 func get_reputation_tier() -> Dictionary:
 	"""Highest reputation_tiers entry (data/config/game_config.json) the guild currently qualifies
