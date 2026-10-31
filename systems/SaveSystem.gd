@@ -8,6 +8,9 @@ const CURRENT_SCHEMA_VERSION = 2
 # codex entries are renamed on load (v1 -> v2), so they get the Healer's body, lines and bonus.
 const RENAMED_CLASSES := {"Cleric": "Healer"}
 
+# Story 11.2: the save this session reads and writes. Tests and Stage D runs point it at a copy, so they never
+# touch the player's save.
+var save_path: String = SAVE_FILE
 var autosave_timer: Timer
 var save_in_progress: bool = false
 var load_in_progress: bool = false
@@ -84,7 +87,7 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	save_data["beer_shortage_days"] = GameManager.beer_shortage_days
 	save_data["adventurer_morale"] = GameManager.adventurer_morale
 
-	var success = _write_file_atomic(SAVE_FILE, save_data)
+	var success = _write_file_atomic(save_path, save_data)
 
 	save_in_progress = false
 	save_completed.emit(success)
@@ -105,12 +108,12 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 
 func load_game() -> bool:
 	if not has_save_file():
-		print("[SaveSystem] No save file at: ", SAVE_FILE)
+		print("[SaveSystem] No save file at: ", save_path)
 		return false
 
-	print("[SaveSystem] Loading from: ", SAVE_FILE)
+	print("[SaveSystem] Loading from: ", save_path)
 
-	var save_data = _read_json_file(SAVE_FILE)
+	var save_data = _read_json_file(save_path)
 	if save_data.is_empty():
 		print("[SaveSystem] Failed to read save file or empty")
 		return false
@@ -284,9 +287,11 @@ func _write_file_atomic(filepath: String, data: Dictionary) -> bool:
 	file.store_string(json_string)
 	file.close()
 
-	var dir = DirAccess.open("user://")
+	# The file's own folder (Story 11.2: save_path may point below user://; renaming in user:// itself would hit
+	# the player's save instead).
+	var dir = DirAccess.open(filepath.get_base_dir())
 	if dir == null:
-		print("[SaveSystem] Cannot open user:// for rename")
+		print("[SaveSystem] Cannot open ", filepath.get_base_dir(), " for rename")
 		return false
 
 	var fname = filepath.get_file()
@@ -337,12 +342,12 @@ func _read_json_file(filepath: String) -> Dictionary:
 # === BACKUP SYSTEM ===
 
 func _create_save_backup(max_backups: int = 3):
-	if not FileAccess.file_exists(SAVE_FILE):
+	if not FileAccess.file_exists(save_path):
 		return
 
 	for i in range(max_backups - 1, 0, -1):
-		var current_backup = SAVE_FILE + ".backup" + str(i)
-		var next_backup = SAVE_FILE + ".backup" + str(i + 1)
+		var current_backup = save_path + ".backup" + str(i)
+		var next_backup = save_path + ".backup" + str(i + 1)
 
 		if FileAccess.file_exists(current_backup):
 			if i == max_backups - 1:
@@ -350,17 +355,17 @@ func _create_save_backup(max_backups: int = 3):
 			else:
 				DirAccess.rename_absolute(current_backup, next_backup)
 
-	var backup_path = SAVE_FILE + ".backup1"
-	DirAccess.copy_absolute(SAVE_FILE, backup_path)
+	var backup_path = save_path + ".backup1"
+	DirAccess.copy_absolute(save_path, backup_path)
 
 func restore_from_backup(backup_number: int = 1) -> bool:
-	var backup_path = SAVE_FILE + ".backup" + str(backup_number)
+	var backup_path = save_path + ".backup" + str(backup_number)
 
 	if not FileAccess.file_exists(backup_path):
 		print("[SaveSystem] Backup not found: ", backup_path)
 		return false
 
-	DirAccess.copy_absolute(backup_path, SAVE_FILE)
+	DirAccess.copy_absolute(backup_path, save_path)
 	print("[SaveSystem] Restored from backup: ", backup_path)
 
 	return load_game()
@@ -398,13 +403,13 @@ func _validate_save_data(data: Dictionary) -> bool:
 # === UTILITY ===
 
 func has_save_file() -> bool:
-	return FileAccess.file_exists(SAVE_FILE)
+	return FileAccess.file_exists(save_path)
 
 func get_save_info() -> Dictionary:
 	if not has_save_file():
 		return {}
 
-	var save_data = _read_json_file(SAVE_FILE)
+	var save_data = _read_json_file(save_path)
 	if save_data.is_empty():
 		return {}
 
@@ -423,7 +428,7 @@ func _calculate_playtime() -> float:
 
 func delete_save_file() -> bool:
 	if has_save_file():
-		DirAccess.remove_absolute(SAVE_FILE)
+		DirAccess.remove_absolute(save_path)
 		print("[SaveSystem] Save file deleted")
 		return true
 	return false
@@ -440,7 +445,7 @@ func get_available_backups() -> Array:
 	var max_backups = int(DataManager.get_config("max_backup_files", 3))
 	var backups = []
 	for i in range(1, max_backups + 1):
-		var backup_path = SAVE_FILE + ".backup" + str(i)
+		var backup_path = save_path + ".backup" + str(i)
 		if FileAccess.file_exists(backup_path):
 			var backup_data = _read_json_file(backup_path)
 			if not backup_data.is_empty():
@@ -478,5 +483,5 @@ func export_save_data() -> String:
 	if not has_save_file():
 		return "No save file found"
 
-	var save_data = _read_json_file(SAVE_FILE)
+	var save_data = _read_json_file(save_path)
 	return JSON.stringify(save_data, "\t")
