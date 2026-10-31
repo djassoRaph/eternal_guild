@@ -135,6 +135,13 @@ func _build_tab_state(parent: VBoxContainer) -> void:
 	parent.add_child(mission_lbl)
 	_state_labels["mission_detail"] = mission_lbl
 
+	_h(parent, "Staff")   # Story 16.1: every staff record (role, hired, wage, strike)
+	var staff_lbl := Label.new()
+	staff_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	staff_lbl.text = "(none)"
+	parent.add_child(staff_lbl)
+	_state_labels["staff_detail"] = staff_lbl
+
 	parent.add_child(HSeparator.new())
 	_btn_full(parent, "Refresh Now", _refresh_state_tab)
 
@@ -189,6 +196,23 @@ func _refresh_state_tab() -> void:
 				var adv_name: String = entry.adventurer.get("name", "?")
 				lines.append("• %s → %s — %dd remaining" % [adv_name, mission_name, days_left])
 		_state_labels["mission_detail"].text = "\n".join(lines)
+
+	# Staff (Story 16.1)
+	var staff_lines: Array = []
+	for rec in gm.staff:
+		if rec is Dictionary:
+			staff_lines.append(staff_line(rec))
+	_state_labels["staff_detail"].text = "\n".join(staff_lines) if not staff_lines.is_empty() else "(no staff records)"
+
+## One staff record as the F12 State tab shows it (Story 16.1).
+static func staff_line(rec: Dictionary) -> String:
+	var head := "• %s [%s] %s, %d g/day" % [rec.get("name", "?"), rec.get("staff_id", "?"),
+		"hired" if rec.get("hired") == true else "not hired", int(rec.get("daily_wage", 0))]
+	if rec.get("hired") != true:
+		return head
+	if rec.get("on_strike") == true:
+		return head + ", on strike (owes %d g, missed %d)" % [int(rec.get("owed", 0)), int(rec.get("missed_days", 0))]
+	return head + ", working"
 
 func _sl(key: String, value: String) -> void:
 	if _state_labels.has(key):
@@ -422,6 +446,28 @@ func _build_tab_npcs(parent: VBoxContainer) -> void:
 	parent.add_child(HSeparator.new())
 	_h(parent, "RECRUITMENT")
 	_btn_full(parent, "Refresh Daily Recruits", _debug_refresh_recruits)
+
+	parent.add_child(HSeparator.new())
+	_h(parent, "STAFF")   # Story 16.1: through GameManager's staff authority (hire_staff, dismiss_staff, ...)
+	for role in GameManager.staff_roles().keys():
+		var who := str(GameManager.staff_roles()[role].get("display_name", role)) if GameManager.staff_roles()[role] is Dictionary else str(role)
+		var row := HBoxContainer.new()
+		parent.add_child(row)
+		_btn(row, "Hire " + who, func(): _debug_staff_said(GameManager.hire_staff(role)))
+		_btn(row, "Dismiss " + who, func(): _debug_staff_said(GameManager.dismiss_staff(role)))
+		_btn(row, "Pay " + who, func(): _debug_staff_pay(role))
+		_btn(row, "Strike " + who, func(): GameManager.debug_set_staff_strike(role, GameManager.staff_record(role).get("on_strike") != true))
+
+## Pay a striker's back wage (Story 16.5's pay_staff_back_wage).
+func _debug_staff_pay(role: String) -> void:
+	if GameManager.has_method("pay_staff_back_wage"):
+		_debug_staff_said(GameManager.pay_staff_back_wage(role))
+
+## A staff action's refusal, said in the event log ("" = done).
+func _debug_staff_said(why: String) -> void:
+	if why != "":
+		GameManager.log_message("[F12] staff: " + why)
+	_refresh_state_tab()
 
 func _debug_spawn_patrons(count: int) -> void:
 	var tavern := _find_main_tavern()
