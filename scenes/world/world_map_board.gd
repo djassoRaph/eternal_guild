@@ -40,6 +40,7 @@ var _badges: Dictionary = {}      # hex_id -> the party size shown on its marker
 var _chips: Dictionary = {}       # hex_id -> the deployed chip's text
 
 var _detail_panel: Control = null
+var _closed_frame := -10          # the process frame a scroll last closed in (review P4: no click through a closing scroll)
 
 # Scroll state — valid only while _detail_panel != null
 var _panel_mission: Dictionary = {}
@@ -218,6 +219,11 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.pressed \
 			and event.button_index == MOUSE_BUTTON_LEFT:
+		# Review P4: a double-click, or a press in the frame a scroll closed or the next, doesn't open another one.
+		if event.double_click or Engine.get_process_frames() - _closed_frame <= 1:
+			if _detail_panel == null:
+				get_viewport().set_input_as_handled()
+			return
 		# While the scroll is open let its own buttons handle clicks.
 		if _detail_panel == null:
 			# Story 6.5: a click on a marker opens its hex; anywhere else, the hex under the cursor (raycast).
@@ -929,8 +935,9 @@ func _show_reason(text: String) -> void:
 		_reason_label.visible = text != ""
 
 
-## A click on a token: a READY adventurer takes the first empty place (a second click takes them back out); anyone
-## else is refused with the reason, and the places stay as they were (AC 6).
+## A click on a token: a READY adventurer takes the first empty place; anyone else is refused with the reason, and the
+## places stay as they were (AC 6). A click on someone already placed does nothing (review P5: a double-click mustn't
+## undo the pick); a click on the place empties it.
 func _on_token_pressed(adventurer_id) -> void:
 	if _panel_read_only or _detail_panel == null:
 		return
@@ -939,17 +946,14 @@ func _on_token_pressed(adventurer_id) -> void:
 	if why != "":
 		_show_reason(why)
 		return
-	var at := _slot_index_of(adventurer_id)
-	if at >= 0:
-		_slots[at].clear_slot()
-		_show_reason("")
+	if _slot_index_of(adventurer_id) >= 0:
 		return
 	for slot in _slots:
 		if slot.is_empty():
 			if slot.fill(adventurer_id):
 				_show_reason("")
 			return
-	_show_reason("Every place is taken. Click someone to take them out.")
+	_show_reason("Every place is taken. Click a place to empty it.")
 
 
 func _open_deployed_scroll(rec: Dictionary) -> void:
@@ -972,6 +976,7 @@ func _open_deployed_scroll(rec: Dictionary) -> void:
 func _close_detail_panel() -> void:
 	if _detail_panel != null and is_instance_valid(_detail_panel):
 		_detail_panel.queue_free()
+		_closed_frame = Engine.get_process_frames()
 	_detail_panel = null
 	_panel_mission = {}
 	_panel_rec = {}
