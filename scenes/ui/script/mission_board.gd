@@ -475,13 +475,8 @@ func show_party_dispatch_confirm(mission: Dictionary, party: Array):
 	var panel = _build_confirm_panel_base(mission)
 	var vbox = panel.get_child(0) as VBoxContainer
 
-	# Average success chance with party bonus
-	var total_chance = 0
-	for adv in party:
-		total_chance += GameManager.calculate_mission_success_chance(adv, mission)
-	var avg_chance = total_chance / party.size() if party.size() > 0 else 0
-	var party_bonus = (party.size() - 1) * 5
-	var final_chance = clampi(avg_chance + party_bonus, 10, 95)
+	# The party's chance: GameManager's one estimate (Story 6.5 review P11), the number the resolver rolls.
+	var final_chance = GameManager.estimate_success(party, mission)
 
 	var chance_label = Label.new()
 	chance_label.text = "" + str(final_chance) + "% party chance of success"

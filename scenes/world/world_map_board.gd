@@ -883,6 +883,7 @@ func _make_token(row: Dictionary) -> Button:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_theme_constant_override("separation", 0)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # the status line wraps inside the token, not past it
 	box.add_child(col)
 
 	var light := Color(0.95, 0.90, 0.80, 1.0)
@@ -892,10 +893,14 @@ func _make_token(row: Dictionary) -> Button:
 		sub = "%s · %d%%" % [str(adv.get("class", "")), int(row.chance)]
 	else:
 		var status: int = GameManager.status_of(adv)
-		sub = token_status_text(status, int(adv.get("recovery", 0)), GameManager.return_day_for(adv) if status == AdventurerStatus.Status.ON_MISSION else -1)
+		# Review P10: every token names the class; a token that can't go shows why instead of a chance.
+		sub = "%s · %s" % [str(adv.get("class", "")), token_status_text(status, int(adv.get("recovery", 0)),
+			GameManager.return_day_for(adv) if status == AdventurerStatus.Status.ON_MISSION else -1)]
 		btn.modulate = Color(1.0, 1.0, 1.0, 0.55)
 	var sub_lbl := _ink_label(sub, 12, Color(0.80, 0.76, 0.66, 1.0))
+	sub_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var tag_lbl := _ink_label("", 12, Color(0.55, 0.90, 0.50, 1.0))
+	tag_lbl.visible = false   # shown with "Good fit" / "Assigned" (_refresh_tokens)
 	for l in [name_lbl, sub_lbl, tag_lbl]:
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		col.add_child(l)
@@ -920,6 +925,7 @@ func _refresh_tokens() -> void:
 			tag.text = "Good fit"
 		else:
 			tag.text = ""
+		tag.visible = tag.text != ""
 
 
 func _slot_index_of(adventurer_id) -> int:

@@ -439,10 +439,10 @@ static func status_of(adventurer: Dictionary) -> int:
 
 ## Why this adventurer can't be sent, as the scroll says it; "" = READY, the only status that may go. DRAFT text.
 static func not_ready_reason(adventurer: Dictionary) -> String:
+	if AdventurerStatus.is_available(status_of(adventurer)):
+		return ""
 	var who := str(adventurer.get("name", "They"))
 	match status_of(adventurer):
-		AdventurerStatus.Status.READY:
-			return ""
 		AdventurerStatus.Status.ON_MISSION:
 			return "%s is out on a contract." % who
 		AdventurerStatus.Status.RESTING:
