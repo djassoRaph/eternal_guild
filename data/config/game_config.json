@@ -96,8 +96,9 @@
 	"profile": "demo",
 	"demo_start_staff": ["bartender", "desk_manager"],
 	"staff_wages": {
-		"_comment": "Epic 16: the staff's pay (GameManager reads it, so Story 14.6's demo profile can override it). daily_wage: gold a day per role id of data/characters/staff.json; a staff record takes it when it is created (New Game, a save without staff) and the first day's wage is paid at hire (Story 16.1). Placeholder numbers (GDD: staff ~2-5 g/day). A missing or bad wage is 1 with a warning.",
-		"daily_wage": {"bartender": 3, "desk_manager": 4}
+		"_comment": "Epic 16: the staff's pay (GameManager reads it, so Story 14.6's demo profile can override it). daily_wage: gold a day per role id of data/characters/staff.json; a staff record takes it when it is created (New Game, a save without staff) and the first day's wage is paid at hire (Story 16.1). Placeholder numbers (GDD: staff ~2-5 g/day). A missing or bad wage is 1 with a warning. Story 16.5: wages are paid each morning right after the adventurers'; a wage that can't be paid puts that member on strike (no work, the wage owed until the player pays it back); missed_days_to_leave unpaid mornings in a row and they leave (a whole number >= 1; bad or missing: 3).",
+		"daily_wage": {"bartender": 3, "desk_manager": 4},
+		"missed_days_to_leave": 3
 	},
 
 	"reputation_tiers": [
