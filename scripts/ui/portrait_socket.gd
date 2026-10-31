@@ -7,8 +7,12 @@ extends TextureRect
 ## portrait → class-colored silhouette fallback. Class colours are data-driven (class_colors.json).
 
 const CLASS_COLORS_PATH := "res://data/config/class_colors.json"
+const CARD_CONFIG_PATH := "res://data/config/tarot_card.json"   # Story 4.2: the Tarot card's look
 static var _class_colors: Dictionary = {}
 static var _silhouette_cache: Dictionary = {}
+static var _card_config: Dictionary = {}
+static var _card_config_loaded := false
+static var _plate_warned: Dictionary = {}   # class -> true: a card drawn on the plate is warned about once a session
 
 ## Apply the resolved portrait to THIS node (when the socket is used as an instanced TextureRect).
 func set_adventurer(adv: Dictionary, emotional_state: String = "") -> void:
@@ -38,6 +42,63 @@ static func resolve_texture(adv: Dictionary, emotional_state: String = "") -> Te
 	# 4. Class-colored silhouette fallback — never crashes
 	push_warning("[PortraitSocket] portrait missing for adventurer %s, rendering fallback" % str(adv.get("id", "?")))
 	return _silhouette_for(cls)
+
+## The art on an adventurer's or applicant's Tarot card (Story 4.2, decision D-1: class silhouettes in the card frame
+## until the paintings are funded): {texture, tint, painting}. The card's own painting at the record's `portrait` path
+## when that file exists (commissioned art drops in there, no code change), else the class silhouette named in
+## tarot_card.json, tinted by its silhouette_tint, else the class-coloured plate. The texture is never null. Unlike
+## resolve_texture() it never falls back to the class portrait paintings (assets/portraits/, placeholders).
+static func resolve_card_art(adv: Dictionary) -> Dictionary:
+	var base := str(adv.get("portrait", ""))
+	if base != "" and ResourceLoader.exists(base):
+		var painting = load(base)
+		if painting is Texture2D:
+			return {"texture": painting, "tint": Color.WHITE, "painting": true}
+	var cls := str(adv.get("class", ""))
+	var cfg := card_config()
+	var sil = cfg.get("silhouettes", {})
+	var path := str(sil.get(cls, "")) if sil is Dictionary else ""
+	if path != "" and ResourceLoader.exists(path):
+		var tex = load(path)
+		if tex is Texture2D:
+			return {"texture": tex, "tint": silhouette_tint(cls, cfg), "painting": false}
+	if not _plate_warned.has(cls):
+		_plate_warned[cls] = true
+		push_warning("[PortraitSocket] fallback: no card silhouette for class '%s'; drawing the class plate" % cls)
+	return {"texture": _silhouette_for(cls), "tint": Color.WHITE, "painting": false}
+
+## The silhouettes' tint from a card config: "class" (class_colors.json, the default) or a colour string.
+static func silhouette_tint(cls: String, cfg: Dictionary) -> Color:
+	var t := str(cfg.get("silhouette_tint", "class"))
+	if t == "class" or t == "":
+		return class_color(cls)
+	return Color.from_string(t, class_color(cls))
+
+## A class's colour from class_colors.json (its default for an unknown class).
+static func class_color(cls: String) -> Color:
+	if _class_colors.is_empty():
+		_load_class_colors()
+	var classes = _class_colors.get("classes", {})
+	var hex = classes.get(cls, _class_colors.get("default", "#7a7a7a")) if classes is Dictionary else _class_colors.get("default", "#7a7a7a")
+	return Color.from_string(str(hex), Color(0.48, 0.48, 0.48))
+
+## The Tarot card's look, data/config/tarot_card.json, read once a session (FileAccess: this class names no autoload).
+## {} when the file is missing or isn't an object.
+static func card_config() -> Dictionary:
+	if not _card_config_loaded:
+		_card_config_loaded = true
+		_card_config = {}
+		if FileAccess.file_exists(CARD_CONFIG_PATH):
+			var data = JSON.parse_string(FileAccess.get_file_as_string(CARD_CONFIG_PATH))
+			if data is Dictionary:
+				_card_config = data
+	return _card_config
+
+## Tests: use `cfg` as the card config (null: read the file again next time) and forget the once-a-session warnings.
+static func set_card_config(cfg) -> void:
+	_card_config_loaded = cfg is Dictionary
+	_card_config = cfg if cfg is Dictionary else {}
+	_plate_warned = {}
 
 static func _silhouette_for(cls: String) -> Texture2D:
 	if _silhouette_cache.has(cls):
