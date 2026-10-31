@@ -67,6 +67,9 @@ func _on_continue_button_pressed():
 	if SaveSystem.load_game().is_empty():
 		_show_message("Couldn't load the save.")   # DRAFT text
 		return
+	var notice := SaveSystem.load_notice()   # review P12: a backup was loaded; the banner outlives the scene change
+	if notice != "":
+		NotificationManager.show_banner(notice)
 	get_tree().change_scene_to_file(SaveSystem.resume_scene())
 
 

@@ -16,6 +16,9 @@ var codex_path: String = CODEX_FILE
 ## saves (the timer, the end of a day, a game over, the reveal's pre-save) need it: a scene launched straight from
 ## the editor runs on the default Day 1 and must never write it over the player's run.
 var run_active := false
+## The file the last read_save() took (P12) and that save's day: Continue / Load tell the player about a fallback.
+var last_loaded_from := ""
+var last_loaded_day := 0
 ## Test seam (Test 27, review P3): "swap" makes the next commit's move-in fail once, to prove the old save comes back.
 var debug_fail_commit := ""
 var autosave_timer: Timer
@@ -144,6 +147,8 @@ func load_game() -> Dictionary:
 	GameManager.load_save_data(save_data)
 	load_in_progress = false
 	run_active = true   # review P1: a loaded run may autosave
+	# Review P15: the epic's {scene, x, y, z} block, in the returned state only (never written).
+	save_data["player_spot"] = player_spot(save_data)
 
 	print("[SaveSystem] loaded: Day ", save_data.get("current_day", 1))
 
@@ -154,8 +159,11 @@ func load_game() -> Dictionary:
 ## Story 11.2: the save's state, migrated and validated, without applying it: the main file, else the newest
 ## readable backup (game-architecture: a corrupt save loads the most recent valid backup). {} when none is readable.
 func read_save() -> Dictionary:
+	last_loaded_from = ""
+	last_loaded_day = 0
+	var recovered := ""
 	if not FileAccess.file_exists(save_path):
-		_recover_interrupted_swap()
+		recovered = _recover_interrupted_swap()
 	var paths: Array[String] = [save_path]
 	for i in range(1, _max_backups() + 1):
 		paths.append(save_path + ".backup" + str(i))
@@ -171,6 +179,9 @@ func read_save() -> Dictionary:
 			continue
 		if i > 0:
 			push_warning("[SaveSystem] warn: save unreadable, loaded backup %d" % i)
+		# P12: where it came from (a .prev put back counts as the one before the latest)
+		last_loaded_from = save_path + recovered if i == 0 and recovered == ".prev" else paths[i]
+		last_loaded_day = int(data.get("current_day", 0))
 		return data
 	print("[SaveSystem] No readable save at: ", save_path)
 	return {}
@@ -191,6 +202,15 @@ func _recover_interrupted_swap() -> String:
 			push_warning("[SaveSystem] warn: the save was missing; put %s back in its place" % p.get_file())
 			return suffix
 	return ""
+
+
+## Review P12: a line for the player when the last load didn't come from the latest save ("" when it did). DRAFT text.
+func load_notice() -> String:
+	if last_loaded_from == "" or last_loaded_from == save_path:
+		return ""
+	if last_loaded_from.ends_with(".prev"):
+		return "Your latest save couldn't be read; loaded the one before it (Day %d)." % last_loaded_day
+	return "Your latest save couldn't be read; loaded backup %s (Day %d)." % [last_loaded_from.get_extension().trim_prefix("backup"), last_loaded_day]
 
 
 ## Story 11.2: the player's saved spot as {"scene", "x", "y", "z"} (the save keeps player_position [x, y, z] and
