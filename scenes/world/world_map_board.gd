@@ -434,6 +434,7 @@ func _build_markers() -> void:
 	if svc_rect.size.x < 1.0:
 		return  # layout not yet settled; open_mission_board defers so this rarely fires
 
+	var tags: Array = []   # [center, text]: spawned after every rune so a neighbour's marker never covers them
 	for rec in WorldManager.world_map:
 		if rec.get("active_mission", null) == null:
 			continue
@@ -455,13 +456,15 @@ func _build_markers() -> void:
 			# Story 6.5 (DD-8): the deployed token chip, under the dimmed rune.
 			var info: Dictionary = GameManager.deployment_info(hex_id)
 			_chips[hex_id] = chip_text(info.get("names", []), int(info.get("return_day", -1)))
-			_spawn_tag(screen_pos + Vector2(0.0, 40.0), _chips[hex_id])
+			tags.append([screen_pos + Vector2(0.0, 40.0), _chips[hex_id]])
 		else:
 			var n: int = GameManager.required_party_size(rec.active_mission)
 			if n > 1:
-				# Story 6.5: a party mission shows how many it needs.
+				# Story 6.5: a party mission shows how many it needs, beside its rune.
 				_badges[hex_id] = n
-				_spawn_tag(screen_pos + Vector2(34.0, -34.0), str(n))
+				tags.append([screen_pos + Vector2(34.0, 12.0), "×%d" % n])
+	for tag in tags:
+		_spawn_tag(tag[0], tag[1])
 
 
 func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
@@ -547,7 +550,7 @@ func _spawn_tag(center: Vector2, text: String) -> void:
 	var label := Label.new()
 	label.text = text
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_font_size_override("font_size", 12)
 	label.add_theme_color_override("font_color", Color(1.0, 0.90, 0.60, 1.0))
 	tag.add_child(label)
 	_marker_layer.add_child(tag)
