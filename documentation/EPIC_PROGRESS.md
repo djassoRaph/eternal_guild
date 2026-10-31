@@ -156,7 +156,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 4: The Adventurer Roster
-**Status: ~88% — 4.1 / 4.4 / 4.5 DONE (2026-07-08). 4.3 portrait socket now BUILT (Story 7.5) — renders class silhouettes today, Guilo's Tarot art swaps in via data with zero code change. Class list reconciled 2026-08-18. Duplicate recruit names + roster portrait clipping fixed 2026-08-20. Only 4.2 hire-UI polish + the duplicate-generator consolidation remain.**
+**Status: 4.1 / 4.4 / 4.5 DONE (2026-07-08); 4.2 built 2026-10-31, in review (the hire desk: applicants as Tarot cards, class silhouettes in a placeholder frame, pick and confirm; traits real; ids never reused; the pool on Day 1). 4.3 next (the roster's card, card name, drink, countdowns). Class list reconciled 2026-08-18. The duplicate-generator consolidation is still open (TECH_DEBT).**
 
 ### Story 4.1: Daily Hire Pool Generation — ✅ DONE
 - [x] 3–5 recruits/day from config (`hire_pool_min/max`)
@@ -165,9 +165,17 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] Unique-card rule: no dupe in pool, none on roster, none re-offered after hire (`hired_tarot_cards`)
 - [x] `AdventurerBus.recruitment_pool_changed` emitted; verified (78 = 22 major/56 minor, pool 3–5, 0 dupes)
 
-### Story 4.2: Hire an Adventurer — 🔨 IN PROGRESS (unparked 2026-09-24: demo Tarot art = class silhouettes in the card frame)
-- [x] `hire_adventurer()` — gold gate, roster-cap + refund, unique ID, adds READY, removes from pool; Tarot card carried onto the roster record
-- [ ] Hire/recruit UI + portrait display — silhouette inside the Tarot card frame (Story 25.22); Tarot art swaps in later via the `portrait` path
+### Story 4.2: Hire an Adventurer — 🔍 IN REVIEW (built 2026-10-31, demo roadmap D3; decision D-1: class silhouettes in the card frame)
+- [x] `hire_adventurer()` — gold gate, unique ID, adds READY, removes from pool; Tarot card carried onto the roster record
+- [x] **One hire authority** — `GameManager.hire_block_reason()` ("No longer available" / "Roster full" / "Not enough gold", in that order) is checked before anything moves: a refused hire changes nothing and emits nothing (a full roster used to spend, then refund); the same applicant can't be hired twice; status forced READY at hire
+- [x] **The pool on Day 1** — `GameManager.ensure_hire_pool()` on opening the desk: a day that never had a pool gets one (every New Game's Day 1 used to offer nobody: the pool was only made by `advance_day`)
+- [x] **The hire desk** (`scripts/ui/recruitment_popup.gd`, same RecruitmentPopup node) — one column per applicant: a Tarot card (`scenes/ui/TarotCard.tscn`: Major numeral or Minor suit, the card's name, the art in the frame's window), name and class, tier, trait, drink, stats, "N gold to hire · W a day"; Hire picks, a confirm bar asks ("Hire Nina the Ranger for 24 gold? Wages: 2 gold a day." [Hire] [Not now]); the desk rebuilds in place; "Your guild" with Dismiss below (4.5). Opaque panel. Player text DRAFT
+- [x] **The card's look in one data file** — `data/config/tarot_card.json`: frame path (the generated `assets/ui/tarot/placeholder_tarot_frame.png` until Story 25.22; `tools/ui/make_placeholder_tarot_frame.py`), band/window fractions, colours, suits (label, colour, icon path), class silhouettes, silhouette tint (`class` or a colour). A missing frame draws a plain border
+- [x] **Card art** — `PortraitSocket.resolve_card_art()`: the Tarot painting at the card's `portrait` path when it exists (commissioned art drops in, no code change), else the class silhouette tinted the class colour, else the class plate. `resolve_texture()` (Reveal, Codex, map tokens) unchanged
+- [x] **Class silhouettes** rendered from the six realistic class bodies by `scenes/dev/SilhouetteStudio.tscn` (one command, quits itself in ~4 s; carried weapons shown, R-9 refined): `assets/ui/tarot/silhouettes/<class>.png`
+- [x] **Traits are real** — applicants draw one trait from `data/characters/traits.json` (was 8 hard-coded words, only 2 matching); hiring keeps it (`personality` used to be erased); `get_trait_data` ignores case; Experienced's +1 to every stat and Greedy's x1.5 wage act when the applicant is made; `trait_info()` shows it. The mission formula is unchanged; `estimate_success` now sees traits (Brave +10, +25 at danger 3; Experienced +5; Reckless -5)
+- [x] **IDs never reused** — `generate_unique_id()` jumps past every id in use or remembered, the codex's fallen heroes included (a fresh session restarted at 1, and `record_fallen_hero` skips an id already in the codex, so a new run's adventurer could die unrecorded)
+- [x] Failsafe Test 29 (66 checks); Stage D shots in `eternal_guild_art/shots/demo/4-2/`
 
 ### Story 4.3: Roster Panel Display — 🔨 MOSTLY DONE (portrait socket built; awaiting Guilo art for the final swap)
 - [x] Panel renders name, class+level, color-coded status, wage; greys non-Ready; refreshes on roster/day change (audit done)
