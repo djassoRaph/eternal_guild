@@ -8,6 +8,22 @@ const MISSION_SLOT_SCRIPT := preload("res://scenes/world/mission_slot.gd")
 # If ۩ (U+06E9) renders as a tofu box, change this one constant to "" or any glyph you prefer.
 const RUNE := "۩"
 
+## Story 6.5: a click this close to a marker's drawn centre opens its hex (the nearest marker wins).
+const MARKER_HIT_RADIUS := 36.0
+## Story 6.5 (DD-6): the Good fit bar when game_config.json's dispatch_strong_fit_min_chance is missing or bad.
+const STRONG_FIT_DEFAULT := 70
+const FOUR_STATS := ["strength", "dexterity", "intelligence", "endurance"]   # the stats the success formula reads
+# The scroll (Story 6.5, DD-9): placeholder_scroll, a flat parchment panel, until the U11 / Story 25.20 UI skin.
+const SCROLL_PAPER := Color(0.87, 0.80, 0.63, 0.98)
+const SCROLL_EDGE := Color(0.45, 0.32, 0.18, 1.0)
+const SCROLL_SLOT := Color(0.78, 0.70, 0.52, 1.0)
+const INK := Color(0.20, 0.13, 0.07, 1.0)
+const INK_SOFT := Color(0.40, 0.31, 0.20, 1.0)
+const INK_RED := Color(0.62, 0.13, 0.10, 1.0)
+const INK_GREEN := Color(0.13, 0.42, 0.15, 1.0)
+const INK_GOLD := Color(0.52, 0.38, 0.03, 1.0)
+const UNFURL_SECONDS := 0.18
+
 var _sv: SubViewport
 var _svc: SubViewportContainer
 var _cam: Camera3D
@@ -19,16 +35,30 @@ var _bubble_danger: Label
 
 var _marker_layer: Control
 var _marker_tweens: Array = []
+var _markers: Array = []          # [{hex_id, pos}]: where each marker is drawn (Story 6.5: a click on one opens its hex)
+var _badges: Dictionary = {}      # hex_id -> the party size shown on its marker
+var _chips: Dictionary = {}       # hex_id -> the deployed chip's text
 
 var _detail_panel: Control = null
 
-# Detail panel active state — valid only while _detail_panel != null
+# Scroll state — valid only while _detail_panel != null
 var _panel_mission: Dictionary = {}
 var _panel_rec: Dictionary = {}   # same dict object as WorldManager.world_map entry
 var _panel_n: int = 0
+var _panel_read_only := false     # a deployed hex: who is out, no places, no Send
 var _assigned_ids: Array = []
+var _slots: Array = []            # the place nodes (mission_slot.gd), in order
+var _token_order: Array = []      # adventurer ids, in the order their tokens are shown
+var _tokens: Dictionary = {}      # adventurer id -> {name, sub, tag: Label}
+var _good_fit: Array = []
 var _chance_label: Label = null
 var _accept_btn: Button = null
+var _party_label: Label = null
+var _uses_label: Label = null
+var _trait_label: Label = null
+var _need_label: Label = null
+var _reason_label: Label = null
+var _readonly_label: Label = null
 
 
 func _ready() -> void:
@@ -188,15 +218,18 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.pressed \
 			and event.button_index == MOUSE_BUTTON_LEFT:
-		# While the detail panel is open let the panel's own buttons handle clicks.
+		# While the scroll is open let its own buttons handle clicks.
 		if _detail_panel == null:
-			var rec := _record_at_screen(event.position)
+			# Story 6.5: a click on a marker opens its hex; anywhere else, the hex under the cursor (raycast).
+			var rec := _record_by_id(marker_hit(_markers, event.position, MARKER_HIT_RADIUS))
+			if rec.is_empty():
+				rec = _record_at_screen(event.position)
 			if not rec.is_empty() and rec.get("active_mission", null) != null:
 				_open_detail_panel(rec)
 				get_viewport().set_input_as_handled()
 
 	if event.is_action_pressed("ui_cancel"):
-		# ESC priority: close panel first; only close the board when no panel is open.
+		# ESC priority: close the scroll first; only close the board when no scroll is open.
 		if _detail_panel != null:
 			_close_detail_panel()
 		else:
@@ -232,15 +265,34 @@ func _record_at_screen(mouse_pos: Vector2) -> Dictionary:
 	var area: Object = result["collider"]
 	if not area.has_meta("hex_id"):
 		return {}
-	var hex_id: String = area.get_meta("hex_id")
+	return _record_by_id(str(area.get_meta("hex_id")))
+
+
+func _record_by_id(hex_id: String) -> Dictionary:
+	if hex_id == "":
+		return {}
 	for rec in WorldManager.world_map:
 		if rec["id"] == hex_id:
 			return rec
 	return {}
 
 
+## Story 6.5: the hex whose marker is drawn nearest `pos`, within `radius` px; "" = none. markers: [{hex_id, pos}].
+static func marker_hit(markers: Array, pos: Vector2, radius: float) -> String:
+	var best := ""
+	var best_d := radius
+	for m in markers:
+		if not (m is Dictionary) or not (m.get("pos") is Vector2):
+			continue
+		var d: float = (m.pos as Vector2).distance_to(pos)
+		if d <= best_d:
+			best_d = d
+			best = str(m.get("hex_id", ""))
+	return best
+
+
 func _handle_hover(mouse_pos: Vector2) -> void:
-	# No hover bubble while the detail panel is showing.
+	# No hover bubble while the scroll is showing.
 	if _detail_panel != null:
 		_hide_bubble()
 		return
@@ -248,7 +300,6 @@ func _handle_hover(mouse_pos: Vector2) -> void:
 	if rec.is_empty():
 		_hide_bubble()
 		return
-	#print("[hover] ", rec["id"], " biome=", rec["biome"], " mission=", rec.get("active_mission", null))
 	_show_bubble(rec, mouse_pos)
 
 
@@ -262,9 +313,18 @@ func _show_bubble(rec: Dictionary, mouse_pos: Vector2) -> void:
 		_bubble_mission.visible = false
 		_bubble_danger.visible = false
 	elif mission != null:
-		_bubble_mission.text = "Work available: " + mission.get("name", "Unknown")
+		if rec.get("locked", false):
+			# Story 6.5 (DD-8): who is out here, and when they're back.
+			var info: Dictionary = GameManager.deployment_info(str(rec.get("id", "")))
+			_bubble_mission.text = out_text(info.get("names", []), int(info.get("return_day", -1)))
+		else:
+			var line := "Work available: " + str(mission.get("name", "Unknown"))
+			var n: int = GameManager.required_party_size(mission)
+			if n > 1:
+				line += "\n" + party_text(n)
+			_bubble_mission.text = line
 		_bubble_mission.visible = true
-		var danger: int = mission.get("danger", 1)
+		var danger: int = int(mission.get("danger", 1))
 		_bubble_danger.text = _danger_text(danger)
 		_bubble_danger.add_theme_color_override("font_color", _danger_color(danger))
 		_bubble_danger.visible = true
@@ -319,6 +379,17 @@ func _danger_color(danger: int) -> Color:
 		_: return Color.WHITE
 
 
+## The danger colours as ink on the parchment scroll (the bright ones don't read on paper).
+func _danger_ink(danger: int) -> Color:
+	match danger:
+		1: return INK_GREEN
+		2: return INK_GOLD
+		3: return Color(0.70, 0.35, 0.04, 1.0)
+		4: return INK_RED
+		5: return Color(0.40, 0.12, 0.50, 1.0)
+		_: return INK
+
+
 func _close() -> void:
 	_close_detail_panel()
 	_clear_markers()
@@ -348,6 +419,9 @@ func _clear_markers() -> void:
 	_marker_tweens.clear()
 	for child in _marker_layer.get_children():
 		child.free()
+	_markers.clear()
+	_badges.clear()
+	_chips.clear()
 
 
 func _build_markers() -> void:
@@ -373,7 +447,21 @@ func _build_markers() -> void:
 			sv_pixel.y / float(_sv.size.y) * svc_rect.size.y + svc_rect.position.y
 		)
 
-		_spawn_marker(screen_pos, rec.get("locked", false))
+		var hex_id := str(rec.get("id", ""))
+		var locked: bool = rec.get("locked", false)
+		_markers.append({"hex_id": hex_id, "pos": screen_pos})
+		_spawn_marker(screen_pos, locked)
+		if locked:
+			# Story 6.5 (DD-8): the deployed token chip, under the dimmed rune.
+			var info: Dictionary = GameManager.deployment_info(hex_id)
+			_chips[hex_id] = chip_text(info.get("names", []), int(info.get("return_day", -1)))
+			_spawn_tag(screen_pos + Vector2(0.0, 40.0), _chips[hex_id])
+		else:
+			var n: int = GameManager.required_party_size(rec.active_mission)
+			if n > 1:
+				# Story 6.5: a party mission shows how many it needs.
+				_badges[hex_id] = n
+				_spawn_tag(screen_pos + Vector2(34.0, -34.0), str(n))
 
 
 func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
@@ -442,110 +530,191 @@ func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
 		_marker_tweens.append(bob)
 
 
-# ── Mission detail panel ──────────────────────────────────────────────────────
+## Story 6.5: a small dark tag centred on `center` (a party size, or a deployed chip). Not part of the pulsing marker.
+func _spawn_tag(center: Vector2, text: String) -> void:
+	var tag := PanelContainer.new()
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.06, 0.05, 0.90)
+	style.border_color = Color(0.85, 0.68, 0.25, 0.90)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 6.0
+	style.content_margin_right = 6.0
+	style.content_margin_top = 1.0
+	style.content_margin_bottom = 1.0
+	tag.add_theme_stylebox_override("panel", style)
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", Color(1.0, 0.90, 0.60, 1.0))
+	tag.add_child(label)
+	_marker_layer.add_child(tag)
+	tag.position = center - tag.get_combined_minimum_size() * 0.5
+
+
+# ── Story 6.5: the dispatch scroll's text (static, DRAFT lines) ───────────────
+
+static func party_text(n: int) -> String:
+	return "Party of %d" % n
+
+
+static func chance_text(chance: int, chosen: int, need: int) -> String:
+	if chosen <= 0 or chance < 0:
+		return "Chance of success: — (pick an adventurer)"
+	if chosen < need:
+		return "Chance of success: %d%% (%d of %d chosen)" % [chance, chosen, need]
+	return "Chance of success: %d%%" % chance
+
+
+static func need_text(need: int, ready: int) -> String:
+	if ready >= need:
+		return ""
+	return "Needs %d ready adventurer%s. You have %d." % [need, "" if need == 1 else "s", ready]
+
+
+static func token_status_text(status: int, recovery: int, return_day: int) -> String:
+	match status:
+		AdventurerStatus.Status.ON_MISSION:
+			return "Out, back day %d" % return_day if return_day >= 0 else "Out on a contract"
+		AdventurerStatus.Status.RESTING:
+			return "Resting, %d day%s" % [recovery, "" if recovery == 1 else "s"]
+		AdventurerStatus.Status.WOUNDED:
+			return "Wounded, %d day%s" % [recovery, "" if recovery == 1 else "s"]
+		AdventurerStatus.Status.DEAD:
+			return "Fallen"
+	return ""
+
+
+static func chip_text(names: Array, return_day: int) -> String:
+	var who := "Out"
+	if names.size() == 1:
+		who = str(names[0])
+	elif names.size() > 1:
+		who = "%s +%d" % [names[0], names.size() - 1]
+	return who if return_day < 0 else "%s · back day %d" % [who, return_day]
+
+
+static func out_text(names: Array, return_day: int) -> String:
+	if names.is_empty():
+		return "Someone is out on this contract."
+	var who := ", ".join(names)
+	return "Out: %s" % who if return_day < 0 else "Out: %s (back day %d)" % [who, return_day]
+
+
+static func deployed_text(names: Array, chance: int, return_day: int) -> String:
+	if names.is_empty():
+		return "Someone is out on this contract."
+	var lines: Array = ["Out on this contract: %s." % ", ".join(names)]
+	if chance >= 0:
+		lines.append("They left with a %d%% chance." % chance)
+	if return_day >= 0:
+		lines.append("Back on day %d." % return_day)
+	return "\n".join(lines)
+
+
+## The stats the success formula reads that this mission uses (its other success_factors add nothing yet).
+static func stat_names(mission: Dictionary) -> Array:
+	var out: Array = []
+	var factors = mission.get("success_factors", ["strength"])
+	if factors is Array:
+		for f in factors:
+			var shown := str(f).capitalize()
+			if FOUR_STATS.has(str(f)) and not out.has(shown):
+				out.append(shown)
+	return out
+
+
+## DD-6: the READY ids whose chance is among the best `n` and at least `min_chance` (ties at the cut included).
+static func strong_fits(estimates: Dictionary, n: int, min_chance: int) -> Array:
+	if estimates.is_empty() or n <= 0:
+		return []
+	var values: Array = estimates.values().map(func(v): return int(v))
+	values.sort()
+	values.reverse()
+	var cut := maxi(int(values[mini(n, values.size()) - 1]), min_chance)
+	var ids: Array = estimates.keys().filter(func(k): return int(estimates[k]) >= cut)
+	ids.sort_custom(func(a, b): return int(estimates[a]) > int(estimates[b]))
+	return ids
+
+
+static func strong_fit_min(value) -> int:
+	if (value is int or value is float) and value >= 0 and value <= 100:
+		return int(value)
+	return STRONG_FIT_DEFAULT
+
+
+## Tokens: READY first, best chance first (ties keep roster order), then the others in roster order.
+## rows: [{id, ready, chance, ...}].
+static func sort_tokens(rows: Array) -> Array:
+	var ready: Array = []
+	var others: Array = []
+	for i in rows.size():
+		if rows[i].get("ready", false):
+			ready.append([rows[i], i])
+		else:
+			others.append(rows[i])
+	ready.sort_custom(func(a, b): return int(a[0].chance) > int(b[0].chance) or (int(a[0].chance) == int(b[0].chance) and a[1] < b[1]))
+	return ready.map(func(p): return p[0]) + others
+
+
+static func _same_id(a, b) -> bool:
+	return typeof(a) == typeof(b) and a == b
+
+
+# ── The dispatch scroll (Story 6.5) ───────────────────────────────────────────
 
 func _open_detail_panel(rec: Dictionary) -> void:
-	_close_detail_panel()  # ensure only one panel at a time
+	_close_detail_panel()  # ensure only one scroll at a time
 
-	var mission: Dictionary = rec["active_mission"]
-
-	# Initialise panel-level tracking state.
+	var mission = rec.get("active_mission", null)
+	if not (mission is Dictionary):
+		return
 	_panel_mission = mission
-	_panel_rec = rec  # retained so _on_accept_pressed can stamp hex_id and set locked
-	var party_raw = mission.get("party_required", false)
-	if party_raw is bool:
-		_panel_n = 2 if party_raw else 1
-	else:
-		_panel_n = maxi(1, int(party_raw))
+	_panel_rec = rec  # the World Map record (its id is the dispatch's hex)
+	if rec.get("locked", false):
+		_open_deployed_scroll(rec)
+		return
+
+	_panel_n = GameManager.required_party_size(mission)
 	_assigned_ids = []
 	for _i in _panel_n:
 		_assigned_ids.append(null)
 
-	# CenterContainer: full-rect transparent wrapper — auto-centers the panel.
-	var wrapper := CenterContainer.new()
-	wrapper.set_anchors_preset(Control.PRESET_FULL_RECT)
-	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(wrapper)
-	_detail_panel = wrapper
+	var vbox := _make_scroll(mission)
 
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(480.0, 0.0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.10, 0.08, 0.07, 0.97)
-	style.border_color = Color(0.80, 0.60, 0.20, 0.85)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", style)
-	wrapper.add_child(panel)
+	_party_label = _ink_label(party_text(_panel_n), 15, INK)
+	_party_label.visible = _panel_n > 1
+	vbox.add_child(_party_label)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	panel.add_child(vbox)
+	var stats := stat_names(mission)
+	_uses_label = _ink_label("Uses: " + ", ".join(stats), 13, INK_SOFT)
+	_uses_label.visible = not stats.is_empty()
+	vbox.add_child(_uses_label)
 
-	# Mission name
-	var name_lbl := Label.new()
-	name_lbl.text = mission.get("name", "Unknown Mission")
-	name_lbl.add_theme_font_size_override("font_size", 22)
-	name_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.50, 1.0))
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(name_lbl)
-
-	vbox.add_child(HSeparator.new())
-
-	# Danger
-	var danger: int = mission.get("danger", 1)
-	var danger_lbl := Label.new()
-	danger_lbl.text = "Danger:  " + _danger_text(danger)
-	danger_lbl.add_theme_font_size_override("font_size", 15)
-	danger_lbl.add_theme_color_override("font_color", _danger_color(danger))
-	vbox.add_child(danger_lbl)
-
-	# Duration
-	var duration: int = mission.get("duration_days", 1)
-	var dur_lbl := Label.new()
-	dur_lbl.text = "Duration:  " + str(duration) + (" day" if duration == 1 else " days")
-	dur_lbl.add_theme_font_size_override("font_size", 14)
-	dur_lbl.add_theme_color_override("font_color", Color(0.80, 0.80, 0.80, 1.0))
-	vbox.add_child(dur_lbl)
-
-	# Reward
-	var lo: int = mission.get("reward_range", [0, 0])[0]
-	var hi: int = mission.get("reward_range", [0, 0])[1]
-	var reward_lbl := Label.new()
-	reward_lbl.text = "Reward:  " + str(lo) + "–" + str(hi) + " gold"
-	reward_lbl.add_theme_font_size_override("font_size", 14)
-	reward_lbl.add_theme_color_override("font_color", Color(0.90, 0.80, 0.30, 1.0))
-	vbox.add_child(reward_lbl)
-
-	# Live success chance — updates whenever a slot fills or clears.
-	_chance_label = Label.new()
-	_chance_label.text = "Success:  — (assign adventurers)"
-	_chance_label.add_theme_font_size_override("font_size", 14)
-	_chance_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1.0))
+	_chance_label = _ink_label(chance_text(-1, 0, _panel_n), 16, INK_SOFT)
 	vbox.add_child(_chance_label)
 
+	_trait_label = _ink_label("", 13, Color(0.32, 0.18, 0.42, 1.0))
+	_trait_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_trait_label.visible = false
+	vbox.add_child(_trait_label)
+
 	vbox.add_child(HSeparator.new())
 
-	# Slot row header
-	var slots_hdr := Label.new()
-	slots_hdr.text = "Adventurers required:  " + str(_panel_n)
-	slots_hdr.add_theme_font_size_override("font_size", 14)
-	slots_hdr.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75, 1.0))
-	vbox.add_child(slots_hdr)
-
-	# N drop-target slots — implemented by mission_slot.gd (drag-and-drop + click-to-clear)
+	# N places — mission_slot.gd: a token click or a roster drag fills one, a click empties it.
 	var slots_row := HBoxContainer.new()
 	slots_row.add_theme_constant_override("separation", 8)
 	slots_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(slots_row)
-
 	for i in _panel_n:
 		var slot := PanelContainer.new()
 		slot.set_script(MISSION_SLOT_SCRIPT)
-		slot.custom_minimum_size = Vector2(80.0, 100.0)
+		slot.custom_minimum_size = Vector2(110.0, 44.0)
 		var slot_style := StyleBoxFlat.new()
-		slot_style.bg_color = Color(0.14, 0.11, 0.09, 1.0)
-		slot_style.border_color = Color(0.45, 0.40, 0.28, 0.85)
+		slot_style.bg_color = SCROLL_SLOT
+		slot_style.border_color = SCROLL_EDGE
 		slot_style.set_border_width_all(2)
 		slot_style.set_corner_radius_all(4)
 		slot.add_theme_stylebox_override("panel", slot_style)
@@ -553,35 +722,246 @@ func _open_detail_panel(rec: Dictionary) -> void:
 		var slot_lbl := Label.new()
 		slot_lbl.name = "SlotLabel"
 		slot_lbl.text = "Empty"
-		slot_lbl.add_theme_font_size_override("font_size", 12)
-		slot_lbl.add_theme_color_override("font_color", Color(0.45, 0.45, 0.45, 1.0))
+		slot_lbl.add_theme_font_size_override("font_size", 13)
+		slot_lbl.add_theme_color_override("font_color", INK_SOFT)
 		slot_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slot_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		slot_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 		slot.add_child(slot_lbl)
 		# Wire the slot to board state BEFORE add_child so the ref is live on _ready().
 		slot.slot_index = i
 		slot.assigned_ids = _assigned_ids
 		slot.on_slot_changed = _on_slot_changed
 		slots_row.add_child(slot)  # triggers slot._ready()
+		_slots.append(slot)
+
+	_need_label = _ink_label("", 13, INK_RED)
+	vbox.add_child(_need_label)
+	var ready_count := 0
+	for adv in GameManager.adventurers:
+		if adv is Dictionary and GameManager.not_ready_reason(adv) == "":
+			ready_count += 1
+	_need_label.text = need_text(_panel_n, ready_count)
+	_need_label.visible = _need_label.text != ""
+
+	vbox.add_child(_ink_label("Your adventurers", 13, INK_SOFT))
+	_build_tokens(vbox)
+
+	_reason_label = _ink_label("", 13, INK_RED)
+	_reason_label.visible = false
+	vbox.add_child(_reason_label)
 
 	vbox.add_child(HSeparator.new())
 
-	# Accept + Close buttons side by side
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	btn_row.add_theme_constant_override("separation", 12)
 	vbox.add_child(btn_row)
 
 	_accept_btn = Button.new()
-	_accept_btn.text = "Accept"
-	_accept_btn.disabled = true  # enabled once all N slots are filled
+	_accept_btn.text = "Send"
+	_accept_btn.disabled = true  # enabled once all N places hold ready adventurers
 	_accept_btn.pressed.connect(_on_accept_pressed)
 	btn_row.add_child(_accept_btn)
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
-	close_btn.add_theme_color_override("font_color", Color(0.85, 0.35, 0.30, 1.0))
+	close_btn.pressed.connect(_close_detail_panel)
+	btn_row.add_child(close_btn)
+
+	_update_chance_and_accept()
+
+
+## The parchment scroll (placeholder_scroll, DD-9): it unfurls from its top edge; name, danger, duration, reward.
+func _make_scroll(mission: Dictionary) -> VBoxContainer:
+	var wrapper := CenterContainer.new()
+	wrapper.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(wrapper)
+	_detail_panel = wrapper
+
+	var panel := PanelContainer.new()
+	panel.name = "Scroll"
+	panel.custom_minimum_size = Vector2(620.0, 0.0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = SCROLL_PAPER
+	style.border_color = SCROLL_EDGE
+	style.set_border_width_all(3)
+	style.border_width_top = 12      # the rolled ends
+	style.border_width_bottom = 12
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(20.0)
+	panel.add_theme_stylebox_override("panel", style)
+	wrapper.add_child(panel)
+	panel.scale = Vector2(1.0, 0.05)
+	var unfurl := panel.create_tween()   # bound to the panel: freed with it if the scroll closes mid-roll
+	unfurl.tween_property(panel, "scale:y", 1.0, UNFURL_SECONDS).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	panel.add_child(vbox)
+
+	var name_lbl := _ink_label(str(mission.get("name", "Unknown Mission")), 22, INK)
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_lbl)
+	vbox.add_child(HSeparator.new())
+
+	var danger: int = int(mission.get("danger", 1))
+	vbox.add_child(_ink_label("Danger:  " + _danger_text(danger), 15, _danger_ink(danger)))
+	var duration: int = int(mission.get("duration_days", 1))
+	vbox.add_child(_ink_label("Duration:  %d %s" % [duration, "day" if duration == 1 else "days"], 14, INK_SOFT))
+	var reward = mission.get("reward_range", [0, 0])
+	if reward is Array and reward.size() >= 2:
+		vbox.add_child(_ink_label("Reward:  %d–%d gold" % [int(reward[0]), int(reward[1])], 14, INK_GOLD))
+	return vbox
+
+
+func _ink_label(text: String, size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	return label
+
+
+func _build_tokens(parent: Container) -> void:
+	var rows: Array = []
+	var estimates := {}
+	for adv in GameManager.adventurers:
+		if not (adv is Dictionary):
+			continue
+		var id = adv.get("id", adv.get("name"))
+		var ready: bool = GameManager.not_ready_reason(adv) == ""
+		var chance: int = GameManager.estimate_success([adv], _panel_mission)
+		rows.append({"id": id, "ready": ready, "chance": chance, "adv": adv})
+		if ready:
+			estimates[id] = chance
+	rows = sort_tokens(rows)
+	_good_fit = strong_fits(estimates, _panel_n, strong_fit_min(DataManager.get_config("dispatch_strong_fit_min_chance", STRONG_FIT_DEFAULT)))
+
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 6)
+	flow.add_theme_constant_override("v_separation", 6)
+	parent.add_child(flow)
+	for row in rows:
+		_token_order.append(row.id)
+		flow.add_child(_make_token(row))
+
+
+func _make_token(row: Dictionary) -> Button:
+	var adv: Dictionary = row.adv
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(186.0, 62.0)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.pressed.connect(_on_token_pressed.bind(row.id))
+
+	var box := HBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 4.0
+	box.offset_right = -4.0
+	box.add_theme_constant_override("separation", 6)
+	btn.add_child(box)
+
+	var pic := TextureRect.new()
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pic.texture = PortraitSocket.resolve_texture(adv)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.custom_minimum_size = Vector2(40.0, 54.0)
+	box.add_child(pic)
+
+	var col := VBoxContainer.new()
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 0)
+	box.add_child(col)
+
+	var light := Color(0.95, 0.90, 0.80, 1.0)
+	var name_lbl := _ink_label(str(adv.get("name", "?")), 14, light)
+	var sub := ""
+	if row.ready:
+		sub = "%s · %d%%" % [str(adv.get("class", "")), int(row.chance)]
+	else:
+		var status: int = GameManager.status_of(adv)
+		sub = token_status_text(status, int(adv.get("recovery", 0)), GameManager.return_day_for(adv) if status == AdventurerStatus.Status.ON_MISSION else -1)
+		btn.modulate = Color(1.0, 1.0, 1.0, 0.55)
+	var sub_lbl := _ink_label(sub, 12, Color(0.80, 0.76, 0.66, 1.0))
+	var tag_lbl := _ink_label("", 12, Color(0.55, 0.90, 0.50, 1.0))
+	for l in [name_lbl, sub_lbl, tag_lbl]:
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(l)
+	_tokens[row.id] = {"name": name_lbl, "sub": sub_lbl, "tag": tag_lbl}
+	return btn
+
+
+## A token's labels as one line (name | class and chance, or status | tag); for tests and logs.
+func _token_text(adventurer_id) -> String:
+	var t: Dictionary = _tokens.get(adventurer_id, {})
+	if t.is_empty():
+		return ""
+	return "%s | %s | %s" % [t.name.text, t.sub.text, t.tag.text]
+
+
+func _refresh_tokens() -> void:
+	for id in _tokens:
+		var tag: Label = _tokens[id].tag
+		if _slot_index_of(id) >= 0:
+			tag.text = "Assigned"
+		elif _good_fit.has(id):
+			tag.text = "Good fit"
+		else:
+			tag.text = ""
+
+
+func _slot_index_of(adventurer_id) -> int:
+	for i in _assigned_ids.size():
+		if _assigned_ids[i] != null and _same_id(_assigned_ids[i], adventurer_id):
+			return i
+	return -1
+
+
+func _show_reason(text: String) -> void:
+	if is_instance_valid(_reason_label):
+		_reason_label.text = text
+		_reason_label.visible = text != ""
+
+
+## A click on a token: a READY adventurer takes the first empty place (a second click takes them back out); anyone
+## else is refused with the reason, and the places stay as they were (AC 6).
+func _on_token_pressed(adventurer_id) -> void:
+	if _panel_read_only or _detail_panel == null:
+		return
+	var adv: Dictionary = GameManager.find_adventurer(adventurer_id)
+	var why: String = GameManager.not_ready_reason(adv) if not adv.is_empty() else "That adventurer isn't in the guild."
+	if why != "":
+		_show_reason(why)
+		return
+	var at := _slot_index_of(adventurer_id)
+	if at >= 0:
+		_slots[at].clear_slot()
+		_show_reason("")
+		return
+	for slot in _slots:
+		if slot.is_empty():
+			if slot.fill(adventurer_id):
+				_show_reason("")
+			return
+	_show_reason("Every place is taken. Click someone to take them out.")
+
+
+func _open_deployed_scroll(rec: Dictionary) -> void:
+	_panel_read_only = true
+	var vbox := _make_scroll(_panel_mission)
+	var info: Dictionary = GameManager.deployment_info(str(rec.get("id", "")))
+	_readonly_label = _ink_label(deployed_text(info.get("names", []), int(info.get("chance", -1)), int(info.get("return_day", -1))), 15, INK)
+	_readonly_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(_readonly_label)
+	vbox.add_child(HSeparator.new())
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_row)
+	var close_btn := Button.new()
+	close_btn.text = "Close"
 	close_btn.pressed.connect(_close_detail_panel)
 	btn_row.add_child(close_btn)
 
@@ -593,9 +973,20 @@ func _close_detail_panel() -> void:
 	_panel_mission = {}
 	_panel_rec = {}
 	_panel_n = 0
+	_panel_read_only = false
 	_assigned_ids = []
+	_slots = []
+	_token_order = []
+	_tokens = {}
+	_good_fit = []
 	_chance_label = null
 	_accept_btn = null
+	_party_label = null
+	_uses_label = null
+	_trait_label = null
+	_need_label = null
+	_reason_label = null
+	_readonly_label = null
 
 
 # ── Slot callbacks ────────────────────────────────────────────────────────────
@@ -605,66 +996,49 @@ func _on_slot_changed() -> void:
 
 
 func _update_chance_and_accept() -> void:
-	if not is_instance_valid(_chance_label) or not is_instance_valid(_accept_btn):
+	if _panel_read_only or not is_instance_valid(_chance_label) or not is_instance_valid(_accept_btn):
 		return
 
-	var filled := _assigned_ids.filter(func(x): return x != null)
-	_accept_btn.disabled = filled.size() != _panel_n
+	var party: Array = []
+	for id in _assigned_ids:
+		if id != null:
+			var adv: Dictionary = GameManager.find_adventurer(id)
+			if not adv.is_empty():
+				party.append(adv)
+	var all_ready := party.all(func(a): return GameManager.not_ready_reason(a) == "")
+	_accept_btn.disabled = not (party.size() == _panel_n and all_ready)
 
-	if filled.is_empty():
-		_chance_label.text = "Success:  — (assign adventurers)"
-		_chance_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55, 1.0))
-		return
-
-	# Display chance using the first-placed adventurer.
-	# For multi-member parties this is a display approximation; actual resolution
-	# math lives in GameManager and runs at dispatch time (Step C3).
-	var first_id = filled[0]
-	var adv := {}
-	for a in GameManager.adventurers:
-		if a.get("id", a.get("name")) == first_id:
-			adv = a
-			break
-	if adv.is_empty():
-		return
-
-	var chance := GameManager.calculate_mission_success_chance(adv, _panel_mission)
-	var c: Color
-	if   chance >= 70: c = Color(0.30, 0.85, 0.40, 1.0)
-	elif chance >= 50: c = Color(0.90, 0.80, 0.20, 1.0)
-	else:              c = Color(0.90, 0.35, 0.30, 1.0)
-	_chance_label.text = "Success:  " + str(chance) + "%"
+	# The one estimate (DD-2): what is shown here is what dispatch stores and the resolver rolls.
+	var chance: int = GameManager.estimate_success(party, _panel_mission) if not party.is_empty() else -1
+	_chance_label.text = chance_text(chance, party.size(), _panel_n)
+	var c := INK_SOFT
+	if chance >= 70:
+		c = INK_GREEN
+	elif chance >= 50:
+		c = INK_GOLD
+	elif chance >= 0:
+		c = INK_RED
 	_chance_label.add_theme_color_override("font_color", c)
+
+	var traits: Array = []
+	for a in party:
+		var t: Dictionary = GameManager.trait_info(a)
+		if not t.is_empty():
+			traits.append("%s — %s: %s" % [str(a.get("name", "?")), t.name, t.description])
+	_trait_label.text = "\n".join(traits)
+	_trait_label.visible = not traits.is_empty()
+	_refresh_tokens()
 
 
 func _on_accept_pressed() -> void:
-	# Build party: resolve integer ids → live adventurer dicts.
-	# If ANY id fails to match, abort before mutating anything.
-	var party: Array = []
-	for slot_id in _assigned_ids:
-		var found: Dictionary = {}
-		for adv in GameManager.adventurers:
-			if adv.get("id", adv.get("name")) == slot_id:
-				found = adv
-				break
-		if found.is_empty():
-			push_warning("[C3] Accept aborted — adventurer id %s not found in roster." % str(slot_id))
-			return
-		party.append(found)
-
-	if party.size() != _panel_n:
-		push_warning("[C3] Accept aborted — party size mismatch (%d resolved, %d required)." % [party.size(), _panel_n])
+	if _panel_read_only or _detail_panel == null:
 		return
-
-	# Dispatch — branch preserves solo's pre-computed success_chance and reckless-trait path.
-	if _panel_n == 1:
-		GameManager.send_on_mission(party[0], _panel_mission, _panel_rec["id"])
-	else:
-		GameManager.send_party_on_mission(party, _panel_mission, _panel_rec["id"])
-
-	# Lock the hex so assign_missions_to_hexes skips it and no new mission lands on it.
-	_panel_rec["locked"] = true
-
-	# Close panel then rebuild markers so the locked hex updates visually.
+	var ids: Array = _assigned_ids.filter(func(x): return x != null)
+	var why: String = GameManager.dispatch_adventurers(ids, _panel_mission, str(_panel_rec.get("id", "")))
+	if why != "":
+		_show_reason(why)
+		_update_chance_and_accept()
+		return
+	# GameManager locked the hex and stored the record; redraw so the marker shows who went.
 	_close_detail_panel()
 	_build_markers()
