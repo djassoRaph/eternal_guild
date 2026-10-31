@@ -358,6 +358,7 @@ func _initialize() -> void:
 	await test_dispatch()
 	await test_hiring()
 	await test_roster_panel()
+	await test_tax_cycle_bus()
 
 	_finish()
 
@@ -10755,5 +10756,290 @@ func _check_t30_panel(gm, ps) -> void:
 		"Fy (an unknown class, no card, no wage on the record): the class plate, no card line, '1 gold a day'; every thumbnail a compact 64 x 106 card with a texture, inside its entry")
 	check(cards[9301].get("adventurer_id") == 9301 and cards[9301].get_node_or_null("CardContent/InfoContainer/NameLabel") != null,
 		"the drag source's adventurer_id and NameLabel are where adventurer_card.gd reads them")
+	panel.queue_free()
+	await process_frame
+
+
+# --- Test 31: Tax cycle on the bus (Story 13.1) ---
+# The tax cycle's events go out on EconomyBus (tax_demand_triggered, tax_paid, tax_warning, tax_overdue) in the order a
+# listener needs them (demand, then the gold, then paid; overdue on each grace morning without a second demand); every
+# tax number comes from game_config.json through tax_config_from() (a bad value falls back with a warning, once a run);
+# NotificationManager shows a banner for each event; the F12 panel reads the cycle and its trigger runs the real check.
+# The bankruptcy fall at the end of the grace is Test 32's. Fixture roster; every GameManager / DataManager field
+# touched is restored; SaveSystem points at user://failsafe_t31/ (nothing is saved: no live run).
+const T31_DIR := "user://failsafe_t31"
+const T31_SIGNALS := {"tax_demand_triggered": ["amount", "due_day"], "tax_paid": ["amount"],
+	"tax_warning": ["days_left", "amount"], "tax_overdue": ["days_remaining"]}
+const T31_DEFAULTS := {"first_due_day": 30, "interval_days": 30, "base_amount": 1000, "per_adventurer": 5, "grace_days": 3,
+	"warning_days": [7, 3, 1]}
+const T31_CONFIG_KEYS := ["tax_due_day", "tax_interval_days", "tax_base_amount", "tax_per_adventurer", "tax_grace_period_days",
+	"tax_warning_days"]
+const DEBUG_PANEL_SCENE_PATH := "res://scenes/ui/debug_panel.tscn"
+
+func test_tax_cycle_bus() -> void:
+	print("[Test 31] Tax cycle on the bus (Story 13.1)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var eb = root.get_node_or_null("EconomyBus")
+	var nm = root.get_node_or_null("NotificationManager")
+	var ss = root.get_node_or_null("SaveSystem")
+	_check_t31_signals(eb)
+	if gm == null or wm == null or dm == null or eb == null or nm == null or ss == null or not gm.has_method("tax_config_from"):
+		check(false, "GameManager.tax_config_from and the WorldManager, DataManager, EconomyBus, NotificationManager, SaveSystem autoloads")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var warned_before = gm.get("_tax_warnings")
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
+	ss.run_active = false
+	ss.save_path = T31_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T31_DIR + "/codex.dat"
+	ss.codex_data = {"fallen_heroes": [], "artifacts_found": []}
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	var events: Array = []
+	var recs := {
+		"tax_demand_triggered": func(a, d): events.append(["demand", a, d]),
+		"tax_paid": func(a): events.append(["paid", a]),
+		"tax_warning": func(d, a): events.append(["warning", d, a]),
+		"tax_overdue": func(d): events.append(["overdue", d]),
+		"gold_changed": func(g): events.append(["gold", g]),
+	}
+	for s in recs:
+		eb.connect(s, recs[s])
+
+	_check_t31_config(gm, dm)
+	_check_t31_warnings(gm, events, capture)
+	_check_t31_paying(gm, events)
+	_check_t31_overdue(gm, events, capture)
+	_check_t31_skipped(gm, events)
+	_check_t31_source()
+	_check_t31_banners(eb, nm)
+	await _check_t31_debug_panel(gm, events)
+
+	for s in recs:
+		if eb.is_connected(s, recs[s]):
+			eb.disconnect(s, recs[s])
+	gm.set("_tax_warnings", warned_before)
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	ss.codex_data = ss_saved[3]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	check(not FileAccess.file_exists(T31_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T31_DIR + "/codex.dat"),
+		"Test 31 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 31 never touched the real save or codex")
+	print("")
+
+
+## AC 1: the four tax signals on EconomyBus, with the argument names listeners read.
+func _check_t31_signals(eb) -> void:
+	var got := {}
+	if eb != null:
+		for s in eb.get_signal_list():
+			if T31_SIGNALS.has(s.name):
+				got[s.name] = s.args.map(func(a): return a.name)
+	var ok := got.size() == T31_SIGNALS.size()
+	for k in T31_SIGNALS:
+		ok = ok and got.get(k, []) == T31_SIGNALS[k]
+	check(ok, "EconomyBus has tax_demand_triggered(amount, due_day), tax_paid(amount), tax_warning(days_left, amount), tax_overdue(days_remaining) %s" % [got])
+
+
+## AC 5 (DT-4): every tax number from config, with a fallback per key and a warning naming a bad key; once a run.
+func _check_t31_config(gm, dm) -> void:
+	var d: Dictionary = gm.tax_config_from({})
+	check(_t31_numbers(d) == T31_DEFAULTS and d.get("warnings", ["x"]).is_empty(), "tax_config_from({}): today's numbers, no warning %s" % [d])
+	var custom := {"tax_due_day": 6.0, "tax_interval_days": 7, "tax_base_amount": 150.0, "tax_per_adventurer": 10, "tax_grace_period_days": 2,
+		"tax_warning_days": [1.0, 3]}
+	var c: Dictionary = gm.tax_config_from(custom)
+	check(_t31_numbers(c) == {"first_due_day": 6, "interval_days": 7, "base_amount": 150, "per_adventurer": 10, "grace_days": 2,
+		"warning_days": [3, 1]} and c.warnings.is_empty(),
+		"good values pass through as whole numbers (JSON floats too); warning days come back largest first %s" % [c])
+	var bad_cases := [["tax_interval_days", 0], ["tax_base_amount", -5], ["tax_per_adventurer", "x"], ["tax_grace_period_days", 0],
+		["tax_due_day", 0], ["tax_interval_days", 2.5], ["tax_warning_days", "x"], ["tax_warning_days", []], ["tax_warning_days", [-1]],
+		["tax_warning_days", [7, "a"]]]
+	var bad_ok := true
+	var bad_seen := []
+	for case in bad_cases:
+		var r: Dictionary = gm.tax_config_from({case[0]: case[1]})
+		var w: Array = r.get("warnings", [])
+		var good: bool = _t31_numbers(r) == T31_DEFAULTS and w.size() == 1 and str(w[0]).contains(case[0]) \
+			and str(w[0]).begins_with("[GameManager] fallback:")
+		bad_ok = bad_ok and good
+		if not good:
+			bad_seen.append([case, r])
+	check(bad_ok, "each bad value (interval 0 or 2.5, a negative base, a word, grace 0, due day 0, warning days 'x' / [] / [-1] / [7, 'a']) takes today's number with one '[GameManager] fallback:' warning naming its key %s" % [bad_seen])
+	var amounts := [gm.tax_amount_for(0, d), gm.tax_amount_for(1, d), gm.tax_amount_for(8, d), gm.tax_amount_for(2, c)]
+	check(amounts == [1000, 1005, 1040, 170], "tax_amount_for: 1000 + 5 per adventurer (0, 1, 8 → %s); the custom 150 + 10 x 2 → %d" % [amounts.slice(0, 3), amounts[3]])
+	var has_keys := true
+	for k in T31_CONFIG_KEYS:
+		has_keys = has_keys and dm.game_config.has(k)
+	gm.set("_tax_warnings", 0)
+	var shipped: Dictionary = gm.tax_config()
+	check(has_keys and _t31_numbers(shipped) == T31_DEFAULTS and shipped.warnings.is_empty() and int(gm.get("_tax_warnings")) == 0
+		and str(dm.game_config.get("_tax_comment", "")).contains("Story 13.1"),
+		"game_config.json has every tax key (and _tax_comment): 30 / 30 / 1000 / 5 / 3 / [7, 3, 1], no warning %s" % [_t31_numbers(shipped)])
+	dm.game_config["tax_interval_days"] = 0
+	var once := [gm.tax_config(), gm.tax_config()]
+	check(once[0].interval_days == 30 and once[1].interval_days == 30 and int(gm.get("_tax_warnings")) == 1,
+		"a bad tax_interval_days in the config: 30 is used, the warning is pushed once a run (_tax_warnings %s)" % [gm.get("_tax_warnings")])
+	dm.game_config["tax_interval_days"] = 30
+	dm.game_config["tax_due_day"] = 12.0
+	gm.tax_due_day = 99
+	gm._apply_config()
+	var first_due: int = gm.tax_due_day
+	dm.game_config["tax_due_day"] = 30
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(first_due == 12 and _lm_in_func(src, "reset_game_state", "_tax_warnings = 0") and _lm_in_func(src, "_apply_config", "tax_config()"),
+		"the first due day comes from tax_due_day through tax_config() (12 → %d); New Game (reset_game_state) re-arms the warning" % first_due)
+
+
+static func _t31_numbers(cfg: Dictionary) -> Dictionary:
+	var out := {}
+	for k in T31_DEFAULTS:
+		out[k] = cfg.get(k)
+	return out
+
+
+## A fixture roster of n READY adventurers (the tax counts every adventurer on the roster).
+static func _t31_roster(n: int) -> Array:
+	var out := []
+	for i in n:
+		out.append(_d1_adv(9310 + i, "Tax%d" % i, AdventurerStatus.Status.READY, ""))
+	return out
+
+
+## The cycle's start: a roster of 2 (1010 gold), Tier 2 already (the tier unlock leaves the world alone), no grace.
+func _t31_state(gm, due: int, day: int, gold: int, grace := 0) -> void:
+	gm.adventurers = _t31_roster(2)
+	gm.mission_tier_unlocked = 2
+	gm.tavern_reputation = 0
+	gm.taxes_paid_count = 0
+	gm.tax_due_day = due
+	gm.current_day = day
+	gm.gold = gold
+	gm.tax_grace_days = grace
+	gm.game_over_active = false
+
+
+## AC 6: a warning on each configured day before the due day, on the bus, with today's amount; nothing else.
+func _check_t31_warnings(gm, events: Array, capture) -> void:
+	_t31_state(gm, 40, 32, 5000)
+	events.clear()
+	capture.lines.clear()
+	var per_day := {}
+	for day in range(32, 40):
+		gm.current_day = day
+		var before := events.size()
+		gm.check_tax_deadline()
+		per_day[40 - day] = events.slice(before)
+	var ok := true
+	for left in per_day:
+		var want: Array = [["warning", left, 1010]] if [7, 3, 1].has(left) else []
+		ok = ok and per_day[left] == want
+	var log_ok: bool = capture.lines.size() == 3 and str(capture.lines[0]).contains("1010") and str(capture.lines[2]).contains("TOMORROW")
+	check(ok and log_ok and gm.gold == 5000 and gm.tax_grace_days == 0 and gm.taxes_paid_count == 0,
+		"8 days to 1 before the due day: tax_warning(7 / 3 / 1, 1010) on exactly those mornings, no demand, no payment; the hall's log lines carry 1010 %s %s" % [per_day, capture.lines])
+
+
+## AC 2, AC 3 (DT-3): the paying morning: demand, the gold, then paid; the next cycle.
+func _check_t31_paying(gm, events: Array) -> void:
+	_t31_state(gm, 40, 40, 1500)
+	events.clear()
+	gm.check_tax_deadline()
+	check(events == [["demand", 1010, 40], ["gold", 490], ["paid", 1010]] and gm.gold == 490 and gm.tax_due_day == 70
+		and gm.tax_grace_days == 0 and gm.taxes_paid_count == 1 and gm.mission_tier_unlocked == 2,
+		"the due morning with 1500 gold: tax_demand_triggered(1010, 40) → gold_changed(490) → tax_paid(1010), once each; next due day 70, grace 0, paid 1 %s" % [events])
+
+
+## AC 4 (DT-3, DT-5): mornings that can't pay: demand + overdue(2), then overdue(1) without a second demand; a payment
+## on a grace morning closes the cycle from the old due day.
+func _check_t31_overdue(gm, events: Array, capture) -> void:
+	_t31_state(gm, 40, 40, 10)
+	events.clear()
+	capture.lines.clear()
+	gm.check_tax_deadline()
+	var first := events.duplicate()
+	var g1: int = gm.tax_grace_days
+	events.clear()
+	gm.current_day = 41
+	gm.check_tax_deadline()
+	var second := events.duplicate()
+	check(first == [["demand", 1010, 40], ["overdue", 2]] and g1 == 1 and second == [["overdue", 1]] and gm.tax_grace_days == 2
+		and gm.gold == 10 and not gm.game_over_active and gm.tax_due_day == 40,
+		"can't pay: the due morning sends tax_demand_triggered(1010, 40) + tax_overdue(2) (grace 1); the next morning tax_overdue(1) and no second demand (grace 2); gold untouched, no fall yet %s %s" % [first, second])
+	var log_ok := false
+	for l in capture.lines:
+		log_ok = log_ok or str(l).contains("1/3")
+	check(log_ok, "the hall's log counts the grace from the config ('1/3') %s" % [capture.lines])
+	_t31_state(gm, 40, 41, 2000, 1)
+	events.clear()
+	gm.check_tax_deadline()
+	check(events == [["gold", 990], ["paid", 1010]] and gm.tax_grace_days == 0 and gm.tax_due_day == 70 and gm.taxes_paid_count == 1,
+		"paying on a grace morning: no new demand, gold_changed then tax_paid; grace 0; the next due day counts from the old one (70) %s" % [events])
+
+
+## AC 2: a due day jumped over (the debug panel's day jump) still raises the demand on the next check.
+func _check_t31_skipped(gm, events: Array) -> void:
+	_t31_state(gm, 40, 43, 3000)
+	events.clear()
+	gm.check_tax_deadline()
+	check(events == [["demand", 1010, 40], ["gold", 1990], ["paid", 1010]] and gm.tax_due_day == 70,
+		"a due day skipped (today 43, due 40, grace 0): one demand for day 40, then the payment %s" % [events])
+
+
+## AC 5: no tax number left in the cycle's two functions; they emit on the bus.
+func _check_t31_source() -> void:
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var body: String = _func_body(src, "check_tax_deadline") + _func_body(src, "handle_tax_payment")
+	var literals := []
+	for lit in ["1000", "* 5", "+= 30", ">= 3", "== 7", "== 3", "/3"]:
+		if body.contains(lit):
+			literals.append(lit)
+	check(body != "" and literals.is_empty() and body.contains("EconomyBus.tax_demand_triggered.emit") and body.contains("EconomyBus.tax_paid.emit")
+		and body.contains("EconomyBus.tax_warning.emit") and body.contains("EconomyBus.tax_overdue.emit") and body.contains("tax_config()"),
+		"check_tax_deadline / handle_tax_payment hold no tax literal (found %s), read tax_config() and emit the four tax signals" % [literals])
+
+
+## AC 6 (DT-6): NotificationManager, the first listener: one banner per tax event, DRAFT text.
+func _check_t31_banners(eb, nm) -> void:
+	var shown := []
+	for ev in [["tax_warning", [3, 1040]], ["tax_warning", [1, 1040]], ["tax_paid", [1040]], ["tax_overdue", [2]], ["tax_overdue", [1]]]:
+		eb.callv("emit_signal", [ev[0]] + ev[1])
+		var n: int = nm._container.get_child_count()
+		var text := ""
+		if n > 0:
+			for l in nm._container.get_child(n - 1).find_children("*", "Label", true, false):
+				text = (l as Label).text
+		shown.append(text)
+	check(shown == ["Tax due in 3 days: 1040 gold.", "Tax due tomorrow: 1040 gold.", "Tax paid: 1040 gold.",
+		"Tax overdue. 2 days before the guild is seized.", "Tax overdue. 1 day before the guild is seized."],
+		"NotificationManager shows a banner for each tax event %s" % [shown])
+	for c in nm._container.get_children():
+		nm._container.remove_child(c)
+		c.free()
+
+
+## AC 7 (DT-7): the F12 State tab reads the cycle; Trigger Tax Event NOW runs the real check.
+func _check_t31_debug_panel(gm, events: Array) -> void:
+	var ps = load(DEBUG_PANEL_SCENE_PATH)
+	if not (ps is PackedScene):
+		check(false, "the debug panel scene loads (%s)" % DEBUG_PANEL_SCENE_PATH)
+		return
+	var panel: Node = ps.instantiate()
+	root.add_child(panel)
+	_t31_state(gm, 40, 28, 5000, 0)
+	panel._refresh_state_tab()
+	var lbl = panel._state_labels.get("tax")
+	var text: String = (lbl as Label).text if lbl is Label else ""
+	check(text.contains("due Day 40") and text.contains("in 12 d") and text.contains("1010 g") and text.contains("grace 0/3")
+		and text.contains("paid 0"), "the F12 State tab's tax line: '%s'" % text)
+	_t31_state(gm, 70, 50, 5000, 0)
+	events.clear()
+	panel._debug_trigger_tax()
+	check(events == [["demand", 1010, 50], ["gold", 3990], ["paid", 1010]] and gm.tax_due_day == 80,
+		"Trigger Tax Event NOW: today becomes the due day and the real check runs (one demand, then paid; next due 80) %s" % [events])
 	panel.queue_free()
 	await process_frame
