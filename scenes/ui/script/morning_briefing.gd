@@ -27,6 +27,25 @@ func _ready():
 	add_to_group("morning_briefing")   # Story 13.4: a fall's screen waits until the briefing closes
 	_build_ui()
 
+
+const SCENE_PATH := "res://scenes/ui/MorningBriefing.tscn"
+
+## Show the pending morning reports (the one way in: the bedroom's morning, and Story 16.4's guild desk when the reports
+## waited there). The reports are taken from GameManager; without the scene they go to the event log. The briefing, or null.
+static func present(tree: SceneTree) -> Node:
+	var gm := tree.root.get_node_or_null("GameManager")
+	if gm == null:
+		return null
+	var scene = load(SCENE_PATH)
+	if scene is PackedScene:
+		var briefing = (scene as PackedScene).instantiate()
+		tree.root.add_child(briefing)
+		briefing.show_reports(gm.get_and_clear_pending_reports())
+		return briefing
+	for report in gm.get_and_clear_pending_reports():
+		gm.log_message("REPORT: " + str(report.get("mission_name", "?")) + (" — SUCCESS" if report.get("success") else " — FAILED"))
+	return null
+
 func _build_ui():
 	"""Build the morning briefing UI programmatically"""
 	var overlay = ColorRect.new()

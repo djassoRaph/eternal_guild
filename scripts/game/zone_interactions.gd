@@ -248,7 +248,12 @@ func open_recruitment_desk() -> void:
 	if recruitment_popup.visible:
 		print("Recruitment popup already open!")
 		return
-	
+
+	if GameManager.has_pending_briefing:
+		# Story 16.4 (SQ-5): the morning reports that waited at the desk (the Quest Dealer wasn't working) come first
+		load("res://scenes/ui/script/morning_briefing.gd").present(get_tree())
+		return
+
 	recruitment_popup.open_recruitment_desk()
 	send_log_message("Reviewing potential recruits")
 
