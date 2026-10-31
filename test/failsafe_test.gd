@@ -360,6 +360,7 @@ func _initialize() -> void:
 	await test_roster_panel()
 	await test_tax_cycle_bus()
 	await test_guild_falls()
+	await test_staff_records()
 
 	_finish()
 
@@ -8394,7 +8395,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"pending_reports", "has_pending_briefing", "mission_refresh_day", "next_adventurer_id", "tax_grace_days",
 	"hired_tarot_cards", "adventurers_hired_this_run", "deaths_this_run", "dialogue_flags", "den_fa_state",
 	"_den_fa_tier_warnings", "saved_player_scene", "restored_patrons", "game_over_active", "pending_new_game_save",
-	"gold_peak", "last_run_summary", "_tax_warnings"]   # Stories 13.1 / 13.4: the reset writes these too
+	"gold_peak", "last_run_summary", "_tax_warnings",   # Stories 13.1 / 13.4: the reset writes these too
+	"staff"]   # Story 16.1: the staff records
 
 
 func test_load_and_resume() -> void:
@@ -12040,3 +12042,324 @@ static func _t32_same_entry(disk, mem: Dictionary) -> bool:
 		elif a != b:
 			return false
 	return true
+
+
+# --- Test 33: Staff records, the bus and wages (Stories 16.1, 16.5) ---
+# Story 16.1: GameManager keeps one saved record per staff role (staff.json's roles): staff_id "<role>/<variant>", the
+# role's display name, its daily wage from game_config.json's staff_wages, hired, on_strike, owed, missed_days; seeded
+# from the profile (the demo's starting staff, K9). hire_staff / dismiss_staff are the one authority and emit
+# GuildBus.staff_hired / staff_fired; GameManager never listens to them (Test 19 drives the bodies by emitting them).
+# Story 16.5 (part B): the morning's staff wages, the strike, leaving, the pay-back and the banners.
+# Every file goes to user://failsafe_t33/ (save_path and codex_path); the real save and codex are checked unchanged.
+const T33_DIR := "user://failsafe_t33"
+const STAFF_RECORD_KEYS := ["staff_id", "role", "variant", "name", "daily_wage", "hired", "on_strike", "owed", "missed_days"]
+const T33_ROLES := {
+	"bartender": {"display_name": "the Bartender", "default_variant": "barkeep", "variants": {"barkeep": {}}, "unlock_tier": "Trusted"},
+	"desk_manager": {"display_name": "the Quest Dealer", "default_variant": "silver_elf", "variants": {"silver_elf": {}}, "unlock_tier": "Respected"},
+}
+const T33_WAGES := {"daily_wage": {"bartender": 3, "desk_manager": 4}, "missed_days_to_leave": 3}
+const T33_TIERS := ["Unknown", "Known", "Trusted", "Respected", "Honored"]
+
+
+func test_staff_records() -> void:
+	print("[Test 33] Staff records, the bus and wages (Stories 16.1, 16.5)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	var eb = root.get_node_or_null("EconomyBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	_check_t33_bus(gb)
+	if gm == null or wm == null or dm == null or gb == null or eb == null or ss == null or not gm.has_method("staff_seed") \
+			or not gm.has_method("hire_staff") or not gb.has_signal("staff_strike_changed"):
+		check(false, "GameManager.staff_seed / hire_staff, GuildBus.staff_strike_changed and the EconomyBus, SaveSystem autoloads")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
+	ss.run_active = false
+	ss.save_path = T33_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T33_DIR + "/codex.dat"
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	var events: Array = []
+	var recs := {
+		"staff_hired": func(id, r): events.append(["hired", id, r]),
+		"staff_fired": func(id, r): events.append(["fired", id, r, gm.is_staff_hired(r)]),
+		"staff_strike_changed": func(id, on): events.append(["strike", id, on, gm.is_staff_hired(str(id).get_slice("/", 0))]),
+	}
+	for s in recs:
+		gb.connect(s, recs[s])
+	var gold_rec := func(g): events.append(["gold", g])
+	eb.gold_changed.connect(gold_rec)
+
+	_check_t33_data(dm)
+	_check_t33_seed(gm)
+	_check_t33_readers(gm)
+	_check_t33_block(gm)
+	_check_t33_hire_dismiss(gm, dm, events, capture)
+	_check_t33_save(gm, events)
+	await _check_t33_debug_panel(gm, events)
+	#T33B
+
+	for s in recs:
+		if gb.is_connected(s, recs[s]):
+			gb.disconnect(s, recs[s])
+	if eb.gold_changed.is_connected(gold_rec):
+		eb.gold_changed.disconnect(gold_rec)
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	ss.codex_data = ss_saved[3]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	check(not FileAccess.file_exists(T33_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T33_DIR + "/codex.dat"),
+		"Test 33 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 33 never touched the real save or codex")
+	print("")
+
+
+## AC 5 (16.1): the staff signals on GuildBus with the argument names listeners read; the bus is no longer a stub.
+func _check_t33_bus(gb) -> void:
+	var got := {}
+	if gb:
+		for s in gb.get_signal_list():
+			got[s.name] = s.args.map(func(a): return a.name)
+	check(got.get("staff_hired") == ["staff_id", "role"] and got.get("staff_fired") == ["staff_id", "role"]
+		and got.get("staff_strike_changed") == ["staff_id", "on_strike"],
+		"GuildBus: staff_hired / staff_fired (staff_id, role) and staff_strike_changed (staff_id, on_strike) %s" % [got])
+	var src := FileAccess.get_file_as_string("res://scripts/buses/GuildBus.gd")
+	check(src != "" and not src.contains("Fill when"), "GuildBus.gd's header no longer calls it a stub (Story 16.1)")
+
+
+## AC 2 (16.1): each role's unlock tier in staff.json; the wages in game_config.json (a profile may override them).
+func _check_t33_data(dm) -> void:
+	var data = _read_json(STAFF_DATA_PATH)
+	var roles: Dictionary = data.get("roles", {}) if data is Dictionary and data.get("roles") is Dictionary else {}
+	var labels: Array = []
+	for t in dm.get_config("reputation_tiers", []):
+		labels.append(str(t.get("label", "")))
+	var bad := roles.keys().filter(func(r): return not labels.has(str(roles[r].get("unlock_tier", ""))))
+	check(roles.has("bartender") and roles.has("desk_manager") and bad.is_empty()
+		and str(roles.bartender.get("unlock_tier")) == "Trusted" and str(roles.desk_manager.get("unlock_tier")) == "Respected",
+		"staff.json: each role's unlock_tier is a reputation tier (the Bartender Trusted, the Quest Dealer Respected; FR-64/65) %s" % [bad])
+	var w = dm.get_config("staff_wages", {})
+	var dw = w.get("daily_wage", {}) if w is Dictionary else {}
+	check(w is Dictionary and w.has("_comment") and dw is Dictionary and not roles.is_empty()
+		and roles.keys().all(func(r): return (dw.get(r) is int or dw.get(r) is float) and int(dw.get(r)) > 0),
+		"game_config.json staff_wages: a _comment and a positive daily wage per role (%s)" % [dw])
+
+
+## AC 1, 3 (16.1): staff_seed, pure.
+func _check_t33_seed(gm) -> void:
+	var warn: Array = []
+	var both: Array = gm.staff_seed(T33_ROLES, "demo", ["bartender", "desk_manager"], T33_WAGES, warn)
+	var types_ok: bool = both.size() == 2 and both.all(func(r): return _t33_record_shape_ok(r))
+	check(types_ok and both[0].role == "bartender" and both[1].role == "desk_manager"
+		and both[0].staff_id == "bartender/barkeep" and both[1].staff_id == "desk_manager/silver_elf"
+		and both[0].name == "the Bartender" and both[1].variant == "silver_elf" and both[0].daily_wage == 3 and both[1].daily_wage == 4
+		and both.all(func(r): return r.hired and not r.on_strike and r.owed == 0 and r.missed_days == 0) and warn.is_empty(),
+		"staff_seed: one record per role, sorted, exactly the nine keys with their types; demo with both listed: both hired %s" % [both])
+	var one: Array = gm.staff_seed(T33_ROLES, "demo", ["bartender", "garden_manager"], T33_WAGES)
+	var full: Array = gm.staff_seed(T33_ROLES, "full", ["bartender", "desk_manager"], T33_WAGES)
+	check(one.size() == 2 and one[0].hired and not one[1].hired and full.size() == 2 and full.all(func(r): return not r.hired)
+		and gm.staff_seed({}, "demo", ["bartender"], T33_WAGES).is_empty(),
+		"staff_seed: the demo hires only the listed roles (an unknown one ignored); the full profile hires nobody; no roles, no records")
+	var w2: Array = []
+	var nowage: Array = gm.staff_seed(T33_ROLES, "demo", [], {"daily_wage": {"bartender": 0, "desk_manager": "x"}}, w2)
+	check(nowage.size() == 2 and nowage.all(func(r): return r.daily_wage == 1) and w2.size() == 2,
+		"staff_seed: a missing or bad wage is 1 gold, with a warning each (%s)" % [w2])
+
+
+## A staff record has exactly STAFF_RECORD_KEYS, with their types.
+static func _t33_record_shape_ok(r) -> bool:
+	if not (r is Dictionary) or r.size() != STAFF_RECORD_KEYS.size() or not STAFF_RECORD_KEYS.all(func(k): return r.has(k)):
+		return false
+	return r.staff_id is String and r.role is String and r.variant is String and r.name is String and r.daily_wage is int \
+		and r.hired is bool and r.on_strike is bool and r.owed is int and r.missed_days is int
+
+
+## AC 1 (16.1): the readers.
+func _check_t33_readers(gm) -> void:
+	var recs: Array = gm.staff_seed(T33_ROLES, "demo", ["bartender"], T33_WAGES)
+	recs[0].on_strike = true
+	gm.staff = recs
+	var a := [gm.is_staff_hired("bartender"), gm.is_staff_working("bartender"), gm.is_staff_hired("desk_manager"),
+		gm.is_staff_working("desk_manager")]
+	recs[0].on_strike = false
+	a.append(gm.is_staff_working("bartender"))
+	var rec: Dictionary = gm.staff_record("bartender")
+	var by_id: Dictionary = gm.staff_record_by_id("desk_manager/silver_elf")
+	var none: Dictionary = gm.staff_record("garden_manager")
+	gm.staff = []
+	var fb := [gm.is_staff_hired("bartender"), gm.is_staff_hired("garden_manager")]
+	check(a == [true, false, false, false, true] and rec.get("staff_id") == "bartender/barkeep" and by_id.get("role") == "desk_manager"
+		and none.is_empty() and fb == [true, false],
+		"is_staff_hired / is_staff_working read the record (a striker is hired, not working); no record: the profile's rule (the demo's start staff) %s %s" % [a, fb])
+
+
+## AC 4 (16.1): staff_hire_block_for, pure: the reasons and their order.
+func _check_t33_block(gm) -> void:
+	var recs: Array = gm.staff_seed(T33_ROLES, "full", [], T33_WAGES)
+	var bt: Dictionary = recs[0]
+	var demo := {"profile": "demo", "start_staff": ["bartender", "desk_manager"], "tier_index": 0, "tiers": T33_TIERS, "gold": 100}
+	var full := {"profile": "full", "start_staff": [], "tier_index": 0, "tiers": T33_TIERS, "gold": 100}
+	var hired := bt.duplicate()
+	hired.hired = true
+	var rows := [
+		gm.staff_hire_block_for({}, {}, demo),
+		gm.staff_hire_block_for(hired, T33_ROLES.bartender, demo),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, demo),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, demo.merged({"gold": 2}, true)),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, full),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, full.merged({"tier_index": 2}, true)),
+		gm.staff_hire_block_for(recs[1], T33_ROLES.desk_manager, full.merged({"tier_index": 2}, true)),
+		gm.staff_hire_block_for(recs[1], T33_ROLES.desk_manager, full.merged({"tier_index": 3}, true)),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, full.merged({"gold": 2}, true)),
+		gm.staff_hire_block_for(hired, T33_ROLES.bartender, full),
+	]
+	check(rows == ["Unknown staff.", "Already hired.", "", "Not enough gold.", "Joins at Trusted.", "", "Joins at Respected.", "",
+		"Joins at Trusted.", "Already hired."],
+		"staff_hire_block_for: unknown, then already hired, then locked (the full profile below the unlock tier; the demo's starting staff never), then the first day's wage %s" % [rows])
+	var warn: Array = []
+	var bogus := {"display_name": "the Bartender", "unlock_tier": "Legendary"}
+	var b1: String = gm.staff_hire_block_for(bt, bogus, full.merged({"tier_index": 3, "warn": warn}, true))
+	var b2: String = gm.staff_hire_block_for(bt, bogus, full.merged({"tier_index": 4}, true))
+	check(b1 == "Joins at Honored." and b2 == "" and warn.size() == 1,
+		"an unknown unlock tier counts as the highest tier, with a warning ('%s', '%s', %s)" % [b1, b2, warn])
+
+
+## AC 4 (16.1): hire_staff and dismiss_staff on the live records.
+func _check_t33_hire_dismiss(gm, dm, events: Array, capture) -> void:
+	gm.staff = gm.staff_seed(gm.staff_roles(), "full", [], dm.get_config("staff_wages", {}))
+	gm.gold = 10
+	events.clear()
+	capture.lines.clear()
+	var r1: String = gm.hire_staff("bartender")
+	var bt: Dictionary = gm.staff_record("bartender")
+	check(r1 == "" and gm.gold == 7 and bt.get("hired") == true and events == [["gold", 7], ["hired", "bartender/barkeep", "bartender"]]
+		and capture.lines.has("[GameManager] staff: hired the Bartender (3 gold a day)"),
+		"hire_staff: the first day's wage through spend_gold (one gold_changed), the record hired, then ONE staff_hired %s %s" % [events, capture.lines])
+	events.clear()
+	var r2: String = gm.hire_staff("bartender")
+	gm.gold = 2
+	var r3: String = gm.hire_staff("desk_manager")
+	var r4: String = gm.hire_staff("garden_manager")
+	check([r2, r3, r4] == ["Already hired.", "Not enough gold.", "Unknown staff."] and events.is_empty() and gm.gold == 2
+		and gm.staff_record("desk_manager").get("hired") == false,
+		"hire_staff refused (already hired, short of the first day's wage, unknown role): no change, no signal %s" % [[r2, r3, r4]])
+	dm.game_config["profile"] = "full"
+	gm.tavern_reputation = 0
+	gm.gold = 50
+	var r5: String = gm.hire_staff("desk_manager")
+	var still: bool = events.is_empty() and gm.gold == 50
+	gm.tavern_reputation = 100
+	var r6: String = gm.hire_staff("desk_manager")
+	dm.game_config["profile"] = "demo"
+	check(r5 == "Joins at Respected." and still and r6 == "" and gm.gold == 46 and gm.is_staff_hired("desk_manager"),
+		"the full profile: the Quest Dealer is locked below Respected, hireable at it ('%s', '%s')" % [r5, r6])
+	bt.on_strike = true
+	bt.owed = 3
+	bt.missed_days = 1
+	events.clear()
+	capture.lines.clear()
+	var d1: String = gm.dismiss_staff("bartender")
+	check(d1 == "" and events == [["strike", "bartender/barkeep", false, false], ["fired", "bartender/barkeep", "bartender", false]]
+		and bt.hired == false and bt.on_strike == false and bt.owed == 0 and bt.missed_days == 0
+		and capture.lines.has("[GameManager] staff: dismissed the Bartender"),
+		"dismiss_staff on a striker: the record cleared first, then staff_strike_changed(false), then ONE staff_fired %s" % [events])
+	events.clear()
+	var d2: String = gm.dismiss_staff("bartender")
+	var d3: String = gm.dismiss_staff("garden_manager")
+	check(d2 == "Not hired." and d3 == "Unknown staff." and events.is_empty(), "dismiss_staff refused: not hired, unknown role, no signal")
+	events.clear()
+	gm.debug_set_staff_strike("desk_manager", true)
+	gm.debug_set_staff_strike("desk_manager", true)
+	var on: bool = gm.staff_record("desk_manager").get("on_strike") == true
+	gm.debug_set_staff_strike("desk_manager", false)
+	gm.debug_set_staff_strike("bartender", true)    # not hired: nothing
+	check(on and events == [["strike", "desk_manager/silver_elf", true, true], ["strike", "desk_manager/silver_elf", false, true]],
+		"debug_set_staff_strike: a hired role's flag, one signal per change; a role not hired is left alone %s" % [events])
+
+
+## AC 6 (16.1): the saved staff: round trip, old saves, junk, silence, New Game; the save, load and reset paths call it.
+func _check_t33_save(gm, events: Array) -> void:
+	var cfg := {"daily_wage": {"bartender": 3, "desk_manager": 4}}
+	var recs: Array = gm.staff_seed(gm.staff_roles(), "demo", ["bartender", "desk_manager"], cfg)
+	recs[1].on_strike = true
+	recs[1].owed = 8
+	recs[1].missed_days = 2
+	gm.staff = recs.duplicate(true)
+	var saved: Dictionary = gm._staff_save_data()
+	var parsed = JSON.parse_string(JSON.stringify(saved))
+	gm.staff = []
+	events.clear()
+	gm._load_staff_data(parsed)
+	var round_trip: bool = saved.has("staff") and gm.staff == recs
+	var start: Array = gm._seeded_staff()
+	gm._load_staff_data({})
+	var no_key: bool = gm.staff == start and gm.staff.size() == 2 and gm.staff.all(func(r): return r.hired)
+	gm._load_staff_data({"staff": "junk"})
+	var not_list: bool = gm.staff == start
+	gm._load_staff_data({"staff": [5, {"role": "nobody"}, {"role": "bartender", "hired": true, "daily_wage": "x", "owed": -2,
+		"on_strike": "yes", "staff_id": 7}, {"role": "bartender", "hired": false}]})
+	var b: Dictionary = gm.staff_record("bartender")
+	var d: Dictionary = gm.staff_record("desk_manager")
+	var junk: bool = (gm.staff.size() == 2 and b.get("hired") == true and b.get("daily_wage") == int(start[0].daily_wage)
+		and b.get("owed") == 0 and b.get("on_strike") == false and b.get("staff_id") == "bartender/barkeep"
+		and b.get("name") == "the Bartender" and d.get("hired") == false and d.get("staff_id") == "desk_manager/silver_elf")
+	gm.staff = []
+	gm._reset_staff_state()
+	var reset: bool = gm.staff == start
+	check(round_trip, "the staff records survive save -> JSON -> load exactly (a striker's owed and missed days too)")
+	check(no_key and not_list and reset,
+		"a save without staff (every save before Story 16.1), a staff value that isn't a list, and New Game: the profile's starting staff")
+	check(junk, "load: junk entries, unknown and duplicate roles dropped; bad values read safely (wage, owed, strike, id); a missing role is not hired %s" % [gm.staff])
+	check(events.is_empty(), "loading staff records emits no staff signal (silent, like Den Fa's state) %s" % [events])
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(_func_body(src, "get_save_data").contains("_staff_save_data()") and _func_body(src, "load_save_data").contains("_load_staff_data(")
+		and _func_body(src, "reset_game_state").contains("_reset_staff_state()") and _func_body(src, "_on_data_ready").contains("_reset_staff_state()"),
+		"get_save_data / load_save_data / reset_game_state / _on_data_ready carry the staff records")
+	check(D1_GM_FIELDS.has("staff"), "Test 26's D1_GM_FIELDS snapshot the staff records")
+
+
+## AC 7 (16.1): the F12 State tab's staff lines; the NPCs tab's STAFF buttons go through GameManager.
+func _check_t33_debug_panel(gm, events: Array) -> void:
+	var ps = load(DEBUG_PANEL_SCENE_PATH)
+	if not (ps is PackedScene):
+		check(false, "the debug panel scene loads (%s)" % DEBUG_PANEL_SCENE_PATH)
+		return
+	var recs: Array = gm.staff_seed(gm.staff_roles(), "demo", ["bartender", "desk_manager"], {"daily_wage": {"bartender": 3, "desk_manager": 4}})
+	recs[0].on_strike = true
+	recs[0].owed = 4
+	recs[0].missed_days = 1
+	gm.staff = recs
+	var panel: Node = ps.instantiate()
+	root.add_child(panel)
+	panel._refresh_state_tab()
+	var lbl = panel._state_labels.get("staff_detail")
+	var text: String = (lbl as Label).text if lbl is Label else ""
+	recs[1].hired = false
+	panel._refresh_state_tab()
+	var text2: String = (lbl as Label).text if lbl is Label else ""
+	check(text.contains("• the Bartender [bartender/barkeep] hired, 3 g/day, on strike (owes 4 g, missed 1)")
+		and text.contains("• the Quest Dealer [desk_manager/silver_elf] hired, 4 g/day, working")
+		and text2.contains("• the Quest Dealer [desk_manager/silver_elf] not hired, 4 g/day"),
+		"the F12 State tab's staff lines: '%s' / '%s'" % [text, text2])
+	recs[1].hired = true
+	var by_text := {}
+	for b in panel.find_children("*", "Button", true, false):
+		by_text[(b as Button).text] = b
+	var want := ["Hire the Bartender", "Dismiss the Bartender", "Pay the Bartender", "Strike the Bartender",
+		"Hire the Quest Dealer", "Dismiss the Quest Dealer", "Pay the Quest Dealer", "Strike the Quest Dealer"]
+	var missing := want.filter(func(t): return not by_text.has(t))
+	events.clear()
+	if by_text.has("Strike the Quest Dealer"):
+		(by_text["Strike the Quest Dealer"] as Button).pressed.emit()
+	var struck: bool = recs[1].on_strike == true and events == [["strike", "desk_manager/silver_elf", true, true]]
+	if by_text.has("Strike the Quest Dealer"):
+		(by_text["Strike the Quest Dealer"] as Button).pressed.emit()
+	check(missing.is_empty() and struck and recs[1].on_strike == false,
+		"the F12 NPCs tab: Hire / Dismiss / Pay / Strike per role (missing %s); Strike toggles through GameManager %s" % [missing, events])
+	panel.queue_free()
+	await process_frame
