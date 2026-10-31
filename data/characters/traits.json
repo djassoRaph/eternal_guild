@@ -8,9 +8,8 @@
 		},
 		"lucky": {
 			"display_name": "Lucky",
-			"description": "Higher chance of finding extra rewards",
-			"reward_bonus": 0.2,
-			"crit_chance": 0.1
+			"description": "Brings home extra gold from a contract that goes well",
+			"reward_bonus": 0.2
 		},
 		"experienced": {
 			"display_name": "Experienced",
@@ -22,7 +21,7 @@
 	"negative_traits": {
 		"reckless": {
 			"display_name": "Reckless",
-			"description": "More likely to get injured",
+			"description": "Sometimes comes back hurt, even from a contract that went well",
 			"injury_chance": 0.2,
 			"mission_bonus": -0.05
 		},
