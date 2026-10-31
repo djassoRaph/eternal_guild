@@ -353,6 +353,7 @@ func _initialize() -> void:
 	test_anime_look_presets()
 	await test_player_body()
 	await test_light_and_mood()
+	test_load_and_resume()
 
 	_finish()
 
@@ -8361,3 +8362,417 @@ static func _lm_in_func(src: String, fname: String, needle: String) -> bool:
 	var end := src.find("\nfunc ", at + 1)
 	var body := src.substr(at, (end - at) if end > 0 else -1)
 	return body.contains(needle)
+
+
+# --- Test 26: Load & resume (Story 11.2) ---
+# The run round-trips through SaveSystem (save_game -> load_game): every field comes back exactly, deployed
+# adventurers are the roster's own dicts again, morale keys stay ints, the tarot deck and the rumours are kept.
+# The resume path picks the saved scene, or the tavern's spawn point for a missing or non-player scene; newer and
+# junk saves load best-effort; a broken main file falls back to a backup; the 300 s autosave never runs outside a
+# player scene (in the main menu it used to save the menu as the resume scene). Every file lives in
+# user://failsafe_d1/ (SaveSystem.save_path); the real save's sha256 is checked at the end.
+const D1_DIR := "user://failsafe_d1"
+const D1_SAVE := "user://failsafe_d1/eternal_guild_save.json"
+const REAL_SAVE_PATH := "user://eternal_guild_save.json"
+const SAVE_SYSTEM_PATH := "res://systems/SaveSystem.gd"
+const MAIN_MENU_SCENE_PATH := "res://scenes/MainMenu.tscn"
+const HEXMAP_SCENE_PATH := "res://scenes/HexMapTest.tscn"
+const MAIN_MENU_SCRIPT_PATH := "res://scripts/menus/main_menu.gd"
+const PAUSE_MENU_SCRIPT_PATH := "res://scripts/menus/pause_menu.gd"
+const D1_WARN_NOT_FOUND := "[SaveSystem] warn: saved scene not found, falling back to default spawn"
+## Every GameManager field a load or a New Game reset writes (Test 26 restores them at its end).
+const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adventurers", "max_adventurers",
+	"max_firewood_storage", "daily_operating_cost", "beer_shortage_days", "adventurer_morale", "firewood_stock",
+	"fireplace_fuel", "daily_recruits", "recruit_refresh_day", "available_missions", "patron_recruitment_pool",
+	"total_missions_completed", "tavern_reputation", "taxes_paid_count", "mission_tier_unlocked", "active_missions",
+	"pending_reports", "has_pending_briefing", "mission_refresh_day", "next_adventurer_id", "tax_grace_days",
+	"hired_tarot_cards", "adventurers_hired_this_run", "deaths_this_run", "dialogue_flags", "den_fa_state",
+	"_den_fa_tier_warnings", "saved_player_scene", "restored_patrons", "game_over_active", "pending_new_game_save"]
+
+
+func test_load_and_resume() -> void:
+	print("[Test 26] Load & resume (Story 11.2)")
+	var gm = root.get_node_or_null("GameManager")
+	var ss = root.get_node_or_null("SaveSystem")
+	var wm = root.get_node_or_null("WorldManager")
+	var pm = root.get_node_or_null("PlayerManager")
+	var ab = root.get_node_or_null("AdventurerBus")
+	if gm == null or ss == null or wm == null or pm == null or ab == null or not ("save_path" in ss):
+		check(false, "SaveSystem.save_path (the save the session reads and writes) and the GameManager, WorldManager, PlayerManager, AdventurerBus autoloads")
+		return
+	var real_sha := _d1_sha(REAL_SAVE_PATH)
+	var snap := _d1_snapshot(gm, wm, pm, ss)
+	_d1_clear_dir(D1_DIR)
+	DirAccess.make_dir_recursive_absolute(D1_DIR)
+	ss.save_path = D1_SAVE
+	_check_d1_round_trip(gm, ss, wm, pm, ab)
+	_check_d1_resume(gm, ss, pm)
+	_check_d1_schema(gm, ss, pm)
+	_check_d1_backups(gm, ss)
+	_check_d1_autosave_guard(ss)
+	_d1_restore(snap, gm, wm, pm, ss)
+	_d1_clear_dir(D1_DIR)
+	check(_d1_sha(REAL_SAVE_PATH) == real_sha, "Test 26 never touched the real save (sha256 %s…)" % real_sha.left(12))
+	print("")
+
+
+## The round trip: a run with a party and a solo adventurer out (plus one whose roster entry is gone), morale, the
+## tarot deck, rumours, a small world and the player outside -> save_game() -> a New Game reset -> load_game().
+func _check_d1_round_trip(gm, ss, wm, pm, ab) -> void:
+	var S = AdventurerStatus.Status
+	var vera := _d1_adv(61, "Vera", S.READY, "the_fool")
+	var mira := _d1_adv(60, "Mira", S.ON_MISSION, "the_magician")
+	var gareth := _d1_adv(74, "Gareth", S.ON_MISSION, "the_tower")
+	var rex := _d1_adv(73, "Rex", S.WOUNDED, "")
+	var ilse := _d1_adv(80, "Ilse", S.ON_MISSION, "the_star")
+	var ghost := _d1_adv(99, "Ghost", S.ON_MISSION, "")   # out on a mission but not on the roster (a damaged save)
+	var bridge := {"name": "Repair Strategic Bridge", "duration_days": 4, "danger": 2, "reward_range": [40, 60]}
+	gm.adventurers = [vera, mira, gareth, rex, ilse]
+	gm.active_missions = [
+		{"party": [gareth, mira], "adventurer_ids": [74, 60], "mission": bridge, "days_remaining": 3, "total_duration": 4,
+			"is_party_mission": true, "sent_day": 9, "hex_id": "hex_241"},
+		{"adventurer": ilse, "mission": {"name": "Herb Run", "duration_days": 1}, "days_remaining": 1, "total_duration": 1,
+			"success_chance": 70, "sent_day": 11, "hex_id": "hex_3"},
+		{"adventurer": ghost, "mission": {"name": "Lost Patrol", "duration_days": 2}, "days_remaining": 2, "total_duration": 2,
+			"success_chance": 50, "sent_day": 11, "hex_id": "hex_4"},
+	]
+	var values := {"gold": 4321, "beer_stock": 17, "current_day": 12, "tax_due_day": 30, "tax_grace_days": 1,
+		"taxes_paid_count": 1, "firewood_stock": 6, "fireplace_fuel": 42.5, "tavern_reputation": 37,
+		"total_missions_completed": 9, "mission_tier_unlocked": 2, "next_adventurer_id": 81, "beer_shortage_days": 2,
+		"recruit_refresh_day": 11, "adventurers_hired_this_run": 5, "deaths_this_run": 1, "den_fa_state": "mid"}
+	for k in values:
+		gm.set(k, values[k])
+	gm.adventurer_morale = {61: 3, 60: 1, 74: 2}
+	gm.hired_tarot_cards = ["the_fool", "the_magician", "the_tower", "the_star", "death"]
+	gm.dialogue_flags = {"den_fa_first_contact": true}
+	gm.daily_recruits = [_d1_adv(90, "Recruit", S.READY, "the_sun")]
+	gm.available_missions = [{"name": "Wolf Hunt", "duration_days": 2, "danger": 1}]
+	gm.patron_recruitment_pool = []
+	wm.world_map = [
+		{"id": "hex_0", "coord": Vector2i(0, 0), "is_center": true, "biome": "plains"},
+		{"id": "hex_241", "coord": Vector2i(3, -1), "biome": "forest", "locked": true, "active_mission": bridge.duplicate(true)},
+		{"id": "hex_ruin", "coord": Vector2i(1, 0), "biome": "plains", "is_ruin": true},
+	]
+	wm.chosen_center = (wm.world_map[0] as Dictionary).duplicate()
+	var rumours := ["The miller's boy saw lights on the old road.", "A new contract has appeared on the board."]
+	wm.overheard_rumours = rumours.duplicate()
+	var body := CharacterBody3D.new()
+	body.name = "D1Player"
+	root.add_child(body)
+	body.global_position = Vector3(17.5, -1.2, 8.0)
+	pm.player = body
+	var outside := Node3D.new()
+	outside.name = "D1Outside"
+	outside.scene_file_path = EXTERIOR_SCENE_PATH
+	outside.add_to_group("player_scene")
+	root.add_child(outside)
+	current_scene = outside
+
+	var saved: bool = ss.save_game()
+	var on_disk := _d1_read_json(D1_SAVE)
+	check(saved and not on_disk.is_empty(), "save_game() writes the run to SaveSystem.save_path (%s)" % D1_SAVE)
+	var pp = on_disk.get("player_position", [])
+	var pp_ok: bool = pp is Array and pp.size() == 3 and Vector3(pp[0], pp[1], pp[2]).is_equal_approx(Vector3(17.5, -1.2, 8.0))
+	check(on_disk.get("player_scene", "") == EXTERIOR_SCENE_PATH and pp_ok,
+		"the save holds the scene and the player's x, y, z (%s %s)" % [on_disk.get("player_scene"), on_disk.get("player_position")])
+	var wd = on_disk.get("world_data", {})
+	check(on_disk.get("hired_tarot_cards", null) is Array and wd is Dictionary and wd.get("overheard_rumours", null) is Array,
+		"the save holds the tarot cards hired this run and the Latest News rumours (world_data)")
+
+	# Another session's state before Continue: a New Game reset, no world, no pending spot.
+	wm.overheard_rumours = ["left over"]
+	gm.reset_game_state()
+	check(wm.overheard_rumours.is_empty(), "a New Game reset clears the rumours (WorldManager.reset_run_state)")
+	wm.world_map = []
+	wm.chosen_center = {}
+	pm.has_pending_spawn = false
+	pm.pending_spawn_position = Vector3.ZERO
+	gm.saved_player_scene = ""
+	var counts := {"roster": 0, "reputation": 0, "missions": 0, "recruits": 0}
+	var on_roster := func(): counts.roster += 1
+	var on_rep := func(_v): counts.reputation += 1
+	var on_missions := func(): counts.missions += 1
+	var on_recruits := func(): counts.recruits += 1
+	ab.adventurer_roster_changed.connect(on_roster)
+	gm.reputation_changed.connect(on_rep)
+	gm.missions_changed.connect(on_missions)
+	gm.recruitment_pool_changed.connect(on_recruits)
+	var state = ss.load_game()
+	ab.adventurer_roster_changed.disconnect(on_roster)
+	gm.reputation_changed.disconnect(on_rep)
+	gm.missions_changed.disconnect(on_missions)
+	gm.recruitment_pool_changed.disconnect(on_recruits)
+	var ok_state: bool = state is Dictionary and not (state as Dictionary).is_empty()
+	check(ok_state, "load_game() returns the state it applied (a Dictionary), not a bool")
+	if ok_state:
+		var spot: Dictionary = ss.player_spot(state) if ss.has_method("player_spot") else {}
+		var at := Vector3(float(spot.get("x", 0.0)), float(spot.get("y", 0.0)), float(spot.get("z", 0.0)))
+		check(spot.get("scene", "") == EXTERIOR_SCENE_PATH and at.is_equal_approx(Vector3(17.5, -1.2, 8.0)) and spot.size() == 4,
+			"player_spot(state) is {scene, x, y, z}: the exterior at (17.5, -1.2, 8.0) %s" % [spot])
+		var none_ok: bool = ss.has_method("player_spot") and ss.player_spot({"current_day": 1}).is_empty() \
+			and ss.player_spot({"player_position": ["a", 1, 2]}).is_empty() and ss.player_spot({"player_position": [1, 2]}).is_empty()
+		check(none_ok, "player_spot() is {} when the save has no 3-number position")
+	var wrong := []
+	for k in values:
+		if gm.get(k) != values[k]:
+			wrong.append("%s=%s" % [k, gm.get(k)])
+	check(wrong.is_empty(), "every saved number and the Den Fa state come back exactly %s" % [wrong])
+	var statuses: Array = gm.adventurers.map(func(a): return a.get("status"))
+	check(statuses == [S.READY, S.ON_MISSION, S.ON_MISSION, S.WOUNDED, S.ON_MISSION] and statuses.all(func(s): return s is int),
+		"the roster's statuses come back as AdventurerStatus ints %s" % [statuses])
+	var roster := {}
+	for a in gm.adventurers:
+		roster[int(a.get("id", -1))] = a
+	var am: Array = gm.active_missions
+	var party: Array = am[0].get("party", []) if am.size() == 3 else []
+	check(party.size() == 2 and is_same(party[0], roster.get(74)) and is_same(party[1], roster.get(60)),
+		"a deployed party is the roster's own adventurers again after the load (Gareth 74, Mira 60), not copies")
+	check(am.size() == 3 and is_same(am[1].get("adventurer"), roster.get(80)), "a solo deployment is re-linked too (Ilse 80)")
+	if party.size() == 2 and roster.has(74):
+		party[0]["status"] = S.RESTING   # what the mission's resolution does to its entry
+		check(roster[74].get("status") == S.RESTING, "resolving that mission moves the ROSTER's Gareth off On Mission")
+	var ghost_back = am[2].get("adventurer") if am.size() == 3 else null
+	check(ghost_back is Dictionary and ghost_back.get("status") is int and ghost_back.get("status") == S.ON_MISSION
+		and not roster.values().any(func(r): return is_same(r, ghost_back)),
+		"an adventurer missing from the roster keeps the saved copy, its status an int again")
+	var morale: Dictionary = gm.adventurer_morale
+	check(morale.size() == 3 and morale.get(61) == 3 and morale.get(60) == 1 and morale.get(74) == 2
+		and morale.keys().all(func(k): return k is int) and morale.values().all(func(v): return v is int),
+		"morale comes back keyed by the int id, as every lookup reads it %s" % [morale])
+	check(gm.hired_tarot_cards == ["the_fool", "the_magician", "the_tower", "the_star", "death"],
+		"the tarot cards hired this run come back (a dead adventurer's card is never offered again) %s" % [gm.hired_tarot_cards])
+	check(wm.overheard_rumours == rumours, "the Latest News rumours come back %s" % [wm.overheard_rumours])
+	check(wm.world_map.size() == 3 and wm.world_map[1].get("coord") == Vector2i(3, -1) and wm.world_map[1].get("locked", false)
+		and wm.chosen_center.get("id", "") == "hex_0", "the world map comes back from the save (hexes, locks, the tavern hex)")
+	check(pm.has_pending_spawn and pm.pending_spawn_position.is_equal_approx(Vector3(17.5, -1.2, 8.0)) and gm.saved_player_scene == EXTERIOR_SCENE_PATH,
+		"the saved spot waits for the scene change (PlayerManager pending spawn) and the saved scene is the exterior")
+	check(gm.dialogue_flags == {"den_fa_first_contact": true}, "the conversation flags come back")
+	check(counts.roster == 1 and counts.reputation == 1 and counts.missions == 1 and counts.recruits == 1,
+		"after the load the roster refresh fires once (AdventurerBus), and reputation, missions and the recruit pool once each %s" % [counts])
+
+	# A save from before Story 11.2: no deck (it comes from the roster's cards), no rumours.
+	var old := on_disk.duplicate(true)
+	old.erase("hired_tarot_cards")
+	if old.get("world_data") is Dictionary:
+		(old["world_data"] as Dictionary).erase("overheard_rumours")
+	_d1_write_json(D1_SAVE, old)
+	wm.overheard_rumours = ["left over"]
+	ss.load_game()
+	check(gm.hired_tarot_cards == ["the_fool", "the_magician", "the_tower", "the_star"] and wm.overheard_rumours.is_empty(),
+		"an older save: the hired deck comes from the roster's cards, and there are no rumours %s %s" % [gm.hired_tarot_cards, wm.overheard_rumours])
+	current_scene = null
+	pm.player = null
+	body.free()
+	outside.free()
+
+
+## The resume path: the pure table, the scene-group read, the real resume_scene() on PlayerManager's pending spot,
+## and both callers (Continue, the pause menu's Load).
+func _check_d1_resume(gm, ss, pm) -> void:
+	if not (ss.has_method("resume_target_for") and ss.has_method("resume_scene") and ss.has_method("is_player_scene")):
+		check(false, "SaveSystem.resume_target_for() / resume_scene() / is_player_scene() exist")
+		return
+	var missing := "res://scenes/does_not_exist.tscn"
+	var table := [
+		["", false, false, TAVERN_SCENE_PATH, false, ""],
+		[missing, false, false, TAVERN_SCENE_PATH, false, D1_WARN_NOT_FOUND],
+		[MAIN_MENU_SCENE_PATH, true, false, TAVERN_SCENE_PATH, false, "not a player scene"],
+		[EXTERIOR_SCENE_PATH, true, true, EXTERIOR_SCENE_PATH, true, ""],
+		[TAVERN_SCENE_PATH, true, true, TAVERN_SCENE_PATH, true, ""],
+	]
+	var bad := []
+	for row in table:
+		var t: Dictionary = ss.resume_target_for(row[0], row[1], row[2])
+		var w: String = t.get("warning", "")
+		var w_ok: bool
+		if row[5] == "":
+			w_ok = w == ""
+		elif row[5] == D1_WARN_NOT_FOUND:
+			w_ok = w == D1_WARN_NOT_FOUND
+		else:
+			w_ok = w.begins_with("[SaveSystem] warn: ") and w.contains(row[5]) and w.contains(row[0]) and w.ends_with("falling back to default spawn")
+		if t.get("scene") != row[3] or t.get("keep_spawn") != row[4] or not w_ok:
+			bad.append("%s -> %s" % [row[0], t])
+	check(bad.is_empty(), "resume_target_for(): an empty, missing or non-player scene goes to the tavern without the saved spot, with the warning %s" % [bad])
+	var kinds := {EXTERIOR_SCENE_PATH: true, TAVERN_SCENE_PATH: true, MAIN_MENU_SCENE_PATH: false, HEXMAP_SCENE_PATH: false,
+		"res://data/config/game_config.json": false, missing: false}
+	var wrong := []
+	for p in kinds:
+		if ss.is_player_scene(p) != kinds[p]:
+			wrong.append(p)
+	check(wrong.is_empty(), "is_player_scene() reads the scene root's player_scene group (hall, outside: yes; menu, hex map, a JSON, a missing file: no) %s" % [wrong])
+	for row in [[missing, TAVERN_SCENE_PATH, false], [MAIN_MENU_SCENE_PATH, TAVERN_SCENE_PATH, false],
+			[EXTERIOR_SCENE_PATH, EXTERIOR_SCENE_PATH, true], ["", TAVERN_SCENE_PATH, false]]:
+		gm.saved_player_scene = row[0]
+		pm.pending_spawn_position = Vector3(1, 2, 3)
+		pm.has_pending_spawn = true
+		var got: String = ss.resume_scene()
+		check(got == row[1] and pm.has_pending_spawn == row[2],
+			"resume_scene() for '%s': %s, the saved spot %s" % [row[0].get_file(), got.get_file(), "kept" if pm.has_pending_spawn else "dropped"])
+	var src := FileAccess.get_file_as_string(SAVE_SYSTEM_PATH)
+	check(_lm_in_func(src, "resume_scene", "push_warning("), "resume_scene() logs its warning with push_warning")
+	var mm := FileAccess.get_file_as_string(MAIN_MENU_SCRIPT_PATH)
+	var pmn := FileAccess.get_file_as_string(PAUSE_MENU_SCRIPT_PATH)
+	check(_lm_in_func(mm, "_on_continue_button_pressed", "SaveSystem.resume_scene()") and _lm_in_func(pmn, "_load_game", "SaveSystem.resume_scene()")
+		and not _lm_in_func(pmn, "_load_game", "reload_current_scene"),
+		"Continue and the pause menu's Load both go through SaveSystem.resume_scene() (Load no longer reloads the current scene)")
+	check(_lm_in_func(mm, "has_save_game", "SaveSystem.has_save_file()"), "the main menu asks SaveSystem whether there is a save (a backup counts)")
+	check(_lm_in_func(mm, "_on_continue_button_pressed", ".is_empty()") and _lm_in_func(pmn, "_load_game", ".is_empty()"),
+		"Continue and Load handle a failed load (a message), not a silent no-op")
+
+
+## Newer and junk saves load best-effort: known fields in, unknown keys ignored, junk values as defaults, no abort.
+func _check_d1_schema(gm, ss, pm) -> void:
+	var S = AdventurerStatus.Status
+	_d1_write_json(D1_SAVE, {"schema_version": 99, "current_day": 5, "gold": 100, "beer_stock": 2, "adventurers": [],
+		"tax_grace_days": 2, "from_the_future": {"x": 1}})
+	gm.game_over_active = true
+	var st = ss.load_game()
+	check((st is Dictionary and not (st as Dictionary).is_empty()) or st is bool and st, "a newer schema (v99) loads")
+	check(gm.current_day == 5 and gm.tax_grace_days == 2 and not gm.game_over_active,
+		"…its known fields applied, the unknown key ignored (day %d)" % gm.current_day)
+	_d1_write_json(D1_SAVE, {"schema_version": null, "current_day": 6, "gold": 50, "beer_stock": "seven",
+		"adventurers": [{"id": 1.0, "name": "Ann", "status": null}, "junk"], "tax_due_day": null, "fireplace_fuel": "hot",
+		"adventurer_morale": [], "active_missions": {"no": 1}, "hired_tarot_cards": "x", "world_data": "nope",
+		"player_position": ["a", 1, 2], "player_scene": 5, "patrons_active": null, "next_adventurer_id": "12",
+		"dialogue_flags": null, "daily_recruits": null, "available_missions": 3, "tax_grace_days": null})
+	gm.game_over_active = true
+	gm.restored_patrons = ["sentinel"]
+	pm.has_pending_spawn = false
+	st = ss.load_game()
+	check(st is Dictionary and not (st as Dictionary).is_empty() and not gm.game_over_active and gm.restored_patrons.is_empty(),
+		"null and junk values don't abort the load half-way (its last lines ran)")
+	var a0 = gm.adventurers[0] if gm.adventurers.size() > 0 else {}
+	check(gm.current_day == 6 and gm.beer_stock == 0 and gm.tax_due_day == 30 and is_equal_approx(gm.fireplace_fuel, 100.0)
+		and gm.next_adventurer_id == 12 and gm.tax_grace_days == 0,
+		"junk numbers load as their defaults, a numeric string as its number (beer %s, tax day %s, fuel %s, next id %s)"
+		% [gm.beer_stock, gm.tax_due_day, gm.fireplace_fuel, gm.next_adventurer_id])
+	check(gm.adventurers.size() == 1 and a0.get("status") == S.READY and a0.get("id") == 1 and gm.adventurer_morale.is_empty()
+		and gm.active_missions.is_empty() and gm.hired_tarot_cards.is_empty() and gm.daily_recruits.is_empty()
+		and gm.available_missions.is_empty() and gm.dialogue_flags.is_empty(),
+		"junk lists and dicts load empty; a roster entry that isn't a Dictionary is dropped; a null status is Ready")
+	check(gm.saved_player_scene == "" and not pm.has_pending_spawn, "a junk scene or position: no saved spot")
+
+
+## A broken main file falls back to the newest readable backup; nothing readable is {} with the session untouched.
+func _check_d1_backups(gm, ss) -> void:
+	if not ss.has_method("read_save"):
+		check(false, "SaveSystem.read_save() exists")
+		return
+	var good := {"schema_version": 2, "current_day": 7, "gold": 70, "beer_stock": 1, "adventurers": []}
+	_d1_write_text(D1_SAVE, "{not json")
+	_d1_write_json(D1_SAVE + ".backup1", good)
+	check(int(ss.read_save().get("current_day", -1)) == 7, "a corrupt main save falls back to the newest readable backup")
+	gm.current_day = 3
+	var st = ss.load_game()
+	check(st is Dictionary and not (st as Dictionary).is_empty() and gm.current_day == 7, "load_game() applies that backup")
+	DirAccess.remove_absolute(D1_SAVE)
+	check(ss.has_save_file() and int(ss.read_save().get("current_day", -1)) == 7, "with only a backup left there is still a save to Continue")
+	_d1_write_text(D1_SAVE, "{not json")
+	_d1_write_text(D1_SAVE + ".backup1", "")
+	_d1_write_json(D1_SAVE + ".backup2", {"current_day": 0, "gold": 1, "beer_stock": 1, "adventurers": []})
+	gm.current_day = 3
+	st = ss.load_game()
+	check(st is Dictionary and (st as Dictionary).is_empty() and gm.current_day == 3,
+		"nothing readable: load_game() returns {} and the session is untouched")
+	for f in [D1_SAVE, D1_SAVE + ".backup1", D1_SAVE + ".backup2"]:
+		DirAccess.remove_absolute(f)
+	check(not ss.has_save_file(), "no file at all: no save")
+
+
+## The 300 s autosave: never in the main menu (or any scene that isn't a player scene), as it was; in the hall it runs.
+func _check_d1_autosave_guard(ss) -> void:
+	for f in [D1_SAVE, D1_SAVE + ".backup1", D1_SAVE + ".backup2", D1_SAVE + ".backup3"]:
+		DirAccess.remove_absolute(f)
+	var menu: Node = (load(MAIN_MENU_SCENE_PATH) as PackedScene).instantiate()
+	root.add_child(menu)
+	current_scene = menu
+	ss._on_autosave_timer_timeout()
+	check(not FileAccess.file_exists(D1_SAVE),
+		"the 300 s autosave writes nothing in the main menu (it used to save the menu as the resume scene, or a fresh Day 1 over the run)")
+	current_scene = null
+	menu.free()
+	var plain := Node.new()
+	root.add_child(plain)
+	current_scene = plain
+	ss._on_autosave_timer_timeout()
+	var plain_ok: bool = not FileAccess.file_exists(D1_SAVE) and ss.has_method("can_autosave") and not ss.can_autosave()
+	check(plain_ok, "…nor in any scene outside the player_scene group (can_autosave() is false)")
+	current_scene = null
+	plain.free()
+	var hall := Node3D.new()
+	hall.scene_file_path = TAVERN_SCENE_PATH
+	hall.add_to_group("player_scene")
+	root.add_child(hall)
+	current_scene = hall
+	ss._on_autosave_timer_timeout()
+	var d := _d1_read_json(D1_SAVE)
+	check(ss.has_method("can_autosave") and ss.can_autosave() and d.get("save_type", "") == "autosave" and d.get("player_scene", "") == TAVERN_SCENE_PATH,
+		"in a player scene the autosave runs (save_type autosave, the hall as the resume scene)")
+	current_scene = null
+	hall.free()
+
+
+func _d1_snapshot(gm, wm, pm, ss) -> Dictionary:
+	var g := {}
+	for k in D1_GM_FIELDS:
+		var v = gm.get(k)
+		g[k] = v.duplicate(true) if v is Array or v is Dictionary else v
+	return {"gm": g, "world_map": wm.world_map, "chosen_center": wm.chosen_center, "rumours": wm.overheard_rumours.duplicate(),
+		"player": pm.player, "spawn": pm.pending_spawn_position, "has_spawn": pm.has_pending_spawn, "save_path": ss.save_path,
+		"scene": current_scene}
+
+
+func _d1_restore(s: Dictionary, gm, wm, pm, ss) -> void:
+	for k in s.gm:
+		gm.set(k, s.gm[k])
+	wm.world_map = s.world_map
+	wm.chosen_center = s.chosen_center
+	wm.overheard_rumours = s.rumours
+	pm.player = s.player
+	pm.pending_spawn_position = s.spawn
+	pm.has_pending_spawn = s.has_spawn
+	ss.save_path = s.save_path
+	ss.load_in_progress = false
+	ss.save_in_progress = false
+	current_scene = s.scene
+
+
+static func _d1_adv(id: int, adv_name: String, status: int, card: String) -> Dictionary:
+	return {"id": id, "name": adv_name, "class": "Fighter", "status": status, "tarot_card": card, "strength": 3, "dexterity": 3,
+		"intelligence": 3, "endurance": 3, "missions_completed": 2, "missions_failed": 0, "gold_earned": 40, "hire_day": 3,
+		"daily_wage": 5, "current_mission": ""}
+
+
+static func _d1_sha(path: String) -> String:
+	return FileAccess.get_sha256(path) if FileAccess.file_exists(path) else ""
+
+
+static func _d1_read_json(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var v = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return v if v is Dictionary else {}
+
+
+static func _d1_write_json(path: String, data: Dictionary) -> void:
+	_d1_write_text(path, JSON.stringify(data, "\t"))
+
+
+static func _d1_write_text(path: String, text: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_error("[Test 26] cannot write %s" % path)
+		return
+	f.store_string(text)
+	f.close()
+
+
+## Removes a test folder and its files (one level deep: the tests write no subfolders).
+static func _d1_clear_dir(dir: String) -> void:
+	var d := DirAccess.open(dir)
+	if d == null:
+		return
+	for f in d.get_files():
+		d.remove(f)
+	DirAccess.remove_absolute(dir)
