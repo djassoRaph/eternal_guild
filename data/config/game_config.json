@@ -34,6 +34,8 @@
 	"adventurer_wage_min": 1,
 	"adventurer_wage_max": 3,
 	"drink_preferences": ["beer", "mead", "none"],
+	"_drink_labels_comment": "Stories 4.2/4.3: how the hire panel and the roster say a drink preference (one label per id in drink_preferences; an id with no label reads 'Drinks <id>'). DRAFT text.",
+	"drink_labels": {"beer": "Drinks beer", "mead": "Drinks mead", "none": "Doesn't drink"},
 	"experience_tiers": ["Novice", "Seasoned", "Veteran"],
 
 	"rumour_mission_chance": 0.2,

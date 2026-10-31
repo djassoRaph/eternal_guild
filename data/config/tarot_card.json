@@ -1,0 +1,34 @@
+{
+	"_comment": "Story 4.2 (D-1, DH-5): how an adventurer's Tarot card is drawn in the hire panel and on the roster (scenes/ui/TarotCard.tscn, PortraitSocket.resolve_card_art). frame: the texture drawn over the card, a placeholder until Story 25.22's frame set (swap it here; an empty or unloadable path draws a plain border). aspect: the card's width / height. header, window, footer: rects [x, y, w, h] as fractions of the card for the numeral or suit band, the art window and the name band (tools/ui/make_placeholder_tarot_frame.py draws the placeholder frame from these same numbers; a new frame with another layout changes them here). field_color: behind the art. silhouette_tint: 'class' (data/config/class_colors.json) or a hex colour, applied to the class silhouettes, never to a Tarot painting. silhouettes: class -> its silhouette (a white figure on transparent), drawn while the card has no painting at its portrait path. numeral_color / name_color: a Major card's numeral and every card's name. suits: label, colour and icon (a texture path; empty = the label in its colour) per Minor suit. silhouette_render: how scenes/dev/SilhouetteStudio.tscn renders the silhouettes from the class bodies (clip and time of the pose, yaw_deg of the 3/4 view, the PNG's size, the margin as a fraction, per-class overrides).",
+	"frame": "res://assets/ui/tarot/placeholder_tarot_frame.png",
+	"aspect": 0.6,
+	"header": [0.06, 0.025, 0.88, 0.075],
+	"window": [0.07, 0.115, 0.86, 0.735],
+	"footer": [0.06, 0.865, 0.88, 0.105],
+	"field_color": "#231c18",
+	"silhouette_tint": "class",
+	"numeral_color": "#e8d8b0",
+	"name_color": "#e8d8b0",
+	"silhouettes": {
+		"Fighter": "res://assets/ui/tarot/silhouettes/fighter.png",
+		"Rogue": "res://assets/ui/tarot/silhouettes/rogue.png",
+		"Mage": "res://assets/ui/tarot/silhouettes/mage.png",
+		"Healer": "res://assets/ui/tarot/silhouettes/healer.png",
+		"Barbarian": "res://assets/ui/tarot/silhouettes/barbarian.png",
+		"Ranger": "res://assets/ui/tarot/silhouettes/ranger.png"
+	},
+	"suits": {
+		"wands": {"label": "Wands", "color": "#c8722e", "icon": ""},
+		"cups": {"label": "Cups", "color": "#5b8fd0", "icon": ""},
+		"swords": {"label": "Swords", "color": "#a9b3bc", "icon": ""},
+		"pentacles": {"label": "Pentacles", "color": "#c9a23a", "icon": ""}
+	},
+	"silhouette_render": {
+		"clip": "Idle",
+		"time": 0.0,
+		"yaw_deg": -25.0,
+		"size": [320, 512],
+		"margin": 0.06,
+		"overrides": {}
+	}
+}
