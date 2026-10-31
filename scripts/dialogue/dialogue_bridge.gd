@@ -72,7 +72,7 @@ var den_fa_state: String:
 ## The demo build's profile (game_config.json "profile").
 var is_demo: bool:
 	get:
-		return str(DataManager.get_config("profile", "full")) == "demo"
+		return DataManager.is_demo()   # Story 14.6
 	set(_v):
 		_read_only("is_demo")
 

@@ -52,8 +52,43 @@ func load_config_data():
 	tarot_deck = deck_data.get("cards", [])
 	data_loaded.emit("config")
 
+var _profile_warned := false   # a profile with no usable block is warned about once a session (Story 14.6)
+
+## A config value for the active profile (Story 14.6, DP-1): game_config.json's profiles.<profile>.<key> when the active
+## profile's block has the key, else the top-level value (the full game's), else `fallback`. Returned as stored.
 func get_config(key: String, fallback = null) -> Variant:
-	return game_config.get(key, fallback)
+	var warn: Array = []
+	var v = resolve_config(game_config, key, fallback, warn)
+	if not warn.is_empty() and not _profile_warned:
+		_profile_warned = true
+		push_warning(warn[0])
+	return v
+
+## get_config's rule (Story 14.6, pure: tests feed it fixtures). The active profile is cfg's top-level "profile" (missing:
+## "full"). Its block in cfg.profiles replaces a key's whole value (lists and objects are never merged); "profile" and
+## "profiles" come only from the top level. A profile other than "full" with no block, or a block that isn't an object,
+## reads the top level and appends one "[DataManager] fallback: ..." text to `warn`.
+static func resolve_config(cfg: Dictionary, key: String, fallback = null, warn: Array = []) -> Variant:
+	if key != "profile" and key != "profiles":
+		var profile := str(cfg.get("profile", "full"))
+		var profiles = cfg.get("profiles")
+		var block = profiles.get(profile) if profiles is Dictionary else null
+		if block is Dictionary:
+			if (block as Dictionary).has(key):
+				return block[key]
+		elif block != null:
+			warn.append("[DataManager] fallback: profile '%s' in profiles is not an object; the top-level (full game) values" % profile)
+		elif profile != "full":
+			warn.append("[DataManager] fallback: profile '%s' has no block in profiles; the top-level (full game) values" % profile)
+	return cfg.get(key, fallback)
+
+## The active profile: game_config.json's top-level "profile" ("full" when it has none). Story 14.6.
+func get_profile() -> String:
+	return str(game_config.get("profile", "full"))
+
+## The Kickstarter demo build (profile "demo"). Story 14.6.
+func is_demo() -> bool:
+	return get_profile() == "demo"
 
 func get_feature(key: String) -> bool:
 	return features.get(key, false)
