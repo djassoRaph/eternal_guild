@@ -13,6 +13,8 @@
 	"tax_per_adventurer": 5,
 	"tax_grace_period_days": 3,
 	"tax_warning_days": [7, 3, 1],
+	"_soft_lock_comment": "Story 13.4 (the GDD's and Story 3.6's rule): the guild falls (soft_lock) on a morning when no adventurer is alive, the gold is under soft_lock_gold_below, and no applicant can be hired with it (GameManager.hire_block_reason).",
+	"soft_lock_gold_below": 8,
 	"daily_operating_cost": 1,
 
 	"warn_gold_below": 20,

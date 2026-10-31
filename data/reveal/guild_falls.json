@@ -1,0 +1,24 @@
+{
+	"_comment": "Story 13.4: every word of 'The Guild Falls' screen (scenes/game_over_screen.gd). DRAFT text (Raphael rewrites). reasons: one line per cause, the key the guild fell with (GameBus.game_over_triggered): bankruptcy (the tax's grace ran out), soft_lock (no one alive, no coin, no one to hire); no_survivors is for Story 21.3; abandoned_tavern for an old check nothing calls; a cause with no line takes fallback. stats: the labels of the run's three numbers (GameManager.run_summary). buttons, confirm: the two buttons and the question each asks first.",
+	"title": "The Guild Falls",
+	"reasons": {
+		"bankruptcy": "The tax went unpaid. At dawn the collectors came and took the keys.",
+		"soft_lock": "No one left to send, and no coin to hire. The doors stayed shut, and the town forgot the guild.",
+		"no_survivors": "No one came back. There was no one left to carry the name.",
+		"abandoned_tavern": "No one came in, and nothing went out. The tavern closed its doors for good.",
+		"fallback": "The guild could not go on."
+	},
+	"stats": {
+		"days_survived": "Days survived",
+		"adventurers_lost": "Adventurers lost",
+		"gold_peak": "Gold at its peak"
+	},
+	"buttons": {
+		"new_run": "New Run",
+		"main_menu": "Return to Main Menu"
+	},
+	"confirm": {
+		"new_run": "Start a new guild? This one is gone.",
+		"main_menu": "Leave for the main menu? This guild is gone."
+	}
+}
