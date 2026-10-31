@@ -156,7 +156,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ---
 
 ## Epic 4: The Adventurer Roster
-**Status: 4.1 / 4.4 / 4.5 DONE (2026-07-08); 4.2 built 2026-10-31, in review (the hire desk: applicants as Tarot cards, class silhouettes in a placeholder frame, pick and confirm; traits real; ids never reused; the pool on Day 1). 4.3 next (the roster's card, card name, drink, countdowns). Class list reconciled 2026-08-18. The duplicate-generator consolidation is still open (TECH_DEBT).**
+**Status: 4.1 / 4.4 / 4.5 DONE (2026-07-08); 4.2 built 2026-10-31, in review (the hire desk: applicants as Tarot cards, class silhouettes in a placeholder frame, pick and confirm; traits real; ids never reused; the pool on Day 1). 4.3 built 2026-10-31, in review (each roster entry: the adventurer's Tarot card, card name, trait, wage and drink from the record, a Deployed badge with "returns in N days", "available in N days"). Class list reconciled 2026-08-18. The duplicate-generator consolidation is still open (TECH_DEBT).**
 
 ### Story 4.1: Daily Hire Pool Generation — ✅ DONE
 - [x] 3–5 recruits/day from config (`hire_pool_min/max`)
@@ -177,12 +177,15 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] **IDs never reused** — `generate_unique_id()` jumps past every id in use or remembered, the codex's fallen heroes included (a fresh session restarted at 1, and `record_fallen_hero` skips an id already in the codex, so a new run's adventurer could die unrecorded)
 - [x] Failsafe Test 29 (66 checks); Stage D shots in `eternal_guild_art/shots/demo/4-2/`
 
-### Story 4.3: Roster Panel Display — 🔨 MOSTLY DONE (portrait socket built; awaiting Guilo art for the final swap)
+### Story 4.3: Roster Panel Display — 🔍 IN REVIEW (built 2026-10-31, demo roadmap D3)
 - [x] Panel renders name, class+level, color-coded status, wage; greys non-Ready; refreshes on roster/day change (audit done)
 - [x] **Tab-toggle display bug fixed** (2026-07-12) — panel derived open/closed from the animating `position.x` and force-showed on every roster change, so Tab raced the slide and often hid instead of showing ("adventurers not displaying"). Now uses an explicit `is_open` flag + single reused tween; Tab is the sole authority
-- [x] **Portrait socket wired** (Story 7.5) — roster panel + recruitment popup render `PortraitSocket.resolve_texture(adventurer)`: Tarot portrait when present, else class portrait, else class-colored silhouette (never blank). Guilo's Tarot art drops in via `adventurer.portrait` with **zero code change**
+- [x] **Portrait socket wired** (Story 7.5) — `PortraitSocket.resolve_texture(adventurer)`: Tarot portrait when present, else class portrait, else class-colored silhouette (never blank). *(Since Stories 4.2/4.3 the roster and the hire desk show the card art instead, `resolve_card_art`: never the class paintings, D-1; the Reveal and the Codex keep `resolve_texture`.)*
 - [~] **Portrait clipping partially fixed** (2026-08-20) — the panel's slide-in `SHOWN_X` landed exactly `1920 - panel_width`, i.e. flush with the screen's right edge with zero margin, clipping the portrait's right side. Added a 24px margin (`SHOWN_X` 1570→1546). Raphael explicitly deprioritized further precision here — this card layout needs a fuller rework once the roster scales to a full 78-card deck
-- [ ] Remaining delta: show Tarot card name + drink pref, un-hardcode wage display, "Returns in N days" countdown
+- [x] **The entry, Story 4.3** — `AdventurerRosterPanel.entry_view()` (pure) + `fill_card()`: the adventurer's Tarot card as a compact thumbnail (`TarotCard.tscn`, the same `PortraitSocket.resolve_card_art` as the hire desk: the class silhouette until a painting exists), name, "Ranger · Level 1 · Brave" (the trait kept since 4.2), the status line, the card's name ("The Chariot"), "2 gold a day · Drinks mead"
+- [x] **Deployed**: a badge on the greyed art and "Deployed · returns in N days", N = `GameManager.return_day_for()` − today (the back day the World Map shows; saves from before 6.5 count today + days left). **Resting / Wounded**: "… · available in N days" from `recovery`. Status text DRAFT
+- [x] **Wage and drink from the record**: `GameManager.wage_of()` (also what `apply_daily_wages` deducts now: one read); drinks through game_config `drink_labels`. The hard-coded "Daily Cost: 1 gold" is gone
+- [x] Failsafe Test 30 (17 checks); Stage D shots in `eternal_guild_art/shots/demo/4-3/`. Not changed: Tab, the slide, the dim of non-Ready cards, the drag source
 
 ### Story 4.4: Daily Wage Deduction — ✅ DONE (verified unit + integration)
 - [x] `apply_daily_wages()` — per-adventurer `daily_wage`, all statuses except DEAD, runs before the morning briefing
