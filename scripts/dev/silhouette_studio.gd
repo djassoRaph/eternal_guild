@@ -85,6 +85,12 @@ func _run(args: PackedStringArray) -> void:
 		_fail(str(p.error))
 		return
 	for job in p.jobs:
+		if job.fallback:
+			print("[SilhouetteStudio] warning: %s uses its fallback body %s (its model_path is missing)" % [job.cls, job.body])
+		var why := clip_error(str(job.body), str(job.clip))   # review P12: every body and clip checked before any write
+		if why != "":
+			_fail("%s: %s" % [job.cls, why])
+			return
 		var dir := str(job.file).get_base_dir()
 		var made := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir) if dir.begins_with("res://") else dir)
 		if made != OK:
@@ -110,7 +116,7 @@ func _run(args: PackedStringArray) -> void:
 	_quit(0)
 
 
-## The whole request, checked before anything renders (pure): {error, jobs: [{cls, body, file, clip, time, yaw}],
+## The whole request, checked before anything renders (pure): {error, jobs: [{cls, body, fallback, file, clip, time, yaw}],
 ## sheet, card}. classes=all (or a comma list) is required; out= and sheet= must be absolute.
 static func plan(args: PackedStringArray, classes: Dictionary, card: Dictionary) -> Dictionary:
 	var out := {"error": "", "jobs": [], "sheet": "", "card": card}
@@ -152,10 +158,12 @@ static func plan(args: PackedStringArray, classes: Dictionary, card: Dictionary)
 			out.error = "unknown class '%s' (not in %s)" % [cls, CLASSES_PATH]
 			return out
 		var body := ""
+		var fallback := false   # review P12: the job says when it renders the fallback body
 		for key in ["model_path", "fallback_model_path"]:
 			var path := str(entry.get(key, ""))
 			if path != "" and ResourceLoader.exists(path):
 				body = path
+				fallback = key == "fallback_model_path"
 				break
 		if body == "":
 			out.error = "%s: neither its model_path nor its fallback_model_path exists" % cls
@@ -168,10 +176,27 @@ static func plan(args: PackedStringArray, classes: Dictionary, card: Dictionary)
 			file = out_dir.path_join(file.get_file())
 		var o = render.get("overrides", {}).get(cls, {}) if render.get("overrides") is Dictionary else {}
 		o = o if o is Dictionary else {}
-		out.jobs.append({"cls": cls, "body": body, "file": file, "clip": str(o.get("clip", render.get("clip", "Idle"))),
+		out.jobs.append({"cls": cls, "body": body, "fallback": fallback, "file": file, "clip": str(o.get("clip", render.get("clip", "Idle"))),
 			"time": float(o.get("time", render.get("time", 0.0))), "yaw": float(o.get("yaw_deg", render.get("yaw_deg", -25.0))),
 			"size": Vector2i(int(size[0]), int(size[1])), "margin": clampf(float(render.get("margin", 0.06)), 0.0, 0.4)})
 	return out
+
+
+## Review P12: "" when `body` instances a Node3D with an AnimationPlayer holding `clip`, else why not (the studio checks
+## every job with this before its first write, so a bad clip never leaves half the silhouettes rewritten).
+static func clip_error(body: String, clip: String) -> String:
+	var scene = load(body) if ResourceLoader.exists(body) else null
+	if not scene is PackedScene:
+		return "'%s' is not a scene" % body
+	var model = (scene as PackedScene).instantiate()
+	if not model is Node3D:
+		if model:
+			model.free()
+		return "'%s' doesn't instantiate a Node3D" % body
+	var players: Array = model.find_children("*", "AnimationPlayer", true, false)
+	var ok: bool = not players.is_empty() and (players[0] as AnimationPlayer).has_animation(clip)
+	model.free()
+	return "" if ok else "no clip '%s' in %s" % [clip, body]
 
 
 ## One class: pose its body, render it white on black, turn that into the silhouette, write it. The Image, or null.
