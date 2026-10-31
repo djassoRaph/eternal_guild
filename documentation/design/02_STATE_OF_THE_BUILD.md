@@ -26,6 +26,7 @@ any other document.** Update it when a feature ships, not before.
 | Daily missions pinned to hexes | WorldManager.assign_missions_to_hexes() ← GameManager.refresh_available_missions() | done |
 | Dispatch from the map (click adventurer → hex mission) | WorldMapBoard + GameManager | done — verified in-game 2026-06-14 |
 | MainMenu "Continue" → real SaveSystem.load_game() | main_menu.gd | done 2026-06-14 — orphan `savegame.dat` stub removed |
+| Save & resume: a save returns you to the scene and spot you saved in, with the run exactly as it was (deployed adventurers, morale, hired tarot cards, rumours, the world); a missing scene falls back to the tavern's spawn point; a broken save falls back to a backup; the timer autosave runs only in the hall or outside | `systems/SaveSystem.gd` (`save_path`, `read_save`, `load_game` → state, `player_spot`, `resume_scene`, `can_autosave`), `GameManager.load_save_data()`, `WorldManager.get_save_data()`, `PlayerManager.clear_pending_spawn()`; Continue (main_menu.gd) and the pause menu's Load share `resume_scene()`; failsafe Test 26 | built 2026-10-31 (Story 11.2, in review). The world has been on disk since f604ec8 |
 | Prior Ruins (D1) on a reserved hex next to the tavern; hover shows "Unknown Ruins"; missions skip it | HexMapGenerator (`_reserve_ruin`) + WorldManager (`is_mission_eligible`) + world_map_board.gd | done 2026-09-24 (Story 25.2). First asset through the inked pipeline |
 | Tavern hall is a real room: B9 plank floor, timber-and-stone far walls with windows, knee-height near walls (cutaway), and a B10 front door that swings open for patrons and the player | `MainTavern.tscn` › `Architecture/Shell` + `scripts/game/front_door.gd`; failsafe Test 7 | done 2026-09-24 (Story 25.3). Grey boxes hidden, colliders unchanged; navmesh re-baked with the new colliders (verified: patrons in → table → out, player out through the door to the exterior) |
 | The Guild Tavern outside (A1) replaces the KayKit tavern: solid, door at the camera side, "Press E" at the door, arrival in front of it; the exterior draws ink outlines; the map's tavern hex shows the A2 miniature + C9 home banner (old saves too) | `ExteriorWorld.tscn` (`GuildTavern`, `TavernEntranceZone`, `Camera3D/EdgeQuad`), `HexMapGenerator.gd` (`TAVERN_TOPPER`, `HOME_MARKER`, `home_toppers_for`); failsafe Test 8 | done 2026-09-25 (Story 25.8) |
@@ -49,9 +50,9 @@ any other document.** Update it when a feature ships, not before.
 
 | # | Feature | State |
 |---|---|---|
-| 1 | **Save / Load — make a full session round-trip** | Continue fix SHIPPED. **Active bug:** pause-menu QuitButton/MainMenuButton have stale `.tscn` `[connection]` blocks wiring them to `main_tavern.gd` (quit-without-save), pre-empting `pause_menu.gd`'s save-first handlers → on-disk file stays at the last autosave (pre-hire state). Fix = strip those two connection blocks. Then verify hire → Save & Exit → Continue restores roster + gold. |
-| 2 | **World-map persistence** | After save round-trip works: serialize `WorldManager.world_map` + `chosen_center` into the save dict; on load, repopulate WorldManager and use HexMapGenerator's existing static-display mode (no regen). `capitals`/`landmarks` are currently dead/unused — decide if they matter. |
-| 3 | Player spawn position on load | Player spawns at (0,0,0) instead of the found PlayerSpawnPoint (7,1,2); no position is serialized. Decide: restore exact position, or always spawn at a defined "morning" point. Small, after #1–2. |
+| 1 | **Save / Load — make a full session round-trip** | Round trip done (Story 11.2, 2026-10-31, in review; see the owner table). The stale `.tscn` `[connection]` blocks were stripped on 2026-07-05 (f366c76). Story 11.3 (next): Save & Exit only leaves after a confirmed write, a pause menu outside. |
+| 2 | ~~World-map persistence~~ | Done since f604ec8: `world_data` in the save, HexMapGenerator's static display on load. `capitals`/`landmarks` are still dead/unused. |
+| 3 | ~~Player spawn position on load~~ | Done 2026-07-12: the exact saved position; Story 11.2 sends a save whose scene is missing to the tavern's PlayerSpawnPoint (7, 1, 2). |
 
 ## Parked (deliberately not now)
 
@@ -70,7 +71,7 @@ any other document.** Update it when a feature ships, not before.
 
 - Any mention of Godot 4.3 → engine is **4.4**.
 - "20–30 settlements" → cap is **10**.
-- "World map in-memory only / disk save blocked on broken load" → load is FIXED; persistence is active work (in-flight #2), not a blocker.
+- "World map in-memory only / disk save blocked on broken load" → load is FIXED and the world is on disk (f604ec8; Story 11.2 checked it 2026-10-31).
 - "Reveal rework in flight / recon ready" → reveal is PARKED; save/load is current.
 - WorldGenerateMenu ASCII map, MainTown.tscn, Day-30 door unlock → dead design.
 - "Phase 1 90%" / phase numbering → dead.
