@@ -9,8 +9,9 @@ const CURRENT_SCHEMA_VERSION = 2
 const RENAMED_CLASSES := {"Cleric": "Healer"}
 
 # Story 11.2: the save this session reads and writes. Tests and Stage D runs point it at a copy, so they never
-# touch the player's save.
+# touch the player's save; codex_path (review P4) follows the same redirect for codex.dat.
 var save_path: String = SAVE_FILE
+var codex_path: String = CODEX_FILE
 ## Story 11.2 review (P1): a run is live once a save was loaded or a New Game made its first save. The automatic
 ## saves (the timer, the end of a day, a game over, the reveal's pre-save) need it: a scene launched straight from
 ## the editor runs on the default Day 1 and must never write it over the player's run.
@@ -254,8 +255,8 @@ func _max_backups() -> int:
 # === CODEX (eternal cross-run persistence) ===
 
 func _load_codex():
-	if FileAccess.file_exists(CODEX_FILE):
-		codex_data = _read_json_file(CODEX_FILE)
+	if FileAccess.file_exists(codex_path):
+		codex_data = _read_json_file(codex_path)
 		if codex_data.is_empty():
 			codex_data = _default_codex()
 		print("[SaveSystem] Codex loaded: ", codex_data.keys().size(), " keys")
@@ -269,7 +270,7 @@ func _load_codex():
 		print("[SaveSystem] Codex created")
 
 func _save_codex() -> bool:
-	return _write_file_atomic(CODEX_FILE, codex_data)
+	return _write_file_atomic(codex_path, codex_data)
 
 func _default_codex() -> Dictionary:
 	return {
@@ -599,8 +600,8 @@ func delete_save_file() -> bool:
 	return false
 
 func delete_codex_file() -> bool:
-	if FileAccess.file_exists(CODEX_FILE):
-		DirAccess.remove_absolute(CODEX_FILE)
+	if FileAccess.file_exists(codex_path):
+		DirAccess.remove_absolute(codex_path)
 		codex_data = _default_codex()
 		print("[SaveSystem] Codex file deleted")
 		return true
@@ -628,7 +629,7 @@ func get_available_backups() -> Array:
 func print_save_debug():
 	print("=== SAVE SYSTEM DEBUG ===")
 	print("Save file exists: ", has_save_file())
-	print("Codex file exists: ", FileAccess.file_exists(CODEX_FILE))
+	print("Codex file exists: ", FileAccess.file_exists(codex_path))
 	print("Save in progress: ", save_in_progress)
 	print("Schema version: ", CURRENT_SCHEMA_VERSION)
 	print("Available backups: ", get_available_backups().size())
