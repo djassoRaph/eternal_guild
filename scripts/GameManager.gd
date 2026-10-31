@@ -557,8 +557,37 @@ func _hex_record(hex_id: String) -> Dictionary:
 	return {}
 
 
-## The dispatched hex is locked by the owner of dispatch (it used to be the board's job); process_mission_returns unlocks
-## it. No hex (the legacy board) locks nothing.
+## Review P1: a resolved entry gives its contract up: its hex is unlocked and loses the mission (when it still holds this
+## one), and the mission leaves today's pool, so the same contract can't be run and paid twice. The pool may hold a
+## loaded copy, so the same dictionary is looked for first, then an equal one. True when anything changed.
+func _release_hex(entry: Dictionary) -> bool:
+	var changed := false
+	var mission = entry.get("mission")
+	var hex := _hex_record(str(entry.get("location_id", entry.get("hex_id", ""))))
+	if not hex.is_empty():
+		if hex.has("locked"):
+			hex.erase("locked")
+			changed = true
+		var on_hex = hex.get("active_mission")
+		if mission is Dictionary and on_hex is Dictionary and (is_same(on_hex, mission) or on_hex == mission):
+			hex["active_mission"] = null
+			changed = true
+	if mission is Dictionary:
+		var at := -1
+		for i in available_missions.size():
+			if is_same(available_missions[i], mission):
+				at = i
+				break
+		if at < 0:
+			at = available_missions.find(mission)
+		if at >= 0:
+			available_missions.remove_at(at)
+			changed = true
+	return changed
+
+
+## The dispatched hex is locked by the owner of dispatch (it used to be the board's job); _release_hex unlocks it when
+## the mission resolves. No hex (the legacy board) locks nothing.
 func _lock_hex(hex_id: String) -> void:
 	var hex := _hex_record(hex_id)
 	if not hex.is_empty():
@@ -779,6 +808,7 @@ func _log_party_success(mission: Dictionary, reward: int) -> void:
 func process_mission_returns():
 	"""Tick down active mission timers. Resolve any that hit 0. Store results for morning briefing."""
 	var resolved_indices = []
+	var released := false
 
 	for i in range(active_missions.size()):
 		var entry = active_missions[i]
@@ -788,13 +818,9 @@ func process_mission_returns():
 			resolved_indices.append(i)
 			var report = _resolve_mission(entry)
 			pending_reports.append(report)
-			# Clear the hex lock so this hex re-enters circulation after resolution.
-			var hex_id: String = entry.get("hex_id", "")
-			if hex_id != "":
-				for hex in WorldManager.world_map:
-					if hex["id"] == hex_id:
-						hex.erase("locked")
-						break
+			# Story 6.5 review P1: the hex is unlocked and the contract is done (off the hex and today's pool).
+			if _release_hex(entry):
+				released = true
 		else:
 			var mission_name = entry.mission.get("name", "Unknown")
 			var days_left = entry.days_remaining
@@ -807,6 +833,8 @@ func process_mission_returns():
 	resolved_indices.reverse()
 	for idx in resolved_indices:
 		active_missions.remove_at(idx)
+	if released:
+		missions_changed.emit()   # the map and the hall's notice board drop the finished contracts
 
 	if pending_reports.size() > 0:
 		has_pending_briefing = true
