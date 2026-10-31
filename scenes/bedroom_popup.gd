@@ -138,6 +138,11 @@ func _on_fade_complete():
 	"""Called when fade animation completes - advance the day, then show morning briefing"""
 	# Advance day in GameManager (includes mission resolution, recovery, etc.)
 	GameManager.advance_day()
+	if GameManager.game_over_active:
+		# Story 13.4 review P6: the guild fell this morning: no "new day"; the night's reports still come first
+		if GameManager.has_pending_briefing:
+			_show_morning_briefing()
+		return
 
 	print("New day started through bedroom sequence")
 	GameManager.log_message("A new day dawns at the Eternal Guild!")

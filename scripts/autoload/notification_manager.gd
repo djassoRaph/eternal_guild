@@ -47,6 +47,14 @@ func _ready() -> void:
 		EconomyBus.tax_warning.connect(func(days_left: int, amount: int): show_banner(tax_warning_text(days_left, amount)))
 		EconomyBus.tax_paid.connect(func(amount: int): show_banner(tax_paid_text(amount)))
 		EconomyBus.tax_overdue.connect(func(days_remaining: int): show_banner(tax_overdue_text(days_remaining)))
+	if GameBus:
+		GameBus.game_over_triggered.connect(func(_cause: String): clear_banners())   # Story 13.4 review P8
+
+
+## Frees every banner (Story 13.4 review P8: the fall's pause froze them, and they played out over the main menu).
+func clear_banners() -> void:
+	for c in _container.get_children():
+		c.queue_free()
 
 
 ## Story 13.1 (DT-6): the tax banners' text. DRAFT (Raphael rewrites).
