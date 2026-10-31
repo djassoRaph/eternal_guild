@@ -370,14 +370,30 @@ func set_codex(key: String, value) -> void:
 func save_codex() -> bool:
 	return _save_codex()
 
+## Story 4.2 review P10 (pure): a codex entry is this adventurer when the id, the name and the hire day all match (a
+## saved 3.0 is 3; a missing hire day is -1 on both sides).
+static func same_fallen_hero(existing, adventurer: Dictionary) -> bool:
+	if not (existing is Dictionary):
+		return false
+	var num := func(v, fallback): return float(v) if (v is int or v is float) else fallback
+	var a = existing.get("id")
+	var b = adventurer.get("id")
+	var same_id: bool = num.call(a, -2.0) == num.call(b, -3.0) if ((a is int or a is float) and (b is int or b is float)) \
+		else (a != null and typeof(a) == typeof(b) and a == b)
+	return same_id and str(existing.get("name", "")) == str(adventurer.get("name", "Unknown")) \
+		and num.call(existing.get("hire_day"), -1.0) == num.call(adventurer.get("hire_day"), -1.0)
+
+
 func record_fallen_hero(adventurer: Dictionary) -> void:
 	# Story 7.1 — the cemetery/memorial record, written at the moment of death (before the
 	# reveal panels play) so a crash mid-reveal still leaves the codex correct.
 	var adv_id = adventurer.get("id", -1)
-	# Guard against double-recording the same hero if the death path is ever re-entered.
+	# Guard against double-recording the same hero if the death path is ever re-entered. The same hero is the same id,
+	# name AND hire day (Story 4.2 review P10): ids restarted at 1 every session before 4.2, so an id alone could
+	# belong to a hero of an earlier run, and the new death went unrecorded.
 	if adv_id != -1:
 		for existing in codex_data.get("fallen_heroes", []):
-			if existing.get("id", -2) == adv_id:
+			if same_fallen_hero(existing, adventurer):
 				return
 	var death_day = GameManager.current_day
 	var entry = {
