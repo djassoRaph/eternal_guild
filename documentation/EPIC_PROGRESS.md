@@ -6,7 +6,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ## Snapshot (2026-10-03)
 **Story totals (BMAD `sprint-status.yaml`):** 171 stories in 26 epics — 52 done, 10 in review, 14 in progress, 95 backlog.
 **Done:** Epic 1 · Epic 3 · Epic 7 · Epic 8.
-**In progress:** Epic 2 (3/4) · Epic 4 (3/5) · Epic 6 (4/6) · Epic 11 (2/4) · Epic 12 (4/5) · Epic 13 (2/4, 13.1 and 13.4 in review) · Epic 14 (3/6) · Epic 16 (art + seam from 25.13; FSMs not started) · Epic 17 (deck data) · Epic 18 (basic Codex overlay) · Epic 19 (fallen-hero data + list) · **Epic 25 (4/32 done, 10 in review, 25.1 in progress)**.
+**In progress:** Epic 2 (3/4) · Epic 4 (3/5) · Epic 6 (4/6) · Epic 11 (2/4) · Epic 12 (4/5) · Epic 13 (4/4 marked done; 13.2/13.3's ACs unmet) · Epic 14 (3/6) · Epic 16 (art + seam from 25.13; FSMs not started) · Epic 17 (deck data) · Epic 18 (basic Codex overlay) · Epic 19 (fallen-hero data + list) · **Epic 25 (4/32 done, 10 in review, 25.1 in progress)**.
 **Started 2026-10-03:** Epic 10 (Story 10.2, the dialogue box, done; Story 10.3, Den Fa's Early/Mid/Late states, in review).
 **Not started:** Epics 5, 9, 15, 20, 21, 22, 23, 24 (SfxManager only), 26.
 **Recent (2026-10-04):** Story 25.32 (in progress): Den Fa realistic without wings (verdict pending), the Cat's concept job queued. Story 25.31, the realistic human cast (in review): all 15 human bodies on route RL (the player, the Bartender, the Quest Dealer, six townsfolk, six classes), data-driven with fallbacks, the bar stools raised, the hall and town budgets measured with the full cast; Story 25.23, light and mood (in review). Details under "Epic 25 progress" below.
@@ -147,7 +147,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 - [x] **Morning briefing** — `MorningBriefing.tscn` shows sequential mission reports
 - [x] **Daily processing chain**: recovery → availability status → beer consumption → mission returns → operations → tax check → recruit refresh → mission refresh
 - [x] **Beer shortage consequences** — escalating: Day 1 = -25% mission penalty, Day 2 = 50% departure chance, Day 3+ = guaranteed departures
-- [x] **Soft-lock detection** (FR-6) — triggers game over when 0 adventurers + <8g (`soft_lock_gold_below`) + no applicant the gold can hire (Story 13.4)
+- [x] **Soft-lock detection** (FR-6) — the guild falls only with no way back: no one alive, no applicant the gold can hire (`hire_block_reason`) and no way to earn at the bar (no beer, less gold than `beer_pint_price`), or the whole deck dealt; under `soft_lock_gold_below` (8) it warns (Story 13.4 + review P2)
 - [x] **"The Guild Falls"** — the game-over screen (Story 13.4; the old GameOverScreen never showed its text)
 - [x] **HUD notifications** — `NotificationManager` autoload (2026-07-05): non-blocking top-center banners for low gold/beer/comfort, edge-triggered + cooldown + max-2, config thresholds in `game_config.json`. Verified headless.
 - [x] **Coin-payment reward** (Story 3.4 juice, 2026-07-11) — `scripts/fx/coin_reward.gd` procedural 3-coin burst on patron payment + `SfxManager` autoload (pooled SFX on the SFX bus, `coins.mp3` / `cointinkle.wav`)
@@ -383,7 +383,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 13: Tax Cycle & Economic Pressure
-**Status: ~95% — 13.1 and 13.4 in review (2026-10-31: the tax cycle on EconomyBus, every number in game_config; "The Guild Falls" and New Run). 13.2/13.3 are marked done, but their HUD urgency tiers, briefing lines and 13.3's penalty consequence were never built (deferred-work.md › Story 13.1).**
+**Status: ~95% — 13.1 and 13.4 done after their code review (2026-10-31: the tax cycle on EconomyBus, every number in game_config; "The Guild Falls" and New Run). 13.2/13.3: done (pre-BMAD); ACs unmet, see deferred-work › Story 13.1; Raphael to reopen or accept.**
 
 - [x] **30-day tax cycle** — `tax_due_day` starts at 30, advances by `tax_interval_days` (30) on payment
 - [x] **Warnings at 7, 3, 1 day** before due (`check_tax_deadline()`; the days are `tax_warning_days`)
@@ -391,27 +391,29 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - [x] **Game over when the grace runs out** — `trigger_game_over("bankruptcy", ...)` (the due day + 2 with grace 3)
 - [x] **Tax amount** — `tax_base_amount` 1000 + `tax_per_adventurer` 5 × the roster
 - [x] **Tier unlock tied to tax payment** — tier 2 unlocks after first tax paid
-- [x] **Soft-lock game over** (FR-6) — no one alive + gold under `soft_lock_gold_below` (8) + no applicant the gold can hire (Story 13.4)
+- [x] **Soft-lock game over** (FR-6) — no way back: no one alive, no applicant the gold can hire (`hire_block_reason`) and no way to earn at the bar (no beer, less gold than `beer_pint_price`), or the whole deck dealt; under `soft_lock_gold_below` (8) it warns (Story 13.4 + review P2)
 - [x] **"The Guild Falls"** (Story 13.4) — the reason line by cause, the run's stats, New Run / Return to Main Menu; the fall recorded in codex.dat's `guild_history`
 - [x] **EventBus wiring** (Story 13.1) — `EconomyBus.tax_warning`, `tax_demand_triggered`, `tax_paid`, `tax_overdue`
 - [ ] Party mode economic expansion design (deferred)
 
-### Story 13.1: Tax Cycle EventBus Verification — IN REVIEW (2026-10-31)
+### Story 13.1: Tax Cycle EventBus Verification — DONE (2026-10-31, after its code review)
 - [x] **The tax cycle on the bus.** EconomyBus gains `tax_warning(days_left, amount)`, `tax_demand_triggered(amount, due_day)`, `tax_paid(amount)` and `tax_overdue(days_remaining)`; GameManager emits them from `check_tax_deadline()` / `handle_tax_payment()`. The demand goes out once a cycle (the first collection morning), before the payment; `tax_paid` after `spend_gold`'s `gold_changed`; `tax_overdue` on each grace morning; then the bankruptcy fall. Payment stays automatic.
 - [x] **Every tax number in game_config.json** (today's values): `tax_due_day` (the first due day), `tax_interval_days`, `tax_base_amount`, `tax_per_adventurer`, `tax_grace_period_days`, `tax_warning_days`, with `_tax_comment`. `GameManager.tax_config_from()` falls back per key with a `[GameManager] fallback:` warning, once a run; no tax literal is left in the two functions. Story 14.6's demo profile can override them.
 - [x] **Banners** — NotificationManager shows one per tax event (DRAFT text: "Tax due in 3 days: 1000 gold.", "Tax due tomorrow: …", "Tax paid: …", "Tax overdue. 2 days before the guild is seized.").
 - [x] **F12** — the State tab's tax line (due day, days left, amount, grace, paid); "Trigger Tax Event NOW" runs the real morning check (it called a `process_tax_day()` that never existed).
-- Failsafe Test 31 (suite 1211 / 0); Stage D in the hall (warnings, the readout, the paid morning, an overdue morning); shots in `eternal_guild_art/shots/demo/13-1/`.
+- [x] **Code review (2026-10-31)** — F12's Trigger Tax Event no longer moves an unpayable tax (it said "use Failures › Bankruptcy" and asks before collecting); `current_tax_amount()` read by the F12 line; the warning's wording in `tax_warning_log_line()`.
+- Failsafe Test 31 (suite 1211 / 0; 1287 / 0 after the review); Stage D in the hall (warnings, the readout, the paid morning, an overdue morning; re-shot with one adventurer on the roster); shots in `eternal_guild_art/shots/demo/13-1/`.
 
-### Story 13.4: Full Game-Over Surface — IN REVIEW (2026-10-31)
+### Story 13.4: Full Game-Over Surface — DONE (2026-10-31, after its code review)
 - [x] **The fall by its cause.** `game_over_triggered(reason)` (GameManager and GameBus) carries the cause key (`bankruptcy`, `soft_lock`; Story 21.3 adds `no_survivors`), not "Tax Bankruptcy: " + a sentence; the sentence stays in the log.
 - [x] **Recorded before it shows.** `trigger_game_over` freezes `last_run_summary` (`run_summary()`: days survived, adventurers lost, gold at its peak, survivors, ...) and calls `SaveSystem.end_run()` before it emits: codex.dat's new `guild_history` gets the entry (`record_run_end(entry)`, the totals too), the fallen state is saved one last time, then the save, `.prev`, `.tmp` and every backup move to `<save folder>/fallen_runs/<stamp>/`. Continue never resumes a fallen run; while fallen nothing saves it again (the pause menu, the timer). Only in a live run: a hall launched straight from the editor records nothing.
 - [x] **"The Guild Falls"** — `scenes/game_over_screen.gd` builds it on MainTavern's GameOverScreen (scene unchanged): the title, the reason line for the cause, the three stats, New Run and Return to Main Menu (each asks once). It waits for an open morning briefing (the night's deaths land first), then pauses. Every word in `data/reveal/guild_falls.json` (DRAFT). The hall ignores its keys while fallen (no pause menu over the fall); the B test key is gone.
 - [x] **Gold at its peak** — `GameManager.gold_peak` (raised by `add_gold`, saved).
-- [x] **The soft-lock rule** — `_check_soft_lock()`: no one alive, gold under `soft_lock_gold_below` (8), no applicant `hire_block_reason()` accepts; Story 3.6's `[GameManager] warn: soft-lock condition detected on day N`.
+- [x] **The soft-lock rule** (review P2, a decision) — `_check_soft_lock()`: no one alive, no applicant the gold can hire (`hire_block_reason`) and no way to earn at the bar (no beer, less gold than `beer_pint_price`), or the whole deck dealt; under `soft_lock_gold_below` (8) it warns; Story 3.6's `[GameManager] warn: soft-lock condition detected on day N`. A tax paid that leaves a few coins and beer no longer ends the run.
 - [x] **One way into a new run** — `GameManager.begin_new_run()` + `NEW_RUN_SCENE` (today the world map), used by New Run and the main menu's New Game. Story 5.1's naming screen and Epics 21/22 (The Reading, `LegacyTransition`) hook in there.
 - [x] **F12** — "Game Over: Bankruptcy" runs the real tax path (it set an operating cost nothing reads).
-- Failsafe Test 32 (suite 1237 / 0); Stage D: the bankruptcy fall after the morning briefing, New Run to the world map; the soft-lock fall, Return to Main Menu (Continue off), the Codex; shots in `eternal_guild_art/shots/demo/13-4/`.
+- [x] **Code review (2026-10-31)** — the fall holds the hall (the screen joins `blocks_player`, the hall's world is frozen, the exit door and the keys stand down, the log and the top bar hide); a failed archive leaves a `.fallen` tombstone (never resumed; a rename falls back to copy); New Run with a save still in the slot goes by the main menu; the night ends at the fall (no contracts, applicants or "new day"); the fall clears the banners; the buttons wake after the fade, the questions start on Cancel; a loaded `gold_peak` never below the starting gold.
+- Failsafe Test 32 (suite 1237 / 0; 1287 / 0 after the review); Stage D: the bankruptcy fall after the morning briefing (re-shot: the screen alone; E at the door and W do nothing), New Run to the world map; the soft-lock fall, Return to Main Menu (Continue off), the Codex; shots in `eternal_guild_art/shots/demo/13-4/`.
 
 ---
 
