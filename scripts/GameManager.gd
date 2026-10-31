@@ -21,6 +21,7 @@ var next_adventurer_id: int = 1
 var hired_tarot_cards: Array = []   # Tarot card ids hired this run — never re-offered (Epic 4.1)
 var tax_due_day: int = 30
 var tax_grace_days: int = 0  # Days into grace period after missed tax (0 = not in grace)
+var _tax_warnings: int = 0   # a bad tax_* config is warned about once a run (Story 13.1; New Game re-arms it)
 var daily_operating_cost: int = 5
 
 # === UI UPDATE SIGNALS ===
@@ -94,7 +95,7 @@ func _apply_config():
 	max_firewood_storage = DataManager.get_config("max_firewood_storage", 10)
 	firewood_stock = DataManager.get_config("starting_firewood", 0)
 	fireplace_fuel = DataManager.get_config("starting_fireplace_fuel", 0.0)
-	tax_due_day = DataManager.get_config("tax_due_day", 30)
+	tax_due_day = int(tax_config().first_due_day)   # the first due day (Story 13.1: game_config.json tax_due_day)
 	daily_operating_cost = DataManager.get_config("daily_operating_cost", 1)
 
 func _bridge_signals_to_buses():
@@ -1038,38 +1039,133 @@ func process_adventurer_recovery():
 						log_message("" + adventurer.name + " is still resting (" + str(adventurer.recovery) + " days remaining)")
 
 
+# === TAX CYCLE (Epic 13) ===
+# Story 13.1: every number from game_config.json's tax_* keys (tax_config), every event on EconomyBus:
+# tax_warning on the configured days before the due day; on the first collection morning of a cycle
+# tax_demand_triggered, then the payment (spend_gold: gold_changed, then tax_paid); a morning that can't pay sends
+# tax_overdue(days left) until the grace runs out, then the guild falls (bankruptcy). Payment is automatic.
+
+## Today's tax numbers: the fallback for each tax_* key of game_config.json (Story 13.1, DT-4).
+const TAX_DEFAULTS := {"first_due_day": 30, "interval_days": 30, "base_amount": 1000, "per_adventurer": 5, "grace_days": 3,
+	"warning_days": [7, 3, 1]}
+## game_config.json key -> [tax_config field, the smallest whole number it accepts].
+const TAX_CONFIG_KEYS := {"tax_due_day": ["first_due_day", 1], "tax_interval_days": ["interval_days", 1],
+	"tax_base_amount": ["base_amount", 0], "tax_per_adventurer": ["per_adventurer", 0], "tax_grace_period_days": ["grace_days", 1]}
+
+## The tax cycle's numbers from the config's tax_* keys (pure): {first_due_day, interval_days, base_amount,
+## per_adventurer, grace_days, warning_days (largest first), warnings}. A missing key takes today's number silently; a
+## bad one (not a whole number, or below its minimum; warning days not a list of whole numbers >= 1) takes it too, and
+## `warnings` gets a "[GameManager] fallback: ..." text naming the key, for the caller to push.
+static func tax_config_from(raw: Dictionary) -> Dictionary:
+	var out := TAX_DEFAULTS.duplicate(true)
+	var warnings: Array = []
+	for key in TAX_CONFIG_KEYS:
+		if not raw.has(key):
+			continue
+		var field: String = TAX_CONFIG_KEYS[key][0]
+		var minimum: int = TAX_CONFIG_KEYS[key][1]
+		var n = _whole_number(raw[key])
+		if n == null or int(n) < minimum:
+			warnings.append("[GameManager] fallback: %s %s is not a whole number >= %d; using %d" % [key, raw[key], minimum, TAX_DEFAULTS[field]])
+		else:
+			out[field] = int(n)
+	if raw.has("tax_warning_days"):
+		var w = raw["tax_warning_days"]
+		var days: Array = []
+		var good: bool = w is Array and not (w as Array).is_empty()
+		if good:
+			for v in w:
+				var n = _whole_number(v)
+				if n == null or int(n) < 1:
+					good = false
+					break
+				if not days.has(int(n)):
+					days.append(int(n))
+		if good:
+			days.sort()
+			days.reverse()
+			out["warning_days"] = days
+		else:
+			warnings.append("[GameManager] fallback: tax_warning_days %s is not a list of whole numbers >= 1; using %s" % [w, TAX_DEFAULTS.warning_days])
+	out["warnings"] = warnings
+	return out
+
+## An int, or a float with no fraction (JSON reads every number as a float), as an int; anything else: null.
+static func _whole_number(v):
+	if v is int:
+		return v
+	if v is float and is_finite(v) and v == floorf(v):
+		return int(v)
+	return null
+
+## What a cycle's tax costs (pure): the base plus a share per adventurer on the roster.
+static func tax_amount_for(roster_size: int, cfg: Dictionary) -> int:
+	return int(cfg.get("base_amount", TAX_DEFAULTS.base_amount)) + int(cfg.get("per_adventurer", TAX_DEFAULTS.per_adventurer)) * maxi(0, roster_size)
+
+## tax_config_from() for game_config.json, its warnings pushed once a run (New Game re-arms them).
+func tax_config() -> Dictionary:
+	var raw := {}
+	for key in TAX_CONFIG_KEYS.keys() + ["tax_warning_days"]:
+		var v = DataManager.get_config(key)
+		if v != null:
+			raw[key] = v
+	var cfg := tax_config_from(raw)
+	if not cfg.warnings.is_empty() and _tax_warnings == 0:
+		_tax_warnings += 1
+		for w in cfg.warnings:
+			push_warning(w)
+	return cfg
+
+## The tax due this cycle with today's roster.
+func current_tax_amount() -> int:
+	return tax_amount_for(adventurers.size(), tax_config())
+
+## Runs each morning (advance_day): a warning on a configured day before the due day; from the due day on, the payment.
 func check_tax_deadline():
-	var days_until_tax = tax_due_day - current_day
-
-	if days_until_tax == 7:
-		log_message("Tax payment due in 7 days. Amount: " + str(1000 + adventurers.size() * 5) + " gold.")
-	elif days_until_tax == 3:
-		log_message("Tax payment due in 3 days! Need " + str(1000 + adventurers.size() * 5) + " gold.")
-	elif days_until_tax == 1:
-		log_message("Tax payment due TOMORROW! Need " + str(1000 + adventurers.size() * 5) + " gold!")
-	elif days_until_tax <= 0:
+	var cfg := tax_config()
+	var days_until_tax := tax_due_day - current_day
+	if days_until_tax <= 0:
 		handle_tax_payment()
+		return
+	if (cfg.warning_days as Array).has(days_until_tax):
+		var amount := tax_amount_for(adventurers.size(), cfg)
+		if days_until_tax == 1:
+			log_message("Tax payment due TOMORROW! Need " + str(amount) + " gold!")
+		else:
+			log_message("Tax payment due in " + str(days_until_tax) + " days. Need " + str(amount) + " gold.")
+		print("[GameManager] tax: warning, due in %d day(s), %d gold" % [days_until_tax, amount])
+		EconomyBus.tax_warning.emit(days_until_tax, amount)
 
+## The due morning and each grace morning: the demand (first morning of the cycle only), then the payment or the grace.
 func handle_tax_payment():
-	var tax_amount = 1000 + (adventurers.size() * 5)
+	var cfg := tax_config()
+	var tax_amount := tax_amount_for(adventurers.size(), cfg)
+	var grace_period: int = cfg.grace_days
+	if tax_grace_days == 0:
+		print("[GameManager] tax: demand %d gold, due day %d" % [tax_amount, tax_due_day])
+		EconomyBus.tax_demand_triggered.emit(tax_amount, tax_due_day)
 
 	if spend_gold(tax_amount):
-		tax_due_day += 30
+		tax_due_day += int(cfg.interval_days)
 		tax_grace_days = 0
 		taxes_paid_count += 1
 		log_message("Paid " + str(tax_amount) + " gold in taxes. Next due: Day " + str(tax_due_day))
+		print("[GameManager] tax: paid %d gold, next due day %d" % [tax_amount, tax_due_day])
+		EconomyBus.tax_paid.emit(tax_amount)
 		check_tier_unlocks()
 	else:
 		tax_grace_days += 1
-		log_message("OVERDUE: Cannot pay taxes (" + str(tax_amount) + " gold needed). Grace period: " + str(tax_grace_days) + "/3 days.")
+		log_message("OVERDUE: Cannot pay taxes (%d gold needed). Grace period: %d/%d days." % [tax_amount, tax_grace_days, grace_period])
 
-		if tax_grace_days >= 3:
-			trigger_game_over("bankruptcy", "Failed to pay taxes after 3-day grace period. The guild is seized.")
+		if tax_grace_days >= grace_period:
+			trigger_game_over("bankruptcy", "Failed to pay taxes after the grace period. The guild is seized.")
 		else:
-			var days_left = 3 - tax_grace_days
+			var days_left := grace_period - tax_grace_days
 			log_message("" + str(days_left) + " day(s) remaining before the guild is shut down.")
-		
-		
+			print("[GameManager] tax: overdue, %d day(s) left" % days_left)
+			EconomyBus.tax_overdue.emit(days_left)
+
+
 # === LOGGING SYSTEM ===
 func log_message(message: String):
 	"""Send message to game log"""
@@ -2069,6 +2165,7 @@ func trigger_game_over(failure_type: String, reason: String):
 
 func reset_game_state():
 	print("Resetting game state...")
+	_tax_warnings = 0   # a bad tax config is warned about again in the new run (Story 13.1)
 	_apply_config()
 	current_day = 1
 
