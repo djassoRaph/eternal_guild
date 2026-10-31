@@ -2771,6 +2771,10 @@ func get_adventurer_level(adventurer: Dictionary) -> int:
 
 func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 	"""Handle permanent adventurer death with dramatic narrative"""
+	# The death itself, first (D3 review P0): the resolvers build the morning report from this same dictionary
+	# ("alive" = status != DEAD; a party's casualties and each member's fate), so without it every death read as a
+	# return and the Reveal's death beat (Story 7.3) never played. Stories 19.5 and 9.5 rely on it.
+	adventurer["status"] = AStatus.DEAD
 	var death_messages = [
 		adventurer.name + " fought valiantly but was overwhelmed",
 		adventurer.name + " made the ultimate sacrifice during " + mission.name,
