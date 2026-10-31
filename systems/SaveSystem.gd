@@ -83,9 +83,6 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	if not silent:
 		print("[SaveSystem] Saving (", save_type, ")...")
 
-	var max_backups = int(DataManager.get_config("max_backup_files", 3))
-	_create_save_backup(max_backups)
-
 	var save_data = GameManager.get_save_data()
 
 	save_data["schema_version"] = CURRENT_SCHEMA_VERSION
@@ -98,7 +95,9 @@ func save_game_state(save_type: String = "manual_save", silent: bool = false) ->
 	save_data["beer_shortage_days"] = GameManager.beer_shortage_days
 	save_data["adventurer_morale"] = GameManager.adventurer_morale
 
-	var success = _write_file_atomic(save_path, save_data)
+	# Story 11.3: the backups rotate only once the new save is written and confirmed, just before it replaces the
+	# old one, so a failed save leaves the save and every backup as they were.
+	var success = _write_file_atomic(save_path, save_data, _create_save_backup.bind(_max_backups()))
 
 	save_in_progress = false
 	save_completed.emit(success)
@@ -363,17 +362,29 @@ static func rename_classes(data) -> int:
 
 # === ATOMIC FILE I/O ===
 
-func _write_file_atomic(filepath: String, data: Dictionary) -> bool:
+## Writes `data` to `filepath` through a .tmp file. Story 11.3: the tmp file is confirmed (no write error, every
+## byte on disk: a full disk writes short) before the old file is touched; on any failure the tmp file is removed,
+## the old file stays as it was and this returns false. `before_swap` runs between the confirmed write and the
+## swap (the save's backup rotation).
+func _write_file_atomic(filepath: String, data: Dictionary, before_swap := Callable()) -> bool:
 	var tmp_path = filepath + ".tmp"
 
 	var file = FileAccess.open(tmp_path, FileAccess.WRITE)
 	if file == null:
-		print("[SaveSystem] Cannot open tmp file: ", tmp_path)
+		print("[SaveSystem] Cannot open tmp file: ", tmp_path, " (error ", FileAccess.get_open_error(), ")")
 		return false
 
-	var json_string = JSON.stringify(data, "\t")
+	var json_string: String = JSON.stringify(data, "\t")
 	file.store_string(json_string)
+	var write_err := file.get_error()
 	file.close()
+	if write_err != OK or not written_size_ok(tmp_path, json_string.to_utf8_buffer().size()):
+		print("[SaveSystem] Write not confirmed: ", tmp_path, " (error ", write_err, "); the old file is kept")
+		DirAccess.remove_absolute(tmp_path)
+		return false
+
+	if before_swap.is_valid():
+		before_swap.call()
 
 	# The file's own folder (Story 11.2: save_path may point below user://; renaming in user:// itself would hit
 	# the player's save instead).
@@ -397,6 +408,15 @@ func _write_file_atomic(filepath: String, data: Dictionary) -> bool:
 		return false
 
 	return true
+
+## Story 11.3: true when the file at `path` holds exactly `expected` bytes (a short write or a missing file: false).
+static func written_size_ok(path: String, expected: int) -> bool:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return false
+	var n := f.get_length()
+	f.close()
+	return n == expected
 
 func _read_json_file(filepath: String) -> Dictionary:
 	if not FileAccess.file_exists(filepath):
@@ -429,19 +449,19 @@ func _read_json_file(filepath: String) -> Dictionary:
 
 # === BACKUP SYSTEM ===
 
+## Shifts every backup one down (the oldest drops off) and copies the save to .backup1. Story 11.3: the old loop
+## deleted .backup3 instead of moving .backup2 into it, so only two backups were ever kept.
 func _create_save_backup(max_backups: int = 3):
 	if not FileAccess.file_exists(save_path):
 		return
 
+	var oldest = save_path + ".backup" + str(max_backups)
+	if FileAccess.file_exists(oldest):
+		DirAccess.remove_absolute(oldest)
 	for i in range(max_backups - 1, 0, -1):
 		var current_backup = save_path + ".backup" + str(i)
-		var next_backup = save_path + ".backup" + str(i + 1)
-
 		if FileAccess.file_exists(current_backup):
-			if i == max_backups - 1:
-				DirAccess.remove_absolute(next_backup)
-			else:
-				DirAccess.rename_absolute(current_backup, next_backup)
+			DirAccess.rename_absolute(current_backup, save_path + ".backup" + str(i + 1))
 
 	var backup_path = save_path + ".backup1"
 	DirAccess.copy_absolute(save_path, backup_path)
