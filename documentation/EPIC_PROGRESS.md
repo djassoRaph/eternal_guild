@@ -6,7 +6,7 @@ Cross-references `epics.md` against working code in `shiningsun/`.
 ## Snapshot (2026-10-03)
 **Story totals (BMAD `sprint-status.yaml`):** 171 stories in 26 epics — 52 done, 10 in review, 14 in progress, 95 backlog.
 **Done:** Epic 1 · Epic 3 · Epic 7 · Epic 8.
-**In progress:** Epic 2 (3/4) · Epic 4 (3/5) · Epic 6 (4/6) · Epic 11 (2/4) · Epic 12 (4/5) · Epic 13 (2/4) · Epic 14 (3/6) · Epic 16 (art + seam from 25.13; FSMs not started) · Epic 17 (deck data) · Epic 18 (basic Codex overlay) · Epic 19 (fallen-hero data + list) · **Epic 25 (4/32 done, 10 in review, 25.1 in progress)**.
+**In progress:** Epic 2 (3/4) · Epic 4 (3/5) · Epic 6 (4/6) · Epic 11 (2/4) · Epic 12 (4/5) · Epic 13 (2/4, 13.1 in review) · Epic 14 (3/6) · Epic 16 (art + seam from 25.13; FSMs not started) · Epic 17 (deck data) · Epic 18 (basic Codex overlay) · Epic 19 (fallen-hero data + list) · **Epic 25 (4/32 done, 10 in review, 25.1 in progress)**.
 **Started 2026-10-03:** Epic 10 (Story 10.2, the dialogue box, done; Story 10.3, Den Fa's Early/Mid/Late states, in review).
 **Not started:** Epics 5, 9, 15, 20, 21, 22, 23, 24 (SfxManager only), 26.
 **Recent (2026-10-04):** Story 25.32 (in progress): Den Fa realistic without wings (verdict pending), the Cat's concept job queued. Story 25.31, the realistic human cast (in review): all 15 human bodies on route RL (the player, the Bartender, the Quest Dealer, six townsfolk, six classes), data-driven with fallbacks, the bar stools raised, the hall and town budgets measured with the full cast; Story 25.23, light and mood (in review). Details under "Epic 25 progress" below.
@@ -381,17 +381,24 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 13: Tax Cycle & Economic Pressure
-**Status: ~85% — NEARLY COMPLETE**
+**Status: ~90% — 13.1 in review (2026-10-31: the tax cycle on EconomyBus, every number in game_config); 13.4 (the game-over surface) next. 13.2/13.3 are marked done, but their HUD urgency tiers, briefing lines and 13.3's penalty consequence were never built (deferred-work.md › Story 13.1).**
 
-- [x] **30-day tax cycle** — `tax_due_day` starts at 30, advances by 30 on payment
-- [x] **Warnings at 7, 3, 1 day** before due (`check_tax_deadline()`)
-- [x] **3-day grace period** — `tax_grace_days` increments daily if unpaid
-- [x] **Game over on 3 days unpaid** — `trigger_game_over("bankruptcy", ...)`
-- [x] **Tax amount** — 1000 + adventurers * 5 (scales with roster)
+- [x] **30-day tax cycle** — `tax_due_day` starts at 30, advances by `tax_interval_days` (30) on payment
+- [x] **Warnings at 7, 3, 1 day** before due (`check_tax_deadline()`; the days are `tax_warning_days`)
+- [x] **3-day grace period** — `tax_grace_days` increments daily if unpaid (`tax_grace_period_days`; the due morning counts as the first)
+- [x] **Game over when the grace runs out** — `trigger_game_over("bankruptcy", ...)` (the due day + 2 with grace 3)
+- [x] **Tax amount** — `tax_base_amount` 1000 + `tax_per_adventurer` 5 × the roster
 - [x] **Tier unlock tied to tax payment** — tier 2 unlocks after first tax paid
 - [x] **Soft-lock game over** (FR-6) — detected when 0 adventurers + no gold + no recruits
-- [ ] EventBus wiring (buses don't exist yet)
+- [x] **EventBus wiring** (Story 13.1) — `EconomyBus.tax_warning`, `tax_demand_triggered`, `tax_paid`, `tax_overdue`
 - [ ] Party mode economic expansion design (deferred)
+
+### Story 13.1: Tax Cycle EventBus Verification — IN REVIEW (2026-10-31)
+- [x] **The tax cycle on the bus.** EconomyBus gains `tax_warning(days_left, amount)`, `tax_demand_triggered(amount, due_day)`, `tax_paid(amount)` and `tax_overdue(days_remaining)`; GameManager emits them from `check_tax_deadline()` / `handle_tax_payment()`. The demand goes out once a cycle (the first collection morning), before the payment; `tax_paid` after `spend_gold`'s `gold_changed`; `tax_overdue` on each grace morning; then the bankruptcy fall. Payment stays automatic.
+- [x] **Every tax number in game_config.json** (today's values): `tax_due_day` (the first due day), `tax_interval_days`, `tax_base_amount`, `tax_per_adventurer`, `tax_grace_period_days`, `tax_warning_days`, with `_tax_comment`. `GameManager.tax_config_from()` falls back per key with a `[GameManager] fallback:` warning, once a run; no tax literal is left in the two functions. Story 14.6's demo profile can override them.
+- [x] **Banners** — NotificationManager shows one per tax event (DRAFT text: "Tax due in 3 days: 1000 gold.", "Tax due tomorrow: …", "Tax paid: …", "Tax overdue. 2 days before the guild is seized.").
+- [x] **F12** — the State tab's tax line (due day, days left, amount, grace, paid); "Trigger Tax Event NOW" runs the real morning check (it called a `process_tax_day()` that never existed).
+- Failsafe Test 31 (suite 1211 / 0); Stage D in the hall (warnings, the readout, the paid morning, an overdue morning); shots in `eternal_guild_art/shots/demo/13-1/`.
 
 ---
 
