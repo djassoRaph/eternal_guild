@@ -38,6 +38,15 @@
 
 	"rumour_mission_chance": 0.2,
 
+	"demo_party_missions": {
+		"_comment": "Story 6.5 (DD-7): party (group) missions start at Tier 2, which the first tax (Day 30) unlocks, so a demo session never meets one. In the demo profile only, from from_day each mission refresh carries at least per_refresh party missions, drawn from the party templates of tier <= max_tier. per_refresh 0 turns it off (the old behaviour). The full profile ignores this.",
+		"from_day": 2,
+		"per_refresh": 1,
+		"max_tier": 2
+	},
+	"_dispatch_strong_fit_comment": "Story 6.5 (DD-6): on the World Map scroll, READY adventurers whose chance on the mission is among the best N (N = the party size) and at least dispatch_strong_fit_min_chance percent are marked Good fit. A suggestion only; nothing is pre-filled.",
+	"dispatch_strong_fit_min_chance": 70,
+
 	"den_fa_state_tiers": {
 		"_comment": "Story 10.3: the reputation tier (a reputation_tiers label) at which Den Fa moves to his Mid and Late states. Forward only. An unknown label, or late at or below mid, falls back to Known / Trusted with a warning.",
 		"mid": "Known",
