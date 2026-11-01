@@ -36,9 +36,25 @@ var eavesdrop_timer: Timer
 var _eavesdropped_today: Dictionary = {}   # group key -> true (reset daily)
 var _rumours: Array = []
 
+# --- The day clock (Story 3.7, CL-5, CL-6, CL-15, CL-18) ---
+# In a day scene (the hall: an ancestor in group day_clock_scene) the patrons follow the hours: each phase's row of
+# game_config.json patron_phase_rates sets spawn_interval and max_patrons ("day" is this spawner's own 20 s / 5); no new
+# patron walks in while the clock is held (a screen up: else the Bartender would earn with the clock stopped); last call
+# is late_night's 0/0 (23:00, a banner); at day_clock.closing_hour the guests not yet served go home unpaid. Back in the
+# hall at a later hour, _ready takes the current phase's row (the patrons who were here are gone: only a save keeps
+# them). Outside a day scene (tests' small worlds) nothing changes.
+const DayClockRules := preload("res://scripts/game/day_clock_rules.gd")
+var follows_clock := false
+var _scene_rate := {}            # the scene's own spawn_interval / max_patrons (a missing row's fallback)
+var _closing_banner_day := -1
+var _timer_started := false
+
 func _ready():
 	print("PatronSpawner initializing...")
 	seats = build_seats([], table_positions)  # until the scene's seats are collected below
+	add_to_group("patron_spawner")   # Story 3.7 (Epic 5's tutorial reuses it)
+	_scene_rate = {"spawn_interval": spawn_interval, "max_patrons": max_patrons}
+	follows_clock = _in_day_scene()
 
 	# Set up spawn timer
 	spawn_timer = Timer.new()
@@ -58,13 +74,19 @@ func _ready():
 	eavesdrop_timer.start()
 	if GameManager.has_signal("day_changed"):
 		GameManager.day_changed.connect(func(_d): _eavesdropped_today.clear())
+	if follows_clock:
+		apply_phase(GameManager.day_clock_phase())   # Story 3.7: the current hour's row (a load, the hall re-entered)
+		GameBus.day_phase_changed.connect(_on_day_phase)
+		GameBus.day_clock_changed.connect(_on_clock_minute)
 	
 	# Wait for scene to be ready
 	await get_tree().create_timer(2.0).timeout
 	_collect_seats()
 
 	print("Spawning system ready")
-	spawn_timer.start()
+	_timer_started = true
+	if spawn_interval > 0.0:
+		spawn_timer.start()
 
 	# Restore patrons from a loaded save if there are any; otherwise spawn a fresh first patron.
 	var saved: Array = GameManager.consume_restored_patrons() if GameManager.has_method("consume_restored_patrons") else []
@@ -72,14 +94,75 @@ func _ready():
 		restore_patrons(saved)
 	elif can_spawn_patron():
 		spawn_patron()
+	if follows_clock and DayClockRules.is_closing(GameManager.day_clock_minutes, GameManager.day_clock_config()):
+		close_for_night()   # a load past closing time: the restored guests not yet served go home
 
 func _on_spawn_timer_timeout():
 	"""Try to spawn a patron on timer"""
 	if can_spawn_patron():
 		spawn_patron()
 
+## An ancestor (the scene's root) is in group day_clock_scene (Story 3.7: MainTavern joins it in _enter_tree).
+func _in_day_scene() -> bool:
+	var n := get_parent()
+	while n != null:
+		if n.is_in_group("day_clock_scene"):
+			return true
+		n = n.get_parent()
+	return false
+
+## Story 3.7 (CL-6): the phase's row (patron_phase_rates; a missing or bad row: the scene's own values, with a
+## warning). An interval of 0 stops the timed spawns; a changed interval restarts the timer.
+func apply_phase(phase: String) -> void:
+	var fallback: Dictionary = _scene_rate if not _scene_rate.is_empty() else {"spawn_interval": spawn_interval, "max_patrons": max_patrons}
+	var r: Dictionary = DayClockRules.rate_for(phase, DataManager.get_config("patron_phase_rates"), fallback)
+	if str(r.warning) != "":
+		push_warning(r.warning)
+	var interval := float(r.spawn_interval)
+	var changed := not is_equal_approx(interval, spawn_interval)
+	spawn_interval = interval
+	max_patrons = int(r.max_patrons)
+	if spawn_timer:
+		if interval <= 0.0:
+			spawn_timer.stop()
+		else:
+			spawn_timer.wait_time = interval
+			if _timer_started and (changed or spawn_timer.is_stopped()):
+				spawn_timer.start()
+	print("[Patrons] hours: %s, a try every %s s, up to %d" % [phase, interval, max_patrons])
+
+func _on_day_phase(p: String) -> void:
+	var phase := "late_night" if p == "reveal" else p
+	if phase == "late_night" and max_patrons > 0:
+		var line := str(DayClockRules.text("last_call"))
+		NotificationManager.show_banner(line, true)   # last call (CL-18): only when the bar was open, so only in play
+		GameManager.log_message(line)
+	apply_phase(phase)
+
+func _on_clock_minute(m: int) -> void:
+	if DayClockRules.is_closing(float(m), GameManager.day_clock_config()):
+		close_for_night()
+
+## Closing time (Story 3.7, CL-6): every guest not served yet goes home unpaid (RealisticPatron.leave_unserved);
+## drinkers finish and pay. One event banner a day when anyone left. Returns how many left.
+func close_for_night() -> int:
+	var n := 0
+	for p in active_patrons.duplicate():
+		if is_instance_valid(p) and p.has_method("leave_unserved") and p.leave_unserved():
+			n += 1
+	if n > 0:
+		print("[Patrons] closing: %d sent home" % n)
+		if _closing_banner_day != int(GameManager.current_day):
+			_closing_banner_day = int(GameManager.current_day)
+			NotificationManager.show_banner(str(DayClockRules.text("closing")), true)
+	return n
+
 func can_spawn_patron() -> bool:
 	"""Check if we can spawn a new patron"""
+	if follows_clock:
+		var clock = GameManager.day_clock_node() if GameManager.has_method("day_clock_node") else null
+		if clock != null and not clock.is_running():
+			return false   # Story 3.7 (CL-5): nobody walks in while the clock is held (or a night is under way)
 	if active_patrons.size() >= max_patrons:
 		print("Max patrons reached (", active_patrons.size(), "/", max_patrons, ")")
 		return false

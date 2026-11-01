@@ -508,13 +508,54 @@ func _play_sit_down_then_idle() -> void:
 	if animation_player and animation_player.has_animation("Sit_Chair_Down"):
 		_patron_play_animation("Sit_Chair_Down", false)
 		await get_tree().create_timer(_SIT_DOWN_SECONDS).timeout
-		if current_state != PatronState.SEATED and current_state != PatronState.WAITING_SERVICE:
+		if going_home or (current_state != PatronState.SEATED and current_state != PatronState.WAITING_SERVICE):
 			return  # served/interrupted while sitting down — don't stomp whatever's playing now
 	_patron_play_animation("Sit_Chair_Idle")
 
 func _leave_tavern():
 	print("", patron_name, " reached the exit and is leaving")
 	patron_finished.emit(self)
+
+## Story 3.7 (CL-6): sent home unserved at closing time.
+var going_home := false
+
+## Closing time (Story 3.7, CL-6): a patron not served yet (walking in, seated, or waiting with the mug showing) gets up
+## and walks out without paying: no gold, no reputation. True when they go; false for one drinking (they finish and
+## pay), one already leaving, or one already going home.
+func leave_unserved() -> bool:
+	if going_home or has_been_served or current_state == PatronState.DRINKING or current_state == PatronState.LEAVING:
+		return false
+	going_home = true
+	var seated: bool = current_state != PatronState.WALKING_TO_TABLE
+	if sitting_timer:
+		sitting_timer.stop()
+	if service_indicator:
+		service_indicator.visible = false
+	wants_service = false
+	print("[Patrons] %s goes home unserved (closing time)" % patron_name)
+	if seated:
+		current_state = PatronState.SEATED   # stationary and unservable while standing up (not WAITING_SERVICE)
+	_walk_home(seated)
+	return true
+
+func _walk_home(seated: bool) -> void:
+	if seated and animation_player and animation_player.has_animation("Sit_Chair_StandUp"):
+		_patron_play_animation("Sit_Chair_StandUp", false)
+		if patron_body_mesh and patron_body_mesh.position.y > 0.0:   # down off the stool while standing up
+			create_tween().tween_property(patron_body_mesh, "position:y", 0.0, SIT_LIFT_SECONDS) \
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		await get_tree().create_timer(_SIT_DOWN_SECONDS).timeout
+	if not is_inside_tree():
+		return
+	if patron_body_mesh:
+		patron_body_mesh.position.y = 0.0
+	if nav_agent:
+		nav_agent.target_position = entrance_position   # the new target first: the old one (the seat) can't finish the walk
+		current_state = PatronState.LEAVING
+		print("", patron_name, " is walking home at ", entrance_position)
+	else:
+		current_state = PatronState.LEAVING
+		_leave_tavern()
 
 # =============================================================================
 # SEATS (Story 25.6)
