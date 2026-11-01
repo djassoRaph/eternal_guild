@@ -220,6 +220,23 @@ static func townsfolk_pool() -> Array:
 			return good.map(func(v): return (v as Dictionary).duplicate(true))
 	return FALLBACK_MODELS.map(func(p): return {"id": str(p).get_file().get_basename(), "model_path": p, "origin_type": "", "weight": 1.0})
 
+## The pool without the variants in `taken` (pure; Story 10.7 review P15: the King's messenger's body stays his while
+## he is in the hall). Taking every variant leaves the pool as it was: a patron always gets a body.
+static func pool_without(pool: Array, taken: Array) -> Array:
+	if taken.is_empty():
+		return pool
+	var left := pool.filter(func(v): return not taken.has(str(v.get("id", ""))))
+	return left if not left.is_empty() else pool
+
+## The body variant ids the hall's visitors in group "royal_messenger" wear now (Story 10.7 review P15).
+func _visitor_bodies() -> Array:
+	var out := []
+	if is_inside_tree():
+		for n in get_tree().get_nodes_in_group("royal_messenger"):
+			if not n.is_queued_for_deletion():
+				out.append(str(n.get("variant_id")))
+	return out
+
 ## Weighted pick among the variants of one origin type ("" = the whole pool). An origin type no
 ## variant covers falls back to the whole pool, so a patron always gets a body; if every weight is
 ## zero the pick is even. roll is in [0, 1).
@@ -900,7 +917,7 @@ func setup_for_table(target_table: Vector3, entrance: Vector3, idx: int, seat = 
 	# Story 25.14: the body first (weighted: ~80% townsfolk, the rest adventurers passing through),
 	# then an origin of the same type, so the guard is from the keep and the merchant from the docks,
 	# and a name that fits the body.
-	var variant := pick_variant(townsfolk_pool(), "", randf())
+	var variant := pick_variant(pool_without(townsfolk_pool(), _visitor_bodies()), "", randf())   # Story 10.7 review P15
 	var mp := str(variant.get("model_path", ""))
 	if mp != "" and mp != current_model_path:
 		_swap_to_model(mp, variant)
