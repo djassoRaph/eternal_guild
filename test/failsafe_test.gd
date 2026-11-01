@@ -372,6 +372,7 @@ func _initialize() -> void:
 	await test_codex_artefacts()
 	await test_codex_history()
 	await test_codex_in_hall()
+	await test_codex_review()
 
 	_finish()
 
@@ -16438,7 +16439,7 @@ static func _t44_codex() -> Dictionary:
 			{"id": 2.0, "name": "Nina", "class": "Healer", "tarot_card": "pentacles_14_king", "hire_day": 3.0, "death_day": 9.0,
 				"missions_completed": 2.0, "timestamp": 100.0},
 			{"id": 4242, "name": "Testla", "class": "Fighter", "tarot_card": "the_tower", "hire_day": 1, "death_day": 12,
-				"missions_completed": 0, "timestamp": 50.0},
+				"missions_completed": 0, "timestamp": 150.0},
 			"junk",
 			{"id": 7, "name": "Dain", "class": "Barbarian", "tarot_card": "pentacles_01_ace", "hire_day": 4, "death_day": 12,
 				"missions_completed": 5, "timestamp": 200.0}],
@@ -16551,7 +16552,7 @@ func _check_t44_fallen(UI, dm) -> void:
 	var F = load(CODEX_FALLEN_PATH)
 	var order: Array = F.fallen_entries(_t44_codex()).map(func(e): return e.name)
 	check(order == ["Dain", "Testla", "Nina"] and F.fallen_entries({}).is_empty() and F.fallen_entries({"fallen_heroes": "x"}).is_empty(),
-		"fallen_entries: newest death first, a tie by the later timestamp, junk skipped; none / not a list -> [] %s" % [order])
+		"fallen_entries: the latest death first (by timestamp, review P6), junk skipped; none / not a list -> [] %s" % [order])
 	var cfg: Dictionary = UI.config()
 	var ch = F.new()
 	var l := VBoxContainer.new()
@@ -16849,7 +16850,7 @@ func _check_t45_page(T, UI, dm) -> void:
 		if v.name != c.name or v.arcana_line != "Major Arcana · " + T45_NUMERALS[i] or v.archetype != c.archetype or v.lore != c.codex_lore \
 				or v.secret != "Secret meaning: " + str(c.codex_secret) or v.unlock_line != "Known to the guild from its first day.":
 			bad.append(T45_START[i])
-	check(bad.is_empty(), "the four pages: name, 'Major Arcana · I/VII/IX/XVII', archetype, the note, 'Secret meaning: …', the starting line %s" % [bad])
+	check(bad.is_empty(), "the four pages: name, 'Major Arcana · I/VII/VIII/XVII', archetype, the note, 'Secret meaning: …', the starting line %s" % [bad])
 	var four: Dictionary = dm.get_tarot_card("cups_04_four")
 	var ctx := {"tarot_unlock_context": {"cups_04_four": {"adventurer": "Nina", "event": "came home from the Sunken Crypt"}}}
 	var v2: Dictionary = T.page_view(four, ctx, cfg)
@@ -16915,7 +16916,7 @@ func _check_t45_chapter(T, UI, dm) -> void:
 	check(first_ok and reader.reads == [["tarot", "major_01_the_magician"]],
 		"the chapter opens on the first unlocked card, The Magician: its card, name, numeral, archetype, the start line, the note and secret (one read)")
 	(ch.slot_nodes[idx.major_08_strength] as Button).pressed.emit()
-	var hermit_ok: bool = ch.selected == idx.major_08_strength and page.call("PageName") == "Strength" \
+	var strength_ok: bool = ch.selected == idx.major_08_strength and page.call("PageName") == "Strength" \
 		and (ch.slot_nodes[idx.major_08_strength] as Button).button_pressed and not (ch.slot_nodes[idx.major_01_the_magician] as Button).button_pressed
 	var last: int = ch.unlocked_order[-1]
 	ch.show_card(last)
@@ -16925,7 +16926,7 @@ func _check_t45_chapter(T, UI, dm) -> void:
 	var back_wrap: bool = ch.selected == last
 	ch.show_card(idx.major_17_the_star - 1 if not ch.slots[idx.major_17_the_star - 1].unlocked else -1)
 	var stayed: bool = ch.selected == last
-	check(hermit_ok and wrapped and back_wrap and stayed and reader.reads.size() == 5,
+	check(strength_ok and wrapped and back_wrap and stayed and reader.reads.size() == 5,
 		"clicking Strength shows its page (its slot marked); Next from the last unlocked card wraps to the first, Previous back; a locked slot can't be shown")
 	left.free()
 	right.free()
@@ -16965,8 +16966,7 @@ func _check_t45_book(dm) -> void:
 	book.entry_read.connect(func(c, id): reads.append(id))
 	await process_frame
 	var ch = book._chapter
-	var first: int = ch.selected
-	book.note_read("tarot", str(ch.slots[first].card.id))   # the page already shown: not a second read
+	var opening_quiet: bool = reads.is_empty() and ch.selected >= 0   # review P1: the page it opens on isn't read yet
 	var chariot := -1
 	for i in ch.slots.size():
 		if str(ch.slots[i].card.id) == "major_07_the_chariot":
@@ -16974,9 +16974,9 @@ func _check_t45_book(dm) -> void:
 	(ch.slot_nodes[chariot] as Button).pressed.emit()
 	await _press("ui_right")
 	await _press("ui_left")
-	check(book.current_chapter == "tarot" and reads == ["major_07_the_chariot", "major_08_strength", "major_07_the_chariot"]
+	check(opening_quiet and book.current_chapter == "tarot" and reads == ["major_07_the_chariot", "major_08_strength", "major_07_the_chariot"]
 		and book.read_line("tarot", "major_07_the_chariot") == "[Codex] read: tarot major_07_the_chariot",
-		"in the book: a click and the arrow keys turn the pages, each page one entry_read (the page already shown isn't read twice) %s" % [reads])
+		"in the book: the page it opens on is no read yet; a click and the arrow keys turn the pages, each page one entry_read %s" % [reads])
 	book.close()
 	await process_frame
 
@@ -17362,6 +17362,14 @@ func _check_t48_tavern() -> void:
 	var header := "[node name=\"CodexLectern\" parent=\"SubViewportContainer/SubViewport/TavernNavigation/Furniture\""
 	var book = _t48_origin(text, header)
 	var trunk = _t48_origin(text, "[node name=\"TrunkLargeA\"")
+	var nav = _t48_origin(text, "[node name=\"TavernNavigation\"")
+	var furn = _t48_origin(text, "[node name=\"Furniture\" type=\"Node3D\" parent=\"SubViewportContainer/SubViewport/TavernNavigation\"]")
+	var props = _t48_origin(text, "[node name=\"Props\" type=\"Node3D\" parent=\"SubViewportContainer/SubViewport/TavernNavigation\"]")
+	if book is Vector3 and trunk is Vector3 and nav is Vector3 and furn is Vector3 and props is Vector3:
+		book = book + furn + nav     # review P9: the world frame (Furniture sits 3.4 cm lower than Props)
+		trunk = trunk + props + nav
+	else:
+		book = null
 	var lec = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
 	var zone_local: Vector3 = (lec.get_node("ReadZone").get_child(0) as Node3D).position
 	var anchor_local: Vector3 = (lec.get_node("Anchor") as Node3D).position
@@ -17370,7 +17378,7 @@ func _check_t48_tavern() -> void:
 	if not (book is Vector3) or not (trunk is Vector3):
 		check(false, "MainTavern.tscn: a CodexLectern under Furniture and TrunkLargeA with their transforms (%s, %s)" % [book, trunk])
 		return
-	var on_lid: bool = abs(book.y - (trunk.y + T48_TRUNK_HALF.y)) < 0.02 \
+	var on_lid: bool = abs(book.y - (trunk.y + T48_TRUNK_HALF.y)) < 0.005 \
 		and book.x - cover.x * 0.5 >= trunk.x - T48_TRUNK_HALF.x and book.x + cover.x * 0.5 <= trunk.x + T48_TRUNK_HALF.x \
 		and book.z - cover.z * 0.5 >= trunk.z - T48_TRUNK_HALF.z - 0.001 and book.z + cover.z * 0.5 <= trunk.z + T48_TRUNK_HALF.z + 0.001
 	var zone: Vector3 = book + zone_local
@@ -17378,9 +17386,10 @@ func _check_t48_tavern() -> void:
 	var flat := func(a: Vector3, b: Vector3) -> float: return Vector2(a.x - b.x, a.z - b.z).length()
 	var fire_d: float = flat.call(anchor, FIRE_ANCHOR)
 	var cat_d: float = flat.call(zone, CAT_WORLD)
+	var zone_fire_d: float = flat.call(zone, FIRE_ANCHOR)   # review P11: the zone's centre, not only its anchor
 	var den_d: float = flat.call(zone, Vector3(-3.8521, 0, -7.48206))
-	check(ext_ok and text.count(header) == 1 and on_lid and fire_d > 2.0 and cat_d > 3.0 and den_d > 3.0,
-		"MainTavern: one book on TrunkLargeA's flat lid (%s on %s), facing the room; its anchor %.2f m from the fire's, its zone %.2f m from the cat and %.2f m from Den Fa" % [book, trunk, fire_d, cat_d, den_d])
+	check(ext_ok and text.count(header) == 1 and on_lid and fire_d > 2.0 and zone_fire_d >= 1.0 and cat_d > 3.0 and den_d > 3.0,
+		"MainTavern: one book whose rest stands on TrunkLargeA's flat lid in the world frame (%s on %s); its anchor %.2f m and its zone's centre %.2f m from the fire's anchor, its zone %.2f m from the cat and %.2f m from Den Fa" % [book, trunk, fire_d, zone_fire_d, cat_d, den_d])
 
 
 ## AC 4: the flag in the save: default, round trip, an old save, junk, a new run.
@@ -17624,3 +17633,308 @@ func _check_t48_body(UI) -> void:
 	await _t48_settle(32)   # let their _ready finish looking for a prompt UI before freeing them
 	for n in [a, b, c]:
 		n.free()
+
+
+# --- Tests 44-48: the code review's checks (Epic 18 review, 2026-11-01) ---
+const T4R_DIR := "user://failsafe_t44r"
+const T4R_CAMERA_UP := Vector3(-0.353553, 0.866026, -0.353553)   # MainTavern's Camera3D basis, its up column (screen up)
+
+
+## P1-P13 (Epic 18 code review): an open is not a read (dwell, choice, Fallen Heroes), the spread fits small windows,
+## finders by id + name + hire day and their ids kept, no book over a fall, the run of a find, Fallen Heroes across runs,
+## the pause menu's book modal, the book's ink, focus scrolling, the Label3D prompt, the tilted pages, the tome above the
+## reader. Save and codex redirected; the real ones' sha256 checked.
+func test_codex_review() -> void:
+	print("[Tests 44-48 review] The Codex: the code review's checks (Epic 18 review)")
+	var gm = root.get_node_or_null("GameManager")
+	var ss = root.get_node_or_null("SaveSystem")
+	var dm = root.get_node_or_null("DataManager")
+	if gm == null or ss == null or dm == null or not ss.has_method("count_run_started"):
+		check(false, "the GameManager, SaveSystem, DataManager autoloads and SaveSystem.count_run_started (review P5)")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var ss_saved := [ss.save_path, ss.codex_path, ss.codex_data, ss.run_active]
+	var gm_over = gm.game_over_active
+	var scene_saved := current_scene
+	DirAccess.make_dir_recursive_absolute(T4R_DIR)
+	ss.save_path = T4R_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T4R_DIR + "/codex.dat"
+	var UI = load(CODEX_UI_PATH)
+	UI.set_config(null)
+	UI.reset_warnings()
+	await _check_t4r_reads(UI, dm)
+	await _check_t4r_fit(dm)
+	_check_t4r_finders(gm, ss)
+	_check_t4r_runs(ss)
+	_check_t4r_order()
+	await _check_t4r_pause_menu(dm)
+	await _check_t4r_look(UI, dm)
+	await _check_t4r_hall(gm)
+	UI.set_config(null)
+	UI.reset_warnings()
+	paused = false
+	gm.game_over_active = gm_over
+	current_scene = scene_saved
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.codex_data = ss_saved[2]
+	ss.run_active = ss_saved[3]
+	for f in ["codex.dat", "codex.dat.tmp", "eternal_guild_save.json", "eternal_guild_save.json.tmp", "eternal_guild_save.json.prev",
+			"eternal_guild_save.json.backup1", "eternal_guild_save.json.backup2", "eternal_guild_save.json.backup3", "eternal_guild_save.json.fallen"]:
+		if FileAccess.file_exists(T4R_DIR + "/" + f):
+			DirAccess.remove_absolute(T4R_DIR + "/" + f)
+	DirAccess.remove_absolute(T4R_DIR)
+	await process_frame
+	check(not DirAccess.dir_exists_absolute(T4R_DIR), "the review checks left no folder behind")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "the review checks never touched the real save or codex")
+	print("")
+
+
+## P1: the page the book opens on is read only after the dwell; a chosen page at once; a choice before the dwell drops the
+## opening's read; Fallen Heroes reads a hero picked by a click; the open line.
+func _check_t4r_reads(UI, dm) -> void:
+	var book = _t44_open(_t44_codex(), dm)
+	var reads: Array = []
+	book.entry_read.connect(func(c, id): reads.append([c, id]))
+	await process_frame
+	await process_frame
+	var opened_quiet := reads.is_empty()
+	var ch = book._chapter
+	var chariot := -1
+	for i in ch.slots.size():
+		if str(ch.slots[i].card.id) == "major_07_the_chariot":
+			chariot = i
+	(ch.slot_nodes[chariot] as Button).pressed.emit()
+	var one_click: bool = reads == [["tarot", "major_07_the_chariot"]]
+	book.show_chapter("fallen")
+	var tab_quiet: bool = reads.size() == 1   # the hero list itself isn't an entry
+	var fch = book._chapter
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	fch._on_row_input(click, 1)
+	var fallen_ok: bool = fch.selected == 1 and fch.focused == fch.rows[1].node and reads.size() == 2 and reads[1][0] == "fallen" \
+		and reads[1][1] == UI.num(fch.rows[1].entry.id)
+	book.close()
+	await process_frame
+	check(opened_quiet and one_click and tab_quiet and fallen_ok and load(CODEX_MENU_PATH).open_line("hall") == "[Codex] open: hall",
+		"P1: opening the book reads nothing (its open line only); one click = one read; the hero list isn't a read, a clicked hero is %s" % [reads])
+	UI.set_config({"read_dwell_seconds": 0.25})
+	var b2 = _t44_open({}, dm)
+	var r2: Array = []
+	b2.entry_read.connect(func(c, id): r2.append(id))
+	await create_timer(0.5).timeout
+	var dwelt: bool = r2 == ["major_01_the_magician"]
+	b2.close()
+	await process_frame
+	UI.set_config({"read_dwell_seconds": 0.4})
+	var b3 = _t44_open({}, dm)
+	var r3: Array = []
+	b3.entry_read.connect(func(c, id): r3.append(id))
+	var ch3 = b3._chapter
+	ch3.turn(1)
+	await create_timer(0.7).timeout
+	var chosen_first: bool = r3 == ["major_07_the_chariot"]
+	b3.close()
+	await process_frame
+	UI.set_config(null)
+	UI.reset_warnings()
+	check(dwelt and chosen_first, "P1: the opening page counts after read_dwell_seconds in view; a page chosen before then counts instead %s %s" % [r2, r3])
+
+
+## P2: the spread is laid out at 1600 x 900 and scaled to fit (0.92 of the window), centred; at 1366 x 768 and 1280 x 720
+## the left page (the Tarot grid too) stays left of the right page and the right page's content inside the spread.
+func _check_t4r_fit(dm) -> void:
+	var book = _t44_open({"tarot_unlocked": ["cups_04_four"]}, dm)
+	await process_frame
+	var res := []
+	for vp in [Vector2(1366, 768), Vector2(1280, 720), Vector2(1920, 1080)]:
+		book.fit_to(vp)
+		for i in 3:
+			await process_frame
+		var sp: Control = book._spread
+		var s := minf(1.0, minf(vp.x * 0.92 / 1600.0, vp.y * 0.92 / 900.0))
+		var r := sp.get_global_rect()
+		var left: Rect2 = (book._left as Control).get_global_rect()
+		var right: Rect2 = (book._right as Control).get_global_rect()
+		var grid: Control = book._left.find_child("TarotGrid", true, false)
+		var nav: Control = book._right.find_child("PageNav", true, false)
+		var ok: bool = sp.size == Vector2(1600, 900) and is_equal_approx(sp.scale.x, s) and r.size.x <= vp.x * 0.92 + 1.0 \
+			and r.size.y <= vp.y * 0.92 + 1.0 and abs(r.get_center().x - vp.x * 0.5) <= 1.0 and abs(r.get_center().y - vp.y * 0.5) <= 1.0 \
+			and left.end.x <= right.position.x and grid != null and grid.get_global_rect().end.x <= right.position.x \
+			and nav != null and nav.get_global_rect().end.y <= r.end.y and right.end.x <= r.end.x
+		res.append([vp, snappedf(s, 0.001), ok])
+	check(res.all(func(x): return x[2]),
+		"P2: the spread keeps its 1600 x 900 layout, scaled to <= 0.92 of the window and centred; at 1366 x 768 and 1280 x 720 nothing crosses the gutter %s" % [res])
+	check(book.get_viewport().size_changed.is_connected(Callable(book, "_fit")), "P2: the book refits when the window is resized")
+	book.close()
+	await process_frame
+
+
+## P3: the finder's hire day is recorded and must match; a name-only entry and another hire day are no match; finder ids
+## are taken ids (never handed out again).
+func _check_t4r_finders(gm, ss) -> void:
+	var A = load(CODEX_ARTEFACTS_PATH)
+	ss.codex_data = {"schema_version": 2, "fallen_heroes": [], "total_runs": 0}
+	ss.record_artifact_found("hollow_bell", {"id": 9123, "name": "Kael", "class": "Rogue", "hire_day": 7})
+	var e: Dictionary = (ss.codex_data.artifacts_found as Array)[-1]
+	var taken: bool = gm._taken_ids().has(9123)
+	var fallen_same := {"fallen_heroes": [{"id": 9123, "name": "Kael", "hire_day": 7, "death_day": 12}]}
+	var fallen_other := {"fallen_heroes": [{"id": 9123.0, "name": "Kael", "hire_day": 31.0, "death_day": 40}]}
+	check(e.get("found_by_hire_day") == 7 and taken and int(A.finder_fate(e, fallen_same).get("death_day", -1)) == 12
+		and A.finder_fate(e, fallen_other).is_empty() and A.finder_fate({"found_by": "Kael"}, fallen_same).is_empty()
+		and int(A.finder_fate({"found_by": "Kael", "found_by_id": 9123}, fallen_other).get("death_day", -1)) == 40,
+		"P3: a find records the finder's hire day; the same id and name hired on another day is no match (an old find without it still is); a name alone never is; finder ids stay taken")
+
+
+## P5: every new run counts itself (runs_started, one codex write at its first save); a find's run is that number, with or
+## without a fall in between; an old codex counts on from its falls.
+func _check_t4r_runs(ss) -> void:
+	ss.codex_data = {"schema_version": 2, "fallen_heroes": [], "total_runs": 0}
+	ss.start_new_run_save()
+	ss.record_artifact_found("hollow_bell")
+	var r1: int = int((ss.codex_data.artifacts_found as Array)[-1].run)
+	ss.start_new_run_save()
+	ss.record_artifact_found("teal_rune_shard")
+	var r2: int = int((ss.codex_data.artifacts_found as Array)[-1].run)
+	var disk = _read_json(T4R_DIR + "/codex.dat")
+	var S = load(SAVE_SYSTEM_PATH)
+	ss.run_active = false
+	check(r1 == 1 and r2 == 2 and disk is Dictionary and int(disk.get("runs_started", 0)) == 2
+		and S.current_run_number({}) == 1 and S.current_run_number({"total_runs": 2.0}) == 3 and S.current_run_number({"total_runs": 2, "runs_started": 5}) == 5,
+		"P5: two runs without a fall: finds in run 1 and run 2 (runs_started saved at each new run's first save); an old codex: the run after its falls")
+
+
+## P6: Fallen Heroes orders by the real time of death across runs (a later run's Day 5 is newer than an earlier Day 30).
+func _check_t4r_order() -> void:
+	var F = load(CODEX_FALLEN_PATH)
+	var order: Array = F.fallen_entries({"fallen_heroes": [{"name": "Old", "death_day": 30, "timestamp": 100.0},
+		{"name": "New", "death_day": 5, "timestamp": 200.0}, {"name": "Tie", "death_day": 9, "timestamp": 100.0}]}).map(func(x): return x.name)
+	check(order == ["New", "Old", "Tie"], "P6: newest death first by timestamp across runs, then the in-run day %s" % [order])
+
+
+## P7: the pause menu opens the book as the scene's last child: Tab and F12 never reach the HUD or the F12 panel under it;
+## Esc closes only the book; the main menu says where it opened the book from.
+func _check_t4r_pause_menu(dm) -> void:
+	var world := Node.new()
+	world.name = "T4RWorld"
+	root.add_child(world)
+	current_scene = world
+	var menu = load(PAUSE_MENU_SCRIPT_PATH).new()
+	world.add_child(menu)
+	menu.visible = true
+	var spy := Node.new()
+	var gs := GDScript.new()
+	gs.source_code = "extends Node\nvar keys := 0\nfunc _input(e):\n\tif (e is InputEventKey or e is InputEventAction) and e.is_pressed():\n\t\tkeys += 1\n"
+	gs.reload()
+	spy.set_script(gs)
+	world.add_child(spy)   # after the menu, like GameUI and the F12 panel
+	menu._on_codex_pressed()
+	var books := get_nodes_in_group("codex_open")
+	var book = books[0] if books.size() == 1 else null
+	var last: bool = book != null and book.get_parent() == world and book.get_index() == world.get_child_count() - 1 and book.opened_from == "pause_menu"
+	await process_frame
+	await _press_key(KEY_TAB)
+	await _press_key(KEY_F12)
+	var kept: bool = spy.keys == 0
+	await _press("ui_cancel")
+	var esc_ok: bool = get_nodes_in_group("codex_open").is_empty() and menu.visible and spy.keys == 0
+	var mm := FileAccess.get_file_as_string("res://scripts/menus/main_menu.gd")
+	check(last and kept and esc_ok and mm.contains("book.opened_from = \"main_menu\""),
+		"P7: the pause menu's book is the scene's last child: Tab and F12 stay the book's (modal); Esc closes only the book, the menu stays")
+	current_scene = null
+	world.queue_free()
+	await process_frame
+
+
+## P11 / P12: the ink on the pages; a focused hero scrolled into view; the tome's pages tilted up from the spine.
+func _check_t4r_look(UI, dm) -> void:
+	var cfg: Dictionary = UI.config()
+	var body: Label = UI.label(cfg, "x", "body")
+	var muted: Label = UI.label(cfg, "x", "small", true)
+	var ink_ok: bool = body.get_theme_color("font_color") == UI.color(cfg, "ink") and muted.get_theme_color("font_color") == UI.color(cfg, "muted_ink")
+	body.free()
+	muted.free()
+	var many := []
+	for i in 30:
+		many.append({"id": 500 + i, "name": "Hero %d" % i, "class": "Fighter", "tarot_card": "", "hire_day": 1, "death_day": 2, "timestamp": 1000.0 + i})
+	var book = _t44_open({"fallen_heroes": many}, dm)
+	await process_frame
+	book.show_chapter("fallen", 500)   # the oldest: the last row
+	for i in 4:
+		await process_frame
+	var sc: ScrollContainer = book._left.find_child("FallenScroll", true, false)
+	var ch = book._chapter
+	var scrolled: bool = sc != null and sc.scroll_vertical > 0 and ch.focused == ch.rows[29].node
+	book.close()
+	await process_frame
+	var lec = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	var pl: Node3D = lec.get_node("PlaceholderBody/PageLeft")
+	var pr: Node3D = lec.get_node("PlaceholderBody/PageRight")
+	var tilt_ok: bool = (pl.transform * Vector3(0, 0, -0.2)).y > pl.position.y + 0.01 and (pr.transform * Vector3(0, 0, 0.2)).y > pr.position.y + 0.01
+	lec.free()
+	check(ink_ok and scrolled and tilt_ok, "P11/P12: labels in the book's ink and muted ink; a focused hero far down the list is scrolled into view; the pages rise from the spine")
+
+
+## P4 / P11 / P13: no book over a fall or a paused tree (nor after Den Fa's line closes during a fall); the Label3D prompt
+## where there is no prompt UI; the tome shows above a reader's head from the reading spot (the hall camera's up axis).
+func _check_t4r_hall(gm) -> void:
+	var gs := GDScript.new()
+	gs.source_code = "extends Node3D\nvar frozen := false\nfunc set_world_frozen(on: bool) -> void:\n\tfrozen = on\nfunc is_world_frozen() -> bool:\n\treturn frozen\n"
+	gs.reload()
+	var world := Node3D.new()
+	world.set_script(gs)
+	root.add_child(world)
+	current_scene = world
+	var lec = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	world.add_child(lec)
+	gm.game_over_active = true
+	var a = lec.open_book()
+	lec._on_line_closed()
+	await process_frame
+	await process_frame
+	var fallen_none: bool = a == null and get_nodes_in_group("codex_open").is_empty()
+	gm.game_over_active = false
+	paused = true
+	var b = lec.open_book()
+	paused = false
+	var paused_none: bool = b == null and get_nodes_in_group("codex_open").is_empty()
+	for i in 34:
+		await process_frame   # no ZonePromptUI here: after 30 frames, its own Label3D prompt
+	var label: Label3D = lec.get_node_or_null("PromptLabel")
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.add_to_group("player")
+	var cap := CollisionShape3D.new()
+	cap.shape = CapsuleShape3D.new()
+	(cap.shape as CapsuleShape3D).radius = PLAYER_RADIUS
+	(cap.shape as CapsuleShape3D).height = 1.5
+	cap.position = Vector3(0, 0.75, 0)
+	player.add_child(cap)
+	world.add_child(player)
+	player.position = Vector3(6, 0, 0)
+	await _t48_settle(4)
+	var hidden_away: bool = label != null and not label.visible
+	lec._cooldown = 0.0   # its line-closed cooldown (above) is over
+	player.position = Vector3(0.3, -1.1, 0.85)
+	await _t48_settle(6)
+	var shown_near: bool = label != null and label.visible == lec.can_read() and label.visible
+	var label_ok: bool = label != null and label.no_depth_test and label.render_priority >= 1 and hidden_away and shown_near
+	current_scene = null
+	world.queue_free()
+	await process_frame
+	# P13: from the reading spot (the zone's centre), the hall camera sees the tome's far half and its eye above the head.
+	var lec2 = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	var zone_local: Vector3 = (lec2.get_node("ReadZone").get_child(0) as Node3D).position
+	var cover: MeshInstance3D = lec2.get_node("PlaceholderBody/Cover")
+	var eye: Node3D = lec2.get_node("PlaceholderBody/Eye")
+	var cover_top := cover.position + Vector3(0, ((cover.mesh as BoxMesh).size.y) * 0.5, 0)
+	var eye_pos := eye.position
+	lec2.free()
+	var book := Vector3(-3.6866, 1.1, -12.1953)   # the node's world spot (MainTavern; Test 48 checks it)
+	var head := Vector3(book.x + zone_local.x, 1.9, book.z + zone_local.z)   # a 1.8 m reader standing on the 0.1 floor
+	var up_head := head.dot(T4R_CAMERA_UP)
+	var up_cover := (book + cover_top).dot(T4R_CAMERA_UP)
+	var up_eye := (book + eye_pos).dot(T4R_CAMERA_UP)
+	check(fallen_none and paused_none and label_ok and up_cover > up_head and up_eye > up_head + 0.1,
+		"P4/P11/P13: no book over a fall or a paused tree; the Label3D prompt (no depth test, above the ink) shows only when E is the book's; the tome's top and eye show above a reader's head (%.2f, %.2f > %.2f)" % [up_cover, up_eye, up_head])
