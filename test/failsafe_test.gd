@@ -373,6 +373,7 @@ func _initialize() -> void:
 	await test_codex_history()
 	await test_codex_in_hall()
 	await test_codex_review()
+	await test_day_clock()   # Story 3.7
 
 	_finish()
 
@@ -7870,8 +7871,8 @@ func test_light_and_mood() -> void:
 		and LM_PHASES.all(func(p): return phases.get(p) is Dictionary) and str(phases.get("_comment", "")).length() > 40 \
 		and str(cfg.get("tavern_light_phase_default", "")) in LM_PHASES \
 		and (cfg.get("tavern_light_blend_seconds") is float or cfg.get("tavern_light_blend_seconds") is int) and float(cfg.get("tavern_light_blend_seconds", 0)) > 0.0 \
-		and (cfg.get("tavern_light_morning_hold_seconds") is float or cfg.get("tavern_light_morning_hold_seconds") is int) and float(cfg.get("tavern_light_morning_hold_seconds", 0)) > 0.0
-	check(cfg_ok, "game_config: tavern_light_mood, the moods (moody_a, moody_b, a _comment), the six phases (a _comment), the default phase, the blend and morning-hold seconds")
+		and not cfg.has("tavern_light_morning_hold_seconds")
+	check(cfg_ok, "game_config: tavern_light_mood, the moods (moody_a, moody_b, a _comment), the six phases (a _comment), the default phase, the blend seconds; no morning-hold seconds (Story 3.7: the day clock owns the phase)")
 	var TL = load(TAVERN_LIGHTING_SCRIPT) if ResourceLoader.exists(TAVERN_LIGHTING_SCRIPT) else null
 	var src := FileAccess.get_file_as_string(TAVERN_LIGHTING_SCRIPT)
 	var api := ["mood_names", "resolve_mood", "mood_params", "phase_params", "combine", "blend", "reload_config", "load_config", "resolve_phase", "set_mood", "set_phase", "current"]
@@ -8098,22 +8099,29 @@ func test_light_and_mood() -> void:
 	var gm = root.get_node_or_null("GameManager")
 	var had_brief = gm.get("has_pending_briefing") if gm else null
 	if gm and gb:
+		# Story 3.7 (CL-3): the lighting's morning hold is gone: the day clock owns the phase (morning lasts until 9:00),
+		# so a morning with no briefing stays morning however long it runs, and the lighting never sends on GameBus
 		gm.set("has_pending_briefing", false)
 		gb.day_phase_changed.emit("morning")
-		ctl._process(float(TL.morning_hold_seconds()) - 0.5)
-		var held: bool = ctl.phase == "morning"
-		ctl._process(1.0)
+		var sent_by_light: Array = []
+		var light_spy := func(p): sent_by_light.append(p)
+		gb.day_phase_changed.connect(light_spy)
+		ctl._process(60.0)
 		ctl._process(secs + 0.1)
-		check(held and ctl.phase == "day", "morning (the signal) without a briefing turns to day after the hold (%.0f s)" % TL.morning_hold_seconds())
+		var no_hold: bool = not src.contains("_hold_left") and not src.contains("_end_morning_hold") and not src.contains("day_phase_changed.emit(")
+		check(ctl.phase == "morning" and sent_by_light.is_empty() and no_hold,
+			"Story 3.7: morning (the signal) with no briefing stays morning after 60 s; the lighting sends no phase itself (no hold left in its source)")
 		gm.set("has_pending_briefing", true)
 		gb.day_phase_changed.emit("morning")
-		ctl._process(float(TL.morning_hold_seconds()) + 1.0)
-		check(ctl.phase == "morning", "morning with a briefing pending waits for it (the briefing's end sends day)")
+		ctl._process(60.0)
+		check(ctl.phase == "morning", "morning with a briefing pending stays morning too (the briefing only holds the clock)")
 		gb.day_phase_changed.emit("day")
 		ctl._process(secs + 0.1)
-		check(ctl.phase == "day", "the briefing's day ends the morning")
+		gb.day_phase_changed.disconnect(light_spy)
+		check(ctl.phase == "day" and sent_by_light == ["morning", "day"],
+			"the clock's day (GameBus) ends the morning; the bus carried only the test's own two sends, none from the lighting %s" % [sent_by_light])
 	else:
-		check(false, "the morning-hold checks need the GameManager and GameBus autoloads (review 2026-10-04: never skip silently)")
+		check(false, "the morning checks need the GameManager and GameBus autoloads (review 2026-10-04: never skip silently)")
 	if gm:
 		gm.set("has_pending_briefing", had_brief)
 	rig.root.free()
@@ -8124,6 +8132,22 @@ func test_light_and_mood() -> void:
 	var rig3 := _lm_rig(TL)
 	check(rig3.ctl.phase == str(cfg.get("tavern_light_phase_default", "day")) and rig3.ctl.mood == TL.configured_mood(), "a fresh rig starts in the configured mood and the default phase")
 	rig3.root.free()
+	# Story 3.7 (AC 4): in a day scene the hall starts at the day clock's phase (a Continue at 18:40 opens on dusk); with
+	# start_from_clock off, or outside a day scene (the rig above), at the default
+	if gm and gm.get("day_clock_minutes") != null:
+		var keep_min: float = gm.day_clock_minutes
+		gm.day_clock_minutes = 18.0 * 60.0 + 40.0
+		var rig5 := _lm_rig(TL, "", null, "", true)
+		var dusk_ok: bool = rig5.ctl.phase == "dusk"
+		rig5.root.free()
+		gm.day_clock_minutes = 22.0 * 60.0
+		var rig6 := _lm_rig(TL, "", null, "", true, false)
+		var off_ok: bool = rig6.ctl.phase == str(cfg.get("tavern_light_phase_default", "day"))
+		rig6.root.free()
+		gm.day_clock_minutes = keep_min
+		check(dusk_ok and off_ok, "Story 3.7: in a day scene the light starts at the clock's phase (18:40: dusk); start_from_clock off: the default")
+	else:
+		check(false, "Story 3.7: GameManager.day_clock_minutes needed for the lighting's start phase")
 	# review 2026-10-04: set_mood before _ready is kept (like set_phase's), not overwritten by the configured mood
 	var rig4 := _lm_rig(TL, "", null, "moody_b")
 	var mb4: Dictionary = TL.mood_params("moody_b", rig4.ctl.today)
@@ -8150,12 +8174,15 @@ func test_light_and_mood() -> void:
 	rs1.root.free()
 	rs2.root.free()
 
-	# the emit sites (one line each)
+	# the emit sites (Story 3.7, CL-3: the day clock is the one sender; the bedroom asks it at sleep and on the new day and
+	# sends only when there is no clock; the briefing sends nothing)
 	var bed := FileAccess.get_file_as_string(BEDROOM_SCRIPT)
 	var brief := FileAccess.get_file_as_string(BRIEFING_SCRIPT)
-	check(_lm_in_func(bed, "open_bedroom", "day_phase_changed.emit(\"evening\")") and _lm_in_func(bed, "start_sleep_sequence", "day_phase_changed.emit(\"late_night\")")
-		and _lm_in_func(bed, "_on_fade_complete", "day_phase_changed.emit(\"morning\")") and brief.count("day_phase_changed.emit(\"day\")") == 2,
-		"the phase signal is sent where the loop already turns: the bedroom (evening), sleep (late_night), the new day (morning), the briefing's two ends (day)")
+	var clock_src := FileAccess.get_file_as_string("res://scripts/game/day_clock.gd")
+	check(not _lm_in_func(bed, "open_bedroom", "day_phase_changed.emit(") and _lm_in_func(bed, "start_sleep_sequence", "clock.end_day(reason)")
+		and _lm_in_func(bed, "_on_fade_complete", "clock.begin_day()") and bed.count("day_phase_changed.emit(") == 2
+		and not brief.contains("day_phase_changed.emit(") and clock_src.count("GameBus.day_phase_changed.emit(") == 1,
+		"the phase signal comes from the day clock alone: the bedroom asks it (end_day at sleep, begin_day on the new day; its own two sends only without a clock), the briefing sends none")
 
 	# the candle, torch and window lights
 	var board := _scene_nodes(NOTICE_SCENE_PATH)
@@ -8269,9 +8296,11 @@ func test_light_and_mood() -> void:
 ## `shared_env`: the WorldEnvironment uses this Environment (a cached scene's sub-resource, shared by every
 ## instance) instead of a new one; `early_mood`: set_mood before _ready. The rig also has a candle and a window
 ## light saved without base_energy, and two window light cards sharing one material (review 2026-10-04).
-func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, early_mood := "") -> Dictionary:
+func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, early_mood := "", day_scene := false, from_clock := true) -> Dictionary:
 	var r := Node3D.new()
 	r.name = "LMRig"
+	if day_scene:
+		r.add_to_group("day_clock_scene")   # Story 3.7: the rig's root as a day scene (the lighting starts at the clock's phase)
 	var navn := Node3D.new()
 	navn.name = "TavernNavigation"
 	r.add_child(navn)
@@ -8369,6 +8398,7 @@ func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, ea
 	ctl.name = "TavernLighting"
 	ctl.set_script(TL)
 	ctl.dev_keys = false
+	ctl.start_from_clock = from_clock
 	if early_phase != "":
 		ctl.set_phase(early_phase, 0.0)
 	if early_mood != "":
@@ -8419,7 +8449,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"pending_disturbance", "last_disturbance_day", "_disturbance_warnings",   # Story 14.4: the day's disturbance
 	"fallen_this_run", "disturbance_note", "reputation_peak_tier",   # Stories 14.4 / 14.6 code review (P4, P3, P9)
 	"demo_ending", "_demo_ending_warnings",   # Story 10.7: the demo's ending
-	"codex_first_opened"]   # Story 18.5: Den Fa's line about the hall's Codex, once a run
+	"codex_first_opened",   # Story 18.5: Den Fa's line about the hall's Codex, once a run
+	"day_clock_minutes", "_day_clock_warnings", "pending_night"]   # Story 3.7: the day clock
 
 
 func test_load_and_resume() -> void:
@@ -13773,8 +13804,8 @@ const T37_REP_DEMO := {"rep_mission_success": 3, "rep_mission_failure": -1, "rep
 	"rep_party_mission_failure": -1, "rep_dismiss": -1, "rep_patron_satisfied": 1}
 ## Keys tools read straight from game_config.json by file path (no DataManager): a profile can't override them.
 const T37_DIRECT_READ_KEYS := ["anime_look_preset", "anime_look_presets", "edge_pass", "tavern_light_mood",
-	"tavern_light_phase_default", "tavern_light_blend_seconds", "tavern_light_morning_hold_seconds", "tavern_light_moods",
-	"tavern_light_phases", "autosave_interval_seconds"]
+	"tavern_light_phase_default", "tavern_light_blend_seconds", "tavern_light_moods",
+	"tavern_light_phases", "autosave_interval_seconds"]   # Story 3.7: the morning hold's key is gone (the day clock)
 ## The 40-gold model's typical row (sprint-change-proposal-2026-10-31.md; 14.6 "Run arc"): cumulative day-end medians.
 const T37_MODEL := {"patrons": [5, 10, 15, 20, 25, 30, 35, 40], "successes": [0, 1, 1, 2, 3, 4, 5, 6],
 	"failures": [0, 0, 0, 1, 1, 1, 2, 2]}
@@ -14840,9 +14871,9 @@ func _check_t38_sources() -> void:
 		"the morning's ignored outcome is logged before the soft-lock check can end the run (review P3)")
 	var tl := FileAccess.get_file_as_string("res://scripts/game/tavern_lighting.gd")
 	var dsrc := FileAccess.get_file_as_string(DIRECTOR_SCRIPT)
-	check(_lm_in_func(tl, "_end_morning_hold", "day_phase_changed.emit(\"day\")") and _lm_in_func(tl, "_process", "_end_morning_hold()")
-		and _func_body(dsrc, "check").contains("phase_now()"),
-		"TavernLighting's morning hold ends with GameBus day_phase_changed('day'); the director's check reads the phase live (review P1)")
+	check(not tl.contains("_end_morning_hold") and not tl.contains("day_phase_changed.emit(") and _func_body(dsrc, "check").contains("phase_now()")
+		and dsrc.contains("DayClockRules.OPEN_PHASES"),
+		"Story 3.7: TavernLighting has no morning hold any more (the day clock sends day at 9:00); the director's check reads the phase live (review P1) and his window is the hall's open hours")
 	var dp = load(DEBUG_PANEL_SCRIPT_PATH)
 	check(dp.disturbance_line({}, 0) == "none · last 0" and dp.disturbance_line({"type": "thief", "truth": "guilty", "state": "fired", "day": 2}, 2) == "thief (guilty) fired, day 2 · last 2",
 		"F12's State tab reads the disturbance: 'thief (guilty) fired, day 2 · last 2' / 'none · last 0' (AC 8, review P14)")
@@ -14991,7 +15022,7 @@ func _check_t38_hall(gm, nm, events: Array) -> void:
 	var spot: Array = gm.disturbance_types().thief.spot
 	var d = load(DIRECTOR_SCRIPT).new()
 	d.world_parent = world
-	d.phase = "evening"
+	d.phase = "morning"   # Story 3.7 (CL-13): the open hours are day, dusk and evening; the morning shows nobody
 	d.exit_point = Vector3(float(spot[0]) + 1.0, 0.0, float(spot[1]))
 	d.leave_timeout = 0.5
 	world.add_child(d)
@@ -15017,7 +15048,7 @@ func _check_t38_hall(gm, nm, events: Array) -> void:
 	var claimed: bool = v != null and ui.connected_zones.has(v.talk_zone)
 	check(none_evening and visitors.size() == 1 and at_spot and bodied and gm.pending_disturbance.state == "fired"
 		and banner == "A stranger lingers in the hall." and claimed,
-		"the director: nothing in the evening; in the day phase ONE visitor at the thief's spot with a body, the event fired, the banner, his talk zone given to the ZonePromptUI (%s, '%s')" % [visitors.size(), banner])
+		"the director: nothing in the morning (Story 3.7: the open hours are day, dusk, evening); in the day phase ONE visitor at the thief's spot with a body, the event fired, the banner, his talk zone given to the ZonePromptUI (%s, '%s')" % [visitors.size(), banner])
 	# a conversation: E's request opens his title with the director's bridge; closed with no choice, he stays
 	d._on_talk_requested(v)
 	await process_frame
@@ -15373,8 +15404,9 @@ static func _t38_banners(nm) -> Array:
 	return out
 
 
-## 14.4 review P1: a morning with no briefing: TavernLighting's hold ends with GameBus day_phase_changed("day") and the
-## quiet morning's visitor appears; the director also reads the lighting's phase live (a phase set without the bus).
+## 14.4 review P1, re-pinned by Story 3.7: a morning with no briefing: the day clock's 9:00 sends GameBus
+## day_phase_changed("day") and the quiet morning's visitor appears (the lighting's old hold is gone); the director also
+## reads the lighting's phase live (a phase set without the bus).
 func _check_t38_quiet_morning(gm, nm) -> void:
 	var gb = root.get_node("GameBus")
 	var TL = load("res://scripts/game/tavern_lighting.gd")
@@ -15382,6 +15414,14 @@ func _check_t38_quiet_morning(gm, nm) -> void:
 	var world := Node3D.new()
 	root.add_child(world)
 	_d1_set_scene(world)
+	var keep_min: float = gm.day_clock_minutes
+	gm.day_clock_minutes = 8.0 * 60.0 + 59.0
+	var clock = load("res://scripts/game/day_clock.gd").new()   # a fixture clock driven by jump_to (no ticking)
+	clock.name = "T38Clock"
+	clock.enabled = false
+	world.add_child(clock)
+	clock.remove_from_group("day_clock")
+	clock.adopt()   # 8:59: morning, silently
 	var had_brief = gm.get("has_pending_briefing")
 	gm.has_pending_briefing = false
 	gm.game_over_active = false
@@ -15398,7 +15438,7 @@ func _check_t38_quiet_morning(gm, nm) -> void:
 	await process_frame
 	gb.day_phase_changed.emit("morning")
 	var held_morning: bool = get_nodes_in_group("disturbance_npc").is_empty() and rig.ctl.phase == "morning"
-	rig.ctl._hold_left = 0.1
+	clock.jump_to(9.0 * 60.0)   # the clock's 9:00
 	var t0 := Time.get_ticks_msec()
 	while get_nodes_in_group("disturbance_npc").is_empty() and Time.get_ticks_msec() - t0 < 2500:
 		await process_frame
@@ -15406,7 +15446,9 @@ func _check_t38_quiet_morning(gm, nm) -> void:
 	gb.day_phase_changed.disconnect(fd)
 	check(held_morning and days == ["morning", "day"] and rig.ctl.phase == "day" and d.phase == "day" and spawned.size() == 1
 		and gm.pending_disturbance.get("state") == "fired",
-		"a morning with no briefing: the lighting's hold ends with GameBus day_phase_changed('day') and the quiet morning's visitor appears, his event fired %s" % [days])
+		"a morning with no briefing: the day clock's 9:00 sends GameBus day_phase_changed('day') and the quiet morning's visitor appears, his event fired %s" % [days])
+	clock.free()
+	gm.day_clock_minutes = keep_min
 	d.queue_free()
 	for n in spawned:
 		n.queue_free()
@@ -15416,7 +15458,7 @@ func _check_t38_quiet_morning(gm, nm) -> void:
 	if not has_live:
 		check(false, "the director reads the lighting's phase live (phase_now, review P1)")
 	else:
-		rig.ctl.set_phase("evening", 0.0)
+		rig.ctl.set_phase("late_night", 0.0)   # Story 3.7: late night is outside the open hours (evening now shows him)
 		gm.pending_disturbance = {"type": "rowdy_drunk", "truth": "plain", "day": 2, "state": "queued", "subject": ""}
 		var d2 = load(DIRECTOR_SCRIPT).new()
 		d2.world_parent = world
@@ -15424,10 +15466,10 @@ func _check_t38_quiet_morning(gm, nm) -> void:
 		world.add_child(d2)
 		await process_frame
 		var none_evening: bool = get_nodes_in_group("disturbance_npc").filter(func(n): return not n.is_queued_for_deletion()).is_empty()
-		rig.ctl.set_phase("day", 0.0)   # no GameBus: the director's own phase stays "evening"
+		rig.ctl.set_phase("day", 0.0)   # no GameBus: the director's own phase stays "late_night"
 		d2.check()
 		var live: Array = get_nodes_in_group("disturbance_npc").filter(func(n): return not n.is_queued_for_deletion())
-		check(none_evening and d2.phase == "evening" and d2.phase_now() == "day" and live.size() == 1,
+		check(none_evening and d2.phase == "late_night" and d2.phase_now() == "day" and live.size() == 1,
 			"the director reads TavernLighting's phase live: the lighting turned day without the bus, and his check shows the visitor")
 	gm.has_pending_briefing = had_brief
 	gm.pending_disturbance = {}
@@ -17938,3 +17980,867 @@ func _check_t4r_hall(gm) -> void:
 	var up_eye := (book + eye_pos).dot(T4R_CAMERA_UP)
 	check(fallen_none and paused_none and label_ok and up_cover > up_head and up_eye > up_head + 0.1,
 		"P4/P11/P13: no book over a fall or a paused tree; the Label3D prompt (no depth test, above the ink) shows only when E is the book's; the tome's top and eye show above a reader's head (%.2f, %.2f > %.2f)" % [up_cover, up_eye, up_head])
+
+
+# --- Test 70: The day clock (Story 3.7; decision log K-14…K-19) ---
+const T70_RULES := "res://scripts/game/day_clock_rules.gd"
+const T70_CLOCK := "res://scripts/game/day_clock.gd"
+const T70_LABEL := "res://scripts/ui/clock_label.gd"
+const T70_TEXT := "res://data/narrative/day_clock.json"
+const T70_SPAWNER := "res://scripts/npcs/PatronSpawner.gd"
+const T70_DIR := "user://failsafe_t70"
+const T70_PHASES := ["morning", "day", "dusk", "evening", "late_night"]
+const T70_OPEN := ["day", "dusk", "evening"]
+
+
+## AC 1-14 (Story 3.7): the rules (phases, time, saves, patron rows, words), the config per profile and the economy left as
+## it was (K-17), GameManager's state (reset, save/load, the warnings, the persistent node), the persistent clock driven by
+## hand in stand-in day scenes (a whole demo day, the hold, the night, jumps, a fresh node, off outside a day scene), the
+## nod-off outside (the overlay, the pending night, the hall), the bedroom's sleep gate, the patrons by the hour and
+## leave_unserved, the HUD and F12, the visitors' open hours and the source checks. Never touches the real save or codex.
+func test_day_clock() -> void:
+	print("[Test 70] The day clock (Story 3.7)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GameBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	var nm = root.get_node_or_null("NotificationManager")
+	if gm == null or wm == null or dm == null or gb == null or ss == null or nm == null:
+		check(false, "the GameManager, WorldManager, DataManager, GameBus, SaveSystem, NotificationManager autoloads")
+		return
+	var missing := [T70_RULES, T70_CLOCK, T70_LABEL].filter(func(p): return not ResourceLoader.exists(p))
+	var pc = gm.day_clock_node() if gm.has_method("day_clock_node") else null
+	if not missing.is_empty() or pc == null or not gb.has_signal("day_clock_changed"):
+		check(false, "the day clock's scripts %s, GameManager's DayClock node and GameBus.day_clock_changed" % [missing])
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active]
+	ss.run_active = false
+	ss.save_path = T70_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T70_DIR + "/codex.dat"
+	pc.set_process(false)   # the persistent clock, driven by hand while the test runs
+	nm.clear_banners()
+	var R = load(T70_RULES)
+
+	_check_t70_rules(R)
+	_check_t70_config(R, dm)
+	_check_t70_manager(R, gm, dm, pc)
+	await _check_t70_clock(R, gm, dm, gb, nm, pc)
+	await _check_t70_outside(R, gm, dm, gb, pc)
+	await _check_t70_bedroom(gm, dm, gb, nm, pc)
+	await _check_t70_patrons(gm, dm, gb, nm, pc)
+	await _check_t70_hud_f12(R, gm, dm, gb, pc)
+	_check_t70_visitors(R)
+	_check_t70_sources()
+
+	paused = false
+	pc.scene_changer = Callable()
+	pc.set_speed(1.0)
+	pc.enabled = true
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	_t28_restore(snap, gm, wm, dm)
+	pc.reset_session()
+	pc.set_process(true)
+	nm.clear_banners()
+	await process_frame
+	var left := []
+	for g in ["day_clock_scene", "day_clock_hold", "bedroom", "patron_spawner", "morning_briefing", "card_reveal", "codex_open"]:
+		for n in get_nodes_in_group(g):
+			if not n.is_queued_for_deletion():
+				left.append("%s:%s" % [g, n.name])
+	var clocks: Array = get_nodes_in_group("day_clock").filter(func(n): return not n.is_queued_for_deletion())
+	check(left.is_empty() and clocks == [pc] and gm.pending_night == "" and pc.get_speed() == 1.0 and not pc.overlay_up(),
+		"Test 70 leaves no fixture in the clock's groups, one DayClock, no pending night, speed x1, no overlay %s" % [left])
+	check(not FileAccess.file_exists(T70_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T70_DIR + "/codex.dat"),
+		"Test 70 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 70 never touched the real save or codex")
+	print("")
+
+
+## AC 1, 3, 4, 9, 10 (the pure parts): phases at the boundaries, the phases between two, the time's words, the rate, sleep,
+## a saved clock, the config's fallbacks, the patron rows, the words.
+func _check_t70_rules(R) -> void:
+	var cfg: Dictionary = R.config_from(R.DEFAULTS, 18)
+	var ph_bad := []
+	for t in [[300.0, "morning"], [360.0, "morning"], [539.0, "morning"], [540.0, "day"], [1019.0, "day"], [1020.0, "dusk"],
+			[1139.0, "dusk"], [1140.0, "evening"], [1379.0, "evening"], [1380.0, "late_night"], [1559.0, "late_night"], [1560.0, "late_night"]]:
+		if R.phase_for(t[0], cfg) != t[1]:
+			ph_bad.append(t)
+	check(ph_bad.is_empty() and (cfg.warnings as Array).is_empty() and is_equal_approx(cfg.start, 360.0) and is_equal_approx(cfg.end, 1560.0)
+		and is_equal_approx(cfg.sleep_from, 1200.0) and is_equal_approx(cfg.closing, 1440.0) and is_equal_approx(cfg.tired, 1500.0) and cfg.step == 10,
+		"the defaults: 6:00-2:00; morning 6, day 9, dusk 17, evening 19, late night 23 (each boundary at -1 min / the minute); sleep from 20:00, closing 0:00, the warning 1:00, 10-minute steps %s" % [ph_bad])
+	check(R.phases_between("morning", "evening", cfg) == ["day", "dusk", "evening"] and R.phases_between("evening", "late_night", cfg) == ["late_night"]
+		and R.phases_between("late_night", "morning", cfg) == ["morning"] and R.phases_between("day", "day", cfg) == []
+		and R.phases_between("", "dusk", cfg) == ["dusk"],
+		"phases_between: every phase crossed in order; a new day (back to the start) is just morning; the same phase none; from nothing just the new one")
+	check(R.format_time(360.0, 10) == "6:00" and R.format_time(1127.0, 10) == "18:40" and R.format_time(1440.0, 10) == "0:00"
+		and R.format_time(1559.0, 1) == "1:59" and R.format_time(1559.0, 10) == "1:50" and R.format_time(1560.0, 10) == "2:00",
+		"format_time: 6:00, 18:40 (18:47 at a 10-minute step), 0:00, 1:59 / 1:50, 2:00")
+	check(is_equal_approx(R.minutes_per_second(cfg), 60.0 / 18.0) and is_equal_approx(R.minutes_per_second(R.config_from(R.DEFAULTS, 30)), 2.0)
+		and is_equal_approx(R.minutes_per_second(cfg, 10.0), 600.0 / 18.0),
+		"the rate: 18 s an hour is 3.33 minutes a second (a 6-minute day), 30 s is 2 (10 minutes), x10 ten times that")
+	check(not R.can_sleep(1199.0, cfg) and R.can_sleep(1200.0, cfg) and R.sleep_block(1199.0, cfg) == "It's too early to sleep. (from 20:00)"
+		and R.sleep_block(1200.0, cfg) == "" and R.is_closing(1440.0, cfg) and not R.is_closing(1439.0, cfg),
+		"sleep from 20:00 ('It's too early to sleep. (from 20:00)' at 19:59); closing from 0:00")
+	var fs := [R.from_save(null, cfg), R.from_save("junk", cfg), R.from_save(300.0, cfg), R.from_save(1127.5, cfg), R.from_save(1560.0, cfg), R.from_save(2000, cfg)]
+	check(fs[0].minutes == 360.0 and fs[0].warning == "" and fs[1].minutes == 360.0 and fs[1].warning != "" and fs[2].minutes == 360.0 and fs[2].warning != ""
+		and fs[3].minutes == 1127.5 and fs[3].warning == "" and fs[4].minutes == 1559.0 and fs[5].minutes == 1559.0 and fs[4].warning == "",
+		"a saved clock: none (an older save) 6:00 silently; junk or before 6:00: 6:00 with a warning; 18:47:30 kept; at or past 2:00: 1:59 (the nod-off follows)")
+	# the config's fallbacks: each bad value its default, one warning; no object: the defaults silently
+	var cases := [
+		[{"start_hour": "x"}, "start", 360.0], [{"end_hour": 5}, "end", 1560.0], [{"sleep_from_hour": 30}, "sleep_from", 1200.0],
+		[{"closing_hour": 27}, "closing", 1440.0], [{"tired_warning_hour": 26}, "tired", 1500.0], [{"display_step_minutes": 0}, "step", 10],
+		[{"display_step_minutes": 7.5}, "step", 10]]
+	var fb_bad := []
+	for c in cases:
+		var d: Dictionary = R.DEFAULTS.duplicate(true)
+		for k in c[0]:
+			d[k] = c[0][k]
+		var r: Dictionary = R.config_from(d, 18)
+		if not is_equal_approx(float(r[c[1]]), float(c[2])) or (r.warnings as Array).size() != 1:
+			fb_bad.append([c[0], r[c[1]], r.warnings])
+	for ph in [{"morning": 6, "day": 5}, {"day": 9, "dusk": 17}, {"morning": 6, "brunch": 10}, {"morning": 6, "late_night": 27}, "junk"]:
+		var d: Dictionary = R.DEFAULTS.duplicate(true)
+		d["phases"] = ph
+		var r: Dictionary = R.config_from(d, 18)
+		if (r.phases as Array).size() != 5 or R.phase_for(1140.0, r) != "evening" or (r.warnings as Array).size() != 1:
+			fb_bad.append([ph, r.phases, r.warnings])
+	var d2: Dictionary = R.DEFAULTS.duplicate(true)
+	d2["wake_spot"] = [1, 2]
+	var rw: Dictionary = R.config_from(d2, 18)
+	if not (rw.wake_spot as Vector3).is_equal_approx(Vector3(14.0, 0.5, -13.4)) or (rw.warnings as Array).size() != 1:
+		fb_bad.append(["wake_spot", rw.wake_spot])
+	for sph in [0, -1, 601, "x"]:
+		var r: Dictionary = R.config_from(R.DEFAULTS, sph)
+		if r.seconds_per_hour != 30.0 or (r.warnings as Array).size() != 1:
+			fb_bad.append(["seconds_per_hour", sph, r.seconds_per_hour])
+	var missing_key: Dictionary = R.DEFAULTS.duplicate(true)
+	missing_key.erase("closing_hour")
+	var rm: Dictionary = R.config_from(missing_key, 18)
+	var rn: Dictionary = R.config_from(null, null)
+	var rc: Dictionary = R.config_from({"_comment": "x", "start_hour": 6, "end_hour": 26, "phases": {"_comment": "x", "morning": 6, "day": 9, "dusk": 17, "evening": 19, "late_night": 23},
+		"sleep_from_hour": 20, "closing_hour": 24, "tired_warning_hour": 25, "display_step_minutes": 10, "wake_spot": [14.0, 0.5, -13.4]}, 18)
+	check(fb_bad.is_empty() and rm.closing == 1440.0 and (rm.warnings as Array).size() == 1 and (rn.warnings as Array).is_empty() and rn.seconds_per_hour == 30.0
+		and (rc.warnings as Array).is_empty(),
+		"config_from: each bad value (hours out of range, a non-number, a bad step, a phase table that doesn't start at 6, doesn't rise, names an unknown phase or runs past the end, a short wake spot, seconds per hour 0/-1/601/'x') its default with one warning; a missing key: its default + warning; no object: the defaults silently; _comment keys skipped %s" % [fb_bad])
+	# the patron rows
+	var table := {"day": {"spawn_interval": 20, "max_patrons": 5}, "late_night": {"spawn_interval": 0, "max_patrons": 0},
+		"dusk": {"spawn_interval": -1, "max_patrons": 5}, "evening": {"spawn_interval": 10, "max_patrons": 13}, "morning": {"spawn_interval": 40, "max_patrons": 2.5}}
+	var fb := {"spawn_interval": 20.0, "max_patrons": 3}
+	var rd: Dictionary = R.rate_for("day", table, fb)
+	var rl: Dictionary = R.rate_for("late_night", table, fb)
+	var bad_rows := ["dusk", "evening", "morning", "dawn"].map(func(p): return R.rate_for(p, table, fb))
+	var none: Dictionary = R.rate_for("day", null, fb)
+	check(rd.spawn_interval == 20.0 and rd.max_patrons == 5 and rd.warning == "" and rl.spawn_interval == 0.0 and rl.max_patrons == 0 and rl.warning == ""
+		and bad_rows.all(func(r): return r.spawn_interval == 20.0 and r.max_patrons == 3 and str(r.warning).begins_with("[Patrons] fallback"))
+		and none.spawn_interval == 20.0 and none.max_patrons == 3 and none.warning == "",
+		"rate_for: a row as given (0/0 is last call); a negative interval, more than 12 patrons, a fraction or no row: the spawner's own values with a warning; no table: its own, silently")
+	check(R.hud_text(1127.0, cfg) == "18:40 · Dusk" and R.hud_text(1500.0, cfg) == "1:00 · Late night" and R.phase_name("evening") == "Evening"
+		and R.text("nod_off") == "You nod off where you stand…" and R.text("last_call") == "Last call.",
+		"the words (DRAFT, data/narrative/day_clock.json): '18:40 · Dusk', '1:00 · Late night', the nod-off and last call lines")
+
+
+## AC 1, 13: the shipped config (both profiles), the words' file and the economy left as it was (K-17).
+func _check_t70_config(R, dm) -> void:
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var dc = cfg.get("day_clock") if cfg is Dictionary else null
+	var rates = cfg.get("patron_phase_rates") if cfg is Dictionary else null
+	var shipped_ok: bool = (dc is Dictionary and str(dc.get("_comment", "")).length() > 80 and dc.get("start_hour") == 6.0 and dc.get("end_hour") == 26.0
+		and dc.get("phases") == {"morning": 6.0, "day": 9.0, "dusk": 17.0, "evening": 19.0, "late_night": 23.0} and dc.get("sleep_from_hour") == 20.0
+		and dc.get("closing_hour") == 24.0 and dc.get("tired_warning_hour") == 25.0 and dc.get("display_step_minutes") == 10.0
+		and rates is Dictionary and str(rates.get("_comment", "")).length() > 40
+		and rates.get("morning") == {"spawn_interval": 40.0, "max_patrons": 2.0} and rates.get("day") == {"spawn_interval": 20.0, "max_patrons": 5.0}
+		and rates.get("dusk") == {"spawn_interval": 15.0, "max_patrons": 5.0} and rates.get("evening") == {"spawn_interval": 10.0, "max_patrons": 7.0}
+		and rates.get("late_night") == {"spawn_interval": 0.0, "max_patrons": 0.0})
+	check(shipped_ok, "game_config: day_clock (6-26, the five phases, sleep 20, closing 24, warning 25, 10-minute steps, a _comment) and patron_phase_rates (morning 40/2, day 20/5, dusk 15/5, evening 10/7, late night 0/0)")
+	var full_sph = dm.resolve_config(cfg, "day_clock_seconds_per_hour", null, [], "full")
+	var demo_sph = dm.resolve_config(cfg, "day_clock_seconds_per_hour", null, [], "demo")
+	var demo_cfg: Dictionary = R.config_from(dm.resolve_config(cfg, "day_clock", null, [], "demo"), demo_sph)
+	var full_cfg: Dictionary = R.config_from(dm.resolve_config(cfg, "day_clock", null, [], "full"), full_sph)
+	var demo_s: float = (demo_cfg.end - demo_cfg.start) / R.minutes_per_second(demo_cfg)
+	var full_s: float = (full_cfg.end - full_cfg.start) / R.minutes_per_second(full_cfg)
+	check(full_sph == 30.0 and demo_sph == 18.0 and is_equal_approx(demo_s, 360.0) and is_equal_approx(full_s, 600.0)
+		and not T37_DIRECT_READ_KEYS.has("day_clock") and not T37_DIRECT_READ_KEYS.has("day_clock_seconds_per_hour") and not T37_DIRECT_READ_KEYS.has("patron_phase_rates"),
+		"a day of running clock: the demo's 360 s (18 s an hour, K-14), the full game's 600 s (30 s, K-18); read through DataManager (not a tool's direct key)")
+	var words = _read_json(T70_TEXT)
+	check(words is Dictionary and str(words.get("_comment", "")).begins_with("DRAFT") and words.get("phase_names") is Dictionary
+		and ["too_early", "sleep_from", "last_call", "closing", "tired", "nod_off"].all(func(k): return words.get(k) is String),
+		"data/narrative/day_clock.json: the DRAFT words (phase names, too early, last call, closing, tired, the nod-off)")
+	# K-17: no price, reward, tax, wage, start value, reputation gain or fire timing moved
+	var demo: Dictionary = cfg.profiles.demo
+	var econ_ok: bool = (cfg.starting_gold == 1000.0 and cfg.starting_beer == 5.0 and cfg.beer_pint_price == 1.0 and cfg.fire_burn_high_seconds == 240.0
+		and cfg.fire_burn_low_seconds == 120.0 and cfg.fire_dying_seconds == 60.0 and cfg.tax_base_amount == 1000.0 and cfg.tax_due_day == 30.0
+		and cfg.tax_interval_days == 30.0 and cfg.tax_per_adventurer == 5.0 and cfg.staff_wages.daily_wage == {"bartender": 3.0, "desk_manager": 4.0}
+		and cfg.adventurer_wage_min == 1.0 and cfg.adventurer_wage_max == 3.0
+		and T37_REP_FULL.keys().all(func(k): return cfg.get(k) == float(T37_REP_FULL[k]))
+		and demo.starting_gold == 40.0 and demo.starting_beer == 20.0 and demo.tax_base_amount == 20.0 and demo.tax_due_day == 3.0 and demo.tax_interval_days == 3.0
+		and demo.rep_patron_satisfied == 1.0 and demo.rep_mission_success == 3.0)
+	var patron_src := FileAccess.get_file_as_string("res://scripts/npcs/RealisticPatron.gd")
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var spawner_max = null
+	for k in tav:
+		if str(k).ends_with("/PatronSpawner") or str(k) == "PatronSpawner":
+			spawner_max = tav[k].props.get("max_patrons")
+	check(econ_ok and patron_src.contains("payment_amount = randi_range(6, 12)") and str(spawner_max) == "5",
+		"K-17: prices, rewards, taxes, wages, starting values, reputation gains and fire timings are as before; a patron still pays 6-12; the hall's spawner is still 5 (the day row) [%s]" % [spawner_max])
+
+
+## AC 2, 10: GameManager's clock (the start, the sleep line, the phase), save/load, New Game, the warnings once a run, the
+## persistent node.
+func _check_t70_manager(R, gm, dm, pc) -> void:
+	dm.set("run_profile", "demo")
+	gm.day_clock_minutes = 900.0
+	gm._start_day_clock()
+	var started: bool = gm.day_clock_minutes == 360.0
+	gm.day_clock_minutes = 1199.0
+	var early: String = gm.day_clock_sleep_block()
+	gm.day_clock_minutes = 1200.0
+	var late: String = gm.day_clock_sleep_block()
+	gm.day_clock_minutes = 1127.0
+	check(started and early == "It's too early to sleep. (from 20:00)" and late == "" and gm.day_clock_phase() == "dusk",
+		"GameManager: the day's start 6:00; Sleep blocked at 19:59 with its line, free at 20:00; 18:47 is dusk")
+	gm.day_clock_minutes = 1127.5
+	var data: Dictionary = gm.get_save_data()
+	var rt = JSON.parse_string(JSON.stringify({"day_clock_minutes": data.get("day_clock_minutes")}))
+	gm.day_clock_minutes = 0.0
+	gm.pending_night = "nod_off"
+	gm._load_day_clock(rt)
+	var back: float = gm.day_clock_minutes
+	var cleared: bool = gm.pending_night == ""
+	gm._load_day_clock({})
+	var old: float = gm.day_clock_minutes
+	gm._load_day_clock({"day_clock_minutes": "junk"})
+	var junk: float = gm.day_clock_minutes
+	gm._load_day_clock({"day_clock_minutes": 1600})
+	var past: float = gm.day_clock_minutes
+	check(data.get("day_clock_minutes") == 1127.5 and back == 1127.5 and cleared and old == 360.0 and junk == 360.0 and past == 1559.0,
+		"the save carries the clock (18:47:30 back after JSON); an older save 6:00; junk 6:00; past 2:00 1:59; a load drops a pending night")
+	gm.pending_night = "nod_off"
+	gm.day_clock_minutes = 1300.0
+	gm._day_clock_warnings = 3
+	gm._reset_day_clock()
+	check(gm.day_clock_minutes == 360.0 and gm.pending_night == "" and gm._day_clock_warnings == 0, "New Game's reset: 6:00, no pending night, the warnings re-armed")
+	# the warnings once a run
+	var keep = dm.game_config.get("day_clock")
+	dm.game_config["day_clock"] = {"start_hour": "x"}
+	gm._day_clock_warnings = 0
+	gm.day_clock_config()
+	gm.day_clock_config()
+	var warned: int = gm._day_clock_warnings
+	dm.game_config["day_clock"] = keep
+	gm._day_clock_warnings = 0
+	check(warned == 1, "a bad day_clock config is warned about once a run (%d)" % warned)
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_PATH)
+	var adv := _func_body(src, "advance_day")
+	var load_body := _func_body(src, "load_save_data")
+	check(adv.find("\n\t_start_day_clock()") > 0 and adv.find("\n\t_start_day_clock()") < adv.find("day_changed.emit(current_day)")
+		and adv.find("day_changed.emit(current_day)") < adv.find("SaveSystem.save_end_of_day()")
+		and _func_body(src, "get_save_data").contains("\"day_clock_minutes\": day_clock_minutes")
+		and load_body.find("DataManager.set_run_profile") < load_body.find("_load_day_clock(data)") and load_body.find("_load_day_clock(data)") > 0
+		and _func_body(src, "reset_game_state").contains("_reset_day_clock()") and _func_body(src, "_ready").contains("_add_day_clock")
+		and not src.contains("day_changed.connect(_reset_day_clock") and D1_GM_FIELDS.has("day_clock_minutes") and D1_GM_FIELDS.has("pending_night")
+		and D1_GM_FIELDS.has("_day_clock_warnings"),
+		"advance_day puts the clock at 6:00 before anyone hears of the new day and before its autosave; save, load (after the run's profile), New Game and _ready carry it; never reset on day_changed (a load sends it); Test 26's fields")
+	check(pc.get_parent() == gm and pc.name == "DayClock" and pc.process_mode == Node.PROCESS_MODE_ALWAYS and pc.is_in_group("day_clock")
+		and (load(T70_CLOCK) as GDScript).get_global_name() == "" and (load(T70_RULES) as GDScript).get_global_name() == "",
+		"one persistent clock: GameManager's child DayClock, process ALWAYS, in group day_clock; no class_name on either script")
+
+
+## A stand-in day scene: a Node3D (in day_clock_scene when `day`) whose is_world_frozen() reads a `frozen` flag.
+func _t70_scene(n: String, day: bool, frozen_method := true) -> Node3D:
+	var s := GDScript.new()
+	s.source_code = "extends Node3D\nvar frozen := false\nfunc is_world_frozen() -> bool:\n\treturn frozen\n" if frozen_method else "extends Node3D\n"
+	s.reload()
+	var node := Node3D.new()
+	node.set_script(s)
+	node.name = n
+	if day:
+		node.add_to_group("day_clock_scene")
+	return node
+
+
+## A stand-in bedroom: start_sleep_sequence(reason) records the reason and starts the night on GameManager's clock.
+func _t70_bedroom() -> Node:
+	var s := GDScript.new()
+	s.source_code = "extends Node\nvar calls: Array = []\nfunc _ready() -> void:\n\tadd_to_group(\"bedroom\")\n" \
+		+ "func start_sleep_sequence(reason := \"bed\") -> void:\n\tcalls.append(reason)\n\tvar gm = get_node_or_null(\"/root/GameManager\")\n" \
+		+ "\tif gm and gm.day_clock_node():\n\t\tgm.day_clock_node().end_day(reason)\n"
+	s.reload()
+	var n := Node.new()
+	n.name = "T70Bedroom"
+	n.set_script(s)
+	return n
+
+
+## Ticks the clock `seconds` by `dt` steps; returns the minutes it ended on.
+func _t70_tick(pc, seconds: float, dt := 0.05) -> float:
+	var t := 0.0
+	while t < seconds - 0.0001:
+		pc.manual_tick(dt)
+		t += dt
+	return root.get_node("GameManager").day_clock_minutes
+
+
+## AC 3, 4, 5, 8, 12: a whole demo day by hand in a stand-in hall (each phase once, in order, at 54/198/234/306 s; each
+## minute; the 1:00 warning; the nod-off at 360 s through the bedroom), the night, the morning during the briefing, x10,
+## every hold reason, off outside a day scene, jumps, a fresh node, nothing after the fall.
+func _check_t70_clock(R, gm, dm, gb, nm, pc) -> void:
+	dm.set("run_profile", "demo")
+	gm.game_over_active = false
+	gm.demo_ending = {}
+	gm.current_day = 4
+	gm.pending_night = ""
+	var hall = _t70_scene("T70Hall", true)
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	gm.day_clock_minutes = 360.0
+	pc.enabled = true
+	pc.set_speed(1.0)
+	pc.reset_session()
+	var pre: String = pc.held_reason()
+	var phases: Array = []
+	var minutes: Array = []
+	var clock_t := [0.0]
+	var ps := func(p): phases.append([p, clock_t[0]])
+	var ms := func(m): minutes.append(m)
+	gb.day_phase_changed.connect(ps)
+	gb.day_clock_changed.connect(ms)
+	var bed = _t70_bedroom()
+	hall.add_child(bed)
+	nm.clear_banners()
+	var dt := 0.05
+	while clock_t[0] < 362.0 and bed.calls.is_empty():
+		pc.manual_tick(dt)
+		clock_t[0] += dt
+	var names: Array = phases.map(func(e): return e[0])
+	var times_ok := phases.size() == 4
+	if times_ok:
+		for i in 4:
+			if absf(float(phases[i][1]) - [54.0, 198.0, 234.0, 306.0][i]) > dt + 0.001:
+				times_ok = false
+	var banners: Array = _t38_banners(nm)
+	var tired := banners.filter(func(b): return b[0] == "It's late. Find your bed, or you'll fall asleep where you stand.")
+	check(pre == "" and names == ["day", "dusk", "evening", "late_night"] and times_ok and minutes.size() == 1200 and minutes.front() == 361 and minutes.back() == 1560
+		and bed.calls == ["nod_off"] and absf(clock_t[0] - 360.0) <= dt + 0.001 and tired.size() == 1 and tired[0][1] == true,
+		"a demo day at x1: day, dusk, evening, late night once each at 54/198/234/306 s; every minute sent (1200, 6:01-2:00); the 1:00 warning once (an event); at 360 s the bedroom's nod-off %s %s" % [phases, bed.calls])
+	# the night: nothing moves; the morning comes from the clock; the briefing holds it at 6:00
+	var night: float = _t70_tick(pc, 10.0)
+	var night_reason: String = pc.held_reason()
+	phases.clear()
+	gm._start_day_clock()   # advance_day's reset
+	var briefing := CanvasLayer.new()
+	briefing.name = "T70Briefing"
+	briefing.add_to_group("morning_briefing")
+	hall.add_child(briefing)
+	pc.begin_day()
+	var held_brief: float = _t70_tick(pc, 10.0)
+	var brief_reason: String = pc.held_reason()
+	briefing.visible = false
+	var hidden_brief: float = _t70_tick(pc, 1.0)
+	briefing.free()
+	check(night == 1560.0 and night_reason == "the night" and phases.map(func(e): return e[0]) == ["morning"] and held_brief == 360.0 and brief_reason == "the briefing"
+		and hidden_brief > 360.0,
+		"the night holds the clock at 2:00; the new day sends morning (begin_day) once, and the morning briefing holds it at 6:00 until it closes")
+	# x10: a whole day in 36 s
+	gm.day_clock_minutes = 360.0
+	pc.reset_session()
+	bed.calls.clear()
+	phases.clear()
+	pc.set_speed(10.0)
+	clock_t[0] = 0.0
+	while clock_t[0] < 40.0 and bed.calls.is_empty():
+		pc.manual_tick(dt)
+		clock_t[0] += dt
+	pc.set_speed(1.0)
+	check(phases.map(func(e): return e[0]) == ["day", "dusk", "evening", "late_night"] and absf(clock_t[0] - 36.0) <= dt + 0.001 and bed.calls == ["nod_off"],
+		"x10 (F12): the same day in 36 s, the phases in order, the nod-off at its end (%.2f s)" % clock_t[0])
+	# every hold reason: 10 s of ticks at 10:00 move nothing; a visitor walking about doesn't hold
+	var held_bad := []
+	var hold_case := func(label: String, setup: Callable, undo: Callable, want: String):
+		gm.day_clock_minutes = 600.0
+		pc.reset_session()
+		setup.call()
+		var reason: String = pc.held_reason()
+		var after: float = _t70_tick(pc, 10.0, 0.5)
+		undo.call()
+		if after != 600.0 or reason != want:
+			held_bad.append([label, reason, after])
+	var mk_node := func(n: String, group: String, kind: String) -> Node:
+		var x: Node = Control.new() if kind == "Control" else (CanvasLayer.new() if kind == "CanvasLayer" else Node.new())
+		x.name = n
+		x.add_to_group(group)
+		hall.add_child(x)
+		return x
+	var holder := [null]
+	for c in [["a screen", "blocks_player", "Control", "a screen"], ["the World Map", "mission_board", "Control", "a screen"],
+			["a conversation", "dialogue_open", "Node", "a conversation"], ["the briefing", "morning_briefing", "CanvasLayer", "the briefing"],
+			["the Codex", "codex_open", "Node", "the Codex"], ["a card reveal", "card_reveal", "Node", "a card reveal"],
+			["the generic hold", "day_clock_hold", "Node", "held by T70Hold"]]:
+		hold_case.call(c[0], func(): holder[0] = mk_node.call("T70Hold" if c[1] == "day_clock_hold" else "T70Screen", c[1], c[2]), func(): holder[0].free(), c[3])
+	hold_case.call("a paused tree", func(): set("paused", true), func(): set("paused", false), "paused")
+	hold_case.call("a frozen world", func(): hall.frozen = true, func(): hall.frozen = false, "frozen")
+	hold_case.call("the fall", func(): gm.game_over_active = true, func(): gm.game_over_active = false, "the fall")
+	hold_case.call("the end", func(): gm.demo_ending = {"state": "ended", "day": 4}, func(): gm.demo_ending = {}, "the end")
+	var svc_scene := _t70_scene("T70NoFreezeMethod", true, false)
+	var svc := SubViewportContainer.new()
+	svc.name = "SubViewportContainer"
+	svc_scene.add_child(svc)
+	root.add_child(svc_scene)
+	var svc_on := func():
+		_d1_set_scene(svc_scene)
+		svc.process_mode = Node.PROCESS_MODE_DISABLED
+	var svc_off := func():
+		svc.process_mode = Node.PROCESS_MODE_INHERIT
+		_d1_set_scene(hall)
+	hold_case.call("a disabled SubViewportContainer", svc_on, svc_off, "frozen")
+	svc_scene.free()
+	var hidden_screen := mk_node.call("T70Hidden", "blocks_player", "Control") as Control
+	hidden_screen.visible = false
+	var visitor = mk_node.call("T70Visitor", "disturbance_npc", "Node")
+	gm.day_clock_minutes = 600.0
+	pc.reset_session()
+	var free_run: float = _t70_tick(pc, 1.0)
+	hidden_screen.free()
+	visitor.free()
+	check(held_bad.is_empty() and free_run > 600.0,
+		"the hold: a screen (blocks_player), the World Map (mission_board), a conversation, the briefing, the Codex, a card reveal, day_clock_hold, a paused tree, a frozen world (is_world_frozen, or a disabled SubViewportContainer), the fall, the demo's end: 10 s and the clock doesn't move; a hidden screen or a visitor walking about doesn't hold it %s" % [held_bad])
+	# nothing sent after the fall, even when the minutes move by hand
+	phases.clear()
+	gm.day_clock_minutes = 600.0
+	pc.reset_session()
+	gm.game_over_active = true
+	gm.day_clock_minutes = 1200.0
+	_t70_tick(pc, 1.0)
+	var fall_quiet: bool = phases.is_empty()
+	gm.game_over_active = false
+	# off outside a day scene: no tick, nothing sent; back in a day scene the phase is taken up silently
+	var plain := _t70_scene("T70Menu", false)
+	root.add_child(plain)
+	_d1_set_scene(plain)
+	gm.day_clock_minutes = 600.0
+	pc.reset_session()
+	phases.clear()
+	var off_reason: String = pc.held_reason()
+	var off_still: float = _t70_tick(pc, 5.0)
+	gm.day_clock_minutes = 1150.0
+	_t70_tick(pc, 1.0)
+	var off_quiet: bool = phases.is_empty()
+	_d1_set_scene(hall)
+	pc.manual_tick(0.05)
+	var adopted_quiet: bool = phases.is_empty()
+	var resumed: float = _t70_tick(pc, 1.0)
+	plain.free()
+	check(fall_quiet and off_reason.begins_with("off") and off_still == 600.0 and off_quiet and adopted_quiet and resumed > 1150.0,
+		"after the fall no phase is sent; outside a day scene the clock is off (%s: no tick, nothing sent); back in one it takes up the evening silently and runs" % off_reason)
+	# jumps (F12): forward sends the crossed phases in order; earlier or past 2:00 refused
+	gm.day_clock_minutes = 420.0
+	pc.reset_session()
+	phases.clear()
+	var j1: bool = pc.jump_to(1200.0)
+	var j_names: Array = phases.map(func(e): return e[0])
+	var j2: bool = pc.jump_to(600.0)
+	var j3: bool = pc.jump_to(1561.0)
+	check(j1 and j_names == ["day", "dusk", "evening"] and not j2 and not j3 and gm.day_clock_minutes == 1200.0,
+		"jump_to 7:00 -> 20:00 sends day, dusk, evening in order; back to 10:00 or past 2:00 refused")
+	# a night at 20:00: late night once, the clock at 2:00, a second night refused
+	phases.clear()
+	var e1: bool = pc.end_day("bed")
+	var e2: bool = pc.end_day("bed")
+	check(e1 and not e2 and phases.map(func(e): return e[0]) == ["late_night"] and gm.day_clock_minutes == 1560.0 and pc.held_reason() == "the night",
+		"end_day at 20:00: late night sent once, the clock at 2:00 and stopped; a second night refused")
+	# a fresh node (a load, the hall entered) sends nothing: it takes up 18:40 (dusk) silently
+	gm.day_clock_minutes = 1120.0
+	phases.clear()
+	var fresh = load(T70_CLOCK).new()
+	fresh.set_process(false)
+	hall.add_child(fresh)
+	fresh.remove_from_group("day_clock")
+	fresh.manual_tick(0.05)
+	var fresh_quiet: bool = phases.is_empty() and fresh._phase == "dusk"
+	fresh.free()
+	check(fresh_quiet, "a fresh clock (a load, a scene entered) sends nothing: it takes up dusk at 18:40 silently")
+	gb.day_phase_changed.disconnect(ps)
+	gb.day_clock_changed.disconnect(ms)
+	bed.free()
+	hall.free()
+	gm.day_clock_minutes = 360.0
+	pc.reset_session()
+	nm.clear_banners()
+
+
+## AC 8 (K-19, CL-16): the nod-off outside: the clock's black overlay, the pending night, the hall asked for at the wake
+## spot (again if a door swallowed it); in the hall the bedroom runs the same night once; the morning lifts the overlay.
+func _check_t70_outside(R, gm, dm, gb, pc) -> void:
+	dm.set("run_profile", "demo")
+	gm.game_over_active = false
+	gm.current_day = 5
+	var outside := _t70_scene("T70Outside", true, false)
+	root.add_child(outside)
+	_d1_set_scene(outside)
+	gm.day_clock_minutes = 1559.9
+	pc.reset_session()
+	var changes: Array = []
+	pc.scene_changer = func(path, spot): changes.append([path, spot])
+	pc.manual_tick(0.1)
+	var up_now: bool = pc.overlay_up()
+	var line_ok := false
+	if pc._overlay != null:
+		for l in pc._overlay.find_children("*", "Label", true, false):
+			line_ok = (l as Label).text == "You nod off where you stand…"
+	var pending_now: String = gm.pending_night
+	var reason_now: String = pc.held_reason()
+	pc.manual_tick(0.1)   # during the fade: no ask yet
+	var none_yet: bool = changes.is_empty()
+	await create_timer(0.7).timeout
+	var first: Array = changes.duplicate()
+	pc.manual_tick(1.0)   # still outside, 1 s on: no second ask yet
+	var once: bool = changes.size() == 1
+	pc.manual_tick(1.5)   # 2.5 s after the nod-off: the hall is asked for again (a door transition can swallow it)
+	var asked_again: bool = changes.size() == 2
+	check(up_now and line_ok and pending_now == "nod_off" and reason_now == "the night" and none_yet and once and first.size() == 1
+		and first[0][0] == "res://scenes/MainTavern.tscn" and (first[0][1] as Vector3).is_equal_approx(Vector3(14.0, 0.5, -13.4)) and asked_again,
+		"2:00 outside: the screen goes black with the nod-off line (the clock's own overlay), the night pending, the hall asked for at the wake spot (14.0, 0.5, -13.4), again 2 s later if still outside %s" % [first])
+	var hall = _t70_scene("T70HallAgain", true)
+	hall.add_to_group("main_tavern")
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var bed = _t70_bedroom()
+	hall.add_child(bed)
+	pc.manual_tick(0.02)
+	pc.manual_tick(0.02)
+	var served: bool = bed.calls == ["nod_off"] and gm.pending_night == "" and pc.held_reason() == "the night" and pc.overlay_up()
+	var phases: Array = []
+	var ps := func(p): phases.append(p)
+	gb.day_phase_changed.connect(ps)
+	gm._start_day_clock()
+	pc.begin_day()
+	gb.day_phase_changed.disconnect(ps)
+	check(served and phases == ["morning"] and not pc.overlay_up() and pc.is_running(),
+		"in the hall the bedroom runs the pending night once (nod_off); the morning sends morning and lifts the overlay; the clock runs")
+	pc.scene_changer = Callable()
+	bed.free()
+	hall.free()
+	outside.free()
+	gm.day_clock_minutes = 360.0
+	pc.reset_session()
+
+
+## A stand-in for the hall's BedroomPopup (MainTavern.tscn's editor-built tree) with the real bedroom_popup.gd.
+func _t70_bedroom_popup() -> PopupPanel:
+	var p := PopupPanel.new()
+	p.name = "T70BedroomPopup"
+	var mc := MarginContainer.new()
+	mc.name = "MarginContainer"
+	p.add_child(mc)
+	var vb := VBoxContainer.new()
+	vb.name = "MainVBox"
+	mc.add_child(vb)
+	var ds := VBoxContainer.new()
+	ds.name = "DaySummaryContainer"
+	vb.add_child(ds)
+	for n in ["TitleLabel", "GoldLabel", "BeerLabel", "AdventurersLabel"]:
+		var l := Label.new()
+		l.name = n
+		ds.add_child(l)
+	var fw := VBoxContainer.new()
+	fw.name = "FirewoodContainer"
+	vb.add_child(fw)
+	var sl := Label.new()
+	sl.name = "StockLabel"
+	fw.add_child(sl)
+	var bc := HBoxContainer.new()
+	bc.name = "ButtonsContainer"
+	fw.add_child(bc)
+	for n in ["Buy3Button", "Buy5Button", "Buy10Button"]:
+		var b := Button.new()
+		b.name = n
+		bc.add_child(b)
+	var sb := Button.new()
+	sb.name = "SleepButton"
+	sb.text = "Sleep"
+	vb.add_child(sb)
+	p.set_script(load(BEDROOM_SCRIPT))
+	return p
+
+
+## AC 7, 8: the bedroom's Sleep: disabled with its line before 20:00 (and refused behind it), free from 20:00; a sleep
+## starts the night on the clock (late night, 2:00) and goes on to the fade; the nod-off is never refused.
+func _check_t70_bedroom(gm, dm, gb, nm, pc) -> void:
+	dm.set("run_profile", "demo")
+	var hall = _t70_scene("T70BedHall", true)
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var stub_root := Node.new()
+	stub_root.name = "Node3D"
+	var overlay := Node.new()
+	overlay.name = "UIOverlay"
+	stub_root.add_child(overlay)
+	var fs := GDScript.new()
+	fs.source_code = "extends Control\nsignal fade_complete\nvar started := 0\nfunc start_sleep_fade() -> void:\n\tstarted += 1\n"
+	fs.reload()
+	var fade = Control.new()
+	fade.name = "FadeToBlack"
+	fade.set_script(fs)
+	overlay.add_child(fade)
+	root.add_child(stub_root)
+	var popup = _t70_bedroom_popup()
+	root.add_child(popup)
+	await process_frame
+	var sent: Array = []
+	var spy := func(p): sent.append(p)
+	gb.day_phase_changed.connect(spy)
+	gm.day_clock_minutes = 1199.0
+	pc.reset_session()
+	popup.update_button_availability()
+	var early_ok: bool = popup.sleep_button.disabled and popup.sleep_button.text == "It's too early to sleep. (from 20:00)" and popup.is_in_group("bedroom")
+	popup.start_sleep_sequence()
+	var refused: bool = sent.is_empty() and pc.held_reason() != "the night" and gm.day_clock_minutes == 1199.0
+	gm.day_clock_minutes = 1200.0
+	pc.reset_session()
+	popup.update_button_availability()
+	var free_ok: bool = not popup.sleep_button.disabled and popup.sleep_button.text == "Sleep"
+	popup.start_sleep_sequence()
+	var night_ok: bool = sent == ["late_night"] and gm.day_clock_minutes == 1560.0 and pc.held_reason() == "the night"
+	await create_timer(0.45).timeout
+	var faded: int = fade.started
+	check(early_ok and refused and free_ok and night_ok and faded == 1,
+		"the bedroom: before 20:00 Sleep is disabled with 'It's too early to sleep. (from 20:00)' and refused behind it (nothing sent); from 20:00 free, and a sleep starts the night on the clock (late night, 2:00) then the fade")
+	# the nod-off is never refused (even before the evening hour); its line is an event banner
+	nm.clear_banners()
+	sent.clear()
+	gm.day_clock_minutes = 1140.0
+	pc.reset_session()
+	popup.start_sleep_sequence("nod_off")
+	var nod_night: bool = pc.held_reason() == "the night" and sent == ["late_night"]
+	var banners: Array = _t38_banners(nm)
+	await create_timer(0.45).timeout
+	check(nod_night and banners.has(["You nod off where you stand…", true]) and fade.started == 2,
+		"the nod-off is never refused: the night starts, its line is an event banner, the fade follows %s" % [banners])
+	gb.day_phase_changed.disconnect(spy)
+	popup.free()
+	stub_root.free()
+	hall.free()
+	gm.day_clock_minutes = 360.0
+	pc.reset_session()
+	nm.clear_banners()
+
+
+## AC 5, 6: the patrons by the hour in a stand-in hall (the rows, the hold, last call, closing) and leave_unserved on real
+## patrons (no gold, no reputation; a drinker finishes and pays).
+func _check_t70_patrons(gm, dm, gb, nm, pc) -> void:
+	dm.set("run_profile", "demo")
+	var hall = _t70_scene("T70PatronHall", true)
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	gm.beer_stock = 50
+	gm.restored_patrons = []
+	gm.day_clock_minutes = 19.5 * 60.0
+	pc.reset_session()
+	var hold := Node.new()
+	hold.name = "T70SpawnHold"
+	hold.add_to_group("day_clock_hold")
+	hall.add_child(hold)
+	var sp = load(T70_SPAWNER).new()
+	sp.name = "PatronSpawner"
+	sp.max_patrons = 5
+	hall.add_child(sp)
+	var start_ok: bool = sp.follows_clock and sp.is_in_group("patron_spawner") and sp.max_patrons == 7 and sp.spawn_interval == 10.0
+	var rows_bad := []
+	for r in [["morning", 2, 40.0], ["day", 5, 20.0], ["dusk", 5, 15.0], ["evening", 7, 10.0], ["late_night", 0, 0.0]]:
+		sp.apply_phase(r[0])
+		if sp.max_patrons != r[1] or sp.spawn_interval != r[2]:
+			rows_bad.append([r[0], sp.max_patrons, sp.spawn_interval])
+	var stopped: bool = sp.spawn_timer.is_stopped()
+	sp.apply_phase("day")
+	var held_no: bool = not sp.can_spawn_patron()
+	hold.remove_from_group("day_clock_hold")
+	var open_yes: bool = sp.can_spawn_patron()
+	hold.add_to_group("day_clock_hold")
+	var held_again: bool = not sp.can_spawn_patron()
+	var plain := Node3D.new()
+	plain.name = "T70NotADayScene"
+	root.add_child(plain)
+	var sp2 = load(T70_SPAWNER).new()
+	sp2.max_patrons = 5
+	plain.add_child(sp2)
+	var plain_ok: bool = not sp2.follows_clock and sp2.max_patrons == 5 and sp2.spawn_interval == 20.0 and sp2.can_spawn_patron()
+	check(start_ok and rows_bad.is_empty() and stopped and held_no and open_yes and held_again and plain_ok,
+		"the spawner in a day scene: the evening's row at its start (7, 10 s), each phase's row (morning 2/40, day 5/20, dusk 5/15, evening 7/10, late night 0/0 with the timer stopped); nobody walks in while the clock is held; outside a day scene it keeps its own values and ignores the clock %s" % [rows_bad])
+	# last call: a banner when the bar was open, not again; closing: the unserved go home, one banner a day
+	nm.clear_banners()
+	sp.apply_phase("evening")
+	sp._on_day_phase("late_night")
+	sp._on_day_phase("late_night")
+	var lc: Array = _t38_banners(nm).filter(func(b): return b[0] == "Last call.")
+	var fpat := GDScript.new()
+	fpat.source_code = "extends Node\nvar gone := false\nvar served := false\nfunc leave_unserved() -> bool:\n\tif gone or served:\n\t\treturn false\n\tgone = true\n\treturn true\n"
+	fpat.reload()
+	var f1 = Node.new()
+	f1.set_script(fpat)
+	var f2 = Node.new()
+	f2.set_script(fpat)
+	f2.served = true
+	hall.add_child(f1)
+	hall.add_child(f2)
+	sp.active_patrons = [f1, f2]
+	gm.current_day = 6
+	sp._on_clock_minute(1439)
+	var before_close: bool = not f1.gone
+	sp._on_clock_minute(1441)
+	sp._on_clock_minute(1442)
+	var closed: Array = _t38_banners(nm).filter(func(b): return b[0] == "The last guests head home.")
+	check(lc.size() == 1 and lc[0][1] == true and before_close and f1.gone and not f2.gone and closed.size() == 1 and closed[0][1] == true and sp.max_patrons == 0,
+		"last call at late night: one event banner, the row 0/0; at 0:00 the guest not yet served goes home (a drinker stays), one closing banner a day")
+	sp.active_patrons = []
+	# leave_unserved on real patrons
+	var world := Node3D.new()
+	world.name = "T70PatronWorld"
+	root.add_child(world)
+	var gold0: int = gm.gold
+	var rep0: int = gm.tavern_reputation
+	var made := []
+	for st in [4, 0, 2, 1]:   # WAITING_SERVICE, WALKING_TO_TABLE, DRINKING, SEATED (served)
+		var p = (load("res://scenes/npcs/RealisticPatron.tscn") as PackedScene).instantiate()
+		p.set_physics_process(false)
+		world.add_child(p)
+		p.set_physics_process(false)
+		p.entrance_position = Vector3(8.7, 0.0, 3.3)
+		made.append(p)
+	await process_frame
+	var pw = made[0]
+	var pk = made[1]
+	var pd = made[2]
+	var ps = made[3]
+	# RealisticPatron.PatronState: WALKING_TO_TABLE 0, SEATED 1, DRINKING 2, LEAVING 3, WAITING_SERVICE 4
+	pw.current_state = 4
+	pw.wants_service = true
+	if pw.service_indicator:
+		pw.service_indicator.visible = true
+	pk.current_state = 0
+	pd.current_state = 2
+	pd.has_been_served = true
+	ps.current_state = 1
+	ps.has_been_served = true
+	var w_ok: bool = (pw.leave_unserved() and pw.going_home and pw.current_state == 1 and not (pw.service_indicator and pw.service_indicator.visible)
+		and not pw.wants_service and not pw.can_be_served_by(pw.global_position) and not pw.leave_unserved())
+	var k_ok: bool = pk.leave_unserved() and pk.current_state == 3 and pk.nav_agent.target_position.is_equal_approx(Vector3(8.7, 0.0, 3.3))
+	var d_no: bool = not pd.leave_unserved() and pd.current_state == 2
+	var s_no: bool = not ps.leave_unserved()
+	await create_timer(1.0).timeout
+	var w_left: bool = pw.current_state == 3 and pw.nav_agent.target_position.is_equal_approx(Vector3(8.7, 0.0, 3.3))
+	check(w_ok and k_ok and d_no and s_no and w_left and gm.gold == gold0 and gm.tavern_reputation == rep0,
+		"leave_unserved: a waiting guest stands up (unservable meanwhile) and walks to the door, one walking in turns for the door at once, a drinker or a served guest stays; no gold, no reputation; twice is once")
+	for p in made:
+		p.queue_free()
+	world.queue_free()
+	# let both spawners finish their _ready (2 s) with nothing to spawn, then free them
+	gm.beer_stock = 0
+	gm.day_clock_minutes = 1200.0
+	await create_timer(2.2).timeout
+	sp.free()
+	sp2.free()
+	plain.free()
+	f1.free()
+	f2.free()
+	hall.free()
+	gm.day_clock_minutes = 360.0
+	pc.reset_session()
+	nm.clear_banners()
+	await process_frame
+
+
+## AC 9, 12: the exterior's corner clock and F12 (the line, jumps, speed, the hold while open).
+func _check_t70_hud_f12(R, gm, dm, gb, pc) -> void:
+	dm.set("run_profile", "demo")
+	var hall = _t70_scene("T70HudHall", true)
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var lbl = load(T70_LABEL).new()
+	root.add_child(lbl)
+	gm.day_clock_minutes = 1247.0
+	gb.day_clock_changed.emit(1247)
+	var t1: String = lbl.label.text
+	gm.day_clock_minutes = 1500.0
+	gb.day_phase_changed.emit("late_night")
+	var t2: String = lbl.label.text
+	lbl.free()
+	check(t1 == "20:40 · Evening" and t2 == "1:00 · Late night", "the exterior's corner clock: '20:40 · Evening', then '1:00 · Late night' (%s, %s)" % [t1, t2])
+	var DP = load(DEBUG_PANEL_SCRIPT_PATH)
+	check(DP.clock_line(1240.0, "evening", 1.0, "") == "20:40 evening · x1 · running" and DP.clock_line(600.0, "day", 10.0, "a screen") == "10:00 day · x10 · held: a screen"
+		and DP.clock_line(360.0, "morning", 1.0, "off: MainMenu") == "6:00 morning · x1 · off: MainMenu",
+		"F12's clock line: '20:40 evening · x1 · running', '… · held: a screen', '… · off: MainMenu'")
+	var panel = DP.new()
+	root.add_child(panel)
+	await process_frame
+	var ev := InputEventKey.new()
+	ev.keycode = KEY_F12
+	ev.pressed = true
+	gm.day_clock_minutes = 600.0
+	pc.reset_session()
+	panel._input(ev)
+	var holding: bool = panel.is_in_group("day_clock_hold") and pc.held_reason() == "held by %s" % panel.name
+	var phases: Array = []
+	var ps := func(p): phases.append(p)
+	gb.day_phase_changed.connect(ps)
+	var j_ok: bool = panel._debug_clock_jump(1200.0)
+	var j_back: bool = panel._debug_clock_jump(700.0)
+	gb.day_phase_changed.disconnect(ps)
+	panel._debug_clock_speed(10.0)
+	var fast: float = pc.get_speed()
+	panel._debug_clock_speed(1.0)
+	panel._input(ev)
+	var released: bool = not panel.is_in_group("day_clock_hold")
+	panel.free()
+	check(holding and j_ok and not j_back and phases == ["dusk", "evening"] and gm.day_clock_minutes == 1200.0 and fast == 10.0 and pc.get_speed() == 1.0 and released,
+		"F12: open, it holds the clock; 'jump to 20:00' from 10:00 sends dusk, evening; back to 11:40 refused; x10 then x1; closed, it lets go %s" % [phases])
+	hall.free()
+	gm.day_clock_minutes = 360.0
+	pc.reset_session()
+
+
+## AC 11 (CL-13): the visitor and the King's messenger walk in during the hall's open hours (day, dusk, evening), never in
+## the morning or late at night.
+func _check_t70_visitors(R) -> void:
+	var DS = load(DIRECTOR_SCRIPT)
+	var RM = load("res://scripts/game/royal_messenger.gd")
+	var bad := []
+	for ph in T70_PHASES:
+		var want: bool = ph in T70_OPEN
+		if DS.should_fire({"type": "thief", "day": 5, "state": "queued"}, 5, ph, false, false) != want \
+				or DS.should_fire({"type": "thief", "day": 5, "state": "fired"}, 5, ph, false, false) != want \
+				or RM.may_arrive({"state": "coming", "day": 7}, 7, ph, false, false) != want:
+			bad.append(ph)
+	check(bad.is_empty() and R.OPEN_PHASES == T70_OPEN and RM.ARRIVAL_PHASES == T70_OPEN,
+		"the hall's open hours (day, dusk, evening): today's disturbance (queued or fired) and the King's messenger may come then, never in the morning or late at night %s" % [bad])
+
+
+## AC 3, 4, 9, 11: the sources: one phase sender; the hall and the exterior are day scenes; the HUD and the corner clock; the
+## bedroom's gate and reason; the spawner's hold; GameBus's two signals.
+func _check_t70_sources() -> void:
+	var clock_src := FileAccess.get_file_as_string(T70_CLOCK)
+	var tav := FileAccess.get_file_as_string("res://scripts/game/main_tavern.gd")
+	var ext := FileAccess.get_file_as_string("res://scripts/world/exteriorworld.gd")
+	var bed := FileAccess.get_file_as_string(BEDROOM_SCRIPT)
+	var spn := FileAccess.get_file_as_string(T70_SPAWNER)
+	var bus := FileAccess.get_file_as_string("res://scripts/buses/GameBus.gd")
+	var senders := []
+	for f in ["res://scenes/bedroom_popup.gd", "res://scenes/ui/script/morning_briefing.gd", "res://scripts/game/tavern_lighting.gd",
+			"res://scripts/game/disturbance_director.gd", "res://scripts/game/royal_messenger.gd", T70_SPAWNER, "res://scripts/game/main_tavern.gd",
+			"res://scripts/GameManager.gd", "res://scenes/ui/debug_panel.gd", "res://scripts/world/exteriorworld.gd"]:
+		var s := FileAccess.get_file_as_string(f)
+		var n := s.count("day_phase_changed.emit(")
+		if n > 0:
+			senders.append("%s:%d" % [f.get_file(), n])
+	check(clock_src.count("GameBus.day_phase_changed.emit(") == 1 and senders == ["bedroom_popup.gd:2"] and clock_src.contains("game_over_triggered.connect"),
+		"one phase sender: the day clock (its _sync); elsewhere only the bedroom's two no-clock fallbacks %s" % [senders])
+	check(_func_body(tav, "_enter_tree").contains("add_to_group(\"day_clock_scene\")") and _func_body(tav, "_update_day_phase_display").contains("hud_text(")
+		and _func_body(ext, "_enter_tree").contains("add_to_group(\"day_clock_scene\")") and _func_body(ext, "_ready").contains("CLOCK_LABEL"),
+		"the hall and the exterior are day scenes (joined in _enter_tree); the hall's PhaseLabel and the exterior's corner clock show the clock")
+	check(bed.contains("func start_sleep_sequence(reason := \"bed\")") and _func_body(bed, "start_sleep_sequence").contains("if reason != NOD_OFF:")
+		and _func_body(bed, "_ready").contains("add_to_group(\"bedroom\")") and _func_body(spn, "can_spawn_patron").contains("is_running()")
+		and bus.contains("signal day_phase_changed(phase: String)") and bus.contains("signal day_clock_changed(minutes: int)"),
+		"the bedroom: a reason (only 'bed' can be refused), in group bedroom; the spawner asks the clock; GameBus has day_phase_changed and day_clock_changed")
