@@ -24,6 +24,10 @@ signal disturbance_resolved(type: String, choice: String, rep_delta: int, gold_d
 # day phase), "waiting" (he walked into the hall), "ended" (the player heard him: the end card follows). Loading a save
 # and New Game set the state silently.
 signal demo_ending_changed(state: String, day: int)
+# Epic 9: the Bard's visit moved in play (GameManager.bard_visit): "coming" (queued this morning: the hall shows him at his
+# minute in its open hours), "waiting" (at the door), "performing" (let in: Story 9.2), "refused" (turned away, or tired
+# of waiting). `day` is the visit's day. Loading a save and New Game set the visit silently.
+signal bard_visit_changed(state: String, day: int)
 
 # Den Fa's state (Story 10.3): "early" -> "mid" -> "late", forward only. GameManager owns it
 # (den_fa_state, moved by adjust_reputation() at game_config.json's den_fa_state_tiers) and emits this when

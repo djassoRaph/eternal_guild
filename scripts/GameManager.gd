@@ -2161,6 +2161,136 @@ func _reset_demo_ending_state() -> void:
 	demo_ending = {}
 	_demo_ending_warnings = 0
 
+# === THE BARD (Epic 9, Stories 9.1-9.5) ===
+# A travelling bard visits some days. The morning (advance_day, after the disturbance roll) rolls today's visit
+# (bard_visit: {day, state, hook, arrive_minute, wait_until}; saved): a schedule entry (profiles.demo: day 3), else the
+# reputation tier, the cooldown and the chance. One visitor a day (decision K-20): no visit on the King's messenger's
+# day nor on a day with a tavern disturbance. The hall (scripts/game/bard.gd) shows him at his minute in its open hours;
+# he waits at the door (waiting), is let in (performing, Story 9.2) or turned away / tired of waiting (refused). The next
+# morning settles the visit. The rules are pure, in scripts/game/bard_rules.gd. GuildBus.bard_visit_changed for every
+# move in play; a load and New Game are silent.
+const BardRules := preload("res://scripts/game/bard_rules.gd")
+var bard_visit: Dictionary = {}       # {} | {day, state: coming | waiting | performing | refused, hook, arrive_minute, wait_until}
+var bard_last_visit_day: int = 0      # the day the last visit was queued (the cooldown counts from it)
+var _bard_warnings: int = 0           # a bad bard_* config is warned about once a run (New Game re-arms it)
+
+## The bard_* keys of the run's profile, checked (bard_rules.config_from), plus min_tier_index (the tier list of the
+## profile); its warnings pushed once a run.
+func bard_config() -> Dictionary:
+	var raw := {}
+	for k in BardRules.KEYS:
+		var v = DataManager.get_config(k)
+		if v != null:
+			raw[k] = v
+	var warn: Array = []
+	var cfg := BardRules.config_from(raw, warn)
+	cfg.min_tier_index = BardRules.tier_index_of(str(cfg.min_tier), reputation_tier_list(DataManager.get_config("reputation_tiers", [])), warn)
+	_warn_bard(warn)
+	return cfg
+
+func _warn_bard(warn: Array) -> void:
+	if not warn.is_empty() and _bard_warnings == 0:
+		_bard_warnings += 1
+		for w in warn:
+			push_warning(w)
+
+## Today's visit exists (any state).
+func bard_today() -> bool:
+	return not bard_visit.is_empty() and int(bard_visit.get("day", -1)) == current_day
+
+## The morning's step (advance_day, after the disturbance roll): settle another day's visit, then roll today's. `rolls`
+## (tests): [chance, arrival] in [0, 1).
+func _advance_bard(rolls: Array = []) -> void:
+	if game_over_active:
+		return
+	var v := bard_visit
+	if not v.is_empty() and int(v.get("day", 0)) != current_day:
+		bard_visit = {}
+		_end_bard_day(v)
+	if not bard_visit.is_empty():
+		return
+	if demo_ending_today():
+		print("[GameManager] bard: none today, the King's messenger comes (one visitor a day)")
+		return
+	if not pending_disturbance.is_empty() and int(pending_disturbance.get("day", -1)) == current_day:
+		print("[GameManager] bard: none today, a tavern disturbance is due (one visitor a day)")
+		return
+	var cfg := bard_config()
+	var r := rolls if rolls.size() >= 2 else [randf(), randf()]
+	var e := BardRules.pick_visit(current_day, get_reputation_tier_index(), int(cfg.min_tier_index), bard_last_visit_day, cfg, r)
+	if e.is_empty():
+		return
+	bard_visit = e
+	bard_last_visit_day = current_day
+	_bard_moved("coming", "queued for %s%s" % [DayClockRules.format_time(float(e.arrive_minute)), ", with a hook" if e.hook else ""])
+
+## The night after a visit (advance_day): a visit never decided is closed as turned away (nothing changes); Story 9.2
+## adds what a performance leaves behind.
+func _end_bard_day(v: Dictionary) -> void:
+	if str(v.get("state", "")) in ["coming", "waiting"]:
+		print("[GameManager] bard: day %d's visit ended undecided (as turned away)" % int(v.get("day", 0)))
+
+func _bard_moved(state: String, note := "") -> void:
+	print("[GameManager] bard: %s (day %d)%s" % [state, int(bard_visit.get("day", current_day)), (": " + note) if note != "" else ""])
+	GuildBus.bard_visit_changed.emit(state, int(bard_visit.get("day", current_day)))
+
+## The hall: he reached the door (coming -> waiting); he waits wait_hours of clock time from now. False, with a warning,
+## from any other state.
+func bard_arrived() -> bool:
+	if not bard_today() or str(bard_visit.get("state", "")) != "coming":
+		push_warning("[GameManager] refuse: no bard coming today (%s)" % [bard_visit])
+		return false
+	bard_visit.state = "waiting"
+	bard_visit.wait_until = int(ceil(day_clock_minutes + float(bard_config().wait_hours) * 60.0))
+	_bard_moved("waiting", "until %s" % DayClockRules.format_time(float(bard_visit.wait_until)))
+	return true
+
+## The hall: turned away ("refused") or tired of waiting ("timeout"): coming / waiting -> refused. Nothing else changes
+## (Story 9.3). False, with a warning, from any other state.
+func refuse_bard(reason: String) -> bool:
+	if not bard_today() or not (str(bard_visit.get("state", "")) in ["coming", "waiting"]):
+		push_warning("[GameManager] refuse: no bard at the door to turn away (%s)" % [bard_visit])
+		return false
+	bard_visit.state = "refused"
+	_bard_moved("refused", reason)
+	return true
+
+## The hall: the player let him play (waiting -> performing). False, with a warning, from any other state.
+func allow_bard() -> bool:
+	if not bard_today() or str(bard_visit.get("state", "")) != "waiting":
+		push_warning("[GameManager] refuse: no bard waiting to be let in (%s)" % [bard_visit])
+		return false
+	bard_visit.state = "performing"
+	_bard_moved("performing")
+	return true
+
+## F12 (Story 9.1): the Bard comes today (at the clock's minute now, so the hall shows him at once in its open hours),
+## whatever the rolls; `hook` forces a quest hook if he plays (Story 9.4). Refused on the messenger's day.
+func debug_queue_bard(hook := false) -> bool:
+	if demo_ending_today():
+		push_warning("[GameManager] refuse: the King's messenger's day has no other visitor")
+		return false
+	bard_visit = {"day": current_day, "state": "coming", "hook": hook, "arrive_minute": int(floor(day_clock_minutes)), "wait_until": -1}
+	bard_last_visit_day = current_day
+	_bard_moved("coming", "debug")
+	return true
+
+func _bard_save_data() -> Dictionary:
+	return {"bard_visit": bard_visit.duplicate(), "bard_last_visit_day": bard_last_visit_day}
+
+## The saved visit, read defensively (junk -> none, with a warning; an older save -> none and 0).
+func _load_bard_data(data: Dictionary) -> void:
+	bard_last_visit_day = maxi(0, _save_int(data.get("bard_last_visit_day"), 0))
+	var r := BardRules.visit_from_save(data.get("bard_visit"))
+	if str(r.warning) != "":
+		push_warning(r.warning)
+	bard_visit = r.visit
+
+func _reset_bard_state() -> void:
+	bard_visit = {}
+	bard_last_visit_day = 0
+	_bard_warnings = 0
+
 # === THE DAY CLOCK (Story 3.7; decision log K-14…K-19) ===
 # The time of day is GameManager's (day_clock_minutes: minutes since midnight of the day's start, 6:00 = 360, 2:00 the
 # next morning = 1560; saved, CL-9). The persistent DayClock node (scripts/game/day_clock.gd, this node's child) ticks it
@@ -2687,6 +2817,7 @@ func advance_day():
 		return   # Story 13.4 review P6: the guild fell this morning (the tax): the night ends here (it saved itself)
 	_advance_demo_ending()    # Story 10.7: a due ending's morning: the King's messenger comes today (before the roll below)
 	_advance_disturbances()   # Story 14.4: yesterday's event settled, today's rolled
+	_advance_bard()           # Epic 9: yesterday's visit settled, today's rolled (none on a visitor's day: K-20)
 	
 	# Show daily status if beer shortage is active
 	if beer_shortage_days > 0:
@@ -2945,6 +3076,7 @@ func get_save_data() -> Dictionary:
 	data.merge(_staff_save_data())     # the staff records (Story 16.1)
 	data.merge(_disturbance_save_data())   # today's tavern disturbance and the cooldown (Story 14.4)
 	data.merge(_demo_ending_save_data())   # the demo's ending (Story 10.7; "ended" saved as "waiting")
+	data.merge(_bard_save_data())   # the Bard's visit (Epic 9)
 
 	print("   Saved: ", data.keys().size(), " fields")
 	print("   Day: ", data.current_day, ", Gold: ", data.gold)
@@ -3018,6 +3150,7 @@ func load_save_data(data: Dictionary):
 	_load_staff_data(data)   # the staff records (Story 16.1; an older save: the profile's starting staff)
 	_load_disturbance_data(data)   # Story 14.4 (an older save: none)
 	_load_demo_ending_data(data)   # Story 10.7 (an older save: none, then re-evaluated silently)
+	_load_bard_data(data)   # Epic 9 (an older save: no visit)
 
 	# World map (restore hex grid so mission board works after load) + the Latest News rumours (Story 11.2)
 	var world_data = data.get("world_data", {})
@@ -3448,6 +3581,7 @@ func reset_game_state():
 	_reset_staff_state()     # the profile's starting staff (Story 16.1)
 	_reset_disturbance_state()   # Story 14.4
 	_reset_demo_ending_state()   # Story 10.7
+	_reset_bard_state()   # Epic 9
 	_reset_day_clock()   # Story 3.7: 6:00
 
 	# Game state
