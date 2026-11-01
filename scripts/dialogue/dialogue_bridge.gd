@@ -107,6 +107,15 @@ func choose(id: String) -> void:
 	_choice = id
 
 
+## Story 14.4 review P8: whether the guild can pay what today's disturbance's `id` reply costs (its outcome's gold loss in
+## data/disturbances/disturbances.json, so the price lives in one place); a reply that costs nothing is always
+## affordable. A paid reply is offered only then: `- Give her some coin. [if bridge.can_afford("pay")]`.
+func can_afford(id: String) -> bool:
+	var ev: Dictionary = GameManager.pending_disturbance
+	var o: Dictionary = GameManager.disturbance_outcome(GameManager.disturbance_types(), str(ev.get("type", "")), str(ev.get("truth", "")), id)
+	return GameManager.gold >= -mini(0, int(o.get("gold", 0)))
+
+
 ## Whether a conversation flag is set this run (e.g. "den_fa_first_contact").
 func seen(id: String) -> bool:
 	return GameManager.dialogue_flags.get(id, false) == true

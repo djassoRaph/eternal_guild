@@ -1,13 +1,13 @@
 {
-	"_comment": "DRAFT (Story 14.4): the tavern's disturbances. Raphael rewrites the words; the numbers are placeholders to tune. GameManager rolls one a morning (game_config.json disturbance_*: below a reputation, a daily chance, a cooldown in days, and a schedule that forces one on a day: the demo's thief on Day 2). The hall's director (scripts/game/disturbance_director.gd) shows today's in the day phase: the visitor (body: a townsfolk variant id of data/characters/townsfolk.json, a placeholder body) stands at spot [x, z, yaw degrees] on the hall floor with the banner; E (prompt) opens his title of data/dialogue/disturbances.dialogue for the event's truth (truths: weights; one truth 'plain' for a type with no hidden truth). A reply that calls bridge.choose(id) decides it: outcomes[truth][id] = {rep, gold, line} (whole numbers; the line is the banner after). 'ignored' is the outcome when the day ends with the visitor still there. conditions.min_deaths: deaths this run needed (the mourner comes only after one).",
+	"_comment": "DRAFT (Story 14.4): the tavern's disturbances. Raphael rewrites the words; the numbers are placeholders to tune. GameManager rolls one a morning (game_config.json disturbance_*: below a reputation, a daily chance, a cooldown in days, and a schedule that forces one on a day: the demo's thief on Day 2). The hall's director (scripts/game/disturbance_director.gd) shows today's in the day phase: the visitor (body: a townsfolk variant id of data/characters/townsfolk.json, a placeholder body) stands at spot [x, z, yaw degrees] on the hall floor (picked in the code review, P2: 2.3 m from every E zone, 4.55 m from every patron seat: a waiting patron within 3 m of the player takes E) with the banner; E (prompt) opens his title of data/dialogue/disturbances.dialogue for the event's truth (truths: weights; one truth 'plain' for a type with no hidden truth). A reply that calls bridge.choose(id) decides it: outcomes[truth][id] = {rep, gold, line} (whole numbers; the line is the banner after). 'ignored' is the outcome when the day ends with the visitor still there. conditions.min_deaths: deaths this run needed (the mourner comes only after one).",
 	"types": {
 		"thief": {
 			"weight": 3,
 			"conditions": {},
 			"body": "traveller",
-			"spot": [-0.75, -2.5, 45.0],
+			"spot": [1.75, 3.0, 90.0],
 			"prompt": "Press E - Talk to the stranger",
-			"banner": "A stranger lingers by the tables.",
+			"banner": "A stranger lingers in the hall.",
 			"truths": {"guilty": 3, "innocent": 1},
 			"titles": {"guilty": "thief_guilty", "innocent": "thief_innocent"},
 			"outcomes": {
@@ -27,7 +27,7 @@
 			"weight": 3,
 			"conditions": {},
 			"body": "local",
-			"spot": [-1.75, -4.5, 45.0],
+			"spot": [-2.5, -14.5, 45.0],
 			"prompt": "Press E - Talk to the drunk",
 			"banner": "Someone's had too much already.",
 			"truths": {"plain": 1},
@@ -44,7 +44,7 @@
 			"weight": 2,
 			"conditions": {"min_deaths": 1},
 			"body": "old_woman",
-			"spot": [7.25, 0.75, -135.0],
+			"spot": [13.25, 0.75, -45.0],
 			"prompt": "Press E - Talk to the mourner",
 			"banner": "Someone is waiting at the door.",
 			"truths": {"plain": 1},
@@ -62,7 +62,7 @@
 			"weight": 2,
 			"conditions": {},
 			"body": "merchant",
-			"spot": [2.0, -11.0, 45.0],
+			"spot": [-0.5, -13.75, 90.0],
 			"prompt": "Press E - Talk to the visitor",
 			"banner": "A man from another guild has walked in.",
 			"truths": {"plain": 1},

@@ -1,7 +1,8 @@
 # DRAFT (Story 14.4): the tavern's disturbances. Raphael to rewrite. The hall's director opens a title by the event's
 # type and truth (data/disturbances/disturbances.json); a reply records the player's answer with bridge.choose(id) and the
-# outcome follows when the box closes; a reply that chooses nothing (or Esc) leaves the visitor there for later. Game
-# state only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
+# outcome follows when the box closes; a reply that chooses nothing (or Esc) leaves the visitor there for later. A reply
+# that costs gold shows only when the guild can pay it ([if bridge.can_afford(id)]: the outcome's gold in the data).
+# Game state only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
 
 ~ thief_guilty
 Stranger: Evening. Just warming my hands.
@@ -43,7 +44,7 @@ Drunk: Nobody sings anymore. Why does nobody sing?
 if bridge.disturbance_subject != ""
 	Mourner: {{bridge.disturbance_subject}} rode out with your guild. They told me there's nothing to bury.
 Mourner: I'm not here to shout. I wanted to see the place they chose.
-- Give her some coin.
+- Give her some coin. [if bridge.can_afford("pay")]
 	do bridge.choose("pay")
 	Mourner: It won't fix anything. Thank you all the same.
 - Tell her about them.
@@ -61,7 +62,7 @@ Rival: We're taking contracts on the east road now. Thought you'd want to hear i
 - Wish him luck.
 	do bridge.choose("courteous")
 	Rival: Generous. We'll see how long that lasts.
-- Buy him a drink.
+- Buy him a drink. [if bridge.can_afford("drink")]
 	do bridge.choose("drink")
 	Rival: Now that's how guilds should talk.
 - Tell him to leave.
