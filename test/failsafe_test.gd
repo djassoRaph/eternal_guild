@@ -16508,8 +16508,9 @@ func _check_t44_sources() -> void:
 # --- Test 45: The Tarot chapter (Story 18.2) ---
 const CODEX_TAROT_PATH := "res://scripts/menus/codex/tarot_chapter.gd"
 const TAROT_DECK_PATH := "res://data/config/tarot_deck.json"
-const T45_START := ["major_01_the_magician", "major_07_the_chariot", "major_09_the_hermit", "major_17_the_star"]
-const T45_NUMERALS := ["I", "VII", "IX", "XVII"]
+const T45_START := ["major_01_the_magician", "major_07_the_chariot", "major_08_strength", "major_17_the_star"]
+const T45_NUMERALS := ["I", "VII", "VIII", "XVII"]
+const T45_RESERVED := ["major_09_the_hermit", "major_21_the_world"]   # 03_STORY_BIBLE: Den Fa is The Hermit, the player The World
 
 
 ## AC 1-8 (Story 18.2): the four starting cards in the deck, the unlock rule, the grid's order, the card back, the page,
@@ -16554,8 +16555,9 @@ func _check_t45_deck(dm) -> void:
 	var raw = _read_json(TAROT_DECK_PATH)
 	var note := str(raw.get("_comment", "")) if raw is Dictionary else ""
 	check(deck.size() == 78 and deck.filter(func(c): return str(c.get("arcana", "")) == "major").size() == 22 and starts == T45_START
+		and not T45_RESERVED.any(func(id): return starts.has(id))
 		and bad.is_empty() and others_clean and note.contains("Story 18.2") and note.contains("DRAFT"),
-		"the deck: still 78 (22 major); exactly the four starting Major Arcana (unlock_trigger 'start'), each with an archetype, a 2-4 sentence note, a secret and a demo class; marked DRAFT %s %s" % [starts, bad])
+		"the deck: still 78 (22 major); exactly the four starting Major Arcana (unlock_trigger 'start'; never Den Fa's Hermit or the player's World), each with an archetype, a 2-4 sentence note, a secret and a demo class; marked DRAFT %s %s" % [starts, bad])
 
 
 ## AC 1, 2: unlocked_ids and tarot_slots.
@@ -16706,9 +16708,9 @@ func _check_t45_chapter(T, UI, dm) -> void:
 		and right.find_child("PageCard", true, false) != null and (ch.slot_nodes[idx.major_01_the_magician] as Button).button_pressed
 	check(first_ok and reader.reads == [["tarot", "major_01_the_magician"]],
 		"the chapter opens on the first unlocked card, The Magician: its card, name, numeral, archetype, the start line, the note and secret (one read)")
-	(ch.slot_nodes[idx.major_09_the_hermit] as Button).pressed.emit()
-	var hermit_ok: bool = ch.selected == idx.major_09_the_hermit and page.call("PageName") == "The Hermit" \
-		and (ch.slot_nodes[idx.major_09_the_hermit] as Button).button_pressed and not (ch.slot_nodes[idx.major_01_the_magician] as Button).button_pressed
+	(ch.slot_nodes[idx.major_08_strength] as Button).pressed.emit()
+	var hermit_ok: bool = ch.selected == idx.major_08_strength and page.call("PageName") == "Strength" \
+		and (ch.slot_nodes[idx.major_08_strength] as Button).button_pressed and not (ch.slot_nodes[idx.major_01_the_magician] as Button).button_pressed
 	var last: int = ch.unlocked_order[-1]
 	ch.show_card(last)
 	(right.find_child("Next", true, false) as Button).pressed.emit()
@@ -16718,14 +16720,14 @@ func _check_t45_chapter(T, UI, dm) -> void:
 	ch.show_card(idx.major_17_the_star - 1 if not ch.slots[idx.major_17_the_star - 1].unlocked else -1)
 	var stayed: bool = ch.selected == last
 	check(hermit_ok and wrapped and back_wrap and stayed and reader.reads.size() == 5,
-		"clicking The Hermit shows his page (his slot marked); Next from the last unlocked card wraps to the first, Previous back; a locked slot can't be shown")
+		"clicking Strength shows its page (its slot marked); Next from the last unlocked card wraps to the first, Previous back; a locked slot can't be shown")
 	left.free()
 	right.free()
 	var ch2 = T.new()
 	var l2 := VBoxContainer.new()
 	var r2 := VBoxContainer.new()
-	ch2.build(l2, r2, {"codex": {}, "deck": deck, "cfg": cfg, "book": null, "focus": "major_09_the_hermit"})
-	var focus_ok: bool = str(ch2.slots[ch2.selected].card.id) == "major_09_the_hermit"
+	ch2.build(l2, r2, {"codex": {}, "deck": deck, "cfg": cfg, "book": null, "focus": "major_08_strength"})
+	var focus_ok: bool = str(ch2.slots[ch2.selected].card.id) == "major_08_strength"
 	l2.free()
 	r2.free()
 	var one := [{"id": "m1", "name": "M", "arcana": "major", "number": 1, "unlock_trigger": "start"}, {"id": "c1", "name": "C", "arcana": "minor", "suit": "cups", "number": 1}]
@@ -16766,7 +16768,7 @@ func _check_t45_book(dm) -> void:
 	(ch.slot_nodes[chariot] as Button).pressed.emit()
 	await _press("ui_right")
 	await _press("ui_left")
-	check(book.current_chapter == "tarot" and reads == ["major_07_the_chariot", "major_09_the_hermit", "major_07_the_chariot"]
+	check(book.current_chapter == "tarot" and reads == ["major_07_the_chariot", "major_08_strength", "major_07_the_chariot"]
 		and book.read_line("tarot", "major_07_the_chariot") == "[Codex] read: tarot major_07_the_chariot",
 		"in the book: a click and the arrow keys turn the pages, each page one entry_read (the page already shown isn't read twice) %s" % [reads])
 	book.close()
