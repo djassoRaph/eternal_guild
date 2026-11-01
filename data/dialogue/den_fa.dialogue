@@ -7,6 +7,8 @@
 # late_N), never the same one twice in a row (add mid_4 … and he uses it, no code change). Early asks and
 # notices; Mid acknowledges, and knows what the guild has been through; Late is certain: he states, he
 # doesn't ask. Game state comes only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
+# Story 18.5 added codex_first_open: said once a run, the first time the player reads the Codex on the trunk in the
+# hall (scripts/game/codex_lectern.gd plays it, then opens the book; his own picking never chooses it). DRAFT.
 
 ~ first_contact
 do bridge.mark_seen("den_fa_first_contact")
@@ -94,4 +96,9 @@ Den Fa: Day {{bridge.day}}. You're further along than most. Further than you thi
 
 ~ late_3
 Den Fa: You came in and looked at the pillar. You always do. The one who looked at it first was someone else.
+=> END
+
+~ codex_first_open
+Den Fa: That book was old when this tavern was young. It keeps what the guild forgets.
+Den Fa: The cards, the fallen, what was found. Read it when you like. It waits.
 => END
