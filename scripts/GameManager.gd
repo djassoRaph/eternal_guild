@@ -95,6 +95,7 @@ func _ready():
 	print("GameManager singleton initialized")
 	DataManager.data_ready.connect(_on_data_ready)
 	_bridge_signals_to_buses()
+	call_deferred("_add_day_clock")   # Story 3.7: the one persistent day clock (a child, so it lives across scenes)
 
 func _apply_config():
 	gold = DataManager.get_config("starting_gold", 1000)
@@ -2160,6 +2161,70 @@ func _reset_demo_ending_state() -> void:
 	demo_ending = {}
 	_demo_ending_warnings = 0
 
+# === THE DAY CLOCK (Story 3.7; decision log K-14…K-19) ===
+# The time of day is GameManager's (day_clock_minutes: minutes since midnight of the day's start, 6:00 = 360, 2:00 the
+# next morning = 1560; saved, CL-9). The persistent DayClock node (scripts/game/day_clock.gd, this node's child) ticks it
+# in every day scene and is the one sender of GameBus.day_phase_changed; the rules are scripts/game/day_clock_rules.gd.
+# advance_day() puts it back at the start before anything else of the morning (and long before the day's autosave).
+const DayClockRules := preload("res://scripts/game/day_clock_rules.gd")
+const DAY_CLOCK_SCRIPT := "res://scripts/game/day_clock.gd"
+var day_clock_minutes: float = 360.0
+var pending_night := ""                # "nod_off": the clock took the player to the hall to sleep (CL-16; never saved)
+var _day_clock_warnings: int = 0       # a bad day_clock config is warned about once a run (New Game re-arms it)
+
+func _add_day_clock() -> void:
+	if get_node_or_null("DayClock") != null:
+		return
+	var c = load(DAY_CLOCK_SCRIPT).new()
+	c.name = "DayClock"
+	add_child(c)
+
+## The persistent DayClock node (null before _ready's deferred add).
+func day_clock_node() -> Node:
+	return get_node_or_null("DayClock")
+
+## The clock's config for the run's profile (day_clock_rules.config_from: minutes; its warnings pushed once a run).
+func day_clock_config() -> Dictionary:
+	var cfg := DayClockRules.config_from(DataManager.get_config("day_clock"), DataManager.get_config("day_clock_seconds_per_hour"))
+	if not (cfg.warnings as Array).is_empty() and _day_clock_warnings == 0:
+		_day_clock_warnings += 1
+		for w in cfg.warnings:
+			push_warning(w)
+	return cfg
+
+## The phase of the day now ("morning" … "late_night").
+func day_clock_phase() -> String:
+	return DayClockRules.phase_for(day_clock_minutes, day_clock_config())
+
+## "" when the guildmaster may sleep (from sleep_from_hour, K-16), else the bedroom's line.
+func day_clock_sleep_block() -> String:
+	return DayClockRules.sleep_block(day_clock_minutes, day_clock_config())
+
+## The clock back at the day's start (a new day, a new run).
+func _start_day_clock() -> void:
+	day_clock_minutes = float(day_clock_config().start)
+
+## New Game: 6:00, no pending night, the warnings re-armed, the node's session forgotten.
+func _reset_day_clock() -> void:
+	_day_clock_warnings = 0
+	pending_night = ""
+	_start_day_clock()
+	var c := day_clock_node()
+	if c != null and c.has_method("reset_session"):
+		c.reset_session()
+
+## A save's clock (CL-9): its minute; none (older saves) → the start; junk → the start + warning; at or past the end →
+## one minute before it (the nod-off follows at once).
+func _load_day_clock(data: Dictionary) -> void:
+	var r := DayClockRules.from_save(data.get("day_clock_minutes"), day_clock_config())
+	if str(r.warning) != "":
+		push_warning(r.warning)
+	day_clock_minutes = float(r.minutes)
+	pending_night = ""
+	var c := day_clock_node()
+	if c != null and c.has_method("reset_session"):
+		c.reset_session()
+
 # === LOGGING SYSTEM ===
 func log_message(message: String):
 	"""Send message to game log"""
@@ -2594,6 +2659,7 @@ func get_max_firewood_storage() -> int:
 func advance_day():
 	"""Enhanced day advancement with availability reporting"""
 	current_day += 1
+	_start_day_clock()   # Story 3.7: 6:00 before anyone hears of the new day (and so in the day's autosave)
 	day_changed.emit(current_day)
 	on_day_advanced(current_day)
 	fireplace_fuel = 0.0  # Fire dies completely
@@ -2825,6 +2891,7 @@ func get_save_data() -> Dictionary:
 
 		# Time tracking
 		"current_day": current_day,
+		"day_clock_minutes": day_clock_minutes,   # Story 3.7: the time of day (a Continue resumes it, CL-9)
 		"tax_due_day": tax_due_day,
 
 		# Adventurers
@@ -2898,6 +2965,7 @@ func load_save_data(data: Dictionary):
 
 	# Time tracking
 	current_day = _save_int(data.get("current_day"), 1)
+	_load_day_clock(data)   # Story 3.7 (after the run's profile is set: the day's length is the profile's)
 	tax_due_day = _save_int(data.get("tax_due_day"), 30)
 
 	# Adventurers
@@ -3380,6 +3448,7 @@ func reset_game_state():
 	_reset_staff_state()     # the profile's starting staff (Story 16.1)
 	_reset_disturbance_state()   # Story 14.4
 	_reset_demo_ending_state()   # Story 10.7
+	_reset_day_clock()   # Story 3.7: 6:00
 
 	# Game state
 	game_over_active = false
