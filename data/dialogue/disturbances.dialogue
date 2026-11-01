@@ -1,0 +1,71 @@
+# DRAFT (Story 14.4): the tavern's disturbances. Raphael to rewrite. The hall's director opens a title by the event's
+# type and truth (data/disturbances/disturbances.json); a reply records the player's answer with bridge.choose(id) and the
+# outcome follows when the box closes; a reply that chooses nothing (or Esc) leaves the visitor there for later. Game
+# state only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
+
+~ thief_guilty
+Stranger: Evening. Just warming my hands.
+Stranger: This purse? Found it under a table. Lucky night.
+- Throw him out.
+	do bridge.choose("eject")
+	Stranger: All right, all right. No need to shove.
+- Leave him be.
+	do bridge.choose("let_be")
+	Stranger: Kind of you. Very kind.
+- (Walk away.)
+=> END
+
+~ thief_innocent
+Stranger: Evening. I'm waiting for my brother. He said the guild's tavern, by the fire.
+Stranger: He's late. He's always late.
+- Throw him out.
+	do bridge.choose("eject")
+	Stranger: I've done nothing! ... Fine. Tell him I waited.
+- Leave him be.
+	do bridge.choose("let_be")
+	Stranger: Thank you. I'll keep out of the way.
+- (Walk away.)
+=> END
+
+~ rowdy_drunk
+Drunk: Another round! The house is buying! Isn't it?
+Drunk: Nobody sings anymore. Why does nobody sing?
+- Show him the door.
+	do bridge.choose("eject")
+	Drunk: Fine. Fine! I know when I'm not loved.
+- Let him sing.
+	do bridge.choose("let_be")
+	Drunk: That's the spirit!
+- (Walk away.)
+=> END
+
+~ grieving_family
+if bridge.disturbance_subject != ""
+	Mourner: {{bridge.disturbance_subject}} rode out with your guild. They told me there's nothing to bury.
+Mourner: I'm not here to shout. I wanted to see the place they chose.
+- Give her some coin.
+	do bridge.choose("pay")
+	Mourner: It won't fix anything. Thank you all the same.
+- Tell her about them.
+	do bridge.choose("talk")
+	Mourner: That sounds like them. Yes.
+- Ask her to leave.
+	do bridge.choose("send_away")
+	Mourner: I see. I'll go.
+- (Walk away.)
+=> END
+
+~ rival_guild_rep
+Rival: Nice little place. The Silver Compass sends its regards.
+Rival: We're taking contracts on the east road now. Thought you'd want to hear it from us.
+- Wish him luck.
+	do bridge.choose("courteous")
+	Rival: Generous. We'll see how long that lasts.
+- Buy him a drink.
+	do bridge.choose("drink")
+	Rival: Now that's how guilds should talk.
+- Tell him to leave.
+	do bridge.choose("eject")
+	Rival: Touchy. I'll tell them you said hello.
+- (Walk away.)
+=> END

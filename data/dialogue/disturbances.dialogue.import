@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://cvcpfldk54s1k"
+path="res://.godot/imported/disturbances.dialogue-3f746d358a7a6e3f22630c6946ea93a3.tres"
+
+[deps]
+
+source_file="res://data/dialogue/disturbances.dialogue"
+dest_files=["res://.godot/imported/disturbances.dialogue-3f746d358a7a6e3f22630c6946ea93a3.tres"]
+
+[params]
+
+defaults=true

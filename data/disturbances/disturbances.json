@@ -1,0 +1,80 @@
+{
+	"_comment": "DRAFT (Story 14.4): the tavern's disturbances. Raphael rewrites the words; the numbers are placeholders to tune. GameManager rolls one a morning (game_config.json disturbance_*: below a reputation, a daily chance, a cooldown in days, and a schedule that forces one on a day: the demo's thief on Day 2). The hall's director (scripts/game/disturbance_director.gd) shows today's in the day phase: the visitor (body: a townsfolk variant id of data/characters/townsfolk.json, a placeholder body) stands at spot [x, z, yaw degrees] on the hall floor with the banner; E (prompt) opens his title of data/dialogue/disturbances.dialogue for the event's truth (truths: weights; one truth 'plain' for a type with no hidden truth). A reply that calls bridge.choose(id) decides it: outcomes[truth][id] = {rep, gold, line} (whole numbers; the line is the banner after). 'ignored' is the outcome when the day ends with the visitor still there. conditions.min_deaths: deaths this run needed (the mourner comes only after one).",
+	"types": {
+		"thief": {
+			"weight": 3,
+			"conditions": {},
+			"body": "traveller",
+			"spot": [-0.75, -2.5, 45.0],
+			"prompt": "Press E - Talk to the stranger",
+			"banner": "A stranger lingers by the tables.",
+			"truths": {"guilty": 3, "innocent": 1},
+			"titles": {"guilty": "thief_guilty", "innocent": "thief_innocent"},
+			"outcomes": {
+				"guilty": {
+					"eject": {"rep": 2, "gold": 0, "line": "He's gone. The purse stays."},
+					"let_be": {"rep": -1, "gold": -10, "line": "He slipped out. A patron's purse went with him."},
+					"ignored": {"rep": -1, "gold": -10, "line": "He slipped out. A patron's purse went with him."}
+				},
+				"innocent": {
+					"eject": {"rep": -2, "gold": 0, "line": "He left angry. The room saw it."},
+					"let_be": {"rep": 0, "gold": 0, "line": "His brother turned up at last."},
+					"ignored": {"rep": 0, "gold": 0, "line": "His brother turned up at last."}
+				}
+			}
+		},
+		"rowdy_drunk": {
+			"weight": 3,
+			"conditions": {},
+			"body": "local",
+			"spot": [-1.75, -4.5, 45.0],
+			"prompt": "Press E - Talk to the drunk",
+			"banner": "Someone's had too much already.",
+			"truths": {"plain": 1},
+			"titles": {"plain": "rowdy_drunk"},
+			"outcomes": {
+				"plain": {
+					"eject": {"rep": 1, "gold": 0, "line": "Quiet again."},
+					"let_be": {"rep": -1, "gold": -5, "line": "He broke a tankard on his way out."},
+					"ignored": {"rep": -1, "gold": -5, "line": "He broke a tankard on his way out."}
+				}
+			}
+		},
+		"grieving_family": {
+			"weight": 2,
+			"conditions": {"min_deaths": 1},
+			"body": "old_woman",
+			"spot": [7.25, 0.75, -135.0],
+			"prompt": "Press E - Talk to the mourner",
+			"banner": "Someone is waiting at the door.",
+			"truths": {"plain": 1},
+			"titles": {"plain": "grieving_family"},
+			"outcomes": {
+				"plain": {
+					"pay": {"rep": 2, "gold": -15, "line": "She left with the coin and her grief."},
+					"talk": {"rep": 1, "gold": 0, "line": "She listened, and went."},
+					"send_away": {"rep": -2, "gold": 0, "line": "She went without a word."},
+					"ignored": {"rep": -1, "gold": 0, "line": "She waited all day, then left."}
+				}
+			}
+		},
+		"rival_guild_rep": {
+			"weight": 2,
+			"conditions": {},
+			"body": "merchant",
+			"spot": [2.0, -11.0, 45.0],
+			"prompt": "Press E - Talk to the visitor",
+			"banner": "A man from another guild has walked in.",
+			"truths": {"plain": 1},
+			"titles": {"plain": "rival_guild_rep"},
+			"outcomes": {
+				"plain": {
+					"courteous": {"rep": 1, "gold": 0, "line": "He tipped his hat on the way out."},
+					"drink": {"rep": 2, "gold": -6, "line": "He drank, and left in good humour."},
+					"eject": {"rep": -1, "gold": 0, "line": "He'll tell the town you're touchy."},
+					"ignored": {"rep": 0, "gold": 0, "line": "He read your notices and left."}
+				}
+			}
+		}
+	}
+}

@@ -3,6 +3,26 @@
 	"_comment": "Known gaps for failsafe Test 5 (asset-path integrity). Every entry needs a reason and an owner. Exact paths and invalid-JSON entries are stale-guarded: the test FAILS once they are fixed, so the fixing story must remove its entry.",
 	"missing_paths": [
 		{
+			"path": "res://assets/characters/portraits/npc/stranger.png",
+			"reason": "The dialogue portrait of the stranger (the thief), a tavern disturbance (data/dialogue/speakers.json): a placeholder townsfolk body with no portrait rendered, so the dialogue box draws the plate. Render it with the portrait studio (Story 25.17) when the disturbance cast is made (Epic 26), then remove this entry.",
+			"owner": "Story 14.4"
+		},
+		{
+			"path": "res://assets/characters/portraits/npc/drunk.png",
+			"reason": "The dialogue portrait of the drunk, a tavern disturbance (data/dialogue/speakers.json): a placeholder townsfolk body with no portrait rendered, so the dialogue box draws the plate. Render it with the portrait studio (Story 25.17) when the disturbance cast is made (Epic 26), then remove this entry.",
+			"owner": "Story 14.4"
+		},
+		{
+			"path": "res://assets/characters/portraits/npc/mourner.png",
+			"reason": "The dialogue portrait of the mourner, a tavern disturbance (data/dialogue/speakers.json): a placeholder townsfolk body with no portrait rendered, so the dialogue box draws the plate. Render it with the portrait studio (Story 25.17) when the disturbance cast is made (Epic 26), then remove this entry.",
+			"owner": "Story 14.4"
+		},
+		{
+			"path": "res://assets/characters/portraits/npc/rival.png",
+			"reason": "The dialogue portrait of the rival guild's man, a tavern disturbance (data/dialogue/speakers.json): a placeholder townsfolk body with no portrait rendered, so the dialogue box draws the plate. Render it with the portrait studio (Story 25.17) when the disturbance cast is made (Epic 26), then remove this entry.",
+			"owner": "Story 14.4"
+		},
+		{
 			"path": "res://assets/characters/portraits/npc/elder.png",
 			"reason": "The Elder's dialogue portrait (data/dialogue/speakers.json): the Elder has no body yet, so the dialogue box draws the plate. Story 25.11 renders it with the portrait studio (scenes/dev/PortraitStudio.tscn, Story 25.17) and removes this entry.",
 			"owner": "Story 25.11"
