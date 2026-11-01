@@ -367,6 +367,7 @@ func _initialize() -> void:
 	await test_demo_pacing()
 	await test_disturbances()
 	await test_demo_ending()
+	await test_codex_book()
 
 	_finish()
 
@@ -16165,3 +16166,335 @@ func _check_t53_sources() -> void:
 		and dp.demo_ending_line({"state": "coming", "day": 7}, cfg, 33, 2) == "coming, day 7 · rep 33/32 · taxes 2/2"
 		and dp.demo_ending_line({}, {"active": false}, 0, 0) == "off (this run's profile)",
 		"the ending is not a run end (no codex entry, no new run, no class_name); F12: the demo ending line and 'Demo ending now'")
+
+
+# --- Test 44: The Codex book (Story 18.1) ---
+const CODEX_MENU_PATH := "res://scripts/menus/codex_menu.gd"
+const CODEX_UI_PATH := "res://scripts/menus/codex/codex_ui.gd"
+const CODEX_BOOK_CONFIG := "res://data/config/codex_book.json"
+const CODEX_FALLEN_PATH := "res://scripts/menus/codex/fallen_chapter.gd"
+const CODEX_DIR := "res://scripts/menus/codex"
+const MAIN_TAVERN_SCRIPT := "res://scripts/game/main_tavern.gd"
+const T44_DIR := "user://failsafe_t44"
+const T44_CHAPTERS := ["tarot", "fallen", "artefacts", "history"]
+const T44_TABS := ["Tarot Cards", "Fallen Heroes", "Prior Artefacts", "Guild History"]
+const T44_FORBIDDEN := ["GameManager", "save_path", "read_save", "load_game", "save_game", "set_codex", "save_codex", "record_"]
+
+
+## AC 1-8 (Story 18.1): codex_book.json and its fallbacks, the book (backdrop, the placeholder spread, the tabs, the groups),
+## a tab rebuilding the pages in place, the stub, the Fallen Heroes chapter, Close / Esc / a modal key, pause_world (the
+## scene's freeze, else a tree pause), main_tavern.gd's set_world_frozen, the read-only source check. Never writes a save
+## or a codex (both redirected; the real ones' sha256 checked).
+func test_codex_book() -> void:
+	print("[Test 44] The Codex book (Story 18.1)")
+	var ss = root.get_node_or_null("SaveSystem")
+	var dm = root.get_node_or_null("DataManager")
+	if ss == null or dm == null or not ResourceLoader.exists(CODEX_MENU_PATH) or not ResourceLoader.exists(CODEX_UI_PATH) \
+			or not ResourceLoader.exists(CODEX_FALLEN_PATH):
+		check(false, "the SaveSystem and DataManager autoloads, codex_menu.gd, codex_ui.gd and fallen_chapter.gd")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var ss_saved := [ss.save_path, ss.codex_path, ss.codex_data]
+	var scene_saved := current_scene
+	ss.save_path = T44_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T44_DIR + "/codex.dat"
+	var UI = load(CODEX_UI_PATH)
+	UI.set_config(null)
+	UI.reset_warnings()
+	_check_t44_config(UI)
+	await _check_t44_book(UI, dm)
+	_check_t44_fallen(UI, dm)
+	await _check_t44_close(dm)
+	await _check_t44_freeze(dm)
+	_check_t44_sources()
+	UI.set_config(null)
+	UI.reset_warnings()
+	paused = false
+	current_scene = scene_saved
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.codex_data = ss_saved[2]
+	await process_frame
+	check(not FileAccess.file_exists(T44_DIR + "/codex.dat") and not FileAccess.file_exists(T44_DIR + "/eternal_guild_save.json"),
+		"Test 44 (the book) wrote no codex and no save")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 44 never touched the real save or codex")
+	print("")
+
+
+## The fixture codex: three fallen (one with a card id the deck doesn't know), two artefacts, totals as JSON floats.
+static func _t44_codex() -> Dictionary:
+	return {"fallen_heroes": [
+			{"id": 2.0, "name": "Nina", "class": "Healer", "tarot_card": "pentacles_14_king", "hire_day": 3.0, "death_day": 9.0,
+				"missions_completed": 2.0, "timestamp": 100.0},
+			{"id": 4242, "name": "Testla", "class": "Fighter", "tarot_card": "the_tower", "hire_day": 1, "death_day": 12,
+				"missions_completed": 0, "timestamp": 50.0},
+			"junk",
+			{"id": 7, "name": "Dain", "class": "Barbarian", "tarot_card": "pentacles_01_ace", "hire_day": 4, "death_day": 12,
+				"missions_completed": 5, "timestamp": 200.0}],
+		"artifacts_found": [
+			{"id": "hollow_bell", "name": "Hollow Bell", "description": "Rings without a clapper.", "found_day": 1.0, "timestamp": 10.0},
+			{"id": "teal_rune_shard", "name": "Teal Rune Shard", "description": "It hums.", "found_day": 4.0, "timestamp": 20.0}],
+		"total_runs": 1.0, "best_day_reached": 14.0, "total_gold_earned": 320.0, "total_missions_completed": 6.0}
+
+
+## A book on `codex` (and the real deck), in the tree under root.
+func _t44_open(codex: Dictionary, dm, pause_world := false):
+	var book = load(CODEX_MENU_PATH).new()
+	book.codex = codex
+	book.deck = dm.get_tarot_deck()
+	book.pause_world = pause_world
+	root.add_child(book)
+	return book
+
+
+## AC 1, 2: the shipped file, the defaults, a partial or broken config.
+func _check_t44_config(UI) -> void:
+	var raw = _read_json(CODEX_BOOK_CONFIG)
+	var ok: bool = raw is Dictionary and raw.get("chapters") is Array
+	var ids: Array = (raw.chapters as Array).map(func(c): return str(c.get("id", ""))) if ok else []
+	var tabs: Array = (raw.chapters as Array).map(func(c): return str(c.get("tab", ""))) if ok else []
+	var titles_ok: bool = ok and (raw.chapters as Array).all(func(c): return str(c.get("title", "")) != "")
+	check(ok and ids == T44_CHAPTERS and tabs == T44_TABS and titles_ok,
+		"codex_book.json: the four chapters in order, each with a tab and a title %s %s" % [ids, tabs])
+	var same: bool = ok and UI.DEFAULTS.keys().all(func(k): return raw.has(k)) \
+		and (UI.DEFAULTS.text as Dictionary).keys().all(func(k): return (raw.get("text", {}) as Dictionary).has(k)) \
+		and (UI.DEFAULTS.placeholder as Dictionary).keys().all(func(k): return (raw.get("placeholder", {}) as Dictionary).has(k))
+	check(same and str(raw.get("spread", "?")) == "" and str(raw.get("_comment", "")).contains("DRAFT"),
+		"the file holds every key the built-in defaults have (kept in step), spread is empty (the placeholder), its text is marked DRAFT")
+	UI.reset_warnings()
+	var none: Dictionary = UI.merged_config(null)
+	var w1: int = UI.warnings
+	var part: Dictionary = UI.merged_config({"size": "big", "chapters": [], "text": {"close": "Shut"}, "pages": {"left": [0, 0, 1]}})
+	var w2: int = UI.warnings
+	check(none.size == [1600, 900] and (none.chapters as Array).size() == 4 and w1 == 1
+		and part.size == [1600, 900] and (part.chapters as Array).size() == 4 and part.text.close == "Shut"
+		and part.text.stub == UI.DEFAULTS.text.stub and part.pages.left == UI.DEFAULTS.pages.left and part.pages.right == UI.DEFAULTS.pages.right
+		and w2 == 2,
+		"no file: the built-in book, one warning; a bad size, empty chapters, a short page rect: their defaults, one more warning; a given line kept")
+	UI.reset_warnings()
+	UI.set_config(null)
+
+
+## AC 1, 2, 4: the book itself, the tabs, show_chapter in place, the stub, the spread's swap and its fallback.
+func _check_t44_book(UI, dm) -> void:
+	var book = _t44_open(_t44_codex(), dm)
+	await process_frame
+	var ph: Node = book.find_child("PlaceholderSpread", true, false)
+	var names := ["PlaceholderCover", "PlaceholderLeftPage", "PlaceholderRightPage", "PlaceholderGutter", "PlaceholderEye"]
+	var has_all: bool = names.all(func(n): return book.find_child(n, true, false) != null)
+	var backdrop: Node = book.find_child("Backdrop", true, false)
+	var tex: Node = book.find_child("SpreadTexture", true, false)
+	check(book.layer == 128 and book.process_mode == Node.PROCESS_MODE_ALWAYS and backdrop is ColorRect
+		and (backdrop as Control).mouse_filter == Control.MOUSE_FILTER_STOP and ph is Control and (ph as Control).visible
+		and has_all and tex is NinePatchRect and not (tex as Control).visible and UI.warnings == 0,
+		"the book: layer 128, runs paused, a backdrop that eats the mouse, the placeholder spread (cover, two pages, gutter, eye), no texture, no warning")
+	var tab_texts: Array = T44_CHAPTERS.map(func(id): return (book._tabs[id] as Button).text if book._tabs.has(id) else "?")
+	check(tab_texts == T44_TABS and book.current_chapter == "tarot" and (book._tabs.tarot as Button).button_pressed
+		and not (book._tabs.fallen as Button).button_pressed,
+		"four tabs with their labels %s; it opens on the first chapter, its tab marked" % [tab_texts])
+	var Z = load("res://scripts/game/ZonePromptUI.gd")
+	check(book.is_in_group("blocks_player") and book.is_in_group("codex_open") and Z.modal_open(self),
+		"while open the book is in blocks_player and codex_open: ZonePromptUI.modal_open() is true (E closes, the hall's log steps aside)")
+	var same_book: bool = true
+	var gone_ok: bool = true
+	for id in ["fallen", "artefacts", "history", "tarot"]:
+		var before: Array = book._left.get_children()
+		(book._tabs[id] as Button).pressed.emit()
+		same_book = same_book and is_instance_valid(book) and book.is_inside_tree() and book.current_chapter == id \
+			and (book._tabs[id] as Button).button_pressed
+		gone_ok = gone_ok and before.all(func(c): return not is_instance_valid(c) or c.get_parent() == null)
+	check(same_book and gone_ok, "each tab shows its chapter in the same book (its tab marked); the old pages' content is gone")
+	var title_ok: bool = (book._left.get_child(0) as Label).text == "The Arcana"
+	book.show_chapter("nonsense")
+	var stub: Node = book._left.find_child("Stub", true, false)
+	check(title_ok and stub is Label and (stub as Label).text == UI.text(UI.config(), "stub") and book.current_chapter == "nonsense"
+		and UI.warnings == 1,
+		"a chapter's title heads the left page; an unknown chapter: the stub page and one warning, no error")
+	book.close()
+	await process_frame
+	UI.reset_warnings()
+	UI.set_config({"spread": "res://assets/ui/t44_no_such_spread.png"})
+	var bad = _t44_open({}, dm)
+	await process_frame
+	var bad_ph: Control = bad.find_child("PlaceholderSpread", true, false)
+	check(bad_ph != null and bad_ph.visible and not (bad.find_child("SpreadTexture", true, false) as Control).visible and UI.warnings >= 1,
+		"a spread that doesn't load: the placeholder is drawn, with a warning")
+	bad.close()
+	await process_frame
+	UI.set_config({"spread": "res://assets/ui/tarot/placeholder_tarot_frame.png"})
+	var good = _t44_open({}, dm)
+	await process_frame
+	var nine: NinePatchRect = good.find_child("SpreadTexture", true, false)
+	check(nine != null and nine.visible and nine.texture is Texture2D and not (good.find_child("PlaceholderSpread", true, false) as Control).visible
+		and nine.patch_margin_left == 48,
+		"a spread texture in the config replaces the placeholder (a nine-patch with spread_margins): 25.19/25.20's swap")
+	good.close()
+	await process_frame
+	UI.set_config(null)
+	UI.reset_warnings()
+	check(not Z.modal_open(self), "closed books leave no modal behind")
+
+
+## AC 3: the Fallen Heroes chapter (pure order, the rows, an unknown card, the count, the focus, empty).
+func _check_t44_fallen(UI, dm) -> void:
+	var F = load(CODEX_FALLEN_PATH)
+	var order: Array = F.fallen_entries(_t44_codex()).map(func(e): return e.name)
+	check(order == ["Dain", "Testla", "Nina"] and F.fallen_entries({}).is_empty() and F.fallen_entries({"fallen_heroes": "x"}).is_empty(),
+		"fallen_entries: newest death first, a tie by the later timestamp, junk skipped; none / not a list -> [] %s" % [order])
+	var cfg: Dictionary = UI.config()
+	var ch = F.new()
+	var l := VBoxContainer.new()
+	var r := VBoxContainer.new()
+	ch.build(l, r, {"codex": _t44_codex(), "deck": dm.get_tarot_deck(), "cfg": cfg, "book": null, "focus": 2})
+	var tops: Array = ch.rows.map(func(x): return (x.node.find_child("Name", true, false) as Label).text)
+	var details: Array = ch.rows.map(func(x): return (x.node.find_child("Detail", true, false) as Label).text)
+	var count: Label = r.find_child("Count", true, false)
+	var nina_row: Control = ch.rows[2].node if ch.rows.size() == 3 else null
+	check(ch.rows.size() == 3 and str(tops[2]).contains("Nina") and str(tops[2]).contains("Healer") and str(tops[2]).contains("(King of Pentacles)")
+		and str(tops[1]).contains("Testla") and not str(tops[1]).contains("(") and details[2] == "Hired Day 3 · Fell Day 9 · 2 missions completed"
+		and count != null and count.text == "3 fallen" and r.find_child("Epigraph", true, false) is Label,
+		"the rows: name, class, the card's name (none for an id the deck doesn't know), ints for the days; the right page counts them %s" % [details])
+	check(ch.focused != null and ch.focused == nina_row, "focus (a hero's id, 2.0 vs 2): that row is highlighted (18.3's link)")
+	l.free()
+	r.free()
+	var ch2 = F.new()
+	var l2 := VBoxContainer.new()
+	var r2 := VBoxContainer.new()
+	ch2.build(l2, r2, {"codex": {}, "deck": [], "cfg": cfg, "book": null, "focus": null})
+	var empty: Label = l2.find_child("Empty", true, false)
+	check(empty != null and empty.text == "No heroes have fallen yet." and (r2.find_child("Count", true, false) as Label).text == "0 fallen",
+		"no fallen: 'No heroes have fallen yet.'")
+	l2.free()
+	r2.free()
+
+
+## AC 5: Close, Esc and any other key while open (the book is modal), each Esc / key seen by nothing behind it.
+func _check_t44_close(dm) -> void:
+	var spy = Node.new()
+	var gs := GDScript.new()
+	gs.source_code = "extends Node\nvar inputs := 0\nvar unhandled := 0\nfunc _input(e):\n\tif (e is InputEventKey or e is InputEventAction) and e.is_pressed():\n\t\tinputs += 1\nfunc _unhandled_input(e):\n\tif (e is InputEventKey or e is InputEventAction) and e.is_pressed():\n\t\tunhandled += 1\n"
+	gs.reload()
+	spy.set_script(gs)
+	root.add_child(spy)
+	var book = _t44_open(_t44_codex(), dm)
+	var closes := [0]
+	book.closed.connect(func(): closes[0] += 1)
+	await process_frame
+	await _press_key(KEY_F10)
+	await _press_key(KEY_E)
+	check(is_instance_valid(book) and not book.is_closing() and spy.inputs == 0 and spy.unhandled == 0,
+		"F10 and E while the book is open: the book keeps them (nothing behind it sees a key), still open")
+	await _press("ui_cancel")
+	check(closes[0] == 1 and (not is_instance_valid(book) or book.is_queued_for_deletion() or book.is_closing()) and spy.inputs == 0 and spy.unhandled == 0,
+		"Esc closes the book (closed once) and nothing behind it sees the Esc (the pause menu, the hall's keys)")
+	await process_frame
+	var book2 = _t44_open({}, dm)
+	var closes2 := [0]
+	book2.closed.connect(func(): closes2[0] += 1)
+	await process_frame
+	(book2.find_child("CloseButton", true, false) as Button).pressed.emit()
+	book2.close()
+	await process_frame
+	check(closes2[0] == 1 and not is_instance_valid(book2), "the Close button closes it (closed once, freed; a second close does nothing)")
+	spy.free()
+
+
+## AC 5 (DC-11): pause_world freezes through the scene's set_world_frozen when it has one, else a tree pause; only what the
+## book did is undone. main_tavern.gd's set_world_frozen / is_world_frozen and toggle_pause_menu.
+func _check_t44_freeze(dm) -> void:
+	var gs := GDScript.new()
+	gs.source_code = "extends Node\nvar frozen := false\nvar calls: Array = []\nfunc set_world_frozen(on: bool) -> void:\n\tfrozen = on\n\tcalls.append(on)\nfunc is_world_frozen() -> bool:\n\treturn frozen\n"
+	gs.reload()
+	var hall = Node.new()
+	hall.set_script(gs)
+	root.add_child(hall)
+	current_scene = hall
+	var book = _t44_open({}, dm, true)
+	await process_frame
+	var while_open: Array = hall.calls.duplicate()
+	var tree_paused := paused
+	book.close()
+	await process_frame
+	check(while_open == [true] and hall.calls == [true, false] and not tree_paused and not paused,
+		"pause_world in a scene with set_world_frozen (the hall): frozen while open, unfrozen on close, the tree never paused %s" % [hall.calls])
+	hall.calls = []
+	hall.frozen = true
+	var book2 = _t44_open({}, dm, true)
+	await process_frame
+	book2.close()
+	await process_frame
+	check(hall.calls.is_empty() and hall.frozen, "already frozen (the pause menu's own): the book leaves it frozen both ways")
+	var plain = Node.new()
+	root.add_child(plain)
+	current_scene = plain
+	var book3 = _t44_open({}, dm, true)
+	await process_frame
+	var p_open := paused
+	book3.close()
+	await process_frame
+	var p_after := paused
+	paused = true
+	var book4 = _t44_open({}, dm, true)
+	await process_frame
+	book4.close()
+	await process_frame
+	var p_kept := paused
+	paused = false
+	var book5 = _t44_open({}, dm, false)
+	await process_frame
+	var p_menu := paused
+	book5.close()
+	await process_frame
+	check(p_open and not p_after and p_kept and not p_menu,
+		"a scene without it: a tree pause while open, undone on close; an already paused tree stays paused; pause_world off (the menus): no pause")
+	current_scene = null
+	hall.free()
+	plain.free()
+	var mt = load(MAIN_TAVERN_SCRIPT).new()
+	var svc := SubViewportContainer.new()
+	svc.name = "SubViewportContainer"
+	mt.add_child(svc)
+	var ok_api: bool = mt.has_method("set_world_frozen") and mt.has_method("is_world_frozen")
+	var frozen_ok := false
+	var thawed_ok := false
+	if ok_api:
+		mt.set_world_frozen(true)
+		frozen_ok = svc.process_mode == Node.PROCESS_MODE_DISABLED and svc.mouse_filter == Control.MOUSE_FILTER_IGNORE and mt.is_world_frozen()
+		mt.set_world_frozen(false)
+		thawed_ok = svc.process_mode == Node.PROCESS_MODE_INHERIT and svc.mouse_filter == Control.MOUSE_FILTER_STOP and not mt.is_world_frozen()
+	mt.free()
+	var src := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT)
+	var toggle := src.substr(src.find("func toggle_pause_menu"), 300)
+	check(ok_api and frozen_ok and thawed_ok and toggle.contains("set_world_frozen(pause_menu.visible)"),
+		"main_tavern.gd: set_world_frozen disables the SubViewportContainer and takes the mouse off it, is_world_frozen reads it; the pause menu toggle uses it")
+
+
+## AC 6, 7: the book reads codex.dat only and writes nothing (a source check); the menus still open it by path.
+func _check_t44_sources() -> void:
+	var files: Array = [CODEX_MENU_PATH]
+	var dir := DirAccess.open(CODEX_DIR)
+	if dir:
+		for f in dir.get_files():
+			if f.ends_with(".gd"):
+				files.append(CODEX_DIR + "/" + f)
+	var hits: Array = []
+	for p in files:
+		var s := FileAccess.get_file_as_string(p)
+		for t in T44_FORBIDDEN:
+			if s.contains(t):
+				hits.append("%s: %s" % [p.get_file(), t])
+	var menu_src := FileAccess.get_file_as_string(CODEX_MENU_PATH)
+	var chapters_clean := true
+	for p in files:
+		if p != CODEX_MENU_PATH:
+			var s := FileAccess.get_file_as_string(p)
+			if s.contains("SaveSystem") or s.contains("DataManager"):
+				chapters_clean = false
+				hits.append("%s: an autoload" % p.get_file())
+	check(files.size() >= 3 and hits.is_empty() and chapters_clean,
+		"the book's scripts name no save path, save/load call or codex write, and its chapters no autoload (%d files; hits %s)" % [files.size(), hits])
+	var mm := FileAccess.get_file_as_string("res://scripts/menus/main_menu.gd")
+	var pm := FileAccess.get_file_as_string(PAUSE_MENU_SCRIPT_PATH)
+	check(not menu_src.contains("class_name") and mm.contains("preload(\"res://scripts/menus/codex_menu.gd\").new()")
+		and pm.contains("preload(\"res://scripts/menus/codex_menu.gd\").new()"),
+		"no class_name on the book; the main menu and the pause menu still open it by path")
