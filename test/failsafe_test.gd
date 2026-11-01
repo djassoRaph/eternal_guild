@@ -366,6 +366,7 @@ func _initialize() -> void:
 	await test_quest_dealer_works()
 	await test_demo_pacing()
 	await test_disturbances()
+	await test_demo_ending()
 
 	_finish()
 
@@ -8410,7 +8411,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"staff", "desk_round_day",   # Story 16.1: the staff records; Story 16.4: the day of the Quest Dealer's last round
 	"_rep_warnings", "_death_mult_warnings",   # Story 14.6: the reset re-arms these
 	"pending_disturbance", "last_disturbance_day", "_disturbance_warnings",   # Story 14.4: the day's disturbance
-	"fallen_this_run", "disturbance_note", "reputation_peak_tier"]   # Stories 14.4 / 14.6 code review (P4, P3, P9)
+	"fallen_this_run", "disturbance_note", "reputation_peak_tier",   # Stories 14.4 / 14.6 code review (P4, P3, P9)
+	"demo_ending", "_demo_ending_warnings"]   # Story 10.7: the demo's ending
 
 
 func test_load_and_resume() -> void:
@@ -15426,3 +15428,740 @@ func _check_t38_quiet_morning(gm, nm) -> void:
 	world.queue_free()
 	await process_frame
 	await process_frame
+
+
+# --- Test 53: the demo ending, the King's messenger (Story 10.7) ---
+const T53_DIR := "user://failsafe_t53"
+const T53_RULES := "res://scripts/game/demo_ending_rules.gd"
+const T53_CONTROLLER := "res://scripts/game/royal_messenger.gd"
+const T53_NPC := "res://scripts/npcs/royal_messenger_npc.gd"
+const T53_CARD := "res://scripts/ui/demo_end_card.gd"
+const T53_DATA := "res://data/narrative/demo_ending.json"
+const T53_DIALOGUE := "res://data/dialogue/royal_messenger.dialogue"
+const T53_SPOT_CLEAR := 2.3    # as the visitors' spots (Test 38): his talk radius (1.2) + two player radii
+const T53_SEAT_CLEAR := 4.55   # a patron waiting within 3 m of the player takes E; + 1.2 + the player's 0.35
+
+
+## AC 1-11 (Story 10.7): the rules, the config, the data, the conversation, GameManager's state (both profiles, save/load,
+## the quiet day), the wait spot in the real hall, the hall's controller and the messenger in a stand-in hall (arrival
+## gates, the walk to the player, the wait spot, the talk, the ending's steps: heard, the hall stopped, Story 10.1's panel
+## seam, the end card), the end card alone, and the source checks. Never touches the real save or codex.
+func test_demo_ending() -> void:
+	print("[Test 53] The demo ending: the King's messenger (Story 10.7)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	var nm = root.get_node_or_null("NotificationManager")
+	var dmgr = root.get_node_or_null("DialogueManager")
+	if gm == null or wm == null or dm == null or gb == null or ss == null or nm == null or dmgr == null:
+		check(false, "the GameManager, WorldManager, DataManager, GuildBus, SaveSystem, NotificationManager, DialogueManager autoloads")
+		return
+	var missing := [T53_RULES, T53_CONTROLLER, T53_NPC, T53_CARD].filter(func(p): return not ResourceLoader.exists(p))
+	if not missing.is_empty() or not gm.has_method("demo_ending_heard") or not gb.has_signal("demo_ending_changed"):
+		check(false, "the demo ending's scripts %s, GameManager.demo_ending_heard and GuildBus.demo_ending_changed" % [missing])
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	dm.set("run_profile", "")
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
+	ss.run_active = false
+	ss.save_path = T53_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T53_DIR + "/codex.dat"
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	var events: Array = []
+	var spy := func(s, d): events.append([s, d])
+	gb.demo_ending_changed.connect(spy)
+
+	_check_t53_rules()
+	_check_t53_data(dm)
+	await _check_t53_dialogue(dmgr, gm)
+	_check_t53_manager(gm, dm, ss, events)
+	_check_t53_save(gm, dm, events)
+	_check_t53_quiet_day(gm, dm)
+	await _check_t53_spot()
+	await _check_t53_hall(gm, dm, nm, ss, events)
+	await _check_t53_card()
+	_check_t53_sources()
+
+	if gb.demo_ending_changed.is_connected(spy):
+		gb.demo_ending_changed.disconnect(spy)
+	paused = false
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	ss.codex_data = ss_saved[3]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	nm.clear_banners()
+	await process_frame
+	check(not FileAccess.file_exists(T53_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T53_DIR + "/codex.dat"),
+		"Test 53 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 53 never touched the real save or codex")
+	print("")
+
+
+## AC 1: the pure rules.
+func _check_t53_rules() -> void:
+	var R = load(T53_RULES)
+	var on: Dictionary = R.config_from({"enabled": true, "min_reputation": 32, "min_taxes_paid": 2}, true)
+	var bad: Dictionary = R.config_from({"enabled": true, "min_reputation": -1, "min_taxes_paid": 0.5}, true)
+	check(on.active and on.min_reputation == 32 and on.min_taxes_paid == 2 and (on.warnings as Array).is_empty()
+		and not R.config_from({"enabled": true, "min_reputation": 32, "min_taxes_paid": 2}, false).active
+		and not R.config_from({"enabled": false}, true).active and not R.config_from(null, true).active
+		and (R.config_from(null, true).warnings as Array).is_empty() and not R.config_from("on", true).active
+		and bad.active and bad.min_reputation == 32 and bad.min_taxes_paid == 2 and (bad.warnings as Array).size() == 2,
+		"config_from: active only in the demo AND enabled; no block is off, silently; a bad number takes its default (32 / 2) with a warning")
+	var cfg := {"active": true, "min_reputation": 32, "min_taxes_paid": 2}
+	var none := {}
+	var due: Dictionary = R.queue_if_met({}, 32, 2, 6, cfg)
+	var kept := {"state": "waiting", "day": 3}
+	check(R.queue_if_met({}, 31, 2, 6, cfg).is_empty() and R.queue_if_met({}, 40, 1, 6, cfg).is_empty()
+		and due == {"state": "due", "day": 7, "returning": false} and is_same(R.queue_if_met(kept, 50, 5, 6, cfg), kept)
+		and R.queue_if_met(none, 50, 5, 6, {"active": false, "min_reputation": 0, "min_taxes_paid": 1}).is_empty(),
+		"queue_if_met: one condition alone does nothing; both on day 6 -> due day 7; a state already set and an inactive config are left alone")
+	check(R.morning({"state": "due", "day": 7}, 6) == {"state": "due", "day": 7} and R.morning({"state": "due", "day": 7}, 7) == {"state": "coming", "day": 7, "returning": false}
+		and R.morning({"state": "due", "day": 7}, 9) == {"state": "coming", "day": 9, "returning": false}
+		and R.morning({"state": "coming", "day": 7}, 8) == {"state": "coming", "day": 8, "returning": true}
+		and R.morning({"state": "waiting", "day": 7}, 8) == {"state": "coming", "day": 8, "returning": true}
+		and R.morning({"state": "ended", "day": 7}, 8) == {"state": "ended", "day": 7} and R.morning({}, 8).is_empty()
+		and R.morning({"state": "coming", "day": 8}, 8) == {"state": "coming", "day": 8} and R.morning({"state": "waiting", "day": 8}, 8) == {"state": "waiting", "day": 8},
+		"morning: due on (or after) its day -> coming; an unheard messenger comes again on a later day (returning); today's, ended and none stay")
+	check(R.for_save({"state": "ended", "day": 7, "returning": true}) == {"state": "waiting", "day": 7, "returning": true}
+		and R.for_save({"state": "due", "day": 7}) == {"state": "due", "day": 7} and R.for_save({}).is_empty(),
+		"for_save: a save never holds 'ended' (written as 'waiting': Continue replays the final day)")
+	var good: Dictionary = R.from_save({"state": "waiting", "day": 7.0, "returning": true})
+	check(R.from_save(null).state.is_empty() and R.from_save(null).warning == "" and R.from_save({}).warning == ""
+		and R.from_save("junk").state.is_empty() and R.from_save("junk").warning != ""
+		and R.from_save({"state": "ended", "day": 7}).state.is_empty() and R.from_save({"state": "ended", "day": 7}).warning != ""
+		and R.from_save({"state": "waiting", "day": 0}).warning != "" and R.from_save({"state": "due", "day": 2.5}).warning != ""
+		and good.state == {"state": "waiting", "day": 7, "returning": true} and good.warning == "",
+		"from_save: none and {} silently; junk, 'ended', a bad day -> none with a warning; a good state read back")
+
+
+## AC 4 and the config (14.6's profiles.demo): the data file, the speaker, the profile values, the defaults.
+func _check_t53_data(dm) -> void:
+	var data = _read_json(T53_DATA)
+	var folk = _read_json(TOWNSFOLK_PATH)
+	var ids: Array = (folk.get("variants", []) as Array).map(func(v): return str(v.get("id", ""))) if folk is Dictionary else []
+	var m: Dictionary = data.get("messenger", {}) if data is Dictionary and data.get("messenger") is Dictionary else {}
+	var t: Dictionary = data.get("text", {}) if data is Dictionary and data.get("text") is Dictionary else {}
+	var c: Dictionary = data.get("end_card", {}) if data is Dictionary and data.get("end_card") is Dictionary else {}
+	var num := func(v): return v is int or v is float
+	var p3 := func(v): return v is Array and v.size() == 3 and v.all(func(x): return x is int or x is float)
+	var bad := []
+	if not ids.has(str(m.get("body", ""))): bad.append("body")
+	if not ResourceLoader.exists(str(m.get("dialogue", ""))) and not FileAccess.file_exists(str(m.get("dialogue", ""))): bad.append("dialogue")
+	if str(m.get("title", "")) == "": bad.append("title")
+	if not p3.call(m.get("porch")): bad.append("porch")
+	if not (m.get("route_in") is Array and not (m.route_in as Array).is_empty() and (m.route_in as Array).all(func(q): return p3.call(q))): bad.append("route_in")
+	if not p3.call(m.get("wait_spot")): bad.append("wait_spot")
+	if not (m.get("approach") is bool): bad.append("approach")
+	for k in ["approach_stop_m", "repath_seconds", "approach_timeout_seconds", "walk_in_timeout_seconds", "arrival_delay_seconds"]:
+		if not (num.call(m.get(k)) and float(m[k]) > 0.0): bad.append(k)
+	for k in ["banner_arrival", "banner_return", "prompt"]:
+		if str(t.get(k, "")) == "": bad.append(k)
+	if not (data is Dictionary and data.get("panel_id") is String): bad.append("panel_id")
+	if str(c.get("title", "")) == "" or not (c.get("lines") is Array and not (c.lines as Array).is_empty()) or not (c.get("kickstarter_line") is String) \
+			or str(c.get("button", "")) == "" or not (num.call(c.get("min_seconds")) and float(c.min_seconds) > 0.0) or not (num.call(c.get("fade_seconds")) and float(c.fade_seconds) >= 0.0):
+		bad.append("end_card")
+	check(data is Dictionary and str(data.get("_comment", "")).begins_with("DRAFT (Story 10.7)") and bad.is_empty()
+		and m.get("body") == "guard" and m.get("speaker") == "royal_messenger" and data.get("panel_id") == "the_kings_request",
+		"demo_ending.json (DRAFT): the messenger (the townsfolk guard, a placeholder by one key), his conversation, porch, route in, wait spot and timings; the banners and prompt; Story 10.1's panel id; the end card (wrong: %s)" % [bad])
+	var sp = _read_json(SPEAKERS_PATH)
+	var e = sp.get("speakers", {}).get("royal_messenger") if sp is Dictionary and sp.get("speakers") is Dictionary else null
+	check(e is Dictionary and str(e.get("name", "")) == "The King's Messenger" and Color.html_is_valid(str(e.get("colour", "")))
+		and str(e.get("portrait", "")) == "res://assets/characters/portraits/npc/royal_messenger.png",
+		"speakers.json: royal_messenger, The King's Messenger, a plate colour, his portrait path (allowlisted until Story 26.3)")
+	var C = load(T53_CONTROLLER)
+	var dflt: Dictionary = C.merged({})
+	var over: Dictionary = C.merged({"messenger": {"body": "farmer"}, "panel_id": "", "_comment": "x", "nope": 1})
+	check(C.load_data("res://data/narrative/no_such_file.json").is_empty() and dflt.messenger.body == "guard"
+		and dflt.end_card.button != "" and over.messenger.body == "farmer" and over.messenger.title == "deliver" and over.panel_id == ""
+		and not over.has("_comment") and not over.has("nope"),
+		"a missing data file -> the built-in defaults (with a warning); a section's keys merge over the defaults one by one")
+	var cfg: Dictionary = dm.game_config
+	var demo = dm.resolve_config(cfg, "demo_ending", null, [], "demo")
+	var full = dm.resolve_config(cfg, "demo_ending", null, [], "full")
+	check(demo is Dictionary and demo.get("enabled") == true and int(demo.get("min_reputation", 0)) == 32 and int(demo.get("min_taxes_paid", 0)) == 2
+		and full is Dictionary and full.get("enabled") == false,
+		"game_config: the demo profile's demo_ending is on (reputation 32, 2 taxes); the full game's is off")
+
+
+## AC 6: the conversation.
+func _check_t53_dialogue(dmgr, gm) -> void:
+	var text := FileAccess.get_file_as_string(T53_DIALOGUE)
+	var compiled = DMCompiler.compile_string(text, T53_DIALOGUE)
+	var bridge_script = load(BRIDGE_SCRIPT)
+	var names := []
+	for p in (bridge_script as GDScript).get_script_property_list():
+		names.append(p.name)
+	for mm in (bridge_script as GDScript).get_script_method_list():
+		names.append(mm.name)
+	names = names.filter(func(n): return not str(n).begins_with("_") and not str(n).ends_with(".gd"))
+	check(text.begins_with("# DRAFT (Story 10.7)") and compiled.errors.is_empty() and (compiled.titles as Dictionary).has("deliver")
+		and _dialogue_lint(text, names).is_empty() and not Array(text.split("\n")).filter(func(l): return not l.begins_with("#")).any(func(l): return l.to_lower().contains("demon")),
+		"royal_messenger.dialogue: DRAFT, compiles, ~ deliver, passes the bridge lint, never names the Demon King")
+	var runner = load(RUNNER_SCRIPT)
+	var res = runner.compile_text(text, T53_DIALOGUE)
+	var keep_deaths = gm.deaths_this_run
+	var walks := []
+	for pick in 2:
+		for deaths in [0, 1]:
+			gm.deaths_this_run = deaths
+			var b = runner.new_bridge()
+			var states := [{"bridge": b}]
+			var line = await dmgr.get_next_dialogue_line(res, "deliver", states)
+			var shown := []
+			var heard_at := -1
+			var steps := 0
+			while line != null and steps < 40:
+				steps += 1
+				shown.append(line.text)
+				if heard_at < 0 and b.choice == "heard":
+					heard_at = shown.size() - 1
+				if line.responses.size() > 0:
+					line = await dmgr.get_next_dialogue_line(res, line.responses[pick].next_id, states)
+				else:
+					line = await dmgr.get_next_dialogue_line(res, line.next_id, states)
+			walks.append({"ended": line == null, "choice": b.choice, "heard_at": heard_at, "n": shown.size(), "texts": shown})
+	gm.deaths_this_run = keep_deaths
+	var ok := walks.all(func(w): return w.ended and w.choice == "heard" and w.heard_at == w.n - 1 and str(w.texts[-1]).begins_with("The King asks for your guild's help"))
+	check(ok and walks.size() == 4, "every walk (each reply, with and without a death) ends with the choice 'heard', set just before the last line, the King's request %s" % [walks.map(func(w): return [w.n, w.heard_at, w.choice])])
+	check(not "\n".join(walks[0].texts).contains("buried") and "\n".join(walks[1].texts).contains("buried some of your own"),
+		"his line about the guild's dead shows only after a death this run (bridge.deaths_this_run)")
+	var b2 = runner.new_bridge()
+	var st2 := [{"bridge": b2}]
+	var l2 = await dmgr.get_next_dialogue_line(res, "deliver", st2)
+	for i in 3:
+		if l2 != null:
+			l2 = await dmgr.get_next_dialogue_line(res, l2.next_id, st2)
+	check(l2 != null and b2.choice == "", "a conversation left before the last line (Esc) chooses nothing: he keeps waiting")
+
+
+## AC 2 and AC 8: GameManager's state under the demo profile and the full game.
+func _check_t53_manager(gm, dm, ss, events: Array) -> void:
+	dm.set("run_profile", "demo")
+	gm.game_over_active = false
+	gm.mission_tier_unlocked = 2   # a tax paid below never unlocks a tier here (no mission refresh, no WorldManager)
+	gm.demo_ending = {}
+	gm.current_day = 6
+	gm.taxes_paid_count = 2
+	gm.tavern_reputation = 30
+	events.clear()
+	gm.adjust_reputation(1, "t53")
+	var short: bool = gm.demo_ending.is_empty() and events.is_empty()
+	gm.adjust_reputation(1, "t53")
+	var due: Dictionary = gm.demo_ending.duplicate()
+	gm.adjust_reputation(5, "t53")
+	gm.adjust_reputation(-20, "t53")
+	check(short and due == {"state": "due", "day": 7, "returning": false} and gm.demo_ending == due and events == [["due", 7]],
+		"demo: with 2 taxes paid, reputation reaching 32 on day 6 makes the ending due on day 7, once (GuildBus.demo_ending_changed); a later gain or drop changes nothing")
+	# the other order: reputation first, then the second tax
+	gm.demo_ending = {}
+	events.clear()
+	gm.tavern_reputation = 40
+	gm.taxes_paid_count = 1
+	gm.gold = 500
+	gm.tax_grace_days = 0
+	gm.tax_due_day = 6
+	gm.handle_tax_payment()
+	check(gm.taxes_paid_count == 2 and gm.demo_ending == {"state": "due", "day": 7, "returning": false} and events == [["due", 7]],
+		"demo: reputation first, then the second tax paid (handle_tax_payment) -> due the next morning")
+	# the morning step, the fall, the hall's two calls
+	events.clear()
+	gm.current_day = 7
+	var arrived_early: bool = gm.demo_ending_arrived()
+	gm._advance_demo_ending()
+	var coming: Dictionary = gm.demo_ending.duplicate()
+	gm._advance_demo_ending()
+	check(not arrived_early and coming == {"state": "coming", "day": 7, "returning": false} and gm.demo_ending_today() and events == [["coming", 7]],
+		"demo: on its morning the ending is 'coming' today (once); the hall can't call him in before that")
+	gm.demo_ending = {"state": "due", "day": 7, "returning": false}
+	gm.game_over_active = true
+	gm._advance_demo_ending()
+	var fall_wins: bool = gm.demo_ending.state == "due"
+	gm.game_over_active = false
+	gm.demo_ending = coming.duplicate()
+	events.clear()
+	ss.run_active = true
+	var a1: bool = gm.demo_ending_arrived()
+	var a2: bool = gm.demo_ending_arrived()
+	var h1: bool = gm.demo_ending_heard()
+	var h2: bool = gm.demo_ending_heard()
+	check(fall_wins and a1 and not a2 and h1 and not h2 and gm.demo_ending.state == "ended" and ss.run_active == false
+		and events == [["waiting", 7], ["ended", 7]],
+		"the fall wins over his morning; arrived: coming -> waiting; heard: waiting -> ended and the automatic saves stop (run_active false); each refuses twice")
+	gm.current_day = 8
+	gm._advance_demo_ending()
+	var ended_stays: bool = gm.demo_ending.state == "ended"
+	# an unheard messenger comes again the next morning
+	gm.demo_ending = {"state": "waiting", "day": 7, "returning": false}
+	events.clear()
+	gm._advance_demo_ending()
+	check(ended_stays and gm.demo_ending == {"state": "coming", "day": 8, "returning": true} and events == [["coming", 8]],
+		"ended stays ended; a messenger not heard yesterday comes again (returning: the 'he's back' banner)")
+	# the full game, and the demo with the block off: nothing, ever
+	dm.set("run_profile", "full")
+	gm.demo_ending = {}
+	gm.taxes_paid_count = 5
+	gm.tavern_reputation = 90
+	events.clear()
+	gm.adjust_reputation(1, "t53")
+	gm._update_demo_ending()
+	var full_none: bool = gm.demo_ending.is_empty()
+	var full_debug: bool = gm.debug_demo_ending_now()
+	gm.demo_ending = {"state": "due", "day": 8, "returning": false}
+	gm._advance_demo_ending()
+	var full_frozen: bool = gm.demo_ending.state == "due"
+	gm.demo_ending = {}
+	dm.set("run_profile", "demo")
+	var keep_block = dm.game_config.profiles.demo.demo_ending
+	dm.game_config.profiles.demo.demo_ending = {"enabled": false, "min_reputation": 32, "min_taxes_paid": 2}
+	gm.adjust_reputation(1, "t53")
+	var off_none: bool = gm.demo_ending.is_empty()
+	dm.game_config.profiles.demo.demo_ending = keep_block
+	check(full_none and not full_debug and full_frozen and off_none and events.is_empty(),
+		"the full game (and the demo with enabled false) never queues, advances, debugs or signals it")
+	gm.current_day = 9
+	var dbg: bool = gm.debug_demo_ending_now()
+	check(dbg and gm.demo_ending == {"state": "coming", "day": 9, "returning": false} and events.back() == ["coming", 9],
+		"F12's Demo ending now: the messenger comes today (demo only)")
+	gm.demo_ending = {}
+
+
+## AC 3: saved and loaded; never twice; old saves; New Game.
+func _check_t53_save(gm, dm, events: Array) -> void:
+	dm.set("run_profile", "demo")
+	gm.current_day = 7
+	gm.demo_ending = {"state": "ended", "day": 7, "returning": false}
+	var saved: Dictionary = gm._demo_ending_save_data()
+	var rt = JSON.parse_string(JSON.stringify(saved))
+	gm.demo_ending = {}
+	events.clear()
+	gm.tavern_reputation = 10
+	gm.taxes_paid_count = 0
+	gm._load_demo_ending_data(rt)
+	var back: Dictionary = gm.demo_ending.duplicate()
+	gm.tavern_reputation = 40
+	gm.taxes_paid_count = 2
+	gm._load_demo_ending_data({})
+	var old: Dictionary = gm.demo_ending.duplicate()
+	gm.tavern_reputation = 10
+	gm._load_demo_ending_data({"demo_ending": "junk"})
+	var junk: Dictionary = gm.demo_ending.duplicate()
+	gm._reset_demo_ending_state()
+	check(saved == {"demo_ending": {"state": "waiting", "day": 7, "returning": false}} and back == {"state": "waiting", "day": 7, "returning": false}
+		and old == {"state": "due", "day": 8, "returning": false} and junk.is_empty() and gm.demo_ending.is_empty() and events.is_empty(),
+		"a save writes 'ended' as 'waiting' and loads it back; an older save that meets both conditions is due the next morning, silently; junk is none; New Game's reset clears it")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_PATH)
+	check(_func_body(src, "get_save_data").contains("_demo_ending_save_data()") and _func_body(src, "load_save_data").contains("_load_demo_ending_data(data)")
+		and _func_body(src, "reset_game_state").contains("_reset_demo_ending_state()") and D1_GM_FIELDS.has("demo_ending"),
+		"get_save_data / load_save_data / reset_game_state carry it; Test 26's D1_GM_FIELDS snapshot it")
+
+
+## KM-9 as built: the messenger's day has no tavern disturbance (one visitor a day).
+func _check_t53_quiet_day(gm, dm) -> void:
+	dm.set("run_profile", "demo")
+	gm.current_day = 9
+	gm.tavern_reputation = 5
+	gm.last_disturbance_day = 0
+	gm.pending_disturbance = {}
+	gm.demo_ending = {"state": "coming", "day": 9, "returning": false}
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	var quiet: bool = gm.pending_disturbance.is_empty()
+	gm.demo_ending = {}
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	var rolled: bool = not gm.pending_disturbance.is_empty()
+	gm.pending_disturbance = {}
+	gm.last_disturbance_day = 0
+	check(quiet and rolled, "the King's messenger's day rolls no disturbance (the same roll on another day queues one)")
+
+
+## The wait spot and the route in, measured in the real hall (Test 38's rules for the visitors' spots).
+func _check_t53_spot() -> void:
+	var data = _read_json(T53_DATA)
+	var ws = data.messenger.wait_spot
+	var scene: Node = (load(TAVERN_SCENE_PATH) as PackedScene).instantiate()
+	var tn_path := "SubViewportContainer/SubViewport/TavernNavigation"
+	var den := scene.get_node_or_null(tn_path + "/Furniture/DenFa")
+	var den_route = den.get("bar_route") if den else null
+	var psn = load("res://scripts/npcs/PatronSpawner.gd").new()
+	var tables: Array = (psn.table_positions as Array).duplicate()
+	psn.free()
+	_strip_scripts(scene)
+	root.add_child(scene)
+	await process_frame
+	var tn := scene.get_node(tn_path) as NavigationRegion3D
+	var zones := []
+	for a in scene.find_children("*", "Area3D", true, false):
+		for c in a.find_children("*", "CollisionShape3D", true, false):
+			var t: Transform3D = (c as CollisionShape3D).global_transform
+			var sh = (c as CollisionShape3D).shape
+			var o := Vector2(t.origin.x, t.origin.z)
+			if sh is BoxShape3D:
+				var s: Vector3 = (sh as BoxShape3D).size
+				zones.append([str(a.name), "box", o, Vector2(t.basis.x.x, t.basis.x.z) * s.x * 0.5, Vector2(t.basis.z.x, t.basis.z.z) * s.z * 0.5])
+			elif sh is SphereShape3D:
+				zones.append([str(a.name), "circle", o, (sh as SphereShape3D).radius])
+	var dist = _read_json(DISTURBANCES_PATH)
+	for k in dist.types:
+		var sp = dist.types[k].spot
+		zones.append(["visitor " + k, "circle", Vector2(float(sp[0]), float(sp[1])), 1.2])
+	var route := []
+	if den_route is PackedVector3Array:
+		for q in den_route:
+			route.append(Vector2(q.x, q.z))
+	var marks := []
+	for n in scene.find_children("*", "Node3D", true, false):
+		if n.is_in_group("patron_seat"):
+			marks.append((n as Node3D).global_transform)
+	var seats: Array = load("res://scripts/npcs/PatronSpawner.gd").build_seats(marks, tables)
+	var seat_pts := []
+	for s in seats:
+		seat_pts.append(Vector2(s.approach.x, s.approach.z))
+		var r: Vector3 = load(PATRON_SCRIPT_PATH).seat_root(s.sit) if s.sit != null else s.approach
+		seat_pts.append(Vector2(r.x, r.z))
+	for mk in marks:
+		seat_pts.append(Vector2((mk as Transform3D).origin.x, (mk as Transform3D).origin.z))
+	var polys := []
+	var nav: NavigationMesh = tn.navigation_mesh if tn else null
+	if nav:
+		var verts := nav.get_vertices()
+		for i in nav.get_polygon_count():
+			var pg := PackedVector2Array()
+			for vi in nav.get_polygon(i):
+				pg.append(Vector2(verts[vi].x, verts[vi].z))
+			polys.append(pg)
+	var on_nav := func(q: Vector2) -> bool: return polys.any(func(pg): return Geometry2D.is_point_in_polygon(q, pg))
+	var p := Vector2(float(ws[0]), float(ws[1]))
+	var inside: bool = on_nav.call(p)
+	for k in 8:
+		inside = inside and on_nav.call(p + Vector2.from_angle(k * PI / 4.0) * 0.4)
+	var zc := INF
+	var zn := ""
+	for z in zones:
+		var dz := _t38_zone_dist(p, z)
+		if dz < zc:
+			zc = dz
+			zn = z[0]
+	if route.size() > 1 and _t38_polyline_dist(p, route) - 0.9 < zc:
+		zc = _t38_polyline_dist(p, route) - 0.9
+		zn = "Den Fa's walk"
+	var sc := INF
+	for q in seat_pts:
+		sc = minf(sc, p.distance_to(q))
+	var porch = data.messenger.porch
+	var walk_ok: bool = on_nav.call(Vector2(float(porch[0]), float(porch[2])))
+	for q in data.messenger.route_in:
+		walk_ok = walk_ok and on_nav.call(Vector2(float(q[0]), float(q[2])))
+	check(nav != null and inside and zc >= T53_SPOT_CLEAR and sc >= T53_SEAT_CLEAR and walk_ok,
+		"his wait spot %s is on the navmesh, %.2f m from every E zone and the visitors' spots (nearest %s, %.2f) and %.2f m from every patron seat (%.2f); the porch and the route in are on the navmesh"
+		% [p, T53_SPOT_CLEAR, zn, zc, T53_SEAT_CLEAR, sc])
+	scene.queue_free()
+	await process_frame
+
+
+## AC 5, 6, 7 (KM-4..KM-10): the hall's controller and the messenger in a stand-in hall.
+func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
+	dm.set("run_profile", "demo")
+	var world := Node3D.new()
+	world.name = "T53Hall"
+	root.add_child(world)
+	_d1_set_scene(world)
+	var svc := SubViewportContainer.new()
+	svc.name = "SubViewportContainer"
+	world.add_child(svc)
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	world.add_child(ui)
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.add_to_group("player")
+	world.add_child(player)
+	player.global_position = Vector3(0.0, 0.0, -2.0)
+	gm.game_over_active = false
+	gm.current_day = 7
+	gm.demo_ending = {"state": "coming", "day": 7, "returning": false}
+	nm.clear_banners()
+	ss.run_active = true
+	var changes: Array = []
+	var c = load(T53_CONTROLLER).new()
+	c.world_parent = world
+	c.phase = "evening"
+	c.player_provider = func(): return player
+	c.scene_changer = func(pth): changes.append(pth)
+	c.data_override = {"messenger": {"porch": [0.0, 0.0, 2.0], "route_in": [[0.0, 0.0, 1.0]], "wait_spot": [1.5, 0.0, 180.0],
+		"arrival_delay_seconds": 0.2, "approach_timeout_seconds": 6.0, "walk_in_timeout_seconds": 6.0},
+		"end_card": {"min_seconds": 0.2, "fade_seconds": 0.0}}
+	world.add_child(c)
+	await process_frame
+	var none_evening: bool = c.npc == null
+	# the gates: the morning briefing, a visitor, a card reveal (17.3), a frozen world, a conversation
+	c.phase = "day"
+	var gate := Node.new()
+	gate.add_to_group("morning_briefing")
+	world.add_child(gate)
+	c.check()
+	var held_brief: bool = c.npc == null and c.blocker() == "morning_briefing"
+	gate.remove_from_group("morning_briefing")
+	gate.add_to_group("disturbance_npc")
+	c.check()
+	var held_visitor: bool = c.npc == null and c.blocker() == "a visitor"
+	gate.remove_from_group("disturbance_npc")
+	gate.add_to_group("card_reveal")
+	c.check()
+	var held_card: bool = c.npc == null and c.blocker() == "a card reveal"
+	gate.remove_from_group("card_reveal")
+	svc.process_mode = Node.PROCESS_MODE_DISABLED
+	c.check()
+	var held_frozen: bool = c.npc == null and c.blocker() == "the world is frozen"
+	svc.process_mode = Node.PROCESS_MODE_INHERIT
+	gm.game_over_active = true
+	c.check()
+	var held_fall: bool = c.npc == null
+	gm.game_over_active = false
+	check(none_evening and held_brief and held_visitor and held_card and held_frozen and held_fall and c.may_arrive({"state": "coming", "day": 7}, 7, "day", false, false)
+		and not c.may_arrive({"state": "coming", "day": 6}, 7, "day", false, false) and not c.may_arrive({"state": "due", "day": 7}, 7, "day", false, false),
+		"he never walks in in the evening, nor while the morning briefing, a disturbance's visitor, a pending card reveal (17.3), a frozen world (the pause menu) or the fall holds the hall")
+	# the arrival: after the delay, on the porch, the event banner, the state waiting
+	c.check()
+	var t0 := Time.get_ticks_msec()
+	while c.npc == null and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	var v = c.npc
+	var banners: Array = _t38_banners(nm)
+	var bodied: bool = v != null and v.model != null and str(v.body_variant.get("id", "")) == "guard"
+	check(v != null and bodied and v.is_in_group("royal_messenger") and not v.is_in_group("disturbance_npc") and gm.demo_ending.state == "waiting"
+		and banners.has(["A messenger of the King has come. He's asking for the guild master.", true]) and events.back() == ["waiting", 7],
+		"after the arrival delay the messenger (the guard's body, by one data key) appears, an event banner names him, the state is 'waiting' %s" % [banners])
+	# the walk in, then to the player: he stops approach_stop_m short (inside his talk zone's reach of the player's 0.5 m
+	# capsule, so E works without a step), facing them; his talk zone has E
+	var stop_m := float(c.data.messenger.approach_stop_m)
+	t0 = Time.get_ticks_msec()
+	while v != null and is_instance_valid(v) and v.mode != "by_player" and Time.get_ticks_msec() - t0 < 6000:
+		await physics_frame
+	var flat := Vector2(v.global_position.x - player.global_position.x, v.global_position.z - player.global_position.z).length() if v else -1.0
+	var claimed: bool = v != null and ui.connected_zones.has(v.talk_zone)
+	var zr := -1.0
+	if v and v.talk_zone and v.talk_zone.get_child_count() > 0 and v.talk_zone.get_child(0).shape is SphereShape3D:
+		zr = (v.talk_zone.get_child(0).shape as SphereShape3D).radius
+	check(v != null and v.mode == "by_player" and absf(flat - stop_m) <= 0.25 and flat < zr + 0.5 - 0.2 and claimed,
+		"he walks in along the route, then to the player and stops %.1f m short (%.2f m), within his talk zone's reach of the player (%.1f + 0.5); his talk zone is the ZonePromptUI's" % [stop_m, flat, zr])
+	# the player gone (outside): the next arrival walks to the wait spot
+	var v_far = load(T53_NPC).new()
+	v_far.setup("guard", "Press E", Vector3.ZERO)
+	v_far.route = [Vector3(0.0, 0.0, 1.0)]
+	v_far.wait_spot = Vector3(1.0, 0.0, 1.0)
+	v_far.player_provider = func(): return null
+	world.add_child(v_far)
+	v_far.global_position = Vector3(0.0, 0.0, 1.0)
+	v_far.walk_in()
+	t0 = Time.get_ticks_msec()
+	while v_far.mode != "waiting" and Time.get_ticks_msec() - t0 < 4000:
+		await physics_frame
+	var at_wait: bool = v_far.mode == "waiting" and Vector2(v_far.global_position.x - 1.0, v_far.global_position.z - 1.0).length() < 0.4
+	# an unreachable player: he gives up after the timeout for the wait spot
+	var far_player := Node3D.new()
+	world.add_child(far_player)
+	far_player.global_position = Vector3(300.0, 0.0, 0.0)
+	v_far.player_provider = func(): return far_player
+	v_far.approach_timeout = 0.3
+	v_far.place_waiting()
+	var was_approaching: bool = v_far.mode == "approaching"
+	t0 = Time.get_ticks_msec()
+	while v_far.mode != "waiting" and Time.get_ticks_msec() - t0 < 4000:
+		await physics_frame
+	check(at_wait and was_approaching and v_far.mode == "waiting",
+		"no player in the hall: he waits at the wait spot; a player he can't reach: he tries, then gives up for the wait spot")
+	v_far.queue_free()
+	far_player.queue_free()
+	# a talk with no choice (Esc): he stays, nothing ends
+	c._on_talk_requested(v)
+	await process_frame
+	await process_frame
+	var opened = c._box
+	var right_bridge: bool = opened != null and is_same(opened.temporary_game_states[0].get("bridge"), c._bridge)
+	if opened:
+		opened.close()
+	for i in 3:
+		await process_frame
+	check(right_bridge and is_instance_valid(v) and gm.demo_ending.state == "waiting" and not c.ending and get_nodes_in_group("demo_end_card").is_empty(),
+		"E opens ~ deliver with a bridge the hall keeps; closed with no choice (Esc) he stays and nothing ends")
+	# Story 10.1's panel seam, a director that plays: the card waits for the panel's finished
+	var pd := GDScript.new()
+	pd.source_code = "extends Node\nsignal finished\nvar asked: Array = []\nvar give_null := false\nfunc play(id: String):\n\tasked.append(id)\n\treturn null if give_null else self\n"
+	pd.reload()
+	var director := Node.new()
+	director.set_script(pd)
+	director.add_to_group("story_panels")
+	world.add_child(director)
+	c._bridge = load(BRIDGE_SCRIPT).new()
+	c._bridge.choose("heard")
+	events.clear()
+	c._on_conversation_closed()
+	await process_frame
+	var stopped: bool = paused and svc.process_mode == Node.PROCESS_MODE_DISABLED and svc.mouse_filter == Control.MOUSE_FILTER_IGNORE
+	var waited: bool = get_nodes_in_group("demo_end_card").is_empty() and director.asked == ["the_kings_request"]
+	director.emit_signal("finished")
+	await process_frame
+	var cards: Array = get_nodes_in_group("demo_end_card")
+	check(c.ending and gm.demo_ending.state == "ended" and ss.run_active == false and events == [["ended", 7]] and stopped and waited and cards.size() == 1,
+		"heard: the demo ends: the state 'ended', no automatic save after it, the hall stopped (its SubViewportContainer frozen, the tree paused); Story 10.1's court panel plays first (play('the_kings_request') awaited), then ONE end card")
+	paused = false
+	# the card's button leaves for the main menu (the test records it)
+	var card = cards[0] if cards.size() == 1 else null
+	t0 = Time.get_ticks_msec()
+	while card != null and card.button.disabled and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	if card:
+		card.button.emit_signal("pressed")
+	check(changes == ["res://scenes/MainMenu.tscn"] and not paused, "the end card's button: the tree unpaused, then the main menu")
+	for n in get_nodes_in_group("demo_end_card"):
+		n.queue_free()
+	await process_frame
+	# no director, and a director whose play() returns null: the card opens at once
+	var instant := []
+	for mode_i in 2:
+		if mode_i == 0:
+			director.remove_from_group("story_panels")
+		else:
+			director.add_to_group("story_panels")
+			director.give_null = true
+		c.ending = false
+		gm.demo_ending = {"state": "waiting", "day": 7, "returning": false}
+		svc.process_mode = Node.PROCESS_MODE_INHERIT
+		c._bridge = load(BRIDGE_SCRIPT).new()
+		c._bridge.choose("heard")
+		c._on_conversation_closed()
+		await process_frame
+		instant.append(get_nodes_in_group("demo_end_card").size() == 1)
+		paused = false
+		for n in get_nodes_in_group("demo_end_card"):
+			n.queue_free()
+		await process_frame
+	check(instant == [true, true], "no panel director (today), or one whose play() returns null: the end card opens at once %s" % [instant])
+	director.queue_free()
+	# the stop uses the scene's set_world_frozen when it has one (Story 18.1)
+	var fz := GDScript.new()
+	fz.source_code = "extends Node3D\nvar frozen_calls: Array = []\nfunc set_world_frozen(on: bool) -> void:\n\tfrozen_calls.append(on)\n"
+	fz.reload()
+	var hall2 := Node3D.new()
+	hall2.set_script(fz)
+	root.add_child(hall2)
+	_d1_set_scene(hall2)
+	c.stop_hall(self)
+	var used_hook: bool = hall2.frozen_calls == [true] and paused
+	paused = false
+	_d1_set_scene(world)
+	hall2.queue_free()
+	check(used_hook, "the hall's stop calls the scene's set_world_frozen(true) when it has one, then pauses the tree")
+	# sleep sends him off unheard; a fresh controller (a load during his day) places him at the wait spot, no banner
+	c.ending = false
+	gm.demo_ending = {"state": "waiting", "day": 7, "returning": false}
+	c.npc = v
+	c._on_day_phase("late_night")
+	await process_frame
+	await process_frame
+	var slept: bool = get_nodes_in_group("royal_messenger").filter(func(n): return not n.is_queued_for_deletion()).is_empty() and gm.demo_ending.state == "waiting"
+	nm.clear_banners()
+	await process_frame
+	var c2 = load(T53_CONTROLLER).new()
+	c2.world_parent = world
+	c2.phase = "day"
+	c2.player_provider = func(): return null
+	c2.data_override = {"messenger": {"wait_spot": [1.5, 0.0, 180.0]}}
+	world.add_child(c2)
+	await process_frame
+	var back = c2.npc
+	var placed: bool = back != null and Vector2(back.global_position.x - 1.5, back.global_position.z).length() < 0.05
+	check(slept and placed and _t38_banners(nm).is_empty(),
+		"sleep (late_night) sends him off unheard (still waiting: he comes again tomorrow); a load during his day places him at the wait spot with no banner")
+	# the full game: no messenger
+	dm.set("run_profile", "full")
+	c2.check()
+	await process_frame
+	var sent: bool = c2.npc == null
+	gm.demo_ending = {"state": "coming", "day": 7, "returning": false}
+	c2.check()
+	check(sent and c2.npc == null, "the full game: a messenger in the hall is sent away and none comes, whatever the state")
+	dm.set("run_profile", "demo")
+	gm.demo_ending = {}
+	ss.run_active = false
+	paused = false
+	world.queue_free()
+	await process_frame
+	await process_frame
+
+
+## AC 7: the end card alone: its layer, groups and text; it stops the hall itself; the button after min_seconds; Esc and
+## other keys are eaten and do nothing.
+func _check_t53_card() -> void:
+	var hall := Node3D.new()
+	root.add_child(hall)
+	var svc := SubViewportContainer.new()
+	svc.name = "SubViewportContainer"
+	hall.add_child(svc)
+	_d1_set_scene(hall)
+	var changes: Array = []
+	var card = load(T53_CARD).new()
+	card.text = {"title": "To be continued", "lines": ["One.", "Two."], "kickstarter_line": "", "button": "Return to the main menu",
+		"min_seconds": 0.3, "fade_seconds": 0.1}
+	card.scene_changer = func(p): changes.append(p)
+	hall.add_child(card)
+	await process_frame
+	var texts: Array = card.labels.map(func(l): return l.text)
+	var early: bool = card.button.disabled
+	card.leave()
+	var refused: bool = changes.is_empty()
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	card._input(esc)
+	var t0 := Time.get_ticks_msec()
+	while card.button.disabled and Time.get_ticks_msec() - t0 < 2000:
+		await process_frame
+	var still: bool = is_instance_valid(card) and changes.is_empty()
+	check(card.layer == 126 and card.process_mode == Node.PROCESS_MODE_ALWAYS and card.is_in_group("demo_end_card") and card.is_in_group("blocks_player")
+		and texts == ["To be continued", "One.", "Two."] and early and refused and still and not card.button.disabled
+		and paused and svc.process_mode == Node.PROCESS_MODE_DISABLED,
+		"the end card: layer 126 (over the box 110, 10.1's panels 118 and 17.3's reveal 120), runs while paused, blocks the player; its DRAFT text (no Kickstarter line while it is \"\"); opened alone it stops the hall; the button is live only after min_seconds; Esc does nothing %s" % [texts])
+	card.button.emit_signal("pressed")
+	card.button.emit_signal("pressed")
+	check(changes == ["res://scenes/MainMenu.tscn"] and not paused, "the button: the tree unpaused, the main menu, once")
+	paused = false
+	hall.queue_free()
+	_d1_set_scene(null)
+	await process_frame
+
+
+## AC 10's source checks: the hooks in GameManager, the hall, the debug panel; nothing ends the run.
+func _check_t53_sources() -> void:
+	var gsrc := FileAccess.get_file_as_string(GAME_MANAGER_PATH)
+	var adv := _func_body(gsrc, "advance_day")
+	var tax := _func_body(gsrc, "handle_tax_payment")
+	var dist := _func_body(gsrc, "_advance_disturbances")
+	check(adv.contains("_advance_demo_ending()") and adv.find("_advance_demo_ending()") < adv.find("_advance_disturbances()")
+		and adv.find("if game_over_active:") < adv.find("_advance_demo_ending()") and adv.find("_advance_demo_ending()") < adv.find("SaveSystem.save_end_of_day()")
+		and tax.find("taxes_paid_count += 1") < tax.find("_update_demo_ending()") and tax.find("_update_demo_ending()") > 0
+		and _func_body(gsrc, "adjust_reputation").contains("_update_demo_ending()") and dist.contains("demo_ending_today()")
+		and _func_body(gsrc, "demo_ending_heard").contains("SaveSystem.run_active = false"),
+		"GameManager: the morning step after the tax (the fall first) and before the disturbance roll and the day's save; the trigger after a tax paid and in adjust_reputation; the quiet day; heard stops the automatic saves")
+	var msrc := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
+	check(msrc.contains("ROYAL_MESSENGER := \"res://scripts/game/royal_messenger.gd\"") and _func_body(msrc, "_ready").contains("load(ROYAL_MESSENGER).new()")
+		and _func_body(msrc, "_input").contains("GameManager.demo_ending.get(\"state\", \"\")) == \"ended\": return"),
+		"the hall adds the King's messenger's controller in code (no scene edit) and gives the ending the keys once heard")
+	var none_end := true
+	for p in [T53_RULES, T53_CONTROLLER, T53_NPC, T53_CARD]:
+		var s := FileAccess.get_file_as_string(p)
+		if s.contains("record_run_end") or s.contains("begin_new_run") or s.contains("end_run(") or s.begins_with("class_name") or s.contains("\nclass_name "):
+			none_end = false
+	var dsrc := FileAccess.get_file_as_string(DEBUG_PANEL_SCRIPT_PATH)
+	var dp = load(DEBUG_PANEL_SCRIPT_PATH)
+	var cfg := {"active": true, "min_reputation": 32, "min_taxes_paid": 2}
+	check(none_end and dsrc.contains("GameManager.debug_demo_ending_now()") and dp.demo_ending_line({}, cfg, 18, 1) == "none · rep 18/32 · taxes 1/2"
+		and dp.demo_ending_line({"state": "due", "day": 7}, cfg, 33, 2) == "due day 7 · rep 33/32 · taxes 2/2"
+		and dp.demo_ending_line({"state": "coming", "day": 7}, cfg, 33, 2) == "coming, day 7 · rep 33/32 · taxes 2/2"
+		and dp.demo_ending_line({}, {"active": false}, 0, 0) == "off (this run's profile)",
+		"the ending is not a run end (no codex entry, no new run, no class_name); F12: the demo ending line and 'Demo ending now'")
