@@ -12,6 +12,9 @@ signal reputation_changed(new_value: int)
 # Loading a save and New Game set the value silently: these mean "earned in play".
 signal reputation_adjusted(delta: int, new_value: int, reason: String)
 signal reputation_tier_changed(old_tier: String, new_tier: String)
+# Story 14.6 review P9: a tier this run reaches for the first time (GameManager.reputation_peak_tier; saved, New Game 0),
+# after reputation_tier_changed. A drop and a climb back to a tier already reached send none. The tier banner's signal.
+signal reputation_tier_reached(tier: String)
 # Story 14.4: a tavern disturbance was settled: by the player's choice in its conversation (choice: the outcome id, e.g.
 # "eject"), or by the morning after it was left alone ("ignored"). rep_delta and gold_delta: what was applied (the
 # reputation also went through reputation_adjusted, reason "disturbance_resolved" / "disturbance_ignored").

@@ -54,6 +54,7 @@ var adventurer_morale: Dictionary = {}  # adventurer_id -> morale level (1-3)
 # === Progression Tracking ===
 var total_missions_completed: int = 0
 var tavern_reputation: int = 0
+var reputation_peak_tier: int = 0   # the highest reputation tier index this run has reached (Story 14.6 review P9; saved; New Game: 0)
 var taxes_paid_count: int = 0
 
 var active_missions: Array = []       # Missions currently in progress with countdown timers
@@ -154,8 +155,9 @@ func spend_gold(amount: int) -> bool:
 func adjust_reputation(delta: int, reason := "") -> void:
 	"""Single-authority reputation mutator (Epic 14) — clamps at 0, moves Den Fa's state forward (Story 10.3),
 	then (Story 14.6, DP-5) GuildBus.reputation_adjusted(the change applied, the new value, reason) when it moved,
-	GuildBus.reputation_tier_changed(old label, new label) when the tier changed, and reputation_changed as before.
-	A load and a New Game set the value directly: the new signals mean "earned in play"."""
+	GuildBus.reputation_tier_changed(old label, new label) when the tier changed, GuildBus.reputation_tier_reached(label)
+	the first time this run reaches a tier (review P9: reputation_peak_tier; the banner's signal), and reputation_changed
+	as before. A load and a New Game set the value directly: the new signals mean "earned in play"."""
 	var old := tavern_reputation
 	var tiers := reputation_tier_list(DataManager.get_config("reputation_tiers", []))
 	var old_tier := reputation_tier_index_for(old, tiers)
@@ -168,7 +170,15 @@ func adjust_reputation(delta: int, reason := "") -> void:
 	var new_tier := reputation_tier_index_for(tavern_reputation, tiers)
 	if new_tier != old_tier:
 		GuildBus.reputation_tier_changed.emit(str(tiers[old_tier].get("label", "")), str(tiers[new_tier].get("label", "")))
+	if new_tier > reputation_peak_tier:
+		reputation_peak_tier = new_tier
+		GuildBus.reputation_tier_reached.emit(str(tiers[new_tier].get("label", "")))
 	reputation_changed.emit(tavern_reputation)
+
+## Story 14.6 review P9: the run's highest tier from a save (pure): the saved index, never below the loaded reputation's
+## tier (`current_index`); an older save without one, or junk, is that tier.
+static func reputation_peak_from_save(v, current_index: int) -> int:
+	return maxi(maxi(0, _save_int(v, 0)), current_index)
 
 # === Reputation gains (Story 14.6, DP-3) ===
 # Each source's gain is a game_config.json key (a profile can override it: the demo's are faster). The top level is the
@@ -2684,6 +2694,7 @@ func get_save_data() -> Dictionary:
 		# Progression
 		"total_missions_completed": total_missions_completed,
 		"tavern_reputation": tavern_reputation,
+		"reputation_peak_tier": reputation_peak_tier,   # Story 14.6 review P9
 		"taxes_paid_count": taxes_paid_count,
 		"mission_tier_unlocked": mission_tier_unlocked,
 		"active_missions": active_missions,
@@ -2760,6 +2771,7 @@ func load_save_data(data: Dictionary):
 	# Progression
 	total_missions_completed = _save_int(data.get("total_missions_completed"), 0)
 	tavern_reputation = _save_int(data.get("tavern_reputation"), 0)
+	reputation_peak_tier = reputation_peak_from_save(data.get("reputation_peak_tier"), get_reputation_tier_index())   # review P9
 	taxes_paid_count = _save_int(data.get("taxes_paid_count"), 0)
 	mission_tier_unlocked = _save_int(data.get("mission_tier_unlocked"), 1)
 	active_missions = _save_dicts(data.get("active_missions"))
@@ -3190,6 +3202,7 @@ func reset_game_state():
 	# Progression / run stats (a New Game must not inherit the previous run's progress)
 	total_missions_completed = 0
 	tavern_reputation = 0
+	reputation_peak_tier = 0   # Story 14.6 review P9
 	taxes_paid_count = 0
 	tax_grace_days = 0
 	mission_tier_unlocked = 1
