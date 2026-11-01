@@ -2561,7 +2561,8 @@ func dismiss_adventurer(adventurer: Dictionary) -> bool:
 	spend_gold(severance)  # deducts + emits gold_changed → EconomyBus
 	_gain_reputation("rep_dismiss", "dismiss")   # Story 14.6
 	adventurers.erase(adventurer)
-	log_message("" + adventurer.get("name", "?") + " has been dismissed (paid " + str(severance) + " gold, -1 reputation).")
+	var rep_note := (", %d reputation" % rep_gain("rep_dismiss")) if rep_gain("rep_dismiss") != 0 else ""   # Story 14.6 review P15
+	log_message("%s has been dismissed (paid %d gold%s)." % [adventurer.get("name", "?"), severance, rep_note])
 	adventurer_roster_changed.emit()
 	return true
 
