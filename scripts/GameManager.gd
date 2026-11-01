@@ -2173,6 +2173,13 @@ const BardRules := preload("res://scripts/game/bard_rules.gd")
 var bard_visit: Dictionary = {}       # {} | {day, state: coming | waiting | performing | refused, hook, arrive_minute, wait_until}
 var bard_last_visit_day: int = 0      # the day the last visit was queued (the cooldown counts from it)
 var _bard_warnings: int = 0           # a bad bard_* config is warned about once a run (New Game re-arms it)
+## Story 9.2: he played today (set when he is let in; saved: the reveal's narration after this night reads it).
+var bard_performed_today: bool = false
+## Story 9.2: his share of today's patron payments (logged at the day's end; saved).
+var bard_tips_today: int = 0
+## Story 9.2/9.5: the coming morning's reveal is his (set by the night from bard_performed_today; taken by the reveal;
+## not saved: the reveal isn't, Story 11.2 DS-6).
+var bard_narrates_reveal: bool = false
 
 ## The bard_* keys of the run's profile, checked (bard_rules.config_from), plus min_tier_index (the tier list of the
 ## profile); its warnings pushed once a run.
@@ -2204,9 +2211,12 @@ func _advance_bard(rolls: Array = []) -> void:
 	if game_over_active:
 		return
 	var v := bard_visit
+	bard_narrates_reveal = bard_performed_today   # Story 9.5: this morning's reveal is his when he played yesterday
 	if not v.is_empty() and int(v.get("day", 0)) != current_day:
 		bard_visit = {}
 		_end_bard_day(v)
+	bard_performed_today = false
+	bard_tips_today = 0
 	if not bard_visit.is_empty():
 		return
 	if demo_ending_today():
@@ -2224,11 +2234,64 @@ func _advance_bard(rolls: Array = []) -> void:
 	bard_last_visit_day = current_day
 	_bard_moved("coming", "queued for %s%s" % [DayClockRules.format_time(float(e.arrive_minute)), ", with a hook" if e.hook else ""])
 
-## The night after a visit (advance_day): a visit never decided is closed as turned away (nothing changes); Story 9.2
-## adds what a performance leaves behind.
-func _end_bard_day(v: Dictionary) -> void:
-	if str(v.get("state", "")) in ["coming", "waiting"]:
+## The night after a visit (advance_day): a visit never decided is closed as turned away (nothing changes); after a
+## performance (Story 9.2) his songs travel: bard_rumours_per_performance rumours into Latest News (world names filled,
+## MOD-7), and his share of the day is logged. `rolls` (tests): numbers in [0, 1) for the picks.
+func _end_bard_day(v: Dictionary, rolls: Array = []) -> void:
+	var st := str(v.get("state", ""))
+	if st in ["coming", "waiting"]:
 		print("[GameManager] bard: day %d's visit ended undecided (as turned away)" % int(v.get("day", 0)))
+		return
+	if st != "performing":
+		return
+	var r := rolls.duplicate()
+	var next_roll := func() -> float: return float(r.pop_front()) if not r.is_empty() else randf()
+	var lines := bard_lines()
+	var warn: Array = []
+	var names := BardRules.world_names(WorldManager.faction_data, WorldManager.capital_definitions, [next_roll.call(), next_roll.call(), next_roll.call()], warn)
+	_warn_bard(warn)
+	var picks := BardRules.pick_distinct(lines.get("rumours", []).size(), int(bard_config().rumours_per_performance), [next_roll.call(), next_roll.call(), next_roll.call()])
+	for i in picks:
+		var line := BardRules.fill(str(lines.rumours[i]), names)
+		WorldManager.overheard_rumours.append(line)   # Latest News (Epic 6's Bard slot)
+		WorldBus.settlement_event.emit({"type": "rumour", "source": "bard", "text": line})
+		print("[GameManager] bard: rumour: %s" % line)
+	if bard_tips_today > 0:
+		log_message(BardRules.fill(str(lines.get("day_end", "The Bard kept {share} gold of the day's tips.")), {"share": str(bard_tips_today)}))
+
+## The Bard's words (data/narrative/bard.json, read once): rumours, the day's end, the payment suffix. {} parts missing.
+var _bard_lines_cache: Dictionary = {}
+func bard_lines() -> Dictionary:
+	if _bard_lines_cache.is_empty():
+		var d = DataManager.load_data_file(BARD_DATA_PATH, {}) if DataManager.has_method("load_data_file") else {}
+		var text = d.get("text", {}) if d is Dictionary else {}
+		_bard_lines_cache = {"rumours": d.get("rumours", []) if d is Dictionary and d.get("rumours") is Array else [],
+			"day_end": str(text.get("day_end", "")) if text is Dictionary else "",
+			"payment_suffix": str(text.get("payment_suffix", "")) if text is Dictionary else ""}
+		if (_bard_lines_cache.rumours as Array).is_empty():
+			push_warning("[GameManager] fallback: %s has no rumours; the Bard's songs leave no news" % BARD_DATA_PATH)
+	return _bard_lines_cache
+const BARD_DATA_PATH := "res://data/narrative/bard.json"
+
+## Story 9.2: a patron pays `amount` (RealisticPatron, when they finish their drink: the one payment seam). While the
+## Bard plays today he keeps bard_rules.cut(amount, bard_tip_share) (bard_tips_today); the guild gets the rest in one
+## add_gold (one gold_changed with the reduced amount). Returns what the guild kept.
+func patron_paid(amount: int) -> int:
+	if amount <= 0:
+		return 0
+	var share := 0
+	if bard_today() and str(bard_visit.get("state", "")) == "performing":
+		share = BardRules.cut(amount, float(bard_config().tip_share))
+	bard_tips_today += share
+	add_gold(amount - share)
+	return amount - share
+
+## The patron's log line's ending for the Bard's share (" (the Bard keeps 2)"), "" when he kept nothing.
+func bard_payment_note(share: int) -> String:
+	if share <= 0:
+		return ""
+	var s := str(bard_lines().get("payment_suffix", ""))
+	return BardRules.fill(s if s != "" else " (the Bard keeps {share})", {"share": str(share)})
 
 func _bard_moved(state: String, note := "") -> void:
 	print("[GameManager] bard: %s (day %d)%s" % [state, int(bard_visit.get("day", current_day)), (": " + note) if note != "" else ""])
@@ -2261,6 +2324,7 @@ func allow_bard() -> bool:
 		push_warning("[GameManager] refuse: no bard waiting to be let in (%s)" % [bard_visit])
 		return false
 	bard_visit.state = "performing"
+	bard_performed_today = true   # Story 9.2: performed means let in (the walk to his spot is cosmetic)
 	_bard_moved("performing")
 	return true
 
@@ -2276,20 +2340,31 @@ func debug_queue_bard(hook := false) -> bool:
 	return true
 
 func _bard_save_data() -> Dictionary:
-	return {"bard_visit": bard_visit.duplicate(), "bard_last_visit_day": bard_last_visit_day}
+	return {"bard_visit": bard_visit.duplicate(), "bard_last_visit_day": bard_last_visit_day,
+		"bard_performed_today": bard_performed_today, "bard_tips_today": bard_tips_today}   # Story 9.2 (D1's deferred flag)
 
-## The saved visit, read defensively (junk -> none, with a warning; an older save -> none and 0).
+## The saved visit, read defensively (junk -> none, with a warning; an older save -> none and 0); Story 9.2's flag and
+## share (junk -> false / 0, with a warning).
 func _load_bard_data(data: Dictionary) -> void:
 	bard_last_visit_day = maxi(0, _save_int(data.get("bard_last_visit_day"), 0))
 	var r := BardRules.visit_from_save(data.get("bard_visit"))
 	if str(r.warning) != "":
 		push_warning(r.warning)
 	bard_visit = r.visit
+	var p = data.get("bard_performed_today", false)
+	if not (p is bool):
+		push_warning("[GameManager] load: bard_performed_today %s is not true or false; false" % [p])
+	bard_performed_today = p is bool and p
+	bard_tips_today = maxi(0, _save_int(data.get("bard_tips_today"), 0))
+	bard_narrates_reveal = false
 
 func _reset_bard_state() -> void:
 	bard_visit = {}
 	bard_last_visit_day = 0
 	_bard_warnings = 0
+	bard_performed_today = false
+	bard_tips_today = 0
+	bard_narrates_reveal = false
 
 # === THE DAY CLOCK (Story 3.7; decision log K-14…K-19) ===
 # The time of day is GameManager's (day_clock_minutes: minutes since midnight of the day's start, 6:00 = 360, 2:00 the

@@ -721,7 +721,8 @@ func on_sitting_timer_timeout():
 func on_drinking_timer_timeout():
 	if current_state == PatronState.DRINKING:
 		print("", patron_name, " finished drinking. Pays ", payment_amount, "g")
-		GameManager.add_gold(payment_amount)
+		# Story 9.2: the one payment seam: the guild's gold (one add_gold), less the Bard's share while he plays
+		var kept: int = GameManager.patron_paid(payment_amount)
 		GameManager.patron_satisfied()   # Story 14.6: reputation from a satisfied patron (rep_patron_satisfied; 0 in the full game)
 
 		# Coin-burst juice at the patron (Story 3.4 visual reward + SFX)
@@ -733,7 +734,8 @@ func on_drinking_timer_timeout():
 			coin_burst.burst()
 
 		var origin_note = " (from " + patron_origin + ")" if patron_origin != "" else ""
-		GameManager.log_message("• " + patron_name + origin_note + " finished drinking. Pays " + str(payment_amount) + " gold")
+		GameManager.log_message("• " + patron_name + origin_note + " finished drinking. Pays " + str(payment_amount) + " gold"
+			+ GameManager.bard_payment_note(payment_amount - kept))
 
 		# Real stand-up transition before walking to the exit. Still DRINKING (stationary) while
 		# it plays — current_state only flips to LEAVING once they're actually back on their feet.

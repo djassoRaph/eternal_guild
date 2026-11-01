@@ -18,11 +18,15 @@ const KEYS := {
 	"bard_daily_chance": "daily_chance", "bard_cooldown_days": "cooldown_days", "bard_min_tier": "min_tier",
 	"bard_schedule": "schedule", "bard_arrival_hours": "arrival_hours", "bard_arrival_delay_seconds": "arrival_delay_seconds",
 	"bard_wait_hours": "wait_hours",
+	"bard_tip_share": "tip_share", "bard_rumours_per_performance": "rumours_per_performance",   # Story 9.2
 }
 const DEFAULTS := {
 	"daily_chance": 0.25, "cooldown_days": 3, "min_tier": "Known", "schedule": [], "arrival_hours": [11.0, 19.0],
 	"arrival_delay_seconds": 5.0, "wait_hours": 3.0,
+	"tip_share": 0.25, "rumours_per_performance": 2,
 }
+## Story 9.2: the world names a rumour falls back to when the world data has none (MOD-7's fallbacks, as Story 8.5's).
+const NAME_FALLBACKS := {"place": "the frontier", "faction": "a rival guild", "capital": "the capital"}
 
 
 # ---------------------------------------------------------------- config (Story 9.1)
@@ -63,11 +67,19 @@ static func config_from(raw: Dictionary, warn: Array = []) -> Dictionary:
 				if _num(v) and float(v) > 0.0 and float(v) <= 20.0:
 					out[name] = float(v)
 					continue
+			"tip_share":
+				if _num(v) and float(v) >= 0.0 and float(v) <= 1.0:
+					out[name] = float(v)
+					continue
+			"rumours_per_performance":
+				if _whole(v) and int(v) >= 1 and int(v) <= 5:
+					out[name] = int(v)
+					continue
 			"schedule":
 				if v is Array:
 					for e in v:
 						if e is Dictionary and _whole(e.get("day")) and int(e.day) >= 2:
-							var entry := {"day": int(e.day), "hook": e.get("hook") == true}
+							var entry := {"day": int(e.day), "hook": _true(e.get("hook"))}
 							if _num(e.get("hour")):
 								entry.hour = float(e.hour)
 							out.schedule.append(entry)
@@ -101,7 +113,7 @@ static func pick_visit(day: int, tier_index: int, min_tier_index: int, last_day:
 		var minute := arrive_minute(cfg, float(r[1]))
 		if e.has("hour"):
 			minute = int(round(float(e.hour) * 60.0))
-		return {"day": day, "state": "coming", "hook": e.get("hook") == true, "arrive_minute": minute, "wait_until": -1}
+		return {"day": day, "state": "coming", "hook": _true(e.get("hook")), "arrive_minute": minute, "wait_until": -1}
 	if tier_index < min_tier_index:
 		return {}
 	if last_day > 0 and day - last_day < int(cfg.get("cooldown_days", 3)):
@@ -140,9 +152,71 @@ static func visit_from_save(v) -> Dictionary:
 		return {"visit": {}, "warning": ""}
 	if not (v is Dictionary) or not (str(v.get("state", "")) in STATES) or not _whole(v.get("day")) or int(v.day) < 1:
 		return {"visit": {}, "warning": "[GameManager] load: bard_visit %s is not a visit; none" % [v]}
-	return {"visit": {"day": int(v.day), "state": str(v.state), "hook": v.get("hook") == true,
+	return {"visit": {"day": int(v.day), "state": str(v.state), "hook": _true(v.get("hook")),
 		"arrive_minute": int(v.get("arrive_minute", 0)) if _num(v.get("arrive_minute")) else 0,
 		"wait_until": int(v.get("wait_until", -1)) if _num(v.get("wait_until")) else -1}, "warning": ""}
+
+
+# ---------------------------------------------------------------- the performance (Story 9.2)
+
+## The Bard's share of a patron's payment (pure): `share` (clamped 0..1) of `amount`, rounded half up, never negative
+## nor more than the amount.
+static func cut(amount: int, share: float) -> int:
+	if amount <= 0 or not is_finite(share):
+		return 0
+	return clampi(int(floor(float(amount) * clampf(share, 0.0, 1.0) + 0.5)), 0, amount)
+
+
+## `template` with each {key} of `names` filled (pure).
+static func fill(template: String, names: Dictionary) -> String:
+	var out := template
+	for k in names:
+		out = out.replace("{%s}" % k, str(names[k]))
+	return out
+
+
+## World names for a rumour (pure, MOD-7): {place: a factions.json biome, faction: a rival guild, capital: a capitals.json
+## capital}, each picked by its roll in [0, 1); a missing list falls back (NAME_FALLBACKS) with one text in `warn`.
+static func world_names(faction_data, capitals, rolls: Array, warn: Array = []) -> Dictionary:
+	var r: Array = rolls if rolls.size() >= 3 else [0.0, 0.0, 0.0]
+	var places := []
+	var factions := []
+	var caps := []
+	if faction_data is Dictionary:
+		for b in faction_data.get("biomes", []):
+			if b is Dictionary and str(b.get("name", "")) != "":
+				places.append(str(b.name))
+		for f in faction_data.get("rival_guild_names", []):
+			if str(f) != "":
+				factions.append(str(f))
+	if capitals is Dictionary:
+		var keys: Array = (capitals as Dictionary).keys()
+		keys.sort()
+		for k in keys:
+			if capitals[k] is Dictionary and str(capitals[k].get("name", "")) != "":
+				caps.append(str(capitals[k].name))
+	var out := {}
+	for pair in [["place", places, 0], ["faction", factions, 1], ["capital", caps, 2]]:
+		var list: Array = pair[1]
+		if list.is_empty():
+			warn.append("[GameManager] fallback: no %s names in the world data; '%s'" % [pair[0], NAME_FALLBACKS[pair[0]]])
+			out[pair[0]] = NAME_FALLBACKS[pair[0]]
+		else:
+			out[pair[0]] = list[int(clampf(float(r[pair[2]]), 0.0, 0.999999) * list.size())]
+	return out
+
+
+## `n` distinct indices into `count` lines (pure; fewer when there are fewer lines), each chosen by its roll in [0, 1)
+## among the ones left.
+static func pick_distinct(count: int, n: int, rolls: Array) -> Array:
+	var left := range(count)
+	var out := []
+	for i in mini(n, count):
+		var roll := float(rolls[i]) if i < rolls.size() else 0.0
+		var k: int = left[int(clampf(roll, 0.0, 0.999999) * left.size())]
+		out.append(k)
+		left.erase(k)
+	return out
 
 
 ## A line index for `count` lines that is never `last` again (-1 when there are none); `roll` in [0, 1).
@@ -156,6 +230,11 @@ static func pick_index(count: int, last: int, roll: float) -> int:
 		return int(roll * count)
 	var i := int(roll * (count - 1))
 	return i + 1 if i >= last else i
+
+
+## A value that is the boolean true (a junk value is false, never an error comparing types).
+static func _true(v) -> bool:
+	return v is bool and v
 
 
 static func _num(v) -> bool:

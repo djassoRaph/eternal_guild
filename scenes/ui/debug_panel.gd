@@ -242,7 +242,7 @@ static func bard_line(v: Dictionary, last_day: int) -> String:
 		return "none · last %d" % last_day
 	var at := int(v.get("arrive_minute", 0))
 	return "%s, day %d at %d:%02d%s · last %d" % [v.get("state", "?"), int(v.get("day", 0)), posmod(at / 60, 24), posmod(at, 60),
-		", hook" if v.get("hook") == true else "", last_day]
+		", hook" if v.get("hook") is bool and v.hook else "", last_day]
 
 ## Story 3.7 (CL-12): the day clock as the State tab shows it: "20:40 evening · x1 · running", "… · held: a screen",
 ## "… · off: MainMenu".
