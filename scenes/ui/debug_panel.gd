@@ -108,7 +108,7 @@ func _build_tab_state(parent: VBoxContainer) -> void:
 
 	var keys := [
 		"gold", "beer", "firewood", "fuel",
-		"day", "tax_due_day", "tax",
+		"day", "tax_due_day", "tax", "disturbance",
 		"adventurers_count", "active_missions_count",
 		"tier_unlocked", "reputation",
 		"beer_shortage_days", "total_missions_completed"
@@ -161,6 +161,7 @@ func _refresh_state_tab() -> void:
 	_sl("tax",                     "due Day %d (in %d d) · %d g · grace %d/%d · paid %d" % [gm.tax_due_day,
 		gm.tax_due_day - gm.current_day, gm.current_tax_amount(), gm.tax_grace_days,
 		int(tax_cfg.grace_days), gm.taxes_paid_count])
+	_sl("disturbance",             disturbance_line(gm.pending_disturbance, gm.last_disturbance_day))   # Story 14.4
 	_sl("adventurers_count",       str(gm.adventurers.size()) + " / " + str(gm.max_adventurers))
 	_sl("active_missions_count",   str(gm.active_missions.size()) + " active")
 	_sl("tier_unlocked",           "Tier " + str(gm.mission_tier_unlocked))
@@ -214,6 +215,12 @@ static func staff_line(rec: Dictionary) -> String:
 		return head + ", on strike (owes %d g, missed %d)" % [int(rec.get("owed", 0)), int(rec.get("missed_days", 0))]
 	return head + ", working"
 
+## Story 14.4: today's disturbance as the State tab shows it.
+static func disturbance_line(ev: Dictionary, last_day: int) -> String:
+	if ev.is_empty():
+		return "none · last %d" % last_day
+	return "%s (%s) %s, day %d · last %d" % [ev.get("type", "?"), ev.get("truth", "?"), ev.get("state", "?"), int(ev.get("day", 0)), last_day]
+
 func _sl(key: String, value: String) -> void:
 	if _state_labels.has(key):
 		_state_labels[key].text = key.replace("_", " ") + ":  " + value
@@ -254,6 +261,7 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 	_btn_full(parent, "Trigger Tax Event NOW",     _debug_trigger_tax)
 	_btn_full(parent, "Force Beer Shortage (3d)",   _debug_force_beer_shortage)
 	_btn_full(parent, "Reset Economy to Start",     _debug_reset_economy)
+	_btn_full(parent, "Queue a thief now",          func(): GameManager.debug_queue_disturbance("thief", "guilty"))   # Story 14.4
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "JUMP TO DAY")
