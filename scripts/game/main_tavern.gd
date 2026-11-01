@@ -17,6 +17,7 @@ var reputation_label: Label  # code-built (Epic 14) — no scene-file changes ne
 
 const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
 const DISTURBANCE_DIRECTOR := "res://scripts/game/disturbance_director.gd"   # Story 14.4 (loaded by path)
+const ROYAL_MESSENGER := "res://scripts/game/royal_messenger.gd"   # Story 10.7: the demo's ending (loaded by path)
 
 
 ## Story 4.2 review P4: the event log sits on the hall's HUD layer, which draws over the hall's popups (the hire desk,
@@ -39,6 +40,9 @@ func _ready():
 	var director = load(DISTURBANCE_DIRECTOR).new()   # Story 14.4: today's tavern disturbance, shown in the day phase
 	director.name = "DisturbanceDirector"
 	add_child(director)
+	var messenger = load(ROYAL_MESSENGER).new()   # Story 10.7: the King's messenger on the demo ending's day (demo only)
+	messenger.name = "RoyalMessenger"
+	add_child(messenger)
 	log_message("Game started successfully!")
 	add_to_group("main_tavern")
 	# Epic 16 (Stories 16.3, 16.4): the hall's staff work by themselves (their brains); elsewhere they stay cosmetic
@@ -168,6 +172,7 @@ func update_beer(change: int):
 # === INPUT HANDLING ===
 func _input(event):
 	if GameManager.game_over_active: return   # Story 13.4 (DG-8): the fall screen owns the keys (no pause menu, no F9/F10)
+	if str(GameManager.demo_ending.get("state", "")) == "ended": return   # Story 10.7: the demo's end (a panel, the card) owns the keys
 	# A conversation is open (Story 10.2): the dialogue box reads Esc/E/Space first and ends the conversation
 	# itself. Nothing here acts meanwhile: Esc never toggles the pause menu, and the debug keys (F9, F10)
 	# stand down (F10 would wipe the run mid-conversation). Only a mission screen that opened over the box
