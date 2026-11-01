@@ -1,0 +1,10 @@
+{
+	"_comment": "DRAFT (Story 3.7, decision log K-14..K-19): the day clock's words, for Raphael to rewrite. phase_names: the HUD clock's phase word ('20:40 · Evening'; the hall's top bar and the exterior's corner clock). too_early + sleep_from: the bedroom's Sleep button before day_clock.sleep_from_hour ('It's too early to sleep. (from 20:00)'). last_call: the banner at 23:00 (the hall only). closing: the banner when the guests not yet served go home (the hall only). tired: the banner at 1:00 (anywhere). nod_off: the line at 2:00 (a banner in the hall; on the black screen outside). The code holds the same words as defaults (scripts/game/day_clock_rules.gd TEXT_DEFAULTS).",
+	"phase_names": {"morning": "Morning", "day": "Day", "dusk": "Dusk", "evening": "Evening", "late_night": "Late night", "dawn": "Dawn"},
+	"too_early": "It's too early to sleep.",
+	"sleep_from": "(from %s)",
+	"last_call": "Last call.",
+	"closing": "The last guests head home.",
+	"tired": "It's late. Find your bed, or you'll fall asleep where you stand.",
+	"nod_off": "You nod off where you stand…"
+}

@@ -32,6 +32,28 @@
 	"fire_dying_seconds": 60,
 	"fire_cooldown_seconds": 30,
 
+	"day_clock": {
+		"_comment": "Story 3.7 (decision log K-14..K-19): the day clock. Hours run start_hour..end_hour (6..26: 26 is 2:00 the next morning). phases: each phase's start hour, in order (TavernLighting's names; it must start at start_hour, rise strictly and end before end_hour; dawn is the Departure's, never on the clock). sleep_from_hour: the bedroom's Sleep from this hour (earlier: 'too early', K-16). closing_hour: the guests not yet served go home. tired_warning_hour: one banner. display_step_minutes: the HUD's step. wake_spot: where a nod-off outside wakes the player in the hall (MainTavern coordinates, by the bedroom door; CL-16). The day's length is day_clock_seconds_per_hour (per profile). A bad value: its default, with a warning.",
+		"start_hour": 6,
+		"end_hour": 26,
+		"phases": {"morning": 6, "day": 9, "dusk": 17, "evening": 19, "late_night": 23},
+		"sleep_from_hour": 20,
+		"closing_hour": 24,
+		"tired_warning_hour": 25,
+		"display_step_minutes": 10,
+		"wake_spot": [14.0, 0.5, -13.4]
+	},
+	"_day_clock_seconds_per_hour_comment": "Story 3.7: real seconds per in-game hour. The full game's 30 (a 10-minute day, K-18); profiles.demo's 18 (a 6-minute day, K-14). A number in (0, 600].",
+	"day_clock_seconds_per_hour": 30,
+	"patron_phase_rates": {
+		"_comment": "Story 3.7 (CL-6): the patrons by the hour. Per phase: spawn_interval (real seconds between the spawner's tries; 0 = none) and max_patrons (at once in the hall, 0..12). day is today's spawner exactly (20 s, 5). late_night 0/0 is last call (23:00); the unserved go home at day_clock.closing_hour. Prices are unchanged (K-17); a missing or bad row is the spawner's own values with a warning.",
+		"morning": {"spawn_interval": 40, "max_patrons": 2},
+		"day": {"spawn_interval": 20, "max_patrons": 5},
+		"dusk": {"spawn_interval": 15, "max_patrons": 5},
+		"evening": {"spawn_interval": 10, "max_patrons": 7},
+		"late_night": {"spawn_interval": 0, "max_patrons": 0}
+	},
+
 	"pillar_reveal_stage": 4,
 
 	"autosave_interval_seconds": 300,
@@ -79,7 +101,6 @@
 	"tavern_light_mood": "today",
 	"tavern_light_phase_default": "day",
 	"tavern_light_blend_seconds": 4.0,
-	"tavern_light_morning_hold_seconds": 20.0,
 	"tavern_light_moods": {
 		"_comment": "The hall's base light (scripts/game/tavern_lighting.gd, Story 25.23). tavern_light_mood: 'today' (the scene as saved: MainTavern's lights snapshotted at load; it can't be defined here) or one of these presets. An unknown name falls back to today with a warning; a missing or bad value takes today's, with a warning. ambient_color [r,g,b] 0..1 x ambient_energy 0..4: the explicit ambient (today renders the project's clear colour, 0.3 grey); sun_lights_hall: false = the one DirectionalLight only inks (its direction, colour and energy never change: the edge pass multiplies by it); fill_energy 0..8 (TavernLight, the cold NE fill; today 2.0), bar_energy / desk_energy 0..8 (BarLight, the desk's DeskLight; today 1.5); bar_pool_energy 0..8 (BarPool, a warm light over the round bar with no lamp of its own: the bar shows no flame; today 0 = off; the phase's candle_scale scales it); hearth_scale 0.05..4 (x the fire's light, hearth.gd light_scale); candle_scale 0..4 (x each tavern_candle light's base_energy: the board sconces, the torches, the thin candle; today 0 = off); window_color [r,g,b] / window_energy 0..8 (the tavern_window spot lights outside the north and west windows; today 0 = off); shadow_lights: which lights cast (hearth, bar, desk, fill; candles and windows never do); omni_shadow_mode: dual_paraboloid (2 views) or cube (6 views); pillar_glow 0.6..2.0 (the Hourglass Pillar's emission); exposure 0.25..4 (tonemap_exposure, Linear tonemap kept).",
 		"moody_a": {"ambient_color": [0.46, 0.42, 0.52], "ambient_energy": 1.0, "sun_lights_hall": false, "fill_energy": 1.8, "bar_energy": 1.4, "desk_energy": 1.4, "bar_pool_energy": 1.4, "hearth_scale": 1.4, "candle_scale": 1.0, "window_color": [1.0, 0.95, 0.85], "window_energy": 1.0, "shadow_lights": ["hearth"], "omni_shadow_mode": "dual_paraboloid", "pillar_glow": 1.0, "exposure": 1.0},
@@ -163,6 +184,7 @@
 			"tax_per_adventurer": 0,
 			"tax_warning_days": [2, 1],
 			"death_chance_multiplier": 2.0,
+			"day_clock_seconds_per_hour": 18,
 			"staff_unlock": {"rule": "gold_peak", "gold_peak": 150},
 			"demo_ending": {"enabled": true, "min_reputation": 32, "min_taxes_paid": 2},
 			"disturbance_reputation_below": 40,
