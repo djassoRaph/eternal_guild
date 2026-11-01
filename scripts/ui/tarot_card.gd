@@ -16,6 +16,7 @@ const ROMAN := [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]]
 const DEFAULT_RECTS := {"header": [0.06, 0.025, 0.88, 0.075], "window": [0.07, 0.115, 0.86, 0.735], "footer": [0.06, 0.865, 0.88, 0.105]}
 
 static var frame_warnings := 0   # how many times the plain-border fallback warned (once a session; tests read it)
+static var back_warnings := 0    # the card back's fallback warned (Story 18.2; once a session; tests read it)
 
 ## true: no header and no name (the roster's thumbnail).
 var compact := false:
@@ -33,6 +34,10 @@ var _name: Label
 var _cfg: Dictionary = {}
 var _head: Dictionary = {"text": "", "color": Color.WHITE, "icon": null}
 var _card_name := ""
+var _back: TextureRect           # Story 18.2: the card back (tarot_card.json `back`) over the whole card
+var _back_placeholder: Panel     # ... or, with no back art, the placeholder back drawn in code
+var _back_eye: Panel
+var _showing_back := false
 
 
 func _init() -> void:
@@ -71,7 +76,19 @@ func _init() -> void:
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		l.clip_text = true
-	for n in [_field, _art, _frame, _border, _header, _icon, _name]:
+	_back = TextureRect.new()
+	_back.name = "Back"
+	_back.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_back.stretch_mode = TextureRect.STRETCH_SCALE
+	_back.visible = false
+	_back_placeholder = Panel.new()
+	_back_placeholder.name = "PlaceholderCardBack"
+	_back_placeholder.visible = false
+	_back_eye = Panel.new()
+	_back_eye.name = "Eye"
+	_back_eye.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_back_placeholder.add_child(_back_eye)
+	for n in [_field, _art, _frame, _border, _header, _icon, _name, _back, _back_placeholder]:
 		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(n)
 
@@ -85,6 +102,11 @@ func _notification(what: int) -> void:
 ## PortraitSocket.resolve_card_art: {texture, tint, painting}).
 func set_card(card: Dictionary, art: Dictionary) -> void:
 	_cfg = PortraitSocket.card_config()
+	_showing_back = false
+	_back.visible = false
+	_back_placeholder.visible = false
+	_field.visible = true
+	_art.visible = true
 	_field.color = Color.from_string(str(_cfg.get("field_color", "#231c18")), Color(0.14, 0.11, 0.09))
 	_apply_frame()
 	var tex = art.get("texture")
@@ -97,11 +119,45 @@ func set_card(card: Dictionary, art: Dictionary) -> void:
 	_layout()
 
 
-## What this card shows, for tests and callers: {header, header_color, icon, name, art, tint, frame_fallback}.
+## Show only the card's back (Story 18.2: a locked Codex slot; later the flip reveal): tarot_card.json `back` drawn over the
+## whole card when it loads; "" the placeholder back drawn in code (the field colour, a gold rule, a teal eye); a path
+## that doesn't load: the placeholder and ONE warning a session. set_card() turns it face up again.
+func set_back() -> void:
+	_cfg = PortraitSocket.card_config()
+	_showing_back = true
+	var path := str(_cfg.get("back", ""))
+	var tex = load(path) if path != "" and ResourceLoader.exists(path) else null
+	_back.texture = tex if tex is Texture2D else null
+	_back.visible = tex is Texture2D
+	_back_placeholder.visible = not (tex is Texture2D)
+	if not (tex is Texture2D):
+		var rule := Color(0.69, 0.55, 0.34)
+		var b := StyleBoxFlat.new()
+		b.bg_color = Color.from_string(str(_cfg.get("field_color", "#231c18")), Color(0.14, 0.11, 0.09))
+		b.border_color = rule
+		b.set_border_width_all(3)
+		b.set_corner_radius_all(6)
+		_back_placeholder.add_theme_stylebox_override("panel", b)
+		var e := StyleBoxFlat.new()
+		e.bg_color = Color(0.25, 0.72, 0.65)
+		e.border_color = rule
+		e.set_border_width_all(2)
+		e.set_corner_radius_all(999)
+		_back_eye.add_theme_stylebox_override("panel", e)
+		if path != "" and back_warnings == 0:
+			back_warnings += 1
+			push_warning("[TarotCard] fallback: the card back '%s' doesn't load; drawing the placeholder back" % path)
+	for n in [_field, _art, _frame, _border, _header, _icon, _name]:
+		n.visible = false
+	_layout()
+
+
+## What this card shows, for tests and callers: {header, header_color, icon, name, art, tint, frame_fallback, back}.
 func shown() -> Dictionary:
 	return {"header": _header.text if _header.visible else "", "header_color": _header.get_theme_color("font_color"),
 		"icon": _icon.texture if _icon.visible else null, "name": _name.text if _name.visible else "", "art": _art.texture,
-		"tint": _art.self_modulate, "frame": _frame.texture if _frame.visible else null, "frame_fallback": _border.visible}
+		"tint": _art.self_modulate, "frame": _frame.texture if _frame.visible else null, "frame_fallback": _border.visible,
+		"back": _showing_back}
 
 
 ## A card's header band (pure): a Major card's numeral; a Minor card's suit label in its colour (its icon instead
@@ -138,6 +194,15 @@ static func reset_frame_warnings() -> void:
 	frame_warnings = 0
 
 
+## Tests: the card back's fallback warnings so far, and a reset (Story 18.2).
+static func back_warning_count() -> int:
+	return back_warnings
+
+
+static func reset_back_warnings() -> void:
+	back_warnings = 0
+
+
 ## A Major Arcana numeral: 0 is "0", then I … XXI (and on). Pure.
 static func roman(n: int) -> String:
 	if n <= 0:
@@ -169,6 +234,10 @@ func _apply_frame() -> void:
 
 func _apply_labels() -> void:
 	if _header == null:
+		return
+	if _showing_back:   # Story 18.2: a card shown face down has no labels
+		for n in [_header, _icon, _name]:
+			n.visible = false
 		return
 	var icon = _head.get("icon")
 	_icon.texture = icon if icon is Texture2D else null
@@ -204,6 +273,13 @@ func _layout() -> void:
 	_name.size = foot.size
 	_header.add_theme_font_size_override("font_size", maxi(8, int(head.size.y * 0.72)))
 	_name.add_theme_font_size_override("font_size", maxi(8, int(foot.size.y * 0.5)))
+	_back.position = Vector2.ZERO
+	_back.size = s
+	_back_placeholder.position = Vector2.ZERO
+	_back_placeholder.size = s
+	var eye := Vector2(s.x * 0.36, s.x * 0.24)
+	_back_eye.position = (s - eye) * 0.5
+	_back_eye.size = eye
 
 
 func _rect(key: String, s: Vector2) -> Rect2:
