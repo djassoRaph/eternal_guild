@@ -369,6 +369,7 @@ func _initialize() -> void:
 	await test_demo_ending()
 	await test_codex_book()
 	await test_codex_tarot()
+	await test_codex_artefacts()
 
 	_finish()
 
@@ -16765,5 +16766,158 @@ func _check_t45_book(dm) -> void:
 	check(book.current_chapter == "tarot" and reads == ["major_07_the_chariot", "major_09_the_hermit", "major_07_the_chariot"]
 		and book.read_line("tarot", "major_07_the_chariot") == "[Codex] read: tarot major_07_the_chariot",
 		"in the book: a click and the arrow keys turn the pages, each page one entry_read (the page already shown isn't read twice) %s" % [reads])
+	book.close()
+	await process_frame
+
+
+# --- Test 46: The Prior Artefacts chapter (Story 18.3) ---
+const CODEX_ARTEFACTS_PATH := "res://scripts/menus/codex/artefacts_chapter.gd"
+const T46_DIR := "user://failsafe_t46"
+
+
+## AC 1-4 (Story 18.3): the finder written at the find (a redirected codex), the loot roll passing its recipient, the
+## chapter's pure rules (file order, the fate by id and name, the lines), the chapter's pages, and the link to The Fallen
+## in the real book. Never touches the real save or codex.
+func test_codex_artefacts() -> void:
+	print("[Test 46] The Prior Artefacts chapter (Story 18.3)")
+	var ss = root.get_node_or_null("SaveSystem")
+	var dm = root.get_node_or_null("DataManager")
+	if ss == null or dm == null or not ResourceLoader.exists(CODEX_ARTEFACTS_PATH):
+		check(false, "the SaveSystem and DataManager autoloads and artefacts_chapter.gd")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var ss_saved := [ss.save_path, ss.codex_path, ss.codex_data]
+	DirAccess.make_dir_recursive_absolute(T46_DIR)
+	ss.save_path = T46_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T46_DIR + "/codex.dat"
+	_check_t46_record(ss)
+	ss.codex_path = ss_saved[1]
+	ss.save_path = ss_saved[0]
+	ss.codex_data = ss_saved[2]
+	for f in ["codex.dat", "codex.dat.tmp", "eternal_guild_save.json"]:
+		if FileAccess.file_exists(T46_DIR + "/" + f):
+			DirAccess.remove_absolute(T46_DIR + "/" + f)
+	DirAccess.remove_absolute(T46_DIR)
+	var A = load(CODEX_ARTEFACTS_PATH)
+	var UI = load(CODEX_UI_PATH)
+	_check_t46_rules(A, UI)
+	_check_t46_chapter(A, UI)
+	await _check_t46_link(dm)
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 46 never touched the real save or codex")
+	print("")
+
+
+## The fixture: an old find (no finder, no run), a find whose finder fell, junk, a find whose finder's id is a fallen
+## hero's but not their name.
+static func _t46_codex() -> Dictionary:
+	return {"artifacts_found": [
+			{"id": "hollow_bell", "name": "Hollow Bell", "description": "Rings without a clapper.", "found_day": 9.0, "timestamp": 10.0},
+			{"id": "teal_rune_shard", "name": "Teal Rune Shard", "description": "It hums.", "found_day": 4.0, "timestamp": 20.0,
+				"run": 2.0, "found_by": "Nina", "found_by_id": 77.0, "found_by_class": "Healer"},
+			"junk",
+			{"id": "priors_seal", "name": "Prior's Seal", "description": "Warm to the touch.", "found_day": 1.0, "timestamp": 30.0,
+				"run": 3, "found_by": "Rex", "found_by_id": 80},
+		],
+		"fallen_heroes": [{"id": 77, "name": "Nina", "class": "Healer", "tarot_card": "", "hire_day": 2, "death_day": 20, "timestamp": 25.0},
+			{"id": 80.0, "name": "Someone Else", "class": "Rogue", "tarot_card": "", "hire_day": 1, "death_day": 3, "timestamp": 5.0}]}
+
+
+## AC 1 (DC-8): record_artifact_found(id, finder) on a redirected codex; an old codex without the key; the loot roll.
+func _check_t46_record(ss) -> void:
+	ss.codex_data = {"schema_version": 2, "fallen_heroes": [], "total_runs": 1.0}
+	ss.record_artifact_found("teal_rune_shard", {"id": 77, "name": "Nina", "class": "Healer", "strength": 5})
+	var list = ss.codex_data.get("artifacts_found")
+	var e: Dictionary = list[-1] if list is Array and not (list as Array).is_empty() else {}
+	var disk = _read_json(T46_DIR + "/codex.dat")
+	var de: Dictionary = disk.artifacts_found[-1] if disk is Dictionary and disk.get("artifacts_found") is Array else {}
+	check(e.get("id") == "teal_rune_shard" and e.get("name") == "Teal Rune Shard" and str(e.get("description", "")) != ""
+		and e.has("found_day") and e.has("timestamp") and e.get("run") == 2 and e.get("found_by") == "Nina" and e.get("found_by_id") == 77
+		and e.get("found_by_class") == "Healer" and not e.has("strength") and de.get("found_by") == "Nina" and int(de.get("run", 0)) == 2,
+		"record_artifact_found(id, finder): the old fields + run (total_runs + 1), found_by, found_by_id, found_by_class; on disk at once (an old codex gets the key)")
+	ss.record_artifact_found("hollow_bell")
+	var e2: Dictionary = ss.codex_data.artifacts_found[-1]
+	check(e2.get("id") == "hollow_bell" and e2.get("run") == 2 and not e2.has("found_by") and not e2.has("found_by_id") and not e2.has("found_by_class")
+		and (ss.codex_data.artifacts_found as Array).size() == 2,
+		"record_artifact_found(id) with no finder (any other caller): no finder fields, the run still recorded")
+	var src := FileAccess.get_file_as_string("res://scripts/GameManager.gd")
+	var loot := src.substr(src.find("func _roll_and_apply_loot"), 2600)
+	check(loot.contains("SaveSystem.record_artifact_found(artifact_id, recipient)") and src.count("record_artifact_found(") == 1,
+		"the loot roll records its recipient as the finder (solo: the adventurer; party: the member it picked); the only caller")
+
+
+## AC 2, 3: the pure rules.
+func _check_t46_rules(A, UI) -> void:
+	var cfg: Dictionary = UI.config()
+	var fx := _t46_codex()
+	var ids: Array = A.artefact_entries(fx).map(func(e): return e.id)
+	check(ids == ["hollow_bell", "teal_rune_shard", "priors_seal"] and A.artefact_entries({}).is_empty() and A.artefact_entries({"artifacts_found": 3}).is_empty(),
+		"artefact_entries: file order = discovery order (oldest first; the old list sorted a per-run day backwards), junk skipped, none -> [] %s" % [ids])
+	var es: Array = A.artefact_entries(fx)
+	var nina: Dictionary = A.finder_fate(es[1], fx)
+	check(int(nina.get("id", -1)) == 77 and int(nina.get("death_day", -1)) == 20 and A.finder_fate(es[2], fx).is_empty()
+		and A.finder_fate(es[0], fx).is_empty() and A.finder_fate(es[1], {}).is_empty()
+		and A.finder_fate({"found_by_id": 77}, fx).is_empty(),
+		"finder_fate: the same id (77.0 vs 77) and name in fallen_heroes -> {id, death_day}; an id whose hero has another name, no finder, no fallen list -> {}")
+	check(A.when_line(es[0], cfg) == "Day 9" and A.when_line(es[1], cfg) == "Run 2 · Day 4" and A.finder_line(es[0], cfg) == "Finder unknown"
+		and A.finder_line(es[1], cfg) == "Found by Nina, Healer" and A.finder_line(es[2], cfg) == "Found by Rex",
+		"the lines: 'Run 2 · Day 4' ('Day 9' for an old find), 'Found by Nina, Healer' / 'Found by Rex', 'Finder unknown'")
+
+
+## AC 2, 3: the chapter on fixture pages.
+func _check_t46_chapter(A, UI) -> void:
+	var cfg: Dictionary = UI.config()
+	var reader := _t45_reader()
+	var ch = A.new()
+	var left := VBoxContainer.new()
+	var right := VBoxContainer.new()
+	ch.build(left, right, {"codex": _t46_codex(), "deck": [], "cfg": cfg, "book": reader, "focus": null})
+	var subs: Array = ch.row_nodes.map(func(r): return (r.find_child("Sub", true, false) as Label).text)
+	var page := func(n: String) -> String:
+		var l: Label = right.find_child(n, true, false)
+		return l.text if l != null else ""
+	var first_ok: bool = (ch.row_nodes.size() == 3 and subs == ["Day 9", "Run 2 · Day 4", "Run 3 · Day 1"] and ch.selected == 0
+		and page.call("PageName") == "Hollow Bell" and page.call("PageFinder") == "Finder unknown" and page.call("PageDescription") == "Rings without a clapper."
+		and right.find_child("SeeFallen", true, false) == null and (ch.row_nodes[0] as Button).button_pressed)
+	(ch.row_nodes[1] as Button).pressed.emit()
+	var nina_ok: bool = (ch.selected == 1 and page.call("PageFinder") == "Found by Nina, Healer" and page.call("PageFell") == "Nina fell on Day 20."
+		and right.find_child("SeeFallen", true, false) is Button and page.call("PageWhen") == "Run 2 · Day 4")
+	ch.turn(1)
+	var rex_ok: bool = ch.selected == 2 and page.call("PageFell") == "" and right.find_child("SeeFallen", true, false) == null
+	ch.turn(1)
+	check(first_ok and nina_ok and rex_ok and ch.selected == 0
+		and reader.reads == [["artefacts", "hollow_bell#0"], ["artefacts", "teal_rune_shard#1"], ["artefacts", "priors_seal#2"], ["artefacts", "hollow_bell#0"]],
+		"the chapter: rows oldest first with run and day; the first page by default; a fallen finder's page says so with 'See The Fallen'; turning wraps; each page a read")
+	left.free()
+	right.free()
+	var ch2 = A.new()
+	var l2 := VBoxContainer.new()
+	var r2 := VBoxContainer.new()
+	ch2.build(l2, r2, {"codex": {}, "deck": [], "cfg": cfg, "book": null, "focus": null})
+	var empty: Label = l2.find_child("Empty", true, false)
+	check(empty != null and empty.text == "No artefacts recovered yet" and r2.get_child_count() == 0, "none found: 'No artefacts recovered yet'")
+	l2.free()
+	r2.free()
+
+
+## AC 3: in the real book, the link opens the Fallen Heroes chapter with the finder highlighted.
+func _check_t46_link(dm) -> void:
+	var book = _t44_open(_t46_codex(), dm)
+	await process_frame
+	book.show_chapter("artefacts", 1)
+	var link: Button = book._right.find_child("SeeFallen", true, false)
+	if link == null:
+		check(false, "the fallen finder's page has 'See The Fallen' in the book")
+		book.close()
+		await process_frame
+		return
+	link.pressed.emit()
+	var ch = book._chapter
+	var row_id = null
+	if book.current_chapter == "fallen" and ch != null and ch.focused != null:
+		for r in ch.rows:
+			if r.node == ch.focused:
+				row_id = r.entry.get("id")
+	check(book.current_chapter == "fallen" and row_id != null and int(row_id) == 77,
+		"'See The Fallen' opens the Fallen Heroes chapter in the same book with the finder's row highlighted")
 	book.close()
 	await process_frame
