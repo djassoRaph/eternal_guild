@@ -1,0 +1,34 @@
+{
+	"_comment": "DRAFT (Epic 9, Stories 9.1-9.5): the travelling Bard in the hall (scripts/game/bard.gd; his body scripts/npcs/bard_npc.gd). When he comes is game_config.json's bard_* keys (GameManager.bard_visit). bard.body: the townsfolk variant id his body comes from (data/characters/townsfolk.json): a PLACEHOLDER, the merchant (his feathered beret reads as a minstrel), until Story 25.12's Bard replaces it here; while he is in the hall no new patron wears that body. speaker: his id in data/dialogue/speakers.json. dialogue: his conversation (data/dialogue/bard.dialogue: door_first, door_N, song_N). porch [x, y, z]: where he appears, outside the front door (the staff's porch point); route_in: the points he walks first (inside the door), then the wait spot. wait_spot / perform_spot [x, z, yaw_deg]: MainTavern coordinates, measured (Story 9.1 T1: on the navmesh, 2.3 m from every other E zone, 4.55 m from every patron seat for the wait spot, off the staff's routes; Test 39); a node in group bard_perform_point (Story 25.12's corner) wins over perform_spot. walk_in_timeout_seconds: not inside by then, he is placed at the last route point. perform_clip: the clip he plays while performing (a PLACEHOLDER until Story 25.16's lute clip). lute: a PLACEHOLDER lute built from primitives (Story 25.12's H9 replaces it): carry (on his back while he walks and waits) and play (in his hands while he performs): bone, offset [x, y, z] metres in the bone's frame, rotation_deg [x, y, z]; scale. indicator: the sign over his head while he plays ('' = none). music_path: his music ('' = the code-made placeholder phrase, scripts/audio/placeholder_lute.gd); music_volume_db on the Music bus. text: the prompts and banners. leave_lines: what he says as he moves on unheard. Every line is DRAFT: Raphael rewrites.",
+	"bard": {
+		"body": "merchant",
+		"speaker": "bard",
+		"dialogue": "res://data/dialogue/bard.dialogue",
+		"porch": [9.6, -0.33, 6.2],
+		"route_in": [[9.6, 0.0, 3.4]],
+		"wait_spot": [13.5, 2.5, -115.0],
+		"perform_spot": [-3.25, 0.5, 90.0],
+		"walk_in_timeout_seconds": 12.0,
+		"perform_clip": "Interact",
+		"lute": {
+			"carry": {"bone": "chest", "offset": [0.0, 0.05, -0.22], "rotation_deg": [0.0, 0.0, 35.0]},
+			"play": {"bone": "chest", "offset": [0.0, -0.12, 0.24], "rotation_deg": [0.0, 0.0, 60.0]},
+			"scale": 1.0
+		},
+		"indicator": "♪",
+		"music_path": "",
+		"music_volume_db": -10.0
+	},
+	"text": {
+		"prompt_door": "Press E - Talk to the Bard",
+		"prompt_play": "Press E - Listen to the Bard",
+		"banner_arrival": "A travelling bard is waiting at the door.",
+		"banner_refused": "The Bard moves on.",
+		"banner_timeout": "The Bard got tired of waiting and moved on."
+	},
+	"leave_lines": [
+		"No one at the door. The road it is.",
+		"Another hearth, another night.",
+		"Suit yourself, keeper. The song keeps."
+	]
+}

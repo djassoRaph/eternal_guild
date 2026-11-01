@@ -1,0 +1,64 @@
+# DRAFT (Epic 9): the Bard's lines. Performative cadence: a beginning, a hook, a turn (narrative-design.md). He greets by
+# the hour (bridge.day_phase). At the door: door_first once a run, then door_1..N, never the same twice in a row; each has
+# the same three replies: "Play, then." (bridge.choose("allow")), "Not tonight." (bridge.choose("refuse")) and
+# "(Walk away.)" (no choice: he keeps waiting). Raphael rewrites.
+
+~ door_first
+do bridge.mark_seen("bard_first_visit")
+if bridge.day_phase == "evening"
+	Bard: Evening, keeper. Every good song starts the same way: a road, a door, and a room that wants a song.
+elif bridge.day_phase == "dusk"
+	Bard: The light's going, keeper. Every good song starts the same way: a road, a door, and a room that wants a song.
+else
+	Bard: Good day, keeper. Every good song starts the same way: a road, a door, and a room that wants a song.
+Bard: Here's my offer. I play, they drink, they tip. I keep a share of the tips. You keep the rest, and the road learns your name.
+- Play, then.
+	do bridge.choose("allow")
+	Bard: Then let's give them something to carry home.
+- Not tonight.
+	do bridge.choose("refuse")
+	Bard: Another time, then. The road goes both ways.
+- (Walk away.)
+	Bard: Take your time. I'll be at the door a while.
+=> END
+
+~ door_1
+if bridge.day_phase == "evening"
+	Bard: Back again, keeper, and just in time for the evening crowd.
+else
+	Bard: Back again, keeper. The road brought me round, the way roads do.
+Bard: Same terms as ever. I sing, they tip, I keep my share.
+- Play, then.
+	do bridge.choose("allow")
+	Bard: Good. I've a new verse, and it's about you.
+- Not tonight.
+	do bridge.choose("refuse")
+	Bard: Fair enough. Songs keep.
+- (Walk away.)
+=> END
+
+~ door_2
+Bard: On the road they call this guild {{bridge.reputation_tier}}. Names change. Songs are how.
+if bridge.deaths_this_run > 0
+	Bard: I heard about the ones who didn't come back. I'd sing them properly, if you'll have me.
+Bard: A share of the tips, and the room gets the song. Well?
+- Play, then.
+	do bridge.choose("allow")
+	Bard: Then listen close. This one starts quiet.
+- Not tonight.
+	do bridge.choose("refuse")
+	Bard: Another time.
+- (Walk away.)
+=> END
+
+~ door_3
+Bard: Day {{bridge.day}}, and the door's still open. Most guilds don't make the second verse.
+Bard: Shall I play? The usual share.
+- Play, then.
+	do bridge.choose("allow")
+	Bard: The second verse it is.
+- Not tonight.
+	do bridge.choose("refuse")
+	Bard: Then I'll save it for the road.
+- (Walk away.)
+=> END

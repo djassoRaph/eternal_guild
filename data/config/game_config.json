@@ -162,10 +162,19 @@
 		"min_taxes_paid": 2
 	},
 
+	"_bard_comment": "Epic 9 (Story 9.1): the travelling Bard. Each morning (after the disturbance roll; one visitor a day, K-20: none on the King's messenger's day or a disturbance's day) a visit is queued when the guild's reputation tier is at least bard_min_tier (a tier label), at least bard_cooldown_days have passed since the last visit and a bard_daily_chance roll (0..1) comes up. bard_schedule: [{day, hook?, hour?}] forces a visit on a day (day >= 2) whatever the rest says; hook: a quest hook if he plays (Story 9.4). He comes to the door at an hour rolled in bard_arrival_hours [from, to] (the day clock's hours, inside the hall's open hours 9-23), once the hall is clear and bard_arrival_delay_seconds (real) have passed, and waits bard_wait_hours of clock time before he moves on. DRAFT numbers; a bad value falls back with a warning.",
+	"bard_daily_chance": 0.25,
+	"bard_cooldown_days": 3,
+	"bard_min_tier": "Known",
+	"bard_schedule": [],
+	"bard_arrival_hours": [11, 19],
+	"bard_arrival_delay_seconds": 5,
+	"bard_wait_hours": 3,
+
 	"profiles": {
 		"_comment": "Story 14.6 (DP-1): per-profile values. DataManager.get_config(key) returns profiles.<profile>.<key> when the active profile's block has the key, else the top-level value: the top level is the full game. A block replaces a key's whole value (lists and objects are never merged). Every key in a block also exists at the top level; profile and profiles are never in a block. Keys tools read straight from this file can't be overridden: anime_look_preset(s), edge_pass, tavern_light_*, autosave_interval_seconds. The demo's other switches are top-level demo-only keys: demo_start_staff, demo_party_missions.",
 		"demo": {
-			"_comment": "The Kickstarter demo. DRAFT numbers: Phase F playtests retune them. Pacing (14.6 DP-2, DP-4): faster tiers and gains and a satisfied patron's +1, so a typical ~30-minute session is Known on Day 2, Trusted on Day 4 and Respected about Day 6. The arc (14.6 DP-12; sprint-change-proposal-2026-10-31.md K-1..K-6; Raphael 2026-11-01 K-7..K-9): 40 gold and 20 beer to start, a 20-gold tax every 3 days from Day 3 (warned 2 days and 1 day before), the King's messenger (Story 10.7) once reputation reaches 32 after 2 taxes, the staff hireable once the guild has held 150 gold (K-7, amended 2026-11-01), and deaths twice as likely. Disturbances (14.4): a real thief on Day 2, then a 40% chance a morning (2 days apart) while below Respected.",
+			"_comment": "The Kickstarter demo. DRAFT numbers: Phase F playtests retune them. Pacing (14.6 DP-2, DP-4): faster tiers and gains and a satisfied patron's +1, so a typical ~30-minute session is Known on Day 2, Trusted on Day 4 and Respected about Day 6. The arc (14.6 DP-12; sprint-change-proposal-2026-10-31.md K-1..K-6; Raphael 2026-11-01 K-7..K-9): 40 gold and 20 beer to start, a 20-gold tax every 3 days from Day 3 (warned 2 days and 1 day before), the King's messenger (Story 10.7) once reputation reaches 32 after 2 taxes, the staff hireable once the guild has held 150 gold (K-7, amended 2026-11-01), and deaths twice as likely. Disturbances (14.4): a real thief on Day 2, then a 40% chance a morning (2 days apart) while below Respected. The Bard (Epic 9): a sure visit on Day 3 (with a quest hook if he plays), then a 40% chance a morning, 2 days apart.",
 			"reputation_tiers": [
 				{"threshold": 0,  "label": "Unknown",   "tip_bonus": 0.0, "recruit_stat_bonus": 0},
 				{"threshold": 10, "label": "Known",     "tip_bonus": 0.1, "recruit_stat_bonus": 1},
@@ -190,7 +199,10 @@
 			"disturbance_reputation_below": 40,
 			"disturbance_daily_chance": 0.4,
 			"disturbance_cooldown_days": 2,
-			"disturbance_schedule": [{"day": 2, "type": "thief", "truth": "guilty"}]
+			"disturbance_schedule": [{"day": 2, "type": "thief", "truth": "guilty"}],
+			"bard_daily_chance": 0.4,
+			"bard_cooldown_days": 2,
+			"bard_schedule": [{"day": 3, "hook": true}]
 		}
 	}
 }

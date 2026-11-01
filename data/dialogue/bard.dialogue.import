@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://sd3s0eqccysc"
+path="res://.godot/imported/bard.dialogue-a23cac5433c2021d8a832ad0bb72a9cd.tres"
+
+[deps]
+
+source_file="res://data/dialogue/bard.dialogue"
+dest_files=["res://.godot/imported/bard.dialogue-a23cac5433c2021d8a832ad0bb72a9cd.tres"]
+
+[params]
+
+defaults=true
