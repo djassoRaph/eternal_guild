@@ -78,6 +78,15 @@ var is_demo: bool:
 		_read_only("is_demo")
 
 
+## Epic 9: the day clock's phase now ("morning", "day", "dusk", "evening", "late_night"; Story 3.7), so a greeting fits
+## the hour ("Evening, keeper." reads wrong at 10:00).
+var day_phase: String:
+	get:
+		return GameManager.day_clock_phase()
+	set(_v):
+		_read_only("day_phase")
+
+
 ## Story 14.4: today's tavern disturbance's type ("" when none) and its subject (the mourner's lost adventurer; "" else).
 var disturbance_type: String:
 	get:

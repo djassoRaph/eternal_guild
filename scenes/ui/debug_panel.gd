@@ -113,7 +113,7 @@ func _build_tab_state(parent: VBoxContainer) -> void:
 
 	var keys := [
 		"gold", "beer", "firewood", "fuel",
-		"day", "clock", "tax_due_day", "tax", "disturbance", "demo_ending",
+		"day", "clock", "tax_due_day", "tax", "disturbance", "demo_ending", "bard",
 		"adventurers_count", "active_missions_count",
 		"tier_unlocked", "reputation",
 		"beer_shortage_days", "total_missions_completed"
@@ -171,6 +171,7 @@ func _refresh_state_tab() -> void:
 		int(tax_cfg.grace_days), gm.taxes_paid_count])
 	_sl("disturbance",             disturbance_line(gm.pending_disturbance, gm.last_disturbance_day))   # Story 14.4
 	_sl("demo_ending",             demo_ending_line(gm.demo_ending, gm.demo_ending_config(), gm.tavern_reputation, gm.taxes_paid_count))   # Story 10.7
+	_sl("bard",                    bard_line(gm.bard_visit, gm.bard_last_visit_day))   # Epic 9
 	_sl("adventurers_count",       str(gm.adventurers.size()) + " / " + str(gm.max_adventurers))
 	_sl("active_missions_count",   str(gm.active_missions.size()) + " active")
 	_sl("tier_unlocked",           "Tier " + str(gm.mission_tier_unlocked))
@@ -235,6 +236,14 @@ static func demo_ending_line(st: Dictionary, cfg: Dictionary, reputation: int, t
 		head = ("due day %d" if str(st.get("state", "")) == "due" else str(st.get("state", "?")) + ", day %d") % int(st.get("day", 0))
 	return "%s · rep %d/%d · taxes %d/%d" % [head, reputation, int(cfg.get("min_reputation", 0)), taxes, int(cfg.get("min_taxes_paid", 0))]
 
+## Epic 9: the Bard's visit as the State tab shows it ("none · last 3", "waiting, day 3 at 12:40 · last 3").
+static func bard_line(v: Dictionary, last_day: int) -> String:
+	if v.is_empty():
+		return "none · last %d" % last_day
+	var at := int(v.get("arrive_minute", 0))
+	return "%s, day %d at %d:%02d%s · last %d" % [v.get("state", "?"), int(v.get("day", 0)), posmod(at / 60, 24), posmod(at, 60),
+		", hook" if v.get("hook") == true else "", last_day]
+
 ## Story 3.7 (CL-12): the day clock as the State tab shows it: "20:40 evening · x1 · running", "… · held: a screen",
 ## "… · off: MainMenu".
 static func clock_line(minutes: float, phase: String, speed: float, hold: String) -> String:
@@ -291,6 +300,7 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 	_btn_full(parent, "Reset Economy to Start",     _debug_reset_economy)
 	_btn_full(parent, "Queue a thief now",          func(): GameManager.debug_queue_disturbance("thief", "guilty"))   # Story 14.4
 	_btn_full(parent, "Demo ending now",            func(): GameManager.debug_demo_ending_now())   # Story 10.7 (demo only)
+	_btn_full(parent, "The Bard visits now",        func(): GameManager.debug_queue_bard(true))   # Epic 9 (with a quest hook)
 
 	parent.add_child(HSeparator.new())
 	_h(parent, "DAY CLOCK (Story 3.7: forward only; the panel holds the clock while open)")

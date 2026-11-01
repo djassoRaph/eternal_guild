@@ -18,6 +18,7 @@ var reputation_label: Label  # code-built (Epic 14) — no scene-file changes ne
 const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
 const DISTURBANCE_DIRECTOR := "res://scripts/game/disturbance_director.gd"   # Story 14.4 (loaded by path)
 const ROYAL_MESSENGER := "res://scripts/game/royal_messenger.gd"   # Story 10.7: the demo's ending (loaded by path)
+const BARD := "res://scripts/game/bard.gd"   # Epic 9: the travelling Bard (loaded by path)
 const DAY_CLOCK_RULES := preload("res://scripts/game/day_clock_rules.gd")   # Story 3.7: the HUD clock's words
 
 
@@ -50,6 +51,9 @@ func _ready():
 	var messenger = load(ROYAL_MESSENGER).new()   # Story 10.7: the King's messenger on the demo ending's day (demo only)
 	messenger.name = "RoyalMessenger"
 	add_child(messenger)
+	var bard = load(BARD).new()   # Epic 9: the travelling Bard on his day, in the open hours
+	bard.name = "Bard"
+	add_child(bard)
 	log_message("Game started successfully!")
 	add_to_group("main_tavern")
 	# Epic 16 (Stories 16.3, 16.4): the hall's staff work by themselves (their brains); elsewhere they stay cosmetic

@@ -228,13 +228,15 @@ static func pool_without(pool: Array, taken: Array) -> Array:
 	var left := pool.filter(func(v): return not taken.has(str(v.get("id", ""))))
 	return left if not left.is_empty() else pool
 
-## The body variant ids the hall's visitors in group "royal_messenger" wear now (Story 10.7 review P15).
+## The body variant ids the hall's visitors in group "royal_messenger" (Story 10.7 review P15) and "bard" (Epic 9: the
+## Bard's placeholder body is a townsperson's, so no new patron wears it while he is in the hall) wear now.
 func _visitor_bodies() -> Array:
 	var out := []
 	if is_inside_tree():
-		for n in get_tree().get_nodes_in_group("royal_messenger"):
-			if not n.is_queued_for_deletion():
-				out.append(str(n.get("variant_id")))
+		for g in ["royal_messenger", "bard"]:
+			for n in get_tree().get_nodes_in_group(g):
+				if not n.is_queued_for_deletion():
+					out.append(str(n.get("variant_id")))
 	return out
 
 ## Weighted pick among the variants of one origin type ("" = the whole pool). An origin type no
