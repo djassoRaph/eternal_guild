@@ -12926,10 +12926,38 @@ func test_bartender_serves() -> void:
 
 	world.queue_free()
 	await process_frame
+	await _check_t35_space_serve(gm, eb)
 	_t28_restore(snap, gm, wm, dm)
 	eb.beer_changed.emit(gm.beer_stock)
 	capture.free()
 	print("")
+
+
+## Review P16 (the coordinator): Space / Enter (ui_accept) beside a waiting patron does what E does, once: the patron's own
+## serve_patron() takes one pint; no second pint and no instant payment (player.gd used to call serve_customer_beer() too).
+func _check_t35_space_serve(gm, eb) -> void:
+	var src := FileAccess.get_file_as_string("res://scripts/player/player.gd")
+	var body := _func_body(src, "_try_interact_with_patron")
+	check(body.contains("try_serve_nearby_patron()") and not body.contains("serve_customer_beer"),
+		"player.gd's ui_accept path serves through try_serve_nearby_patron() only (no serve_customer_beer)")
+	var fix := GDScript.new()
+	fix.source_code = "extends \"res://scripts/npcs/RealisticPatron.gd\"\nvar t_served := 0\nfunc _ready() -> void:\n\tadd_to_group(\"patrons\")\nfunc _physics_process(_d: float) -> void:\n\tpass\nfunc can_be_served_by(_p: Vector3) -> bool:\n\treturn t_served == 0\nfunc serve_patron():\n\tif not Engine.get_main_loop().root.get_node(\"GameManager\").consume_beer_pints(1):\n\t\treturn false\n\tt_served += 1\n\treturn true\n"
+	fix.reload()
+	var world := Node3D.new()
+	root.add_child(world)
+	var pl = (load(PLAYER_SCENE) as PackedScene).instantiate()
+	world.add_child(pl)
+	var pat = CharacterBody3D.new()
+	pat.set_script(fix)
+	world.add_child(pat)
+	pat.global_position = pl.global_position + Vector3(1.0, 0.0, 0.0)
+	gm.beer_stock = 5
+	var gold0: int = gm.gold
+	pl._try_interact_with_patron()
+	check(pat.t_served == 1 and gm.beer_stock == 4 and gm.gold == gold0,
+		"Space beside a waiting patron: one pint (5 -> %d), no instant payment (gold %d -> %d), served once (%d) (review P16)" % [gm.beer_stock, gold0, gm.gold, pat.t_served])
+	world.queue_free()
+	await process_frame
 
 
 const T35_PATRON_SRC := "extends Node3D\nvar waiting := false\nvar served := 0\nfunc is_waiting_for_service() -> bool:\n\treturn waiting\nfunc serve_patron() -> bool:\n\tif not waiting:\n\t\treturn false\n\tif not Engine.get_main_loop().root.get_node(\"GameManager\").consume_beer_pints(1):\n\t\treturn false\n\twaiting = false\n\tserved += 1\n\treturn true\n"

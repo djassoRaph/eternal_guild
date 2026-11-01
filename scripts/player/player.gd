@@ -303,11 +303,9 @@ func try_serve_nearby_patron() -> RealisticPatron:
 	return null
 
 func _try_interact_with_patron() -> void:
-	"""Backup patron interaction via ui_accept"""
-	var patron = try_serve_nearby_patron()
-	if patron:
-		if GameManager and GameManager.has_method("serve_customer_beer"):
-			GameManager.serve_customer_beer()
+	"""Backup patron interaction via ui_accept: exactly what E does (one serve_patron: the pint, and the patron pays when
+	they finish). It used to add GameManager's old instant serve too: a second pint and instant gold (Epic 16 review P16)."""
+	try_serve_nearby_patron()
 
 func get_closest_patron_in_range() -> RealisticPatron:
 	"""Get the closest patron within interaction range"""
