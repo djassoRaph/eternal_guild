@@ -1,7 +1,7 @@
 # royal_messenger.gd — the hall's side of the demo's ending (Story 10.7; sprint-change-proposal-2026-10-31.md K-2, K-3).
 # GameManager keeps the ending's state (demo_ending: due -> coming -> waiting -> ended; demo profile only) and makes it
 # "coming" on its morning; this node, added by main_tavern.gd, shows it. When today's is "coming", the hall's phase is
-# "day" (TavernLighting's, read live, else the last GameBus.day_phase_changed), the run hasn't fallen, the world isn't
+# "day" or "evening" (ARRIVAL_PHASES; TavernLighting's, read live, else the last GameBus.day_phase_changed), the run hasn't fallen, the world isn't
 # frozen (the pause menu, a fall), and nothing else holds the screen (a conversation, the morning briefing, a blocking
 # screen, a tavern disturbance's visitor, a pending Tarot card reveal: Story 17.3's NotificationManager.card_reveal_pending()
 # or its "card_reveal" group), it waits arrival_delay_seconds of that, then the King's messenger (royal_messenger_npc.gd)
@@ -33,9 +33,17 @@ const DEFAULTS := {
 		"banner_return": "The King's messenger is back. He still has word for the guild master.",
 		"prompt": "Press E - Hear the King's messenger"},
 	"panel_id": "the_kings_request",
-	"end_card": {"title": "To be continued", "lines": ["The King has sent for your guild."], "kickstarter_line": "",
+	"end_card": {"title": "To be continued", "lines": ["The King has sent for your guild.",
+		"The road from here runs past the border, and further than this tavern.",
+		"Thank you for playing the Eternal Guild demo."], "kickstarter_line": "",
 		"button": "Return to the main menu", "min_seconds": 3.0, "fade_seconds": 1.0},
 }
+## Keys whose value must be a point of 3 numbers (porch [x, y, z]; wait_spot [x, z, yaw_deg]) or a list of them (review P9).
+const POINT_KEYS := ["porch", "wait_spot"]
+const POINT_LIST_KEYS := ["route_in"]
+## How long the end waits for Story 10.1's court panel to say it is done (review P8: a panel that never emits must not
+## hold the end card back). Runs while paused.
+const PANEL_TIMEOUT_SECONDS := 60.0
 
 ## Where his body is added (the patrons' parent, TavernNavigation); found in the scene unless set first (tests).
 var world_parent: Node3D = null
@@ -55,6 +63,8 @@ var ending := false
 var end_card: Node = null
 var _bridge: RefCounted = null
 var _box: Node = null
+## How long the end waits for Story 10.1's court panel (PANEL_TIMEOUT_SECONDS; tests shorten it).
+var panel_timeout_seconds := PANEL_TIMEOUT_SECONDS
 var _counting := false      # the arrival delay is running (everything was clear when it started)
 var _delay_left := 0.0
 var _check_left := 0.0
@@ -103,24 +113,63 @@ static func load_data(path: String) -> Dictionary:
 	return d
 
 
-## DEFAULTS with `over` on top, one level deep per section (a missing key keeps its default; "_comment" dropped).
+## DEFAULTS with `over` on top, one level deep per section. A key DEFAULTS doesn't know, and "_comment", are dropped; a
+## value is taken only when it fits its default's type (review P9: numbers int or float alike; a point 3 numbers; a list
+## of points; a list of strings for lines), else the default stays with one "[DemoEnding] fallback: ..." warning, so a
+## null number or a short point can never break the messenger or the card.
 static func merged(from_file: Dictionary, over: Dictionary = {}) -> Dictionary:
 	var out: Dictionary = DEFAULTS.duplicate(true)
 	for src in [from_file, over]:
 		for k in src:
 			if str(k).begins_with("_") or not out.has(k):
 				continue
-			if out[k] is Dictionary and src[k] is Dictionary:
+			if out[k] is Dictionary:
+				if not (src[k] is Dictionary):
+					push_warning("[DemoEnding] fallback: %s is %s, not an object; the defaults" % [k, src[k]])
+					continue
 				for kk in src[k]:
-					out[k][kk] = src[k][kk]
-			elif not (out[k] is Dictionary):
+					if str(kk).begins_with("_") or not (out[k] as Dictionary).has(kk):
+						continue
+					if fits(str(kk), out[k][kk], src[k][kk]):
+						out[k][kk] = src[k][kk]
+					else:
+						push_warning("[DemoEnding] fallback: %s.%s %s doesn't fit; the default %s" % [k, kk, src[k][kk], out[k][kk]])
+			elif fits(str(k), out[k], src[k]):
 				out[k] = src[k]
+			else:
+				push_warning("[DemoEnding] fallback: %s %s doesn't fit; the default %s" % [k, src[k], out[k]])
 	return out
 
 
-## Whether the messenger may walk in now (pure): today's ending is coming, the day phase, no fall, nothing in the way.
+## Whether `v` may replace `default` for `key` (pure; review P9).
+static func fits(key: String, default, v) -> bool:
+	if key in POINT_KEYS:
+		return is_point(v)
+	if key in POINT_LIST_KEYS:
+		return v is Array and not (v as Array).is_empty() and (v as Array).all(func(q): return is_point(q))
+	if key == "lines":
+		return v is Array and (v as Array).all(func(x): return x is String)
+	if default is bool:
+		return v is bool
+	if default is int or default is float:
+		return (v is int or v is float) and is_finite(float(v))
+	if default is String:
+		return v is String
+	return typeof(v) == typeof(default)
+
+
+static func is_point(v) -> bool:
+	return v is Array and (v as Array).size() == 3 and (v as Array).all(func(x): return (x is int or x is float) and is_finite(float(x)))
+
+
+## The hall's phases he may walk in during (review P1: opening the bedroom, the firewood shop, turns the hall to
+## "evening" and nothing turns it back; the open bedroom itself is a blocker). Not "morning" (the briefing) nor
+## "late_night" (sleep). Story 3.7's day clock widens this to the hall's open hours.
+const ARRIVAL_PHASES := ["day", "evening"]
+
+## Whether the messenger may walk in now (pure): today's ending is coming, an open phase, no fall, nothing in the way.
 static func may_arrive(state: Dictionary, day: int, phase_now: String, game_over: bool, blocked: bool) -> bool:
-	return str(state.get("state", "")) == "coming" and int(state.get("day", -1)) == day and phase_now == "day" \
+	return str(state.get("state", "")) == "coming" and int(state.get("day", -1)) == day and phase_now in ARRIVAL_PHASES \
 		and not game_over and not blocked
 
 
@@ -179,6 +228,10 @@ func check() -> void:
 			print("[DemoEnding] send away: the messenger's day is over (%s)" % [st])
 			npc.queue_free()
 			npc = null
+		elif str(st.get("state", "")) == "coming":
+			# review P2: he is in the hall but the state says "coming" (F12's day jump, "Demo ending now" while he waits):
+			# he has arrived, so hearing him ends the demo (no second banner)
+			GameManager.demo_ending_arrived()
 		return
 	npc = null
 	if world_parent == null or not is_instance_valid(world_parent) or not GameManager.demo_ending_config().active:
@@ -278,6 +331,7 @@ func _play_ending() -> void:
 	if not GameManager.demo_ending_heard():
 		return
 	ending = true
+	NotificationManager.clear_banners()   # review P4: banners frozen by the pause would play out over the main menu
 	_stop_hall()
 	await _play_court_panel()
 	_open_end_card()
@@ -313,9 +367,25 @@ func _play_court_panel() -> void:
 	if d == null or not d.has_method("play"):
 		return
 	var p = d.play(id)
-	if p != null and p is Object and (p as Object).has_signal("finished"):
-		print("[DemoEnding] the court panel '%s' plays before the end card" % id)
-		await p.finished
+	if p == null or not (p is Object) or not (p as Object).has_signal("finished"):
+		return
+	print("[DemoEnding] the court panel '%s' plays before the end card" % id)
+	# review P8: whichever comes first: the panel's finished, the panel leaving the tree, or panel_timeout_seconds (a
+	# SceneTree timer that runs while paused): a panel that never says it is done can't hold the card back
+	var done := [false]
+	var finish := func(): done[0] = true
+	(p as Object).connect("finished", finish, CONNECT_ONE_SHOT)
+	if p is Node:
+		(p as Node).tree_exited.connect(finish, CONNECT_ONE_SHOT)
+	get_tree().create_timer(panel_timeout_seconds, true).timeout.connect(finish)
+	while not done[0] and is_inside_tree():
+		await get_tree().process_frame
+	if not (p is Object and is_instance_valid(p)):
+		return
+	if (p as Object).is_connected("finished", finish):
+		(p as Object).disconnect("finished", finish)
+	if p is Node and (p as Node).tree_exited.is_connected(finish):
+		(p as Node).tree_exited.disconnect(finish)
 
 
 func _open_end_card() -> void:

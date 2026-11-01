@@ -32,14 +32,24 @@ func _ready() -> void:
 	if not get_tree().paused:
 		load(MESSENGER_SCRIPT).stop_hall(get_tree())   # opened on its own: the hall stops as it does after the messenger
 	_build()
-	var fade := maxf(0.0, float(text.get("fade_seconds", 1.0)))
+	var fade := maxf(0.0, num(text.get("fade_seconds"), 1.0))
 	var tw := create_tween()
 	tw.tween_property(shade, "modulate:a", 1.0, fade).from(0.0)
-	var wait := maxf(0.0, float(text.get("min_seconds", 3.0)))
+	var wait := maxf(0.0, num(text.get("min_seconds"), 3.0))
 	if wait <= 0.0:
 		_go_live()
 	else:
 		get_tree().create_timer(wait, true).timeout.connect(_go_live)   # process_always: it counts while paused
+
+
+## A number from the text (review P9: a null or a non-number is the default, never an error).
+static func num(v, d: float) -> float:
+	return float(v) if (v is int or v is float) and is_finite(float(v)) else d
+
+
+## A string from the text (review P9: anything else is the default).
+static func word(v, d: String) -> String:
+	return v if v is String else d
 
 
 func _build() -> void:
@@ -64,16 +74,16 @@ func _build() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)
 	panel.add_child(box)
-	var title := _label(str(text.get("title", "To be continued")), 32, Color(0.9, 0.75, 0.4))
+	var title := _label(word(text.get("title"), "To be continued"), 32, Color(0.9, 0.75, 0.4))
 	box.add_child(title)
 	var lines = text.get("lines", [])
 	for l in (lines if lines is Array else []):
 		box.add_child(_label(str(l), 18, Color(0.85, 0.85, 0.8)))
-	var ks := str(text.get("kickstarter_line", ""))
+	var ks := word(text.get("kickstarter_line"), "")
 	if ks != "":
 		box.add_child(_label(ks, 18, Color(0.9, 0.75, 0.4)))
 	button = Button.new()
-	button.text = str(text.get("button", "Return to the main menu"))
+	button.text = word(text.get("button"), "Return to the main menu")
 	button.disabled = true
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	button.custom_minimum_size = Vector2(260, 44)

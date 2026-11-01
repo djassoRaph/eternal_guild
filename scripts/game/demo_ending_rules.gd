@@ -48,14 +48,15 @@ static func queue_if_met(state: Dictionary, reputation: int, taxes_paid: int, da
 
 
 ## The morning step (advance_day): "due" on or after its day -> "coming" today; "coming" or "waiting" from an earlier day
-## (he wasn't heard) -> "coming" today, returning. Anything else (none, "due" before its day, today's "coming" or
-## "waiting", "ended"): unchanged.
+## (he wasn't heard) -> "coming" today. `returning` (the "he's back" banner) only once he has been in the hall
+## ("waiting"); a "coming" day on which he never walked in carries its flag over (review P7). Anything else (none, "due"
+## before its day, today's "coming" or "waiting", "ended"): unchanged.
 static func morning(state: Dictionary, day: int) -> Dictionary:
 	var s := str(state.get("state", ""))
 	if s == "due" and day >= int(state.get("day", 0)):
 		return {"state": "coming", "day": day, "returning": false}
 	if (s == "coming" or s == "waiting") and day > int(state.get("day", 0)):
-		return {"state": "coming", "day": day, "returning": true}
+		return {"state": "coming", "day": day, "returning": s == "waiting" or state.get("returning") == true}
 	return state
 
 
