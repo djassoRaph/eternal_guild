@@ -450,7 +450,10 @@ func record_fallen_hero(adventurer: Dictionary) -> void:
 	codex_data["fallen_heroes"].append(entry)
 	_save_codex()
 
-func record_artifact_found(artifact_id: String) -> void:
+## Story 18.3 (DC-8): `finder` is the adventurer who found it (the loot roll's recipient): its name, id and class are
+## written with the find (found_by, found_by_id, found_by_class), so the Codex's Prior Artefacts chapter can say who, and
+## link to their entry if they later fell. Every find also records `run` (this run's number: total_runs + 1).
+func record_artifact_found(artifact_id: String, finder: Dictionary = {}) -> void:
 	# Epic 12 — the artifact-tier loot record. Not attached to an adventurer (they die,
 	# retire, age out); the guild's collection of relics is eternal, same as fallen_heroes.
 	var def: Dictionary = DataManager.artifacts.get(artifact_id, {})
@@ -460,7 +463,12 @@ func record_artifact_found(artifact_id: String) -> void:
 		"description": def.get("description", ""),
 		"found_day": GameManager.current_day,
 		"timestamp": Time.get_unix_time_from_system(),
+		"run": (int(codex_data.get("total_runs")) if (codex_data.get("total_runs") is int or codex_data.get("total_runs") is float) else 0) + 1,
 	}
+	if not finder.is_empty():
+		entry["found_by"] = str(finder.get("name", "Unknown"))
+		entry["found_by_id"] = finder.get("id", -1)
+		entry["found_by_class"] = str(finder.get("class", ""))
 	# codex.dat files written before this field existed won't have the key yet — _load_codex()
 	# doesn't merge in new _default_codex() keys, it uses the file as-is (same latent gap
 	# record_fallen_hero() has for fallen_heroes, just guarding against it explicitly here).

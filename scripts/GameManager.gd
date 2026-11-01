@@ -3820,7 +3820,7 @@ func _roll_and_apply_loot(recipient: Dictionary, base_reward: int) -> Dictionary
 			var artifact_id := DataManager.get_random_artifact_id()
 			if artifact_id == "":
 				return {"tier": "gold", "bonus": 0}
-			SaveSystem.record_artifact_found(artifact_id)
+			SaveSystem.record_artifact_found(artifact_id, recipient)   # Story 18.3: the finder, for the Codex
 			var def: Dictionary = DataManager.artifacts.get(artifact_id, {})
 			return {"tier": "artifact", "name": def.get("display_name", artifact_id)}
 		_:  # "gold"
