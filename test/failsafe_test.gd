@@ -368,6 +368,7 @@ func _initialize() -> void:
 	await test_disturbances()
 	await test_demo_ending()
 	await test_codex_book()
+	await test_codex_tarot()
 
 	_finish()
 
@@ -16498,3 +16499,271 @@ func _check_t44_sources() -> void:
 	check(not menu_src.contains("class_name") and mm.contains("preload(\"res://scripts/menus/codex_menu.gd\").new()")
 		and pm.contains("preload(\"res://scripts/menus/codex_menu.gd\").new()"),
 		"no class_name on the book; the main menu and the pause menu still open it by path")
+
+
+# --- Test 45: The Tarot chapter (Story 18.2) ---
+const CODEX_TAROT_PATH := "res://scripts/menus/codex/tarot_chapter.gd"
+const TAROT_DECK_PATH := "res://data/config/tarot_deck.json"
+const T45_START := ["major_01_the_magician", "major_07_the_chariot", "major_09_the_hermit", "major_17_the_star"]
+const T45_NUMERALS := ["I", "VII", "IX", "XVII"]
+
+
+## AC 1-8 (Story 18.2): the four starting cards in the deck, the unlock rule, the grid's order, the card back, the page,
+## the chapter (slots, counter, navigation, focus, none / one unlocked), the book's read signal and the arrow keys.
+## Fixtures only; nothing is written.
+func test_codex_tarot() -> void:
+	print("[Test 45] The Tarot chapter (Story 18.2)")
+	var dm = root.get_node_or_null("DataManager")
+	if dm == null or not ResourceLoader.exists(CODEX_TAROT_PATH) or not ResourceLoader.exists(TAROT_CARD_SCENE_PATH):
+		check(false, "the DataManager autoload, tarot_chapter.gd and TarotCard.tscn")
+		return
+	var T = load(CODEX_TAROT_PATH)
+	var UI = load(CODEX_UI_PATH)
+	UI.set_config(null)
+	UI.reset_warnings()
+	PortraitSocket.set_card_config(null)
+	_check_t45_deck(dm)
+	_check_t45_rules(T, UI, dm)
+	_check_t45_back(dm)
+	_check_t45_page(T, UI, dm)
+	_check_t45_chapter(T, UI, dm)
+	await _check_t45_book(dm)
+	PortraitSocket.set_card_config(null)
+	UI.reset_warnings()
+	print("")
+
+
+## AC 1 (DC-4): the shipped deck: four starting Major Arcana with their page; nothing else changed.
+func _check_t45_deck(dm) -> void:
+	var deck: Array = dm.get_tarot_deck()
+	var starts: Array = deck.filter(func(c): return c is Dictionary and str(c.get("unlock_trigger", "")) == "start").map(func(c): return str(c.id))
+	starts.sort()
+	var classes: Array = dm.get_config("adventurer_classes", [])
+	var bad: Array = []
+	for id in T45_START:
+		var c: Dictionary = dm.get_tarot_card(id)
+		var sentences: int = Array(str(c.get("codex_lore", "")).split(".", false)).filter(func(s): return s.strip_edges() != "").size()
+		if str(c.get("arcana", "")) != "major" or str(c.get("archetype", "")) == "" or sentences < 2 or sentences > 4 \
+				or str(c.get("codex_secret", "")) == "" or not classes.has(str(c.get("silhouette_class", ""))):
+			bad.append(id)
+	var others_clean: bool = deck.all(func(c): return T45_START.has(str(c.get("id", ""))) or not (c as Dictionary).has("codex_lore"))
+	var raw = _read_json(TAROT_DECK_PATH)
+	var note := str(raw.get("_comment", "")) if raw is Dictionary else ""
+	check(deck.size() == 78 and deck.filter(func(c): return str(c.get("arcana", "")) == "major").size() == 22 and starts == T45_START
+		and bad.is_empty() and others_clean and note.contains("Story 18.2") and note.contains("DRAFT"),
+		"the deck: still 78 (22 major); exactly the four starting Major Arcana (unlock_trigger 'start'), each with an archetype, a 2-4 sentence note, a secret and a demo class; marked DRAFT %s %s" % [starts, bad])
+
+
+## AC 1, 2: unlocked_ids and tarot_slots.
+func _check_t45_rules(T, UI, dm) -> void:
+	var deck: Array = dm.get_tarot_deck()
+	var start: Array = T.unlocked_ids(deck, {})
+	start.sort()
+	var more: Array = T.unlocked_ids(deck, {"tarot_unlocked": ["cups_04_four", "t45_nope", 7, "major_07_the_chariot", "cups_04_four"]})
+	UI.reset_warnings()
+	var junk: Array = T.unlocked_ids(deck, {"tarot_unlocked": "junk"})
+	var w: int = UI.warnings
+	T.unlocked_ids(deck, {"tarot_unlocked": "junk"})
+	check(start == T45_START and more.size() == 5 and more.has("cups_04_four") and junk.size() == 4 and w == 1 and UI.warnings == 1,
+		"unlocked: the deck's starting cards + the codex's tarot_unlocked ids the deck knows (strings, once each); not a list: the four, one warning %s" % [more])
+	var fx := [{"id": "c2", "arcana": "minor", "suit": "cups", "number": 2}, {"id": "m1", "arcana": "major", "number": 1},
+		{"id": "w1", "arcana": "minor", "suit": "wands", "number": 1}, "junk", {"id": "x", "arcana": "minor", "suit": "stars", "number": 1},
+		{"id": "m0", "arcana": "major", "number": 0}, {"id": "p14", "arcana": "minor", "suit": "pentacles", "number": 14},
+		{"id": "s3", "arcana": "minor", "suit": "swords", "number": 3}, {"id": "c1", "arcana": "minor", "suit": "cups", "number": 1}]
+	var fs: Array = T.tarot_slots(fx, ["m1"])
+	var order: Array = fs.map(func(s): return s.card.id)
+	check(order == ["m0", "m1", "w1", "c1", "c2", "s3", "p14", "x"] and fs[1].unlocked and not fs[0].unlocked,
+		"tarot_slots on a shuffled deck: the Major Arcana by number, then wands, cups, swords, pentacles (tarot_card.json's order) by number, an unknown suit last, junk skipped %s" % [order])
+	var real: Array = T.tarot_slots(deck, T.unlocked_ids(deck, {}))
+	var groups_ok := real.size() == 78
+	var want_suits := ["wands", "cups", "swords", "pentacles"]
+	for i in real.size():
+		var c: Dictionary = real[i].card
+		if i < 22:
+			groups_ok = groups_ok and str(c.get("arcana", "")) == "major" and int(c.get("number", -1)) == i
+		else:
+			var k := i - 22
+			groups_ok = groups_ok and str(c.get("suit", "")) == want_suits[k / 14] and int(c.get("number", -1)) == k % 14 + 1
+	check(groups_ok and real.filter(func(s): return s.unlocked).size() == 4, "the real deck: 78 slots, 22 major 0-XXI, then 14 of each suit 1-14; 4 unlocked")
+
+
+## AC 4 (DC-5): TarotCard.set_back(): the placeholder, a bad path, a texture, then a face again; tarot_card.json's back.
+func _check_t45_back(dm) -> void:
+	var card = (load(TAROT_CARD_SCENE_PATH) as PackedScene).instantiate()
+	card.size = Vector2(70, 117)
+	var cs = card.get_script()
+	if not card.has_method("set_back") or not cs.has_method("back_warning_count"):
+		check(false, "TarotCard.set_back() and back_warning_count()")
+		card.free()
+		return
+	cs.reset_back_warnings()
+	card.set_back()
+	var ph: Control = card.find_child("PlaceholderCardBack", true, false)
+	var back_tex: TextureRect = card.find_child("Back", true, false)
+	var art: Control = card.find_child("Art", true, false)
+	var s: Dictionary = card.shown()
+	check(ph != null and ph.visible and back_tex != null and not back_tex.visible and s.back and s.name == "" and s.header == ""
+		and not art.visible and cs.back_warning_count() == 0,
+		"set_back() with no back configured: the placeholder back drawn in code, no art, no name, no numeral, no warning")
+	var cfg: Dictionary = PortraitSocket.card_config().duplicate(true)
+	cfg["back"] = "res://assets/ui/tarot/t45_no_such_back.png"
+	PortraitSocket.set_card_config(cfg)
+	card.set_back()
+	card.set_back()
+	check(ph.visible and cs.back_warning_count() == 1, "a back that doesn't load: the placeholder back, one warning however many cards")
+	cfg["back"] = "res://assets/ui/tarot/silhouettes/mage.png"   # any texture stands in for 25.22's card back
+	PortraitSocket.set_card_config(cfg)
+	card.set_back()
+	check(back_tex.visible and back_tex.texture is Texture2D and not ph.visible, "a back texture in tarot_card.json is drawn over the whole card (25.22's swap)")
+	PortraitSocket.set_card_config(null)
+	card.set_card(dm.get_tarot_card("major_07_the_chariot"), PortraitSocket.resolve_card_art({"class": "Fighter"}))
+	s = card.shown()
+	check(not s.back and s.header == "VII" and s.name == "The Chariot" and not ph.visible and not back_tex.visible and art.visible,
+		"set_card() after set_back(): the face again")
+	card.free()
+	cs.reset_back_warnings()
+	var raw = _read_json(TAROT_CARD_CONFIG_PATH)
+	check(raw is Dictionary and raw.get("back") == "" and str(raw.get("_comment", "")).contains("back"),
+		"tarot_card.json: back is empty (the placeholder) and documented")
+
+
+## AC 5: page_view for the four, a Minor card with a reveal context, a card with no story.
+func _check_t45_page(T, UI, dm) -> void:
+	var cfg: Dictionary = UI.config()
+	var bad: Array = []
+	for i in T45_START.size():
+		var c: Dictionary = dm.get_tarot_card(T45_START[i])
+		var v: Dictionary = T.page_view(c, {}, cfg)
+		if v.name != c.name or v.arcana_line != "Major Arcana · " + T45_NUMERALS[i] or v.archetype != c.archetype or v.lore != c.codex_lore \
+				or v.secret != "Secret meaning: " + str(c.codex_secret) or v.unlock_line != "Known to the guild from its first day.":
+			bad.append(T45_START[i])
+	check(bad.is_empty(), "the four pages: name, 'Major Arcana · I/VII/IX/XVII', archetype, the note, 'Secret meaning: …', the starting line %s" % [bad])
+	var four: Dictionary = dm.get_tarot_card("cups_04_four")
+	var ctx := {"tarot_unlock_context": {"cups_04_four": {"adventurer": "Nina", "event": "came home from the Sunken Crypt"}}}
+	var v2: Dictionary = T.page_view(four, ctx, cfg)
+	var v3: Dictionary = T.page_view(four, {}, cfg)
+	check(v2.arcana_line == "Minor Arcana · Cups" and v2.unlock_line == "First revealed when Nina came home from the Sunken Crypt."
+		and v2.lore == "Its story has not been written yet." and v2.secret == "" and v3.unlock_line == "",
+		"a Minor card: 'Minor Arcana · Cups'; 17.4's reveal context gives its line; no story yet says so; no context: no line")
+
+
+## A stand-in for the book: counts note_read.
+static func _t45_reader() -> RefCounted:
+	var gs := GDScript.new()
+	gs.source_code = "extends RefCounted\nvar reads: Array = []\nfunc note_read(c: String, id: String) -> void:\n\treads.append([c, id])\n"
+	gs.reload()
+	return gs.new()
+
+
+## AC 2, 3, 5, 6: the chapter on two fixture pages with the real deck: counter, slots, the page, navigation, focus.
+func _check_t45_chapter(T, UI, dm) -> void:
+	var cfg: Dictionary = UI.config()
+	var deck: Array = dm.get_tarot_deck()
+	var reader := _t45_reader()
+	var ch = T.new()
+	var left := VBoxContainer.new()
+	var right := VBoxContainer.new()
+	var t0 := Time.get_ticks_msec()
+	ch.build(left, right, {"codex": {"tarot_unlocked": ["cups_04_four", "wands_01_ace"]}, "deck": deck, "cfg": cfg, "book": reader, "focus": null})
+	var ms := Time.get_ticks_msec() - t0
+	var counter: Label = left.find_child("Counter", true, false)
+	var headings: Array = ["major", "wands", "cups", "swords", "pentacles"].map(func(g): return left.find_child("Heading_" + g, true, false) != null)
+	check(counter != null and counter.text == "6 / 78 Revealed" and ch.slots.size() == 78 and ch.slot_nodes.size() == 78 and not headings.has(false),
+		"the left page: '6 / 78 Revealed' (four + two from the codex), 78 slots under five headings")
+	var face_ok := true
+	var back_ok := true
+	for i in ch.slots.size():
+		var node: Control = ch.slot_nodes[i]
+		var card = node.find_child("Card", true, false)
+		var name_l: Label = node.find_child("Name", true, false)
+		if ch.slots[i].unlocked:
+			var sh: Dictionary = card.shown()
+			face_ok = face_ok and node is Button and name_l.text == str(ch.slots[i].card.name) and not sh.back \
+				and sh.art == T.art_for(ch.slots[i].card).texture
+		else:
+			var quiet := true
+			for n in node.find_children("*", "Control", true, false):
+				quiet = quiet and (n as Control).mouse_filter == Control.MOUSE_FILTER_IGNORE and (n as Control).tooltip_text == ""
+			back_ok = back_ok and not (node is Button) and node.mouse_filter == Control.MOUSE_FILTER_IGNORE and node.tooltip_text == "" \
+				and quiet and name_l.text == "" and card.shown().back
+	check(face_ok, "each unlocked slot: a button with the card's face (its art from resolve_card_art: the start cards' class silhouettes) and its name")
+	check(back_ok, "each locked slot: only the card back, no name, no tooltip, ignores the mouse (no hover, no click)")
+	print("  (Test 45: the Tarot chapter built in %d ms)" % ms)
+	check(ms < 500, "the chapter builds in under 0.5 s (%d ms)" % ms)
+	var idx := {}
+	for i in ch.slots.size():
+		idx[str(ch.slots[i].card.id)] = i
+	var page := func(n: String) -> String:
+		var l: Label = right.find_child(n, true, false)
+		return l.text if l != null else ""
+	var first_ok: bool = ch.selected == idx.major_01_the_magician and page.call("PageName") == "The Magician" \
+		and page.call("PageArcana") == "Major Arcana · I" and page.call("PageArchetype") == "Master Mage" \
+		and page.call("PageUnlock") == "Known to the guild from its first day." and page.call("PageSecret").begins_with("Secret meaning: ") \
+		and right.find_child("PageCard", true, false) != null and (ch.slot_nodes[idx.major_01_the_magician] as Button).button_pressed
+	check(first_ok and reader.reads == [["tarot", "major_01_the_magician"]],
+		"the chapter opens on the first unlocked card, The Magician: its card, name, numeral, archetype, the start line, the note and secret (one read)")
+	(ch.slot_nodes[idx.major_09_the_hermit] as Button).pressed.emit()
+	var hermit_ok: bool = ch.selected == idx.major_09_the_hermit and page.call("PageName") == "The Hermit" \
+		and (ch.slot_nodes[idx.major_09_the_hermit] as Button).button_pressed and not (ch.slot_nodes[idx.major_01_the_magician] as Button).button_pressed
+	var last: int = ch.unlocked_order[-1]
+	ch.show_card(last)
+	(right.find_child("Next", true, false) as Button).pressed.emit()
+	var wrapped: bool = ch.selected == ch.unlocked_order[0]
+	(right.find_child("Prev", true, false) as Button).pressed.emit()
+	var back_wrap: bool = ch.selected == last
+	ch.show_card(idx.major_17_the_star - 1 if not ch.slots[idx.major_17_the_star - 1].unlocked else -1)
+	var stayed: bool = ch.selected == last
+	check(hermit_ok and wrapped and back_wrap and stayed and reader.reads.size() == 5,
+		"clicking The Hermit shows his page (his slot marked); Next from the last unlocked card wraps to the first, Previous back; a locked slot can't be shown")
+	left.free()
+	right.free()
+	var ch2 = T.new()
+	var l2 := VBoxContainer.new()
+	var r2 := VBoxContainer.new()
+	ch2.build(l2, r2, {"codex": {}, "deck": deck, "cfg": cfg, "book": null, "focus": "major_09_the_hermit"})
+	var focus_ok: bool = str(ch2.slots[ch2.selected].card.id) == "major_09_the_hermit"
+	l2.free()
+	r2.free()
+	var one := [{"id": "m1", "name": "M", "arcana": "major", "number": 1, "unlock_trigger": "start"}, {"id": "c1", "name": "C", "arcana": "minor", "suit": "cups", "number": 1}]
+	var ch3 = T.new()
+	var l3 := VBoxContainer.new()
+	var r3 := VBoxContainer.new()
+	ch3.build(l3, r3, {"codex": {}, "deck": one, "cfg": cfg, "book": null, "focus": null})
+	var one_ok: bool = (r3.find_child("Prev", true, false) as Button).disabled and (r3.find_child("Next", true, false) as Button).disabled
+	ch3.turn(1)
+	one_ok = one_ok and str(ch3.slots[ch3.selected].card.id) == "m1"
+	l3.free()
+	r3.free()
+	var ch4 = T.new()
+	var l4 := VBoxContainer.new()
+	var r4 := VBoxContainer.new()
+	ch4.build(l4, r4, {"codex": {}, "deck": [one[1]], "cfg": cfg, "book": null, "focus": null})
+	var none: Label = r4.find_child("None", true, false)
+	var none_ok: bool = none != null and none.text == "No card has been revealed yet." and (l4.find_child("Counter", true, false) as Label).text == "0 / 1 Revealed"
+	l4.free()
+	r4.free()
+	check(focus_ok and one_ok and none_ok,
+		"focus (a card id) opens on that card; one unlocked card: Previous / Next disabled; none: 'No card has been revealed yet.'")
+
+
+## AC 6 (DC-7): in the real book, each page shown is one entry_read and one '[Codex] read:' line; the arrows turn pages.
+func _check_t45_book(dm) -> void:
+	var book = _t44_open({}, dm)
+	var reads: Array = []
+	book.entry_read.connect(func(c, id): reads.append(id))
+	await process_frame
+	var ch = book._chapter
+	var first: int = ch.selected
+	book.note_read("tarot", str(ch.slots[first].card.id))   # the page already shown: not a second read
+	var chariot := -1
+	for i in ch.slots.size():
+		if str(ch.slots[i].card.id) == "major_07_the_chariot":
+			chariot = i
+	(ch.slot_nodes[chariot] as Button).pressed.emit()
+	await _press("ui_right")
+	await _press("ui_left")
+	check(book.current_chapter == "tarot" and reads == ["major_07_the_chariot", "major_09_the_hermit", "major_07_the_chariot"]
+		and book.read_line("tarot", "major_07_the_chariot") == "[Codex] read: tarot major_07_the_chariot",
+		"in the book: a click and the arrow keys turn the pages, each page one entry_read (the page already shown isn't read twice) %s" % [reads])
+	book.close()
+	await process_frame
