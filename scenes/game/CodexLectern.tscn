@@ -26,7 +26,7 @@ emission = Color(0.247, 0.718, 0.651, 1)
 emission_energy_multiplier = 1.1
 
 [sub_resource type="BoxMesh" id="BoxMesh_rest"]
-size = Vector3(0.5, 0.12, 0.7)
+size = Vector3(0.5, 0.32, 0.7)
 
 [sub_resource type="BoxMesh" id="BoxMesh_cover"]
 size = Vector3(0.72, 0.04, 0.96)
@@ -52,32 +52,32 @@ script = ExtResource("1_lectern")
 [node name="PlaceholderBody" type="Node3D" parent="."]
 
 [node name="Rest" type="MeshInstance3D" parent="PlaceholderBody"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
 mesh = SubResource("BoxMesh_rest")
 material_override = SubResource("placeholder_codex_rest")
 
 [node name="Cover" type="MeshInstance3D" parent="PlaceholderBody"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.34, 0)
 mesh = SubResource("BoxMesh_cover")
 material_override = SubResource("placeholder_codex_leather")
 
 [node name="PageLeft" type="MeshInstance3D" parent="PlaceholderBody"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.01, 0.185, -0.235)
+transform = Transform3D(1, 0, 0, 0, 0.994522, -0.104528, 0, 0.104528, 0.994522, 0.01, 0.39, -0.235)
 mesh = SubResource("BoxMesh_page")
 material_override = SubResource("placeholder_codex_page")
 
 [node name="PageRight" type="MeshInstance3D" parent="PlaceholderBody"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.01, 0.185, 0.235)
+transform = Transform3D(1, 0, 0, 0, 0.994522, 0.104528, 0, -0.104528, 0.994522, 0.01, 0.39, 0.235)
 mesh = SubResource("BoxMesh_page")
 material_override = SubResource("placeholder_codex_page")
 
 [node name="Spine" type="MeshInstance3D" parent="PlaceholderBody"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.18, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.38, 0)
 mesh = SubResource("BoxMesh_spine")
 material_override = SubResource("placeholder_codex_leather")
 
 [node name="Eye" type="MeshInstance3D" parent="PlaceholderBody"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.34, 0.22, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.34, 0.43, 0)
 mesh = SubResource("SphereMesh_eye")
 material_override = SubResource("placeholder_codex_eye")
 
