@@ -21,10 +21,11 @@
 # renders volumetric fog as a flat haze). The round bar shows no flame: BarPool is a warm light over it with no lamp
 # of its own (bar_pool_energy, today 0), the moody presets' answer to faces at the bar (AC 5).
 #
-# Phase triggers (LM-8): GameBus.day_phase_changed(phase), sent where the loop already turns (the bedroom: evening;
-# sleep: late_night; the new day: morning; the briefing's end: day). "reveal" (Story 24.2's word) is late_night.
-# A morning with no briefing pending turns to day after tavern_light_morning_hold_seconds, announced on GameBus (Story
-# 14.4 review P1: the hall's disturbance director listens).
+# Phase triggers: GameBus.day_phase_changed(phase), sent only by the day clock (Story 3.7, scripts/game/day_clock.gd:
+# morning 6:00, day 9:00, dusk 17:00, evening 19:00, late_night 23:00 or sleep). "reveal" (Story 24.2's word) is
+# late_night. In a day scene the hall starts at the clock's phase (GameManager.day_clock_phase()), so a Continue at 18:40
+# opens on the dusk light; elsewhere (tests, LookDev) at tavern_light_phase_default. Story 25.23's morning hold is gone:
+# the clock starts at 6:00 and morning lasts until 9:00.
 #
 # The logic is static and node-free (tests call it); the node only applies the result. Loaded by path: no class_name.
 # Dev selector (debug builds): 1 the mood, 2 the phase, 3 the cast's shading preset (anime_look.gd), 4 the edge pass on/off.
@@ -40,7 +41,6 @@ const PHASE_ALIASES := {"reveal": "late_night"}
 const SHADOW_NAMES := ["hearth", "bar", "desk", "fill"]
 const OMNI_MODES := {"dual_paraboloid": OmniLight3D.SHADOW_DUAL_PARABOLOID, "cube": OmniLight3D.SHADOW_CUBE}
 const DEFAULT_BLEND_SECONDS := 4.0
-const DEFAULT_MORNING_HOLD := 20.0
 const DEFAULT_PHASE := "day"
 ## "today": MainTavern's light as saved on 2026-10-04 (the story's table), in this script's terms. The node snapshots
 ## the real scene at _ready (and Test 25 pins the scene to these numbers). The ambient: no source is set, so the
@@ -115,6 +115,8 @@ static var _loaded := false
 @export var scope_path := NodePath("../../..")
 ## Keys 1 / 2 / 3 / 4 in debug builds.
 @export var dev_keys := true
+## Story 3.7: in a day scene (an ancestor in group day_clock_scene) start at the day clock's phase, not the config default.
+@export var start_from_clock := true
 
 var mood := TODAY
 var phase := DEFAULT_PHASE
@@ -140,7 +142,6 @@ var _from := {}
 var _to := {}
 var _blend_t := 1.0
 var _blend_len := 0.0
-var _hold_left := -1.0
 var _pending_phase := ""
 var _pending_mood := ""
 var _label: Label = null
@@ -220,10 +221,6 @@ static func blend_seconds() -> float:
 	_ensure()
 	return _positive(_cfg.get("tavern_light_blend_seconds", DEFAULT_BLEND_SECONDS), DEFAULT_BLEND_SECONDS, "tavern_light_blend_seconds")
 
-
-static func morning_hold_seconds() -> float:
-	_ensure()
-	return _positive(_cfg.get("tavern_light_morning_hold_seconds", DEFAULT_MORNING_HOLD), DEFAULT_MORNING_HOLD, "tavern_light_morning_hold_seconds")
 
 
 ## A phase name ("reveal" is late_night), or "" (with a warning) when unknown.
@@ -418,7 +415,7 @@ func _ready() -> void:
 		gb.day_phase_changed.connect(_on_day_phase)
 	mood = _pending_mood if _pending_mood != "" else configured_mood()
 	_pending_mood = ""
-	var start := _pending_phase if _pending_phase != "" else phase_default()
+	var start := _pending_phase if _pending_phase != "" else _start_phase()
 	_pending_phase = ""
 	phase = start
 	applied = combine(mood_params(mood, today), phase_params(phase))
@@ -431,10 +428,6 @@ func _process(delta: float) -> void:
 		_label_left -= delta
 		if _label_left <= 0.0 and is_instance_valid(_label):
 			_label.visible = false
-	if _hold_left >= 0.0:
-		_hold_left -= delta
-		if _hold_left < 0.0:
-			_end_morning_hold()
 	if _blend_t < 1.0:
 		_blend_t = minf(_blend_t + (delta / _blend_len if _blend_len > 0.0 else 1.0), 1.0)
 		applied = blend(_from, _to, _blend_t)
@@ -463,7 +456,6 @@ func set_phase(phase_name: String, seconds := -1.0) -> String:
 	var p := resolve_phase(phase_name)
 	if p == "":
 		return phase
-	_hold_left = -1.0
 	if not is_node_ready():
 		_pending_phase = p
 		phase = p
@@ -493,24 +485,30 @@ func current() -> Dictionary:
 	return {"mood": mood, "phase": phase, "preset": ANIME_LOOK.preset(), "blending": _blend_t < 1.0}
 
 
-## The morning hold is over (no briefing came): the day, for everyone listening (Story 14.4 review P1: the hall's
-## disturbance director waits for "day" on GameBus, and the hold used to turn only the light). GameBus.day_phase_changed
-## comes back here as set_phase("day"); the hold arms only on "morning", so no loop. Without GameBus, the light alone.
-func _end_morning_hold() -> void:
-	var gb := get_node_or_null("/root/GameBus")
-	if gb and gb.has_signal("day_phase_changed") and gb.day_phase_changed.is_connected(_on_day_phase):
-		gb.day_phase_changed.emit("day")
-	else:
-		set_phase("day")
+## The phase at _ready (Story 3.7): the day clock's in a day scene (start_from_clock, an ancestor in group
+## day_clock_scene, GameManager.day_clock_phase()), else tavern_light_phase_default.
+func _start_phase() -> String:
+	if start_from_clock and in_day_scene():
+		var gm := get_node_or_null("/root/GameManager")
+		if gm and gm.has_method("day_clock_phase"):
+			var p := resolve_phase(str(gm.day_clock_phase()))
+			if p != "":
+				return p
+	return phase_default()
+
+
+## An ancestor (the scene's root) is in group day_clock_scene (Story 3.7: MainTavern joins it in _enter_tree).
+func in_day_scene() -> bool:
+	var n := get_parent()
+	while n != null:
+		if n.is_in_group("day_clock_scene"):
+			return true
+		n = n.get_parent()
+	return false
 
 
 func _on_day_phase(phase_name: String) -> void:
-	var p := set_phase(phase_name)
-	if p == "morning" and PHASE_ALIASES.get(phase_name, phase_name) == "morning":
-		var gm := get_node_or_null("/root/GameManager")
-		var pending: bool = gm != null and bool(gm.get("has_pending_briefing"))
-		if not pending:
-			_hold_left = morning_hold_seconds()
+	set_phase(phase_name)
 
 
 ## The scene's light as saved, in TODAY_VALUES's terms, plus every property a mood may change (restored later).

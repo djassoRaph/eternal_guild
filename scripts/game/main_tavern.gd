@@ -18,6 +18,13 @@ var reputation_label: Label  # code-built (Epic 14) — no scene-file changes ne
 const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
 const DISTURBANCE_DIRECTOR := "res://scripts/game/disturbance_director.gd"   # Story 14.4 (loaded by path)
 const ROYAL_MESSENGER := "res://scripts/game/royal_messenger.gd"   # Story 10.7: the demo's ending (loaded by path)
+const DAY_CLOCK_RULES := preload("res://scripts/game/day_clock_rules.gd")   # Story 3.7: the HUD clock's words
+
+
+## Story 3.7 (K-19): the hall is a day scene, so the day clock (GameManager's DayClock) runs here. Joined before the
+## children's _ready, so the lighting and the patron spawner see it at theirs.
+func _enter_tree() -> void:
+	add_to_group("day_clock_scene")
 
 
 ## Story 4.2 review P4: the event log sits on the hall's HUD layer, which draws over the hall's popups (the hire desk,
@@ -59,6 +66,9 @@ func _ready():
 	GameManager.firewood_changed.connect(_on_firewood_changed)
 	GameManager.fireplace_fuel_changed.connect(_on_fuel_changed)
 	GameManager.reputation_changed.connect(_on_reputation_changed)
+	# Story 3.7: the HUD clock follows the day clock (its minute and its phase)
+	GameBus.day_clock_changed.connect(func(_m): _update_day_phase_display())
+	GameBus.day_phase_changed.connect(func(_p): _update_day_phase_display())
 
 	# Reputation label — code-built and appended to the existing TopStatsBar (Epic 14)
 	reputation_label = Label.new()
@@ -333,13 +343,15 @@ func _on_fuel_changed(new_percentage: float):
 		fuel_label.add_theme_color_override("font_color", color)
 
 func _update_day_phase_display():
-	"""Update the day phase indicator — placeholder until full phase system"""
+	"""The HUD clock (Story 3.7, CL-11): "20:40 · Evening", in day_clock.display_step_minutes steps."""
 	if not phase_label:
 		return
-
-	var day = GameManager.get_day()
-	phase_label.text = "Day " + str(day) + " — Morning"
-	phase_label.add_theme_color_override("font_color", Color(0.9, 0.8, 0.5))
+	var t: String = DAY_CLOCK_RULES.hud_text(GameManager.day_clock_minutes, GameManager.day_clock_config())
+	if phase_label.text != t:
+		phase_label.text = t
+	phase_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55))
+	phase_label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.05))   # Story 3.7: readable over the bright floor
+	phase_label.add_theme_constant_override("outline_size", 6)
 		
 func _init_zone_prompts():
 	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")

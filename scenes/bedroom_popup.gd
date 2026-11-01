@@ -18,10 +18,19 @@ extends PopupPanel
 # Sleep Button
 @onready var sleep_button = $MarginContainer/MainVBox/SleepButton
 
+# Story 3.7 (K-16): the night through the day clock. Sleep from the evening hour (day_clock.sleep_from_hour); the 2:00
+# nod-off runs this same sequence with reason "nod_off" (never refused). The clock (GameManager's DayClock) sends the
+# phases: end_day() at the night's start (late_night if not yet), begin_day() on the new morning (morning).
+const NOD_OFF := "nod_off"
+const DayClockRules := preload("res://scripts/game/day_clock_rules.gd")
+var _sleep_text := ""     # the scene's own Sleep text, restored when sleep is allowed
+
 func _ready():
 	add_to_group("blocks_player")
+	add_to_group("bedroom")   # Story 3.7: the day clock's nod-off finds the night's path here
 	print("Bedroom Popup ready (Editor UI version)")
-	
+	_sleep_text = sleep_button.text
+
 	# Connect button signals
 	buy_3_button.pressed.connect(func(): purchase_firewood(3, 15))
 	buy_5_button.pressed.connect(func(): purchase_firewood(5, 25))
@@ -33,7 +42,7 @@ func open_bedroom():
 	update_all_displays()
 	popup_centered()
 	GameManager.log_message("Reviewing the day before resting...")
-	GameBus.day_phase_changed.emit("evening")   # Story 25.23: the hall's evening light
+	# Story 3.7: no phase here (the day clock sends evening at 19:00); the open popup holds the clock (blocks_player)
 
 func update_all_displays():
 	"""Update all UI elements with current GameManager data"""
@@ -93,6 +102,15 @@ func update_button_availability():
 		buy_10_button.disabled = false
 		buy_10_button.text = "Buy 10 bundles (Max) - 45 gold"
 
+	# Story 3.7 (K-16): Sleep from the evening hour; earlier the button says why (the firewood buttons above stay)
+	var block := sleep_block()
+	sleep_button.disabled = block != ""
+	sleep_button.text = block if block != "" else _sleep_text
+
+## "" when the guildmaster may go to bed now, else the line the Sleep button shows (Story 3.7: the day clock's hour).
+func sleep_block() -> String:
+	return GameManager.day_clock_sleep_block() if GameManager.has_method("day_clock_sleep_block") else ""
+
 func purchase_firewood(bundles: int, cost: int):
 	"""Attempt to purchase firewood"""
 	if GameManager.purchase_firewood(bundles, cost):
@@ -103,10 +121,24 @@ func purchase_firewood(bundles: int, cost: int):
 		# Failure - error message already logged by GameManager
 		GameManager.log_message("Purchase failed. Check your gold and storage capacity.")
 
-func start_sleep_sequence():
-	"""Begin the sleep/day advancement sequence"""
-	GameManager.log_message("Heading to bed for the night...")
-	GameBus.day_phase_changed.emit("late_night")   # Story 25.23: the hall goes quiet as you sleep
+func start_sleep_sequence(reason := "bed"):
+	"""Begin the sleep/day advancement sequence ("bed": the Sleep button; "nod_off": the day clock at 2:00)"""
+	if reason != NOD_OFF:
+		var block := sleep_block()
+		if block != "":
+			print("[DayClock] refuse: sleep at %s (%s)" % [DayClockRules.format_time(GameManager.day_clock_minutes), block])
+			return   # Story 3.7: a second guard behind the disabled button
+	var clock = GameManager.day_clock_node() if GameManager.has_method("day_clock_node") else null
+	if reason == NOD_OFF:
+		var line := str(DayClockRules.text("nod_off"))
+		GameManager.log_message(line)
+		NotificationManager.show_banner(line, true)
+	else:
+		GameManager.log_message("Heading to bed for the night...")
+	if clock != null:
+		clock.end_day(reason)   # Story 3.7: the clock jumps to the night's end, late_night sent if it wasn't
+	else:
+		GameBus.day_phase_changed.emit("late_night")   # no day clock (a bare scene): the hall goes quiet as you sleep
 
 	# Close this popup
 	hide()
@@ -146,7 +178,11 @@ func _on_fade_complete():
 
 	print("New day started through bedroom sequence")
 	GameManager.log_message("A new day dawns at the Eternal Guild!")
-	GameBus.day_phase_changed.emit("morning")   # Story 25.23: the new day's morning light (day follows the briefing)
+	var clock = GameManager.day_clock_node() if GameManager.has_method("day_clock_node") else null
+	if clock != null:
+		clock.begin_day()   # Story 3.7: "morning" from the clock (advance_day put it at 6:00); the briefing holds it there
+	else:
+		GameBus.day_phase_changed.emit("morning")   # no day clock (a bare scene): the new day's morning light
 
 	if GameManager.has_pending_briefing:
 		_show_morning_briefing()   # K-10 (2026-11-01): always on waking, whatever the staff (the Quest Dealer briefs while it shows)
