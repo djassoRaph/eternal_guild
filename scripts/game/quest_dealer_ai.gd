@@ -38,17 +38,13 @@ func _build() -> void:
 
 func _after_setup() -> void:
 	round_delay = round_delay_from(_config())
-	var gb := npc.get_node_or_null("/root/GameBus")
-	if gb:
-		gb.day_changed.connect(_on_day_changed)
-	var gm := _gm()
-	if gm and int(gm.get("desk_round_day")) != int(gm.get("current_day")):
+	GameBus.day_changed.connect(_on_day_changed)
+	if int(GameManager.desk_round_day) != int(GameManager.current_day):
 		_arm()
 
 
 func _config():
-	var dm := npc.get_node_or_null("/root/DataManager")
-	return dm.get_config("staff_automation", {}) if dm else {}
+	return DataManager.get_config("staff_automation", {})
 
 
 ## staff_automation.desk_round_delay_seconds (pure): a number >= 0, else DEFAULT_DELAY with a warning.
@@ -61,7 +57,7 @@ static func round_delay_from(cfg) -> float:
 
 
 func _gm() -> Node:
-	return npc.get_node_or_null("/root/GameManager")
+	return GameManager   # the autoload by name (NFR-9, review P11)
 
 func _on_day_changed(_day: int) -> void:
 	_arm()
@@ -72,12 +68,10 @@ func _arm() -> void:
 
 ## She works and sits at the desk: the brain drives her.
 func _on_duty() -> bool:
-	var gm := _gm()
-	return gm != null and gm.is_staff_working("desk_manager") and npc.can_drive()
+	return GameManager.is_staff_working("desk_manager") and npc.can_drive()
 
 func _game_running() -> bool:
-	var gm := _gm()
-	return not npc.get_tree().paused and not (gm and gm.get("game_over_active"))
+	return not npc.get_tree().paused and not GameManager.game_over_active
 
 
 # ------------------------------------------------------------------ every update

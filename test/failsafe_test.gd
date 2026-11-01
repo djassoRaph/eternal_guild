@@ -12849,6 +12849,7 @@ const BARTENDER_AI_SCRIPT := "res://scripts/game/bartender_ai.gd"
 
 func test_bartender_serves() -> void:
 	print("[Test 35] The Bartender serves (Story 16.3)")
+	var t35_ms := Time.get_ticks_msec()
 	var limbo_ok := _check_t35_limbo()
 	var gm = root.get_node_or_null("GameManager")
 	var wm = root.get_node_or_null("WorldManager")
@@ -13012,6 +13013,44 @@ func test_bartender_serves() -> void:
 	gm.game_over_active = false
 	p08.waiting = false
 	check(go_ok, "Game Over: no orders")
+	# Review P7: paused: no orders (the hall runs while paused; the brain checks)
+	var tree := bt.get_tree()
+	tree.paused = true
+	p08.waiting = true
+	p08.served = 0
+	_t35_tick(bt, 8.0, func(): return false)
+	var paused_ok: bool = p08.served == 0 and brain.state() == "IDLE"
+	tree.paused = false
+	_t35_tick(bt, 40.0, func(): return p08.served == 1)
+	check(paused_ok and p08.served == 1, "paused: a waiting stool patron gets no order; unpaused: served (review P7)")
+	_t35_tick(bt, 30.0, func(): return brain.state() == "IDLE")
+	# Review P7: a strike while SERVING drops the serve, nothing consumed
+	p10.waiting = true
+	p10.served = 0
+	_t35_tick(bt, 10.0, func(): return brain.state() == "SERVING")
+	_t35_tick(bt, 1.0, func(): return false)
+	var beer_s: int = gm.beer_stock
+	rec.on_strike = true
+	_t35_tick(bt, 2.0 / 30.0, func(): return false)
+	var strike_serving_ok: bool = brain.state() == "IDLE" and gm.beer_stock == beer_s and p10.served == 0 and bt._tankard == null
+	_t35_tick(bt, 15.0, func(): return false)
+	strike_serving_ok = strike_serving_ok and p10.served == 0 and gm.beer_stock == beer_s
+	rec.on_strike = false
+	p10.waiting = false
+	check(strike_serving_ok, "a strike while SERVING: IDLE at once, the serve dropped, nothing consumed (review P7)")
+	_t35_tick(bt, 30.0, func(): return brain.state() == "IDLE")
+	# Review P7: the patron gone (freed) while he walks: IDLE, nothing consumed
+	var gone = _t35_patron(world, fix, seat08)
+	gone.waiting = true
+	p08.waiting = false
+	_t35_tick(bt, 10.0, func(): return brain.state() == "SERVING")
+	_t35_tick(bt, 1.0, func(): return false)
+	var beer_f: int = gm.beer_stock
+	world.remove_child(gone)
+	gone.free()
+	_t35_tick(bt, 2.0 / 30.0, func(): return false)
+	check(brain.state() == "IDLE" and gm.beer_stock == beer_f and bt._tankard == null, "the patron gone mid-walk (freed): IDLE, nothing consumed (review P7)")
+	_t35_tick(bt, 30.0, func(): return brain.state() == "IDLE")
 	# L. tick(0) changes nothing
 	var pos0: Vector3 = bt.global_position
 	var st0: String = brain.state()
@@ -13044,6 +13083,7 @@ func test_bartender_serves() -> void:
 	_t28_restore(snap, gm, wm, dm)
 	eb.beer_changed.emit(gm.beer_stock)
 	capture.free()
+	print("  [Test 35] %.1f s of real time (AC 12: ≤ 15 s)" % ((Time.get_ticks_msec() - t35_ms) / 1000.0))
 	print("")
 
 
@@ -13134,12 +13174,21 @@ func _check_t35_structure(bt) -> void:
 func _check_t35_source() -> void:
 	var limbo_users := []
 	for f in _t35_gd_files("res://scripts"):
-		var s := FileAccess.get_file_as_string(f)
+		var s := FileAccess.get_file_as_string(f).replace("\"LimboHSM\"", "")   # a class name asked of ClassDB is not a use (review P8)
 		if s.contains("LimboHSM") or s.contains("LimboState"):
 			limbo_users.append(f)
 	check(limbo_users == [STAFF_AI_SCRIPT], "staff_ai.gd is the only game script naming LimboAI's classes %s" % [limbo_users])
 	var named := [STAFF_AI_SCRIPT, BARTENDER_AI_SCRIPT].filter(func(p): return ResourceLoader.exists(p) and (load(p) as Script).get_global_name() != "")
 	check(named.is_empty(), "no class_name on the staff brains %s" % [named])
+	var npc := _func_body(FileAccess.get_file_as_string("res://scripts/game/staff_npc.gd"), "enable_automation")
+	check(npc.contains("ClassDB.class_exists(\"LimboHSM\")") and npc.find("ClassDB.class_exists") < npc.find("_make_brain()"),
+		"enable_automation() checks LimboAI is there before making a brain (a fresh clone has no addons/: the staff stay cosmetic) (review P8)")
+	var roots := [STAFF_AI_SCRIPT, BARTENDER_AI_SCRIPT, "res://scripts/game/quest_dealer_ai.gd"].filter(func(p): return FileAccess.get_file_as_string(p).contains("/root/"))
+	check(roots.is_empty(), "the staff brains name the autoloads, no /root/ paths (NFR-9, review P11) %s" % [roots])
+	var rs = load(BARTENDER_AI_SCRIPT)
+	check(rs != null and is_equal_approx(rs.react_seconds_from({}), 3.0) and is_equal_approx(rs.react_seconds_from({"bartender_react_seconds": -1}), 3.0)
+		and is_equal_approx(rs.react_seconds_from({"bartender_react_seconds": 1.5}), 1.5),
+		"react_seconds_from: a missing or bad value is 3 s; a good one is kept (review P7)")
 	var tav := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
 	check(tav.contains("call_group(\"staff\", \"enable_automation\")"), "main_tavern.gd turns the staff's automation on (group staff)")
 	var pat := FileAccess.get_file_as_string(PATRON_SCRIPT_PATH)
@@ -13238,8 +13287,9 @@ func test_quest_dealer_works() -> void:
 	var gb = root.get_node_or_null("GameBus")
 	var ab = root.get_node_or_null("AdventurerBus")
 	var ss = root.get_node_or_null("SaveSystem")
-	if gm == null or not gm.has_method("desk_round") or not ResourceLoader.exists(DEALER_AI_SCRIPT):
-		check(false, "GameManager.desk_round and scripts/game/quest_dealer_ai.gd")
+	var limbo_ok := _check_t35_limbo()   # review P8: her brain needs LimboAI; say so first
+	if gm == null or not gm.has_method("desk_round") or not ResourceLoader.exists(DEALER_AI_SCRIPT) or not limbo_ok:
+		check(false, "GameManager.desk_round, scripts/game/quest_dealer_ai.gd and LimboAI (%s)" % limbo_ok)
 		return
 	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
 	var snap := _t28_snapshot(gm, wm, dm)

@@ -74,7 +74,7 @@ var anime_look_path := ANIME_LOOK   # the toon look's script (tests point it at 
 ## Epic 16's automation (Stories 16.3, 16.4): the role's brain, made by enable_automation() (the hall calls it; tests
 ## and LookDev keep the cosmetic body). null until then.
 var brain: Node = null
-
+static var _limbo_warned := false   # review P8: "LimboAI is missing" once a session
 
 # ------------------------------------------------------------------ the parts a role fills in
 
@@ -150,8 +150,14 @@ func set_autopilot(on: bool) -> void:
 
 ## Epic 16 (Stories 16.3, 16.4): give this staff member the role's brain (a LimboAI state machine, staff_ai.gd), once.
 ## The brain is updated from tick() and drives the API above; without it the body stays 25.13's cosmetic one.
+## Without LimboAI (a fresh clone: addons/ is not in git) no brain, one warning a session (Epic 16 review P8).
 func enable_automation() -> void:
 	if brain != null:
+		return
+	if not ClassDB.class_exists("LimboHSM"):
+		if not _limbo_warned:
+			_limbo_warned = true
+			push_warning("[Staff] missing: LimboAI (addons/limboai) is not loaded: the staff stay cosmetic")
 		return
 	var b := _make_brain()
 	if b == null:

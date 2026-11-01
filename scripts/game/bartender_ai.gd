@@ -42,8 +42,7 @@ func _after_setup() -> void:
 
 
 func _config():
-	var dm := npc.get_node_or_null("/root/DataManager")
-	return dm.get_config("staff_automation", {}) if dm else {}
+	return DataManager.get_config("staff_automation", {})
 
 
 ## staff_automation.bartender_react_seconds (pure): a number >= 0, else DEFAULT_REACT with a warning.
@@ -56,7 +55,7 @@ static func react_seconds_from(cfg) -> float:
 
 
 func _gm() -> Node:
-	return npc.get_node_or_null("/root/GameManager")
+	return GameManager   # the autoload by name (NFR-9, review P11)
 
 func _working() -> bool:
 	var gm := _gm()
