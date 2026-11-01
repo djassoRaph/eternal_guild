@@ -12803,12 +12803,17 @@ func _check_t34_live(gm, gb, sp) -> void:
 	await process_frame
 	var armed = sec.find_child("bartender_dismiss", true, false)
 	var armed_ok: bool = armed is Button and (armed as Button).text == "Sure? Dismiss" and gm.is_staff_hired("bartender") and events.is_empty()
-	(armed as Button).pressed.emit()
+	(armed as Button).pressed.emit()          # review P9: a double-click's second press, right after the first, is ignored
+	await process_frame
+	var still_armed = sec.find_child("bartender_dismiss", true, false)
+	var double_ok: bool = still_armed is Button and (still_armed as Button).text == "Sure? Dismiss" and gm.is_staff_hired("bartender") and events.is_empty()
+	await create_timer(0.45).timeout
+	(sec.find_child("bartender_dismiss", true, false) as Button).pressed.emit()
 	await process_frame
 	var hire = sec.find_child("bartender_hire", true, false)
-	check(armed_ok and gm.is_staff_hired("bartender") == false and events == [["fired", "bartender/barkeep"]]
+	check(armed_ok and double_ok and gm.is_staff_hired("bartender") == false and events == [["fired", "bartender/barkeep"]]
 		and _t34_text(sec, "bartender_state") == "Not hired" and hire is Button and (hire as Button).text == "Hire (3 gold)",
-		"Dismiss asks first (Sure? Dismiss, nothing changes), then dismisses: one staff_fired, the row a candidate %s" % [events])
+		"Dismiss asks first (Sure? Dismiss, nothing changes; a double-click's second press within 0.4 s is ignored), then dismisses: one staff_fired, the row a candidate %s" % [events])
 	gm.gold = 2
 	sec.refresh()
 	hire = sec.find_child("bartender_hire", true, false)

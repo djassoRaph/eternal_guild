@@ -13,8 +13,10 @@ extends VBoxContainer
 signal acted(role: String, action: String, why: String)
 
 const GAME_MANAGER_SCRIPT := "res://scripts/GameManager.gd"
+const CONFIRM_GAP_MS := 400   # review P9: a second Dismiss press sooner than this after the first is a double-click
 
 var _armed := ""          # the role whose Dismiss was pressed once ("Sure? Dismiss")
+var _armed_at_ms := 0     # when it was
 var _said := {}           # role -> the last refusal shown in its row
 
 
@@ -128,8 +130,11 @@ func _act(role: String, action: String) -> void:
 		"dismiss":
 			if _armed != role:
 				_armed = role          # the first press only asks
+				_armed_at_ms = Time.get_ticks_msec()
 				refresh.call_deferred()
 				return
+			if Time.get_ticks_msec() - _armed_at_ms < CONFIRM_GAP_MS:
+				return                 # a double-click's second press doesn't confirm (review P9)
 			_armed = ""
 			why = GameManager.dismiss_staff(role)
 		"hire":
