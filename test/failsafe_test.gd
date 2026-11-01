@@ -371,6 +371,7 @@ func _initialize() -> void:
 	await test_codex_tarot()
 	await test_codex_artefacts()
 	await test_codex_history()
+	await test_codex_in_hall()
 
 	_finish()
 
@@ -8416,7 +8417,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"_rep_warnings", "_death_mult_warnings",   # Story 14.6: the reset re-arms these
 	"pending_disturbance", "last_disturbance_day", "_disturbance_warnings",   # Story 14.4: the day's disturbance
 	"fallen_this_run", "disturbance_note", "reputation_peak_tier",   # Stories 14.4 / 14.6 code review (P4, P3, P9)
-	"demo_ending", "_demo_ending_warnings"]   # Story 10.7: the demo's ending
+	"demo_ending", "_demo_ending_warnings",   # Story 10.7: the demo's ending
+	"codex_first_opened"]   # Story 18.5: Den Fa's line about the hall's Codex, once a run
 
 
 func test_load_and_resume() -> void:
@@ -17054,3 +17056,363 @@ func _check_t47_real_entry(H, ss) -> void:
 		if FileAccess.file_exists(T47_DIR + "/" + f):
 			DirAccess.remove_absolute(T47_DIR + "/" + f)
 	DirAccess.remove_absolute(T47_DIR)
+
+
+# --- Test 48: The Codex in the hall (Story 18.5) ---
+const CODEX_LECTERN_SCENE := "res://scenes/game/CodexLectern.tscn"
+const CODEX_LECTERN_SCRIPT := "res://scripts/game/codex_lectern.gd"
+const MAIN_TAVERN_SCENE := "res://scenes/MainTavern.tscn"
+const T48_DEN_FA_DIALOGUE := "res://data/dialogue/den_fa.dialogue"
+const T48_DIR := "user://failsafe_t48"
+const T48_GM_FIELDS := ["adventurers_hired_this_run", "deaths_this_run", "fallen_this_run", "dialogue_flags", "den_fa_state",
+	"_den_fa_tier_warnings", "codex_first_opened", "game_over_active"]
+const T48_TRUNK_HALF := Vector3(0.75, 1.0, 0.36)   # trunk_large_A.obj: 1.5 m along x; its flat lid (y 1.0) 0.72 m across z
+
+
+## AC 1-5 (Story 18.5): the book's scene, its place on the trunk in MainTavern, the save flag, Den Fa's line, the flow in a
+## small world (line once, then the book; the book directly after; a missing line; one book at a time; the world frozen),
+## can_read, the one-E rule against a fire zone a step away, lectern_body, the pulse. Save and codex redirected.
+func test_codex_in_hall() -> void:
+	print("[Test 48] The Codex in the hall (Story 18.5)")
+	var gm = root.get_node_or_null("GameManager")
+	var ss = root.get_node_or_null("SaveSystem")
+	if gm == null or ss == null or not ResourceLoader.exists(CODEX_LECTERN_SCENE) or not ("codex_first_opened" in gm):
+		check(false, "the GameManager and SaveSystem autoloads, CodexLectern.tscn and GameManager.codex_first_opened")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var ss_saved := [ss.save_path, ss.codex_path, ss.codex_data, ss.run_active]
+	ss.run_active = false
+	ss.save_path = T48_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T48_DIR + "/codex.dat"
+	var snap := {}
+	for k in T48_GM_FIELDS:
+		var v = gm.get(k)
+		snap[k] = v.duplicate(true) if (v is Array or v is Dictionary) else v
+	var UI = load(CODEX_UI_PATH)
+	UI.set_config(null)
+	UI.reset_warnings()
+	_check_t48_scene()
+	_check_t48_tavern()
+	_check_t48_flag(gm)
+	_check_t48_line()
+	await _check_t48_flow(gm)
+	await _check_t48_yields()
+	await _check_t48_body(UI)
+	for k in T48_GM_FIELDS:
+		gm.set(k, snap[k])
+	UI.set_config(null)
+	UI.reset_warnings()
+	paused = false
+	current_scene = null
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.codex_data = ss_saved[2]
+	ss.run_active = ss_saved[3]
+	await process_frame
+	check(not FileAccess.file_exists(T48_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T48_DIR + "/codex.dat"),
+		"Test 48 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 48 never touched the real save or codex")
+	print("")
+
+
+## AC 1: the scene: its script, the placeholder book, the anchor, the zone; no physics body; placeholder materials.
+func _check_t48_scene() -> void:
+	var lec = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	var body: Node = lec.get_node_or_null("PlaceholderBody")
+	var zone: Node = lec.get_node_or_null("ReadZone")
+	var shape: Node = zone.get_child(0) if zone != null and zone.get_child_count() > 0 else null
+	var bodies: Array = lec.find_children("*", "PhysicsBody3D", true, false)
+	var mats: Array = []
+	for m in lec.find_children("*", "MeshInstance3D", true, false):
+		var mat = (m as MeshInstance3D).material_override
+		mats.append(mat.resource_name if mat != null else "")
+	check((lec.get_script() as Script).resource_path == CODEX_LECTERN_SCRIPT and body is Node3D and lec.get_node_or_null("PlaceholderBody/Eye") is MeshInstance3D
+		and lec.get_node_or_null("Anchor") is Marker3D and zone is Area3D and shape is CollisionShape3D and (shape as CollisionShape3D).shape is SphereShape3D
+		and bodies.is_empty() and not mats.is_empty() and mats.all(func(n): return str(n).begins_with("placeholder_codex")),
+		"CodexLectern.tscn: codex_lectern.gd, the placeholder book (its eye), an Anchor, a ReadZone sphere; no physics body; every material placeholder_codex_* %s" % [mats])
+	lec.free()
+
+
+## The origin of a node's Transform3D in MainTavern.tscn's text (its block's first `transform =` line), or null.
+static func _t48_origin(text: String, header: String):
+	var at := text.find(header)
+	if at < 0:
+		return null
+	var line_at := text.find("transform = Transform3D(", at)
+	var next_node := text.find("\n[node ", at + header.length())
+	if line_at < 0 or (next_node >= 0 and line_at > next_node):
+		return null
+	var inside := text.substr(line_at + 24, text.find(")", line_at) - line_at - 24)
+	var nums := Array(inside.split(",")).map(func(s): return float(str(s).strip_edges()))
+	return Vector3(nums[9], nums[10], nums[11]) if nums.size() == 12 else null
+
+
+## AC 1: MainTavern.tscn holds one book, under Furniture, on TrunkLargeA's flat lid, its zone clear of the fire, Den Fa, the cat.
+func _check_t48_tavern() -> void:
+	var text := FileAccess.get_file_as_string(MAIN_TAVERN_SCENE)
+	var ext_ok := text.count("path=\"res://scenes/game/CodexLectern.tscn\"") == 1
+	var header := "[node name=\"CodexLectern\" parent=\"SubViewportContainer/SubViewport/TavernNavigation/Furniture\""
+	var book = _t48_origin(text, header)
+	var trunk = _t48_origin(text, "[node name=\"TrunkLargeA\"")
+	var lec = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	var zone_local: Vector3 = (lec.get_node("ReadZone").get_child(0) as Node3D).position
+	var anchor_local: Vector3 = (lec.get_node("Anchor") as Node3D).position
+	var cover: Vector3 = ((lec.get_node("PlaceholderBody/Cover") as MeshInstance3D).mesh as BoxMesh).size
+	lec.free()
+	if not (book is Vector3) or not (trunk is Vector3):
+		check(false, "MainTavern.tscn: a CodexLectern under Furniture and TrunkLargeA with their transforms (%s, %s)" % [book, trunk])
+		return
+	var on_lid: bool = abs(book.y - (trunk.y + T48_TRUNK_HALF.y)) < 0.02 \
+		and book.x - cover.x * 0.5 >= trunk.x - T48_TRUNK_HALF.x and book.x + cover.x * 0.5 <= trunk.x + T48_TRUNK_HALF.x \
+		and book.z - cover.z * 0.5 >= trunk.z - T48_TRUNK_HALF.z - 0.001 and book.z + cover.z * 0.5 <= trunk.z + T48_TRUNK_HALF.z + 0.001
+	var zone: Vector3 = book + zone_local
+	var anchor: Vector3 = book + anchor_local
+	var flat := func(a: Vector3, b: Vector3) -> float: return Vector2(a.x - b.x, a.z - b.z).length()
+	var fire_d: float = flat.call(anchor, FIRE_ANCHOR)
+	var cat_d: float = flat.call(zone, CAT_WORLD)
+	var den_d: float = flat.call(zone, Vector3(-3.8521, 0, -7.48206))
+	check(ext_ok and text.count(header) == 1 and on_lid and fire_d > 2.0 and cat_d > 3.0 and den_d > 3.0,
+		"MainTavern: one book on TrunkLargeA's flat lid (%s on %s), facing the room; its anchor %.2f m from the fire's, its zone %.2f m from the cat and %.2f m from Den Fa" % [book, trunk, fire_d, cat_d, den_d])
+
+
+## AC 4: the flag in the save: default, round trip, an old save, junk, a new run.
+func _check_t48_flag(gm) -> void:
+	gm._reset_dialogue_state()
+	var fresh: bool = gm.codex_first_opened == false
+	gm.codex_first_opened = true
+	var data: Dictionary = gm._dialogue_save_data()
+	var json_back = JSON.parse_string(JSON.stringify(data))
+	gm.codex_first_opened = false
+	gm._load_dialogue_data(json_back)
+	var round_true: bool = gm.codex_first_opened == true and data.get("codex_first_opened") == true
+	var old := data.duplicate()
+	old.erase("codex_first_opened")
+	gm._load_dialogue_data(old)
+	var old_false: bool = gm.codex_first_opened == false
+	var junk_ok := true
+	for junk in ["yes", 1, null, {}]:
+		var d := data.duplicate()
+		d["codex_first_opened"] = junk
+		gm.codex_first_opened = true
+		gm._load_dialogue_data(d)
+		junk_ok = junk_ok and gm.codex_first_opened == false
+	gm.codex_first_opened = true
+	gm._reset_dialogue_state()
+	check(fresh and round_true and old_false and junk_ok and gm.codex_first_opened == false,
+		"codex_first_opened: false in a new run; saved and loaded through JSON; an older save or junk ('yes', 1, null) -> false; a New Game resets it")
+
+
+## AC 3: Den Fa's line in his file: it compiles, it is his, his own picking never takes it.
+func _check_t48_line() -> void:
+	var runner = load(RUNNER_SCRIPT)
+	var res: Resource = runner.load_dialogue(T48_DEN_FA_DIALOGUE)
+	var titles: Dictionary = res.get("titles") if res != null and res.get("titles") is Dictionary else {}
+	var text := FileAccess.get_file_as_string(T48_DEN_FA_DIALOGUE)
+	var body := text.substr(text.find("~ codex_first_open"))
+	var lines: Array = Array(body.split("\n")).slice(1).filter(func(l): return str(l).strip_edges() != "" and not str(l).begins_with("=>"))
+	var his: bool = not lines.is_empty() and lines.all(func(l): return str(l).begins_with("Den Fa: "))
+	var picked := false
+	for state in ["early", "mid", "late"]:
+		picked = picked or runner.numbered_titles(res, state + "_").has("codex_first_open")
+	check(titles.has("codex_first_open") and titles.has("first_contact") and his and lines.size() == 2 and not picked
+		and not "codex_first_open".ends_with("_enter") and text.contains("Story 18.5"),
+		"den_fa.dialogue has codex_first_open (imported: it loads), two lines of his; it is not a first_contact, an _enter or an opening, so his picking never takes it")
+
+
+## A small world for the flow: a scene with set_world_frozen (as the hall), a ZonePromptUI, the book, a player in its zone.
+func _t48_world() -> Dictionary:
+	var gs := GDScript.new()
+	gs.source_code = "extends Node3D\nvar frozen := false\nvar calls: Array = []\nfunc set_world_frozen(on: bool) -> void:\n\tfrozen = on\n\tcalls.append(on)\nfunc is_world_frozen() -> bool:\n\treturn frozen\n"
+	gs.reload()
+	var world := Node3D.new()
+	world.set_script(gs)
+	world.name = "T48World"
+	root.add_child(world)
+	current_scene = world
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	world.add_child(ui)
+	var lec = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	world.add_child(lec)
+	lec.position = Vector3(0, 1.1, 0)
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.add_to_group("player")
+	var cap := CollisionShape3D.new()
+	cap.shape = CapsuleShape3D.new()
+	(cap.shape as CapsuleShape3D).radius = PLAYER_RADIUS
+	(cap.shape as CapsuleShape3D).height = 1.5
+	cap.position = Vector3(0, 0.75, 0)
+	player.add_child(cap)
+	world.add_child(player)
+	player.position = Vector3(1.0, 0, 0)
+	return {"world": world, "ui": ui, "lec": lec, "player": player}
+
+
+func _t48_settle(frames: int) -> void:
+	for i in frames:
+		await physics_frame
+	await process_frame
+
+
+## AC 2, 3: the first read (his line, then the book, the world frozen), then directly; a missing line; one book at a time.
+func _check_t48_flow(gm) -> void:
+	gm.codex_first_opened = false
+	gm.game_over_active = false
+	var w := _t48_world()
+	var lec = w.lec
+	await _t48_settle(40)
+	var claimed: bool = w.ui.connected_zones.has(lec.get_node("ReadZone")) and w.ui.owns_e(lec.get_node("ReadZone"))
+	check(claimed and lec.can_read() and w.ui.prompt_label.text == "Press E - Read the Codex",
+		"beside the book: it claimed its zone with the prompt UI, E is its, 'Press E - Read the Codex'")
+	await _press("interact")
+	var boxes: Array = get_nodes_in_group("dialogue_open")
+	var box = boxes[0] if boxes.size() == 1 else null
+	var line_ok: bool = box != null and box.start_from_title == "codex_first_open" and get_nodes_in_group("codex_open").is_empty()
+	var shown := false
+	for i in 60:
+		await process_frame
+		if gm.codex_first_opened:
+			shown = true
+			break
+	check(line_ok and shown, "the first E: Den Fa's codex_first_open line in the dialogue box, no book yet; the flag set once his line shows")
+	for i in 8:
+		if get_nodes_in_group("dialogue_open").is_empty():
+			break
+		await _press("ui_accept")
+		await _t48_settle(2)
+	await _t48_settle(3)
+	var books: Array = get_nodes_in_group("codex_open")
+	var book = books[0] if books.size() == 1 else null
+	check(get_nodes_in_group("dialogue_open").is_empty() and book != null and book.get_parent() == w.world and book.pause_world
+		and w.world.calls == [true] and lec.is_book_open() and not lec.can_read(),
+		"when his box closes the book opens over the scene, the world frozen (set_world_frozen), E no longer the book's")
+	if book != null:
+		book.close()
+	await _t48_settle(2)
+	var thawed: bool = w.world.calls == [true, false] and not lec.is_book_open() and not lec.can_read()
+	lec._cooldown = 0.0
+	await _t48_settle(2)
+	lec.interact()
+	await _t48_settle(2)
+	var direct: Array = get_nodes_in_group("codex_open")
+	check(thawed and direct.size() == 1 and get_nodes_in_group("dialogue_open").is_empty(),
+		"closing thaws the world and E waits out its cooldown; the next read opens the book at once, no line")
+	lec.interact()
+	lec.open_book()
+	await process_frame
+	check(get_nodes_in_group("codex_open").size() == 1, "one book at a time: reading again while it is open does nothing")
+	for b in get_nodes_in_group("codex_open"):
+		b.close()
+	await _t48_settle(2)
+	gm.codex_first_opened = false
+	lec.dialogue_path = "res://data/dialogue/t48_no_such.dialogue"
+	lec._cooldown = 0.0
+	lec.interact()
+	await _t48_settle(2)
+	check(get_nodes_in_group("codex_open").size() == 1 and get_nodes_in_group("dialogue_open").is_empty() and gm.codex_first_opened == false,
+		"no line to say (a missing file): the book opens at once and the flag stays false (he says it next time)")
+	for b in get_nodes_in_group("codex_open"):
+		b.close()
+	await _t48_settle(2)
+	lec.dialogue_path = T48_DEN_FA_DIALOGUE
+	lec._cooldown = 0.0
+	var table := {}
+	table["ready"] = lec.can_read()
+	w.player.position = Vector3(6, 0, 0)
+	await _t48_settle(6)
+	table["away"] = lec.can_read()
+	w.player.position = Vector3(1.0, 0, 0)
+	await _t48_settle(6)
+	var blocker := Control.new()
+	blocker.add_to_group("blocks_player")
+	root.add_child(blocker)
+	table["panel"] = lec.can_read()
+	blocker.free()
+	var talk := Node.new()
+	talk.add_to_group("dialogue_open")
+	root.add_child(talk)
+	table["talk"] = lec.can_read()
+	talk.free()
+	lec._cooldown = 0.3
+	table["cooldown"] = lec.can_read()
+	lec._cooldown = 0.0
+	paused = true
+	table["paused"] = lec.can_read()
+	paused = false
+	gm.game_over_active = true
+	table["fallen"] = lec.can_read()
+	gm.game_over_active = false
+	await _t48_settle(2)
+	check(table == {"ready": true, "away": false, "panel": false, "talk": false, "cooldown": false, "paused": false, "fallen": false},
+		"can_read: only beside it with nothing else open (away, an open panel, a conversation, its cooldown, paused, Game Over: no) %s" % [table])
+	_close_test_world(w.world)
+	await _t48_settle(2)
+
+
+## AC 2 (J6): the book and a fire zone a step apart: E and the prompt go to the nearer, never both.
+func _check_t48_yields() -> void:
+	var w := _t48_world()
+	var lec = w.lec
+	var fire := Area3D.new()
+	var fs := CollisionShape3D.new()
+	fs.shape = BoxShape3D.new()
+	(fs.shape as BoxShape3D).size = Vector3(2, 2.2, 2)
+	fs.position = Vector3(0, 1.1, 0)
+	fire.add_child(fs)
+	w.world.add_child(fire)
+	fire.position = Vector3(0.95, 0, 2.2)     # z 1.2..3.2; anchor (its shape) flat (0.95, 2.2); the book's anchor flat (0.3, 0)
+	w.ui.register_zone(fire, "Press E - Tend Fire")
+	await _t48_settle(40)
+	var zone: Area3D = lec.get_node("ReadZone")
+	var res := []
+	for c in [[0.9, "book"], [1.5, "fire"]]:
+		w.player.position = Vector3(6, 0, 0)
+		await _t48_settle(4)
+		w.player.position = Vector3(0.95, 0, c[0])
+		await _t48_settle(6)
+		var both: bool = zone.overlaps_body(w.player) and fire.overlaps_body(w.player)
+		var book_owns: bool = w.ui.owns_e(zone)
+		var fire_owns: bool = w.ui.owns_e(fire)
+		res.append([c[1], both, book_owns, fire_owns, lec.can_read()])
+	check(res == [["book", true, true, false, true], ["fire", true, false, true, false]],
+		"in both zones, E and the prompt go to the nearer anchor: the book beside it, the fire a step on (one E, one action) %s" % [res])
+	_close_test_world(w.world)
+	await _t48_settle(2)
+
+
+## AC 1: lectern_body swaps the placeholder from one path (a bad one keeps it, one warning); the eye pulses.
+func _check_t48_body(UI) -> void:
+	UI.reset_warnings()
+	UI.set_config({"lectern_body": "res://scenes/game/t48_no_such_body.tscn"})
+	var a = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	root.add_child(a)
+	var bad_ok: bool = (a.get_node("PlaceholderBody") as Node3D).visible and a.get_node_or_null("Body") == null and UI.warnings >= 1
+	UI.set_config({"lectern_body": TAROT_CARD_SCENE_PATH})   # any small scene stands in for 25.19's book
+	var b = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	root.add_child(b)
+	var good_ok: bool = not (b.get_node("PlaceholderBody") as Node3D).visible and b.get_node_or_null("Body") != null
+	UI.set_config(null)
+	UI.reset_warnings()
+	check(bad_ok and good_ok, "lectern_body: a scene there replaces the placeholder book (25.19's swap); one that doesn't load keeps it, with a warning")
+	var S = load(CODEX_LECTERN_SCRIPT)
+	var g := {"min": 0.6, "max": 1.6, "period": 3.0}
+	var e0: float = S.glow_energy(0.0, g)
+	var e1: float = S.glow_energy(0.75, g)
+	var e3: float = S.glow_energy(2.25, g)
+	var c = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
+	root.add_child(c)
+	var eye: MeshInstance3D = c.get_node("PlaceholderBody/Eye")
+	c._t = 0.0
+	c._process(0.75)
+	var lit: float = (eye.material_override as StandardMaterial3D).emission_energy_multiplier
+	c._process(1.5)
+	var dim: float = (eye.material_override as StandardMaterial3D).emission_energy_multiplier
+	var d = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()   # not in the tree: its scene material, untouched
+	var shared: StandardMaterial3D = (d.get_node("PlaceholderBody/Eye") as MeshInstance3D).material_override
+	check(abs(e0 - 1.1) < 0.001 and abs(e1 - 1.6) < 0.001 and abs(e3 - 0.6) < 0.001 and abs(lit - 1.6) < 0.01 and abs(dim - 0.6) < 0.01
+		and eye != null and shared != null and is_equal_approx(shared.emission_energy_multiplier, 1.1) and shared != eye.material_override,
+		"the eye pulses: a slow sine 0.6..1.6 over 3 s (codex_book.json lectern_glow), on its own material copy")
+	d.free()
+	await _t48_settle(32)   # let their _ready finish looking for a prompt UI before freeing them
+	for n in [a, b, c]:
+		n.free()
