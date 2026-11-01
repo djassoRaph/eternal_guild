@@ -11352,18 +11352,15 @@ func _check_t31_banners(eb, nm) -> void:
 	var shown := []
 	for ev in [["tax_warning", [3, 1040]], ["tax_warning", [1, 1040]], ["tax_paid", [1040]], ["tax_overdue", [2]], ["tax_overdue", [1]]]:
 		eb.callv("emit_signal", [ev[0]] + ev[1])
-		var n: int = nm._container.get_child_count()
-		var text := ""
-		if n > 0:
-			for l in nm._container.get_child(n - 1).find_children("*", "Label", true, false):
-				text = (l as Label).text
-		shown.append(text)
+		shown.append(_t33_last_banner(nm))   # Story 16.5 review P5: an event banner is shown, or queued behind the two on screen
 	check(shown == ["Tax due in 3 days: 1040 gold.", "Tax due tomorrow: 1040 gold.", "Tax paid: 1040 gold.",
 		"Tax overdue. 2 days before the guild is seized.", "Tax overdue. 1 day before the guild is seized."],
 		"NotificationManager shows a banner for each tax event %s" % [shown])
 	for c in nm._container.get_children():
 		nm._container.remove_child(c)
 		c.free()
+	if nm.has_method("drop_queued"):
+		nm.drop_queued()
 
 
 ## AC 7 (DT-7): the F12 State tab reads the cycle; Trigger Tax Event NOW runs the real check.
@@ -12497,13 +12494,16 @@ func _check_t33b_wages(gm, events: Array, capture) -> void:
 	var p2: int = gm.apply_staff_wages()
 	check(p2 == 3 and gm.gold == 2 and events == [["gold", 2], ["paid", bt, 3], ["unpaid", qd], ["strike", qd, true, true]]
 		and d.on_strike == true and d.owed == 4 and d.missed_days == 1 and gm.is_staff_hired("desk_manager")
-		and capture.lines.has("[GameManager] staff: the Quest Dealer unpaid (missed 1, owes 4)") and capture.lines.has("Paid 3 gold in staff wages."),
-		"short of a wage: on strike (owes the wage, missed 1), staff_wage_unpaid then staff_strike_changed(true); still hired %s" % [events])
+		and capture.lines.has("[GameManager] staff: the Quest Dealer unpaid (missed 1, owes 4)") and capture.lines.has("Paid 3 gold in staff wages.")
+		and capture.lines.has("The Quest Dealer hasn't been paid — on strike."),
+		"short of a wage: on strike (owes the wage, missed 1), staff_wage_unpaid then staff_strike_changed(true); still hired; the player's sentence in the log too (review P5) %s" % [events])
 	gm.gold = 100
 	events.clear()
+	capture.lines.clear()
 	var p3: int = gm.apply_staff_wages()
-	check(p3 == 3 and gm.gold == 97 and events == [["gold", 97], ["paid", bt, 3], ["unpaid", qd]] and d.owed == 8 and d.missed_days == 2,
-		"a striker is not paid automatically, even with the gold: owed and missed grow, staff_wage_unpaid again, no new strike signal %s" % [events])
+	check(p3 == 3 and gm.gold == 97 and events == [["gold", 97], ["paid", bt, 3], ["unpaid", qd]] and d.owed == 8 and d.missed_days == 2
+		and capture.lines.has("The Quest Dealer leaves tomorrow if unpaid."),
+		"a striker is not paid automatically, even with the gold: owed and missed grow, staff_wage_unpaid again, no new strike signal; the warning in the log %s" % [events])
 	events.clear()
 	capture.lines.clear()
 	gm.apply_staff_wages()
@@ -12560,9 +12560,7 @@ func _check_t33b_banners(gm, eb, gb) -> void:
 	if nm == null:
 		check(false, "the NotificationManager autoload")
 		return
-	for c in nm._container.get_children():
-		nm._container.remove_child(c)
-		c.free()
+	_t33_clear_banners(nm)
 	var cfg := {"daily_wage": {"bartender": 3, "desk_manager": 4}}
 	gm.staff = gm.staff_seed(gm.staff_roles(), "demo", ["bartender", "desk_manager"], cfg)
 	var d: Dictionary = gm.staff_record("desk_manager")
@@ -12576,8 +12574,9 @@ func _check_t33b_banners(gm, eb, gb) -> void:
 	shown.append(_t33_last_banner(nm))
 	d.hired = false
 	var n_before: int = nm._container.get_child_count()
+	var q_before: int = nm.queued_texts().size() if nm.has_method("queued_texts") else 0
 	gb.staff_strike_changed.emit("desk_manager/silver_elf", false)   # dismissed or left: no banner
-	var quiet: bool = nm._container.get_child_count() == n_before
+	var quiet: bool = nm._container.get_child_count() == n_before and (nm.queued_texts().size() if nm.has_method("queued_texts") else 0) == q_before
 	check(shown == ["The Quest Dealer hasn't been paid — on strike.", "The Quest Dealer leaves tomorrow if unpaid.",
 		"The Quest Dealer has left the guild, unpaid.", "The Quest Dealer is back to work."] and quiet,
 		"NotificationManager: the strike, the one-day warning, the leaving and back to work, worded from the record; none for a dismissal %s" % [shown])
@@ -12585,9 +12584,45 @@ func _check_t33b_banners(gm, eb, gb) -> void:
 		and nm.staff_unpaid_text("the Bartender", 1, 1) == "The Bartender has left the guild, unpaid."
 		and nm.staff_unpaid_text("the Bartender", 2, 5) == "The Bartender is still unpaid (2 days).",
 		"staff_unpaid_text: the first miss with leaving next, leaving at once, a middle day")
-	for c in nm._container.get_children():
-		nm._container.remove_child(c)
-		c.free()
+	_t33_clear_banners(nm)
+	# Review P5: event banners (staff, tax) are never pushed out by low-resource banners: both staff mornings show
+	# (or wait their turn) whatever the order of a low-beer warning in the same frame
+	var bt_rec: Dictionary = gm.staff_record("bartender")
+	d.hired = true
+	d.on_strike = true
+	d.missed_days = 1
+	bt_rec.on_strike = true
+	bt_rec.missed_days = 1
+	var orders := []
+	for order in ["staff first", "beer first"]:
+		_t33_clear_banners(nm)
+		nm._active["beer"] = false
+		nm._cooldowns["beer"] = 0.0
+		if order == "beer first":
+			eb.beer_changed.emit(1)
+		eb.staff_wage_unpaid.emit("bartender/barkeep")
+		eb.staff_wage_unpaid.emit("desk_manager/silver_elf")
+		if order == "staff first":
+			eb.beer_changed.emit(1)
+		var live := _t33_live_texts(nm)
+		var all_texts: Array = live + (nm.queued_texts() if nm.has_method("queued_texts") else [])
+		orders.append([order, live, all_texts.has("The Bartender hasn't been paid — on strike.") and all_texts.has("The Quest Dealer hasn't been paid — on strike.")
+			and live.size() <= 2])
+	check(orders.all(func(o): return o[2] and o[1].has("The Bartender hasn't been paid — on strike.") and o[1].has("The Quest Dealer hasn't been paid — on strike.")),
+		"two staff banners and a low-beer warning in one frame: both staff banners stay on screen, the warning never pushes one out (review P5) %s" % [orders])
+	# a third event in the same frame waits its turn instead of pushing an event out
+	_t33_clear_banners(nm)
+	eb.staff_wage_unpaid.emit("bartender/barkeep")
+	eb.staff_wage_unpaid.emit("desk_manager/silver_elf")
+	eb.tax_overdue.emit(2)
+	var live3 := _t33_live_texts(nm)
+	var queued3: Array = nm.queued_texts() if nm.has_method("queued_texts") else []
+	check(live3.size() == 2 and live3.has("The Bartender hasn't been paid — on strike.") and queued3 == ["Tax overdue. 2 days before the guild is seized."]
+		and nm.has_method("newest_text") and nm.newest_text() == "Tax overdue. 2 days before the guild is seized.",
+		"a third event banner in the same frame is queued, not pushed in over the two on screen (%s; queued %s)" % [live3, queued3])
+	_t33_clear_banners(nm)
+	bt_rec.on_strike = false
+	bt_rec.missed_days = 0
 	# F12's Pay button runs the same pay-back
 	var ps = load(DEBUG_PANEL_SCENE_PATH)
 	var panel: Node = ps.instantiate() if ps is PackedScene else null
@@ -12603,15 +12638,16 @@ func _check_t33b_banners(gm, eb, gb) -> void:
 		if (b as Button).text == "Pay the Quest Dealer":
 			(b as Button).pressed.emit()
 	check(d.on_strike == false and gm.gold == 6, "F12's Pay the Quest Dealer pays the back wage (strike %s, gold %d)" % [d.on_strike, gm.gold])
-	for c in nm._container.get_children():
-		nm._container.remove_child(c)
-		c.free()
+	_t33_clear_banners(nm)
 	panel.queue_free()
 	await process_frame
 
 
-## The newest NotificationManager banner's text ("" when none).
+## The newest NotificationManager banner's text ("" when none). Since the review (P5) an event banner can wait in the
+## queue behind two on screen: newest_text() is the last one asked for, shown or queued.
 static func _t33_last_banner(nm) -> String:
+	if nm.has_method("newest_text"):
+		return nm.newest_text()
 	var n: int = nm._container.get_child_count()
 	if n == 0:
 		return ""
@@ -12619,6 +12655,26 @@ static func _t33_last_banner(nm) -> String:
 	for l in nm._container.get_child(n - 1).find_children("*", "Label", true, false):
 		text = (l as Label).text
 	return text
+
+
+## The texts of the banners on screen (not freed), oldest first.
+static func _t33_live_texts(nm) -> Array:
+	var out := []
+	for c in nm._container.get_children():
+		if c.is_queued_for_deletion():
+			continue
+		for l in c.find_children("*", "Label", true, false):
+			out.append((l as Label).text)
+	return out
+
+
+## Every banner gone, the queue too (and the newest text forgotten).
+static func _t33_clear_banners(nm) -> void:
+	for c in nm._container.get_children():
+		nm._container.remove_child(c)
+		c.free()
+	if nm.has_method("drop_queued"):
+		nm.drop_queued()
 
 
 # --- Test 34: The staff panel (Story 16.2) ---

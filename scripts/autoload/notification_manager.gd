@@ -44,9 +44,9 @@ func _ready() -> void:
 		EconomyBus.beer_changed.connect(_on_beer_changed)
 		EconomyBus.fireplace_fuel_changed.connect(_on_comfort_changed)
 		# Story 13.1 (DT-6): the tax cycle's events, one banner each (no cooldown: each is its own event).
-		EconomyBus.tax_warning.connect(func(days_left: int, amount: int): show_banner(tax_warning_text(days_left, amount)))
-		EconomyBus.tax_paid.connect(func(amount: int): show_banner(tax_paid_text(amount)))
-		EconomyBus.tax_overdue.connect(func(days_remaining: int): show_banner(tax_overdue_text(days_remaining)))
+		EconomyBus.tax_warning.connect(func(days_left: int, amount: int): show_banner(tax_warning_text(days_left, amount), true))
+		EconomyBus.tax_paid.connect(func(amount: int): show_banner(tax_paid_text(amount), true))
+		EconomyBus.tax_overdue.connect(func(days_remaining: int): show_banner(tax_overdue_text(days_remaining), true))
 		EconomyBus.staff_wage_unpaid.connect(_on_staff_wage_unpaid)   # Story 16.5: an event each, no cooldown
 	if GuildBus:
 		GuildBus.staff_strike_changed.connect(_on_staff_strike_changed)
@@ -73,35 +73,47 @@ static func tier_rise_text(tier: String) -> String:
 func _on_staff_wage_unpaid(staff_id: String) -> void:
 	var rec: Dictionary = GameManager.staff_record_by_id(staff_id)
 	if not rec.is_empty():
-		show_banner(staff_unpaid_text(str(rec.get("name", "?")), int(rec.get("missed_days", 1)), GameManager.staff_missed_days_to_leave()))
+		show_banner(staff_unpaid_text(str(rec.get("name", "?")), int(rec.get("missed_days", 1)), GameManager.staff_missed_days_to_leave()), true)
 
 ## Story 16.5: a strike ended for a member still hired (the back wage paid). A dismissal or a leaving ends one too, with
 ## the record already not hired: no banner (the leaving had its own).
 func _on_staff_strike_changed(staff_id: String, on_strike: bool) -> void:
 	var rec: Dictionary = GameManager.staff_record_by_id(staff_id)
 	if not on_strike and rec.get("hired") == true:
-		show_banner("%s is back to work." % _cap(str(rec.get("name", "?"))))
+		show_banner("%s is back to work." % _cap(str(rec.get("name", "?"))), true)
 
-## Story 16.5: the unpaid-wage banner. `missed`: unpaid mornings in a row; `leave_after`: staff_wages.missed_days_to_leave.
-## DRAFT (Raphael rewrites).
+## Story 16.5: the unpaid-wage banner: GameManager's sentence (the event log has the same one, review P5).
 static func staff_unpaid_text(staff_name: String, missed: int, leave_after: int) -> String:
-	var who := _cap(staff_name)
-	if missed >= leave_after:
-		return "%s has left the guild, unpaid." % who
-	if missed <= 1:
-		return "%s hasn't been paid — on strike.%s" % [who, " Leaves tomorrow if unpaid." if leave_after == 2 else ""]
-	if missed == leave_after - 1:
-		return "%s leaves tomorrow if unpaid." % who
-	return "%s is still unpaid (%d days)." % [who, missed]
+	return GameManager.staff_unpaid_text(staff_name, missed, leave_after)
 
 static func _cap(s: String) -> String:
 	return s.substr(0, 1).to_upper() + s.substr(1)
 
 
-## Frees every banner (Story 13.4 review P8: the fall's pause froze them, and they played out over the main menu).
+## Frees every banner and drops the waiting ones (Story 13.4 review P8: the fall's pause froze them, and they played out
+## over the main menu).
 func clear_banners() -> void:
 	for c in _container.get_children():
 		c.queue_free()
+	drop_queued()
+
+
+## Epic 16 review P5: event banners (tax, staff) wait here when two events are already on screen.
+var _queue: Array = []
+var _newest := ""
+
+## The newest banner text shown or queued ("" after clear_banners / drop_queued).
+func newest_text() -> String:
+	return _newest
+
+## The event banners waiting their turn, oldest first.
+func queued_texts() -> Array:
+	return _queue.duplicate()
+
+## Drops the waiting banners (and forgets the newest text).
+func drop_queued() -> void:
+	_queue.clear()
+	_newest = ""
 
 
 ## Story 13.1 (DT-6): the tax banners' text. DRAFT (Raphael rewrites).
@@ -147,14 +159,44 @@ func _check(type: String, value: float, threshold: float, msg: String) -> void:
 		_active[type] = false  # recovered — re-arm for next time
 
 
-func show_banner(msg: String) -> void:
-	# Enforce max visible — drop the oldest
-	while _container.get_child_count() >= MAX_VISIBLE:
-		var oldest := _container.get_child(0)
-		_container.remove_child(oldest)
-		oldest.queue_free()
+## A banner (at most MAX_VISIBLE on screen). `event` (Epic 16 review P5): a tax or staff event, never pushed out by a
+## low-resource warning. Full: the oldest low-resource banner makes room; with only events on screen an event waits its
+## turn (shown when a banner goes) and a low-resource warning is dropped.
+func show_banner(msg: String, event := false) -> void:
+	var live := _live_banners()
+	if live.size() >= MAX_VISIBLE:
+		var low := live.filter(func(b): return not b.get_meta("event", false))
+		if not low.is_empty():
+			_container.remove_child(low[0])
+			low[0].queue_free()
+		elif event:
+			_queue.append(msg)
+			_newest = msg
+			return
+		else:
+			return
+	_newest = msg
+	_add_banner(msg, event)
 
+
+## The banners on screen (not on their way out), oldest first.
+func _live_banners() -> Array:
+	return _container.get_children().filter(func(c): return not c.is_queued_for_deletion())
+
+
+## A banner's time is up: it goes, and the next waiting event shows.
+func _banner_done(panel: Node) -> void:
+	if is_instance_valid(panel):
+		if panel.get_parent() == _container:
+			_container.remove_child(panel)
+		panel.queue_free()
+	if not _queue.is_empty() and _live_banners().size() < MAX_VISIBLE:
+		_add_banner(str(_queue.pop_front()), true)
+
+
+func _add_banner(msg: String, event: bool) -> void:
 	var panel := PanelContainer.new()
+	panel.set_meta("event", event)
 	panel.modulate = Color(1, 1, 1, 0)  # fade in
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var margin := MarginContainer.new()
@@ -171,4 +213,4 @@ func show_banner(msg: String) -> void:
 	tw.tween_property(panel, "modulate:a", 1.0, 0.3)
 	tw.tween_interval(_duration)
 	tw.tween_property(panel, "modulate:a", 0.0, 0.5)
-	tw.tween_callback(panel.queue_free)
+	tw.tween_callback(_banner_done.bind(panel))

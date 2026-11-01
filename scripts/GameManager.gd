@@ -533,8 +533,10 @@ func staff_missed_days_to_leave() -> int:
 ## EconomyBus.staff_wage_paid. Short of the wage -> on strike (owes it, missed 1): staff_wage_unpaid, then
 ## GuildBus.staff_strike_changed(true). A striker isn't paid automatically (the player pays the back wage, Story 16.2's
 ## panel): each further morning adds the wage to what is owed and counts one more missed day (staff_wage_unpaid); at
-## missed_days_to_leave they leave (the record cleared, the debt dropped: SW-4; staff_strike_changed(false), staff_fired).
-## Returns the gold paid. One log line for the total ("the end-of-day summary", 16.5 AC 4: the event log).
+## missed_days_to_leave they leave (the record cleared, the debt kept with the role: K-12; staff_strike_changed(false),
+## staff_fired). Each unpaid morning logs the player's sentence (staff_unpaid_text, the banner's) beside the system line
+## (review P5: a banner can wait its turn). Returns the gold paid. One log line for the total ("the end-of-day summary",
+## 16.5 AC 4: the event log).
 func apply_staff_wages() -> int:
 	var paid := 0
 	var leave_after := staff_missed_days_to_leave()
@@ -552,12 +554,16 @@ func apply_staff_wages() -> int:
 			rec.owed = wage
 			rec.missed_days = 1
 			log_message("[GameManager] staff: %s unpaid (missed 1, owes %d)" % [rec.name, rec.owed])
+			if leave_after > 1:
+				log_message(staff_unpaid_text(str(rec.name), 1, leave_after))
 			EconomyBus.staff_wage_unpaid.emit(id)
 			GuildBus.staff_strike_changed.emit(id, true)
 		else:
 			rec.owed = maxi(0, int(rec.get("owed", 0))) + wage
 			rec.missed_days = maxi(0, int(rec.get("missed_days", 0))) + 1
 			log_message("[GameManager] staff: %s unpaid (missed %d, owes %d)" % [rec.name, rec.missed_days, rec.owed])
+			if int(rec.missed_days) < leave_after:
+				log_message(staff_unpaid_text(str(rec.name), int(rec.missed_days), leave_after))
 			EconomyBus.staff_wage_unpaid.emit(id)
 		if int(rec.missed_days) >= leave_after:
 			_release_staff(rec, "[GameManager] staff: %s left (unpaid %d days)" % [rec.name, rec.missed_days],
@@ -565,6 +571,18 @@ func apply_staff_wages() -> int:
 	if paid > 0:
 		log_message("Paid %d gold in staff wages." % paid)
 	return paid
+
+## Story 16.5: an unpaid morning in the player's words (the banner's and the log's; pure). `missed`: unpaid mornings in a
+## row; `leave_after`: staff_wages.missed_days_to_leave. DRAFT (Raphael rewrites).
+static func staff_unpaid_text(staff_name: String, missed: int, leave_after: int) -> String:
+	var who := staff_title(staff_name)
+	if missed >= leave_after:
+		return "%s has left the guild, unpaid." % who
+	if missed <= 1:
+		return "%s hasn't been paid — on strike.%s" % [who, " Leaves tomorrow if unpaid." if leave_after == 2 else ""]
+	if missed == leave_after - 1:
+		return "%s leaves tomorrow if unpaid." % who
+	return "%s is still unpaid (%d days)." % [who, missed]
 
 ## Story 16.5 (SW-3): pay a striker's back wage (Story 16.2's panel, F12): "" when paid, else the reason, with nothing
 ## changed. Through spend_gold; the record cleared (no strike, nothing owed); then EconomyBus.staff_wage_paid and
