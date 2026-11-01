@@ -375,6 +375,7 @@ func _initialize() -> void:
 	await test_codex_review()
 	await test_day_clock()   # Story 3.7
 	await test_bard_visit()   # Story 9.1
+	await test_bard_performs()   # Story 9.2
 
 	_finish()
 
@@ -8452,7 +8453,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"demo_ending", "_demo_ending_warnings",   # Story 10.7: the demo's ending
 	"codex_first_opened",   # Story 18.5: Den Fa's line about the hall's Codex, once a run
 	"day_clock_minutes", "_day_clock_warnings", "pending_night",   # Story 3.7: the day clock
-	"bard_visit", "bard_last_visit_day", "_bard_warnings"]   # Story 9.1: the Bard's visit
+	"bard_visit", "bard_last_visit_day", "_bard_warnings",   # Story 9.1: the Bard's visit
+	"bard_performed_today", "bard_tips_today", "bard_narrates_reveal"]   # Story 9.2: his performance
 
 
 func test_load_and_resume() -> void:
@@ -14332,9 +14334,13 @@ func _check_t37_welcome(gm, dm) -> void:
 ## AC 3: the patron's call and no reputation literal left at the four sources.
 func _check_t37_sources() -> void:
 	var pat := _func_body(FileAccess.get_file_as_string("res://scripts/npcs/RealisticPatron.gd"), "on_drinking_timer_timeout")
-	var gold_at := pat.find("GameManager.add_gold(payment_amount)")
+	# Story 9.2 (updated on purpose): the payment goes through GameManager.patron_paid (the one seam: the guild's
+	# add_gold, less the Bard's share while he plays), still before patron_satisfied()
+	var gold_at := pat.find("GameManager.patron_paid(payment_amount)")
 	var sat_at := pat.find("GameManager.patron_satisfied()")
-	check(gold_at >= 0 and sat_at > gold_at, "RealisticPatron: a patron who finishes and pays calls GameManager.patron_satisfied() after add_gold")
+	var paid_body := _func_body(FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH), "patron_paid")
+	check(gold_at >= 0 and sat_at > gold_at and paid_body.contains("add_gold(amount - share)"),
+		"RealisticPatron: a patron who finishes and pays calls GameManager.patron_satisfied() after the payment (patron_paid, which adds the gold)")
 	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
 	var lit := []
 	for f in ["complete_mission", "complete_party_mission", "dismiss_adventurer"]:
@@ -19456,3 +19462,320 @@ func _check_t39_sources() -> void:
 	check(not rules.contains("GameManager.") and not rules.contains("DataManager.") and not ctl.contains("/root/") and not npc.contains("/root/")
 		and ctl.contains("DayClockRules.OPEN_PHASES") and _func_body(pat, "_visitor_bodies").contains("\"bard\""),
 		"bard_rules.gd names no autoload; the controller and the body use no /root paths; he arrives in the clock's open hours; no new patron wears his body while he is in")
+
+
+# --- Test 40: the Bard performs (Story 9.2, Epic 9) ---
+const T40_LUTE := "res://scripts/audio/placeholder_lute.gd"
+
+func test_bard_performs() -> void:
+	print("[Test 40] The Bard performs (Story 9.2)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	var eb = root.get_node_or_null("EconomyBus")
+	var wb = root.get_node_or_null("WorldBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	var nm = root.get_node_or_null("NotificationManager")
+	var dmgr = root.get_node_or_null("DialogueManager")
+	if gm == null or wm == null or dm == null or gb == null or eb == null or wb == null or ss == null or nm == null or dmgr == null:
+		check(false, "the autoloads Test 40 needs")
+		return
+	if not gm.has_method("patron_paid") or not ResourceLoader.exists(T40_LUTE):
+		check(false, "GameManager.patron_paid and the placeholder lute phrase (%s)" % T40_LUTE)
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var world_keep := [wm.faction_data, wm.capital_definitions, wm.overheard_rumours.duplicate()]
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active]
+	ss.run_active = false
+	ss.save_path = T39_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T39_DIR + "/codex.dat"
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	gm.game_over_active = false
+	gm.demo_ending = {}
+	gm.pending_disturbance = {}
+	dm.set("run_profile", "full")
+
+	_check_t40_share(gm, eb, capture)
+	_check_t40_day_end(gm, wm, wb, capture)
+	_check_t40_save(gm)
+	_check_t40_phrase()
+	await _check_t40_songs(dmgr, gm)
+	await _check_t40_hall(gm, dm, nm)
+
+	wm.faction_data = world_keep[0]
+	wm.capital_definitions = world_keep[1]
+	wm.overheard_rumours = world_keep[2]
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	nm.clear_banners()
+	await process_frame
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 40 never touched the real save or codex")
+	print("")
+
+
+## AC 3: the share (pure cut, the one payment seam), the patron's line.
+func _check_t40_share(gm, eb, capture) -> void:
+	var R = load(T39_RULES)
+	check(R.cut(0, 0.25) == 0 and R.cut(1, 0.25) == 0 and R.cut(2, 0.25) == 1 and R.cut(9, 0.25) == 2 and R.cut(10, 0.25) == 3
+		and R.cut(12, 0.25) == 3 and R.cut(7, 0.0) == 0 and R.cut(7, 1.0) == 7 and R.cut(7, -1.0) == 0 and R.cut(7, 2.0) == 7
+		and R.cut(7, NAN) == 0 and R.cut(-5, 0.5) == 0,
+		"cut: a share of the payment, rounded half up (9 -> 2, 10 -> 3), clamped to 0..the payment; a bad share or payment: 0")
+	var hits: Array = []
+	var spy := func(v): hits.append(v)
+	eb.gold_changed.connect(spy)
+	gm.current_day = 3
+	gm.gold = 100
+	gm.bard_tips_today = 0
+	gm.bard_visit = {}
+	var plain: int = gm.patron_paid(9)
+	var plain_ok: bool = plain == 9 and gm.gold == 109 and gm.bard_tips_today == 0 and hits == [109]
+	gm.bard_visit = {"day": 3, "state": "performing", "hook": false, "arrive_minute": 700, "wait_until": 880}
+	hits.clear()
+	var kept: int = gm.patron_paid(10)
+	var share_ok: bool = kept == 7 and gm.gold == 116 and gm.bard_tips_today == 3 and hits == [116]
+	hits.clear()
+	var none: int = gm.patron_paid(0)
+	gm.bard_visit = {"day": 2, "state": "performing"}
+	var other_day: int = gm.patron_paid(8)
+	eb.gold_changed.disconnect(spy)
+	check(plain_ok and share_ok and none == 0 and other_day == 8 and hits == [124],
+		"patron_paid: no Bard: the whole payment; while he plays today: the guild keeps 7 of 10 (his 3 added to bard_tips_today), one gold_changed with the reduced total; nothing for 0; another day's performance takes nothing (%s)" % [hits])
+	check(gm.bard_payment_note(2) == " (the Bard keeps 2)" and gm.bard_payment_note(0) == "",
+		"the patron's log line names his share (' (the Bard keeps 2)'), nothing when he kept nothing")
+	var pat := _func_body(FileAccess.get_file_as_string(PATRON_SCRIPT_PATH), "on_drinking_timer_timeout")
+	check(pat.contains("GameManager.patron_paid(payment_amount)") and not pat.contains("add_gold(payment_amount)")
+		and pat.contains("GameManager.bard_payment_note(payment_amount - kept)"),
+		"RealisticPatron: the payment goes through patron_paid (no bare add_gold left) and the log line names the Bard's share")
+	gm.bard_visit = {}
+	gm.bard_tips_today = 0
+
+
+## AC 4: the day's end after a performance: rumours with world names in Latest News, the share logged, the flags moved.
+func _check_t40_day_end(gm, wm, wb, capture) -> void:
+	wm.faction_data = {"biomes": [{"name": "Thornwood Forest"}, {"name": "Mistfen Marshes"}], "rival_guild_names": ["Black Raven Company"]}
+	wm.capital_definitions = {"a": {"name": "King's Crossing"}, "b": {"name": "Khaz'Akar"}}
+	wm.overheard_rumours = []
+	var events: Array = []
+	var spy := func(p): events.append(p)
+	wb.settlement_event.connect(spy)
+	gm.current_day = 4
+	gm.bard_visit = {"day": 3, "state": "performing", "hook": false, "arrive_minute": 700, "wait_until": 880}
+	gm.bard_performed_today = true
+	gm.bard_tips_today = 11
+	gm.bard_narrates_reveal = false
+	capture.lines.clear()
+	gm._advance_bard([1.0, 0.0])
+	var news: Array = wm.overheard_rumours.duplicate()
+	var names := ["Thornwood Forest", "Mistfen Marshes", "Black Raven Company", "King's Crossing", "Khaz'Akar"]
+	var named: bool = news.size() == 2 and news.all(func(l): return l is String and not str(l).contains("{") and names.any(func(n): return str(l).contains(n)))
+	var bard_events: Array = events.filter(func(p): return p.get("source") == "bard" and p.get("type") == "rumour")
+	check(named and news[0] != news[1] and bard_events.size() == 2 and gm.bard_narrates_reveal and not gm.bard_performed_today and gm.bard_tips_today == 0
+		and capture.lines.has("The Bard kept 11 gold of the day's tips."),
+		"the morning after he played: 2 different rumours in Latest News, each naming the world's places, guilds or capitals (MOD-7), a settlement_event each (source bard); his share logged; the reveal is his; today's flags cleared %s" % [news])
+	wm.overheard_rumours = []
+	events.clear()
+	gm.current_day = 6
+	gm.bard_visit = {"day": 5, "state": "refused", "hook": false, "arrive_minute": 700, "wait_until": 880}
+	gm._advance_bard([1.0, 0.0])
+	var refused_quiet: bool = wm.overheard_rumours.is_empty() and events.is_empty() and not gm.bard_narrates_reveal
+	wm.faction_data = {}
+	wm.capital_definitions = {}
+	var warn: Array = []
+	var fb: Dictionary = load(T39_RULES).world_names({}, {}, [0.0, 0.0, 0.0], warn)
+	wb.settlement_event.disconnect(spy)
+	check(refused_quiet and fb == {"place": "the frontier", "faction": "a rival guild", "capital": "the capital"} and warn.size() == 3,
+		"after a day he didn't play: no rumour, the reveal isn't his; no world data: the fallback names, with a warning each")
+	var lines = _read_json(T39_DATA).get("rumours", [])
+	check(lines is Array and lines.size() >= 6 and lines.all(func(l): return str(l).contains("{place}") or str(l).contains("{faction}") or str(l).contains("{capital}")),
+		"bard.json: at least 6 rumours, each naming a place, a guild or a capital (MOD-7)")
+	gm.bard_visit = {}
+
+
+## AC 5: bard_performed_today and his share saved (D1's deferred flag), junk-proof, reset; the reveal's flag never saved.
+func _check_t40_save(gm) -> void:
+	gm.bard_visit = {"day": 4, "state": "performing", "hook": false, "arrive_minute": 700, "wait_until": 880}
+	gm.bard_performed_today = true
+	gm.bard_tips_today = 9
+	gm.bard_narrates_reveal = true
+	var data: Dictionary = gm._bard_save_data()
+	var parsed = JSON.parse_string(JSON.stringify(data))
+	gm._reset_bard_state()
+	var reset_ok: bool = not gm.bard_performed_today and gm.bard_tips_today == 0 and not gm.bard_narrates_reveal
+	gm.bard_narrates_reveal = true
+	gm._load_bard_data(parsed)
+	var round_ok: bool = gm.bard_performed_today and gm.bard_tips_today == 9 and not gm.bard_narrates_reveal and gm.bard_visit.state == "performing"
+	gm._load_bard_data({"bard_performed_today": "yes", "bard_tips_today": "x"})
+	var junk_ok: bool = not gm.bard_performed_today and gm.bard_tips_today == 0
+	gm._load_bard_data({})
+	var old_ok: bool = not gm.bard_performed_today and gm.bard_tips_today == 0
+	junk_ok = junk_ok and load(T39_RULES).visit_from_save({"day": 4, "state": "coming", "hook": "yes"}).visit.hook == false \
+		and load(T39_RULES).config_from({"bard_schedule": [{"day": 3, "hook": "yes"}]}, []).schedule == [{"day": 3, "hook": false}]
+	check(data.has("bard_performed_today") and data.bard_performed_today == true and not data.has("bard_narrates_reveal") and reset_ok and round_ok and junk_ok and old_ok
+		and ["bard_performed_today", "bard_tips_today", "bard_narrates_reveal"].all(func(k): return D1_GM_FIELDS.has(k)),
+		"the save holds bard_performed_today: true and his share (round trip); junk: false / 0; an older save: false / 0; the reveal's flag is never saved; New Game clears them")
+	gm._reset_bard_state()
+
+
+## AC 6: the code-made phrase.
+func _check_t40_phrase() -> void:
+	var L = load(T40_LUTE)
+	var a: AudioStreamWAV = L.build(9)
+	var b: AudioStreamWAV = L.build(9)
+	var frames: int = a.data.size() / 2
+	var peak := 0
+	var silent_seconds := 0
+	for s in int(frames / 22050) - 1:
+		var loud := 0
+		for i in range(s * 22050, (s + 1) * 22050, 7):
+			loud = maxi(loud, absi(a.data.decode_s16(i * 2)))
+		peak = maxi(peak, loud)
+		if loud < 300:
+			silent_seconds += 1
+	check(a.format == AudioStreamWAV.FORMAT_16_BITS and a.mix_rate == 22050 and not a.stereo and a.loop_mode == AudioStreamWAV.LOOP_FORWARD
+		and a.loop_end == frames and a.data == b.data and frames > 22050 * 5 and peak > 0.25 * 32767 and peak < 0.99 * 32767 and silent_seconds == 0
+		and L.phrase() == L.phrase(),
+		"the placeholder phrase: 16-bit mono 22050 Hz, looping over all of it, the same bytes every build, %.1f s, audible (peak %d) and never a silent second; cached" % [frames / 22050.0, peak])
+
+
+## AC 7: his songs (no replies; song_3 notices the guild's dead).
+func _check_t40_songs(dmgr, gm) -> void:
+	var text := FileAccess.get_file_as_string(T39_DIALOGUE)
+	var runner = load(RUNNER_SCRIPT)
+	var res = runner.compile_text(text, T39_DIALOGUE)
+	var keep: int = gm.deaths_this_run
+	var heard := {}
+	for t in ["song_1", "song_2", "song_3"]:
+		for deaths in [0, 1]:
+			gm.deaths_this_run = deaths
+			var b = runner.new_bridge()
+			var st := [{"bridge": b}]
+			var l = await dmgr.get_next_dialogue_line(res, t, st)
+			var lines := []
+			var replies := 0
+			while l != null and lines.size() < 10:
+				lines.append(l.text)
+				replies += l.responses.size()
+				l = await dmgr.get_next_dialogue_line(res, l.next_id, st)
+			heard["%s/%d" % [t, deaths]] = [lines, replies, b.choice]
+	gm.deaths_this_run = keep
+	check(heard.values().all(func(h): return h[0].size() == 1 and h[1] == 0 and h[2] == "") and str(heard["song_3/1"][0][0]).contains("fallen")
+		and not str(heard["song_3/0"][0][0]).contains("fallen"),
+		"song_1..3: one line each, no replies, nothing chosen; song_3 sings the guild's fallen only after a death")
+
+
+## AC 1, 2, 6, 7: the hall: let in, he walks to his spot and plays (the lute in his hands, the sign, his music); E
+## listens; closing time ends it; a load puts him back playing; a perform point node wins.
+func _check_t40_hall(gm, dm, nm) -> void:
+	dm.game_config["bard_arrival_delay_seconds"] = 0
+	var world := Node3D.new()
+	world.name = "T40Hall"
+	root.add_child(world)
+	_d1_set_scene(world)
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	world.add_child(ui)
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.add_to_group("player")
+	world.add_child(player)
+	player.global_position = Vector3(3.0, 0.0, -3.0)
+	gm.current_day = 4
+	gm.day_clock_minutes = 800.0
+	gm.bard_visit = {"day": 4, "state": "waiting", "hook": false, "arrive_minute": 700, "wait_until": 1100}
+	gm.bard_performed_today = false
+	nm.clear_banners()
+	var c = load(T39_CONTROLLER).new()
+	c.world_parent = world
+	c.phase = "day"
+	c.player_provider = func(): return player
+	c.data_override = {"bard": {"porch": [0.0, 0.0, 2.0], "route_in": [[0.0, 0.0, 1.0]], "wait_spot": [1.5, 0.0, 180.0], "perform_spot": [3.0, 0.0, 90.0]}}
+	world.add_child(c)
+	await process_frame
+	var v = c.npc
+	for i in 3:
+		await physics_frame
+	v.talk_requested.emit(v)
+	await process_frame
+	await process_frame
+	if c._bridge:
+		c._bridge.choose("allow")
+	if c._box:
+		c._box.close()
+	for i in 3:
+		await process_frame
+	var banners: Array = _t38_banners(nm)
+	var prompt_play: bool = ui.connected_zones.has(v.talk_zone) and str(ui.connected_zones[v.talk_zone]) == "Press E - Listen to the Bard"
+	check(gm.bard_visit.state == "performing" and gm.bard_performed_today and banners.has(["The Bard plays for the room. He keeps a share of the tips.", true])
+		and v.mode == "to_perform" and prompt_play,
+		"'Play, then.': performing (bard_performed_today), an event banner that says what he keeps, he heads for his spot; his prompt is 'Press E - Listen to the Bard'")
+	var t0 := Time.get_ticks_msec()
+	while is_instance_valid(v) and v.mode != "performing" and Time.get_ticks_msec() - t0 < 6000:
+		await physics_frame
+	for i in 5:
+		await physics_frame
+	var at_spot: bool = v.mode == "performing" and Vector2(v.global_position.x - 3.0, v.global_position.z).length() < 0.4 and absf(wrapf(v.rotation.y - deg_to_rad(90.0), -PI, PI)) < 0.05
+	var music_ok: bool = v.music != null and v.music.playing and v.music.stream is AudioStreamWAV and v.music.bus in ["Music", "Master"]
+	var sign_ok: bool = v.indicator != null and v.indicator.visible and v.indicator.text == "♪" and v.indicator.no_depth_test and v.indicator.render_priority >= 1
+	var clip_ok: bool = v._anim != null and v._anim.current_animation == "Interact"
+	check(at_spot and v.lute_pose == "play" and music_ok and sign_ok and clip_ok,
+		"at his spot he plays: facing its yaw, the perform clip, the lute in his hands, the sign over his head (drawn over the ink pass), his music on the Music bus")
+	# listen: two songs, never the same twice in a row; nothing changes
+	var titles := []
+	for i in 2:
+		v._cooldown = 0.0
+		v.talk_requested.emit(v)
+		await process_frame
+		await process_frame
+		titles.append(c._box_title)
+		if c._box:
+			c._box.close()
+		for k in 3:
+			await process_frame
+	check(titles.size() == 2 and titles.all(func(t): return str(t).begins_with("song_")) and titles[0] != titles[1] and gm.bard_visit.state == "performing",
+		"E while he plays: one of his songs, never the same twice in a row; he plays on (%s)" % [titles])
+	# a load during the performance: back at his spot, playing
+	v.queue_free()
+	c.npc = null
+	await process_frame
+	gm.day_clock_minutes = 1300.0
+	c.check()
+	var v2 = c.npc
+	for i in 3:
+		await physics_frame
+	var replaced: bool = v2 != null and v2.mode == "performing" and Vector2(v2.global_position.x - 3.0, v2.global_position.z).length() < 0.4 and v2.music != null and v2.music.playing
+	# closing time: his last line, the walk out; he played today
+	gm.day_clock_minutes = 1440.0
+	c.check()
+	var said := ""
+	for ch in v2.get_children():
+		if ch is PatronSpeechBubble:
+			for l in ch.find_children("*", "Label3D", true, false):
+				said = (l as Label3D).text.replace("\n", " ")
+	var closing_lines: Array = _read_json(T39_DATA).get("closing_lines", [])
+	var closed: bool = (v2.leaving and not v2.music.playing and not v2.indicator.visible and v2.lute_pose == "carry" and gm.bard_visit.state == "performing"
+		and closing_lines.any(func(ln): return said.replace(" ", "") == str(ln).replace(" ", "")))
+	v2.queue_free()
+	c.npc = null
+	await process_frame
+	c.check()
+	var none_after_closing: bool = c.npc == null
+	check(replaced and closed and none_after_closing,
+		"a load during his performance puts him back at his spot, playing; at closing (24:00) he says his last line ('%s'), stops and walks out (still 'performing': he played today); after closing a load shows no Bard" % said)
+	# a perform point node (Story 25.12's corner) wins over the data's spot
+	var pp := Node3D.new()
+	pp.add_to_group("bard_perform_point")
+	world.add_child(pp)
+	pp.global_position = Vector3(-2.0, 0.0, 4.0)
+	pp.rotation.y = deg_to_rad(30.0)
+	var ps: Array = c.perform_spot()
+	check(ps[0].distance_to(Vector3(-2.0, 0.0, 4.0)) < 0.01 and absf(float(ps[1]) - 30.0) < 0.01, "a node in group bard_perform_point wins over bard.json's perform_spot")
+	gm.bard_visit = {}
+	gm.bard_performed_today = false
+	world.queue_free()
+	await process_frame
+	await process_frame
