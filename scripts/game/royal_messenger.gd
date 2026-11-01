@@ -1,7 +1,8 @@
 # royal_messenger.gd — the hall's side of the demo's ending (Story 10.7; sprint-change-proposal-2026-10-31.md K-2, K-3).
 # GameManager keeps the ending's state (demo_ending: due -> coming -> waiting -> ended; demo profile only) and makes it
 # "coming" on its morning; this node, added by main_tavern.gd, shows it. When today's is "coming", the hall's phase is
-# "day" or "evening" (ARRIVAL_PHASES; TavernLighting's, read live, else the last GameBus.day_phase_changed), the run hasn't fallen, the world isn't
+# one of its open hours (ARRIVAL_PHASES = Story 3.7's day_clock_rules.OPEN_PHASES: day, dusk, evening; TavernLighting's,
+# read live, else the last GameBus.day_phase_changed), the run hasn't fallen, the world isn't
 # frozen (the pause menu, a fall), and nothing else holds the screen (a conversation, the morning briefing, a blocking
 # screen, a tavern disturbance's visitor, a pending Tarot card reveal: Story 17.3's NotificationManager.card_reveal_pending()
 # or its "card_reveal" group), it waits arrival_delay_seconds of that, then the King's messenger (royal_messenger_npc.gd)
@@ -162,10 +163,10 @@ static func is_point(v) -> bool:
 	return v is Array and (v as Array).size() == 3 and (v as Array).all(func(x): return (x is int or x is float) and is_finite(float(x)))
 
 
-## The hall's phases he may walk in during (review P1: opening the bedroom, the firewood shop, turns the hall to
-## "evening" and nothing turns it back; the open bedroom itself is a blocker). Not "morning" (the briefing) nor
-## "late_night" (sleep). Story 3.7's day clock widens this to the hall's open hours.
-const ARRIVAL_PHASES := ["day", "evening"]
+## The hall's phases he may walk in during: its open hours, 9:00-23:00 (Story 3.7 CL-13, K-19: a player back from a
+## walk still meets him). Not "morning" (the briefing) nor "late_night" (23:00 or sleep: he leaves unheard).
+const DayClockRules := preload("res://scripts/game/day_clock_rules.gd")
+const ARRIVAL_PHASES := DayClockRules.OPEN_PHASES
 
 ## Whether the messenger may walk in now (pure): today's ending is coming, an open phase, no fall, nothing in the way.
 static func may_arrive(state: Dictionary, day: int, phase_now: String, game_over: bool, blocked: bool) -> bool:

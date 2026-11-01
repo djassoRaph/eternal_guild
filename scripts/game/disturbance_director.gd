@@ -1,11 +1,12 @@
 # disturbance_director.gd — the hall's side of the tavern disturbances (Story 14.4). GameManager rolls today's event in the
 # morning (advance_day) and keeps it (pending_disturbance, saved); this node, added by main_tavern.gd, shows it: in the
-# hall's day phase, with no Game Over and no conversation open, the visitor (disturbance_npc.gd) appears at his type's
+# hall's open hours (Story 3.7 CL-13: day, dusk or evening, day_clock_rules.OPEN_PHASES; was the day phase only), with no
+# Game Over and no conversation open, the visitor (disturbance_npc.gd) appears at his type's
 # spot with the type's banner, and the event is "fired". The phase is TavernLighting's, read live (code review P1: a
-# morning with no briefing turns to day inside the lighting), else the last GameBus.day_phase_changed. E on him opens his
+# lighting follows the day clock), else the last GameBus.day_phase_changed. E on him opens his
 # title of data/dialogue/disturbances.dialogue with a bridge kept here; when the box closes, the bridge's choice
 # (bridge.choose(id) in the file) goes to GameManager.resolve_disturbance(), the outcome's line is a banner and he walks
-# out. No choice (Esc, "Walk away"): he stays. Sleep (late_night) sends him off unresolved: the next morning applies the
+# out. No choice (Esc, "Walk away"): he stays. Late night (23:00, or sleep) sends him off unresolved: the next morning applies the
 # type's "ignored" outcome, logged then, and its line is a banner here once that day begins (GameManager.disturbance_note,
 # review P3). A visitor whose event is no longer today's pending one (a debug path cleared or replaced it, or the day
 # moved) walks out (review P7). A load during the day brings a fired event's visitor back (no banner again). Banners are
@@ -14,6 +15,7 @@
 extends Node
 
 const NPC_SCRIPT := "res://scripts/npcs/disturbance_npc.gd"
+const DayClockRules := preload("res://scripts/game/day_clock_rules.gd")   # Story 3.7: OPEN_PHASES
 const Runner := preload("res://scripts/dialogue/dialogue_runner.gd")
 const DIALOGUE := "res://data/dialogue/disturbances.dialogue"
 const CHECK_SECONDS := 1.0
@@ -60,11 +62,11 @@ func _process(delta: float) -> void:
 		check()
 
 
-## Whether today's event shows now (pure): today's, queued or already fired (a load), in the day phase, the run not
-## fallen, no conversation open.
+## Whether today's event shows now (pure): today's, queued or already fired (a load, or the hall entered again), in
+## the hall's open hours (Story 3.7 CL-13: day, dusk, evening), the run not fallen, no conversation open.
 static func should_fire(ev: Dictionary, day: int, phase_now: String, game_over: bool, box_open: bool) -> bool:
 	return not ev.is_empty() and int(ev.get("day", -1)) == day and str(ev.get("state", "")) in ["queued", "fired"] \
-		and phase_now == "day" and not game_over and not box_open
+		and phase_now in DayClockRules.OPEN_PHASES and not game_over and not box_open
 
 
 ## An event's identity (pure): [day, type, truth]; [] for none. A visitor carries his.
@@ -129,7 +131,7 @@ func check() -> void:
 ## briefing first), the run not fallen and no conversation open; once.
 func _show_note(now: String) -> void:
 	var note := str(GameManager.disturbance_note)
-	if note == "" or now != "day" or GameManager.game_over_active or Runner.is_open():
+	if note == "" or not (now in DayClockRules.OPEN_PHASES) or GameManager.game_over_active or Runner.is_open():
 		return
 	GameManager.disturbance_note = ""
 	NotificationManager.show_banner(note, true)

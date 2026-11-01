@@ -2,11 +2,23 @@
 # Main script for ExteriorWorld scene
 extends Node3D
 
+const CLOCK_LABEL := "res://scripts/ui/clock_label.gd"   # Story 3.7: the corner clock (loaded by path)
+
+
+## Story 3.7 (K-19): time passes outside too: the exterior is a day scene, so the day clock runs here.
+func _enter_tree() -> void:
+	add_to_group("day_clock_scene")
+
 
 func _ready() -> void:
 	var zui_script = preload("res://scripts/game/ZonePromptUI.gd")
 	var zui = zui_script.new()
 	add_child(zui)
+	# Story 3.7 (CL-17): no top bar out here, so a small corner clock (the hall's words)
+	var clock_label = CanvasLayer.new()
+	clock_label.name = "ClockLabel"
+	clock_label.set_script(load(CLOCK_LABEL))
+	add_child(clock_label)
 	# Story 11.3: the pause menu outside (Esc): Save, Load, Save & Exit... as in the hall. It builds its own buttons
 	# and pauses the tree while open.
 	var pause_menu = CanvasLayer.new()
