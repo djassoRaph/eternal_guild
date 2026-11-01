@@ -20,7 +20,6 @@ const CARD_SCRIPT := preload("res://scripts/ui/tarot_card.gd")
 const SUIT_ORDER := ["wands", "cups", "swords", "pentacles"]
 const SLOT_WIDTH := 76.0
 const PAGE_CARD_WIDTH := 190.0
-const COLUMNS := 7
 
 var slots: Array = []            # tarot_slots(): [{card, unlocked}] in grid order (tests read it)
 var slot_nodes: Array = []       # the slots' controls, in the same order
@@ -159,7 +158,7 @@ func build(left: VBoxContainer, right: VBoxContainer, ctx: Dictionary) -> void:
 	list.add_theme_constant_override("separation", 4)
 	sc.add_child(list)
 	var group := "?"
-	var grid: GridContainer = null
+	var grid: HFlowContainer = null
 	var bg := ButtonGroup.new()
 	for i in slots.size():
 		var g := slot_group(slots[i].card, order)
@@ -168,9 +167,9 @@ func build(left: VBoxContainer, right: VBoxContainer, ctx: Dictionary) -> void:
 			var heading := UI.label(cfg, UI.text(cfg, "tarot_major") if g == "major" else suit_label(g), "body", true)
 			heading.name = "Heading_" + g
 			list.add_child(heading)
-			grid = GridContainer.new()
+			grid = HFlowContainer.new()   # review P2: the slots wrap to the page, whatever its width
 			grid.name = "Grid_" + g
-			grid.columns = COLUMNS
+			grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			grid.add_theme_constant_override("h_separation", 4)
 			grid.add_theme_constant_override("v_separation", 4)
 			list.add_child(grid)

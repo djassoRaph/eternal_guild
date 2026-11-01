@@ -215,8 +215,12 @@ func _on_settings_pressed():
 	add_child(preload("res://scripts/menus/settings_menu.gd").new())
 
 func _on_codex_pressed():
-	"""Open the Codex overlay (works over the paused game)"""
-	add_child(preload("res://scripts/menus/codex_menu.gd").new())
+	"""Open the Codex overlay (works over the paused game). Story 18.1 review P7: as the scene's LAST child, so it reads
+	every key before the HUD, the F12 panel and the hall (it is modal); Esc closes only the book, this menu stays."""
+	var book = preload("res://scripts/menus/codex_menu.gd").new()
+	book.opened_from = "pause_menu"
+	var host: Node = get_tree().current_scene if get_tree().current_scene != null else self
+	host.add_child(book)
 
 func _return_to_main_menu():
 	"""Actually return to main menu"""

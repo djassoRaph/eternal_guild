@@ -19,7 +19,10 @@
 #
 # Chapters are scripts in scripts/menus/codex/ (no class name, no autoload names): new(), then build(left, right, ctx) with
 # ctx = {codex, deck, cfg, book, focus}. A chapter calls book.show_chapter(id, focus) for a link and book.note_read(chapter,
-# id) for each page it shows: entry_read is what a playtest counts ("read a Codex entry", kickstarter-plan §2.3).
+# id) for each page it shows. What a playtest counts ("read a Codex entry", kickstarter-plan §2.3; review P1): opening the
+# book logs "[Codex] open: <from>" only; entry_read and "[Codex] read: <chapter> <id>" come for a page the reader chose
+# (a click, a page turn, a tab, a link) or, for the page the book opens on, after it stayed in view read_dwell_seconds.
+# The spread is laid out at codex_book.json `size` and scaled down to the window (review P2: nothing can overflow).
 # No class name (the old CodexMenu name was unused): callers load the book by path.
 extends CanvasLayer
 
@@ -43,6 +46,8 @@ var deck = null
 var pause_world := false
 ## The chapter shown.
 var current_chapter := ""
+## Who opened the book, for the "[Codex] open:" line: "main_menu", "pause_menu", "hall" (the book on the trunk), "menu".
+var opened_from := "menu"
 
 var _cfg: Dictionary = {}
 var _spread: Control
@@ -54,6 +59,8 @@ var _tabs: Dictionary = {}       # chapter id -> its tab Button
 var _tab_group := ButtonGroup.new()
 var _chapter = null              # the shown chapter's object (kept alive for its buttons)
 var _last_read := ""
+var _auto := false               # the opening chapter is being built: its first page waits for the dwell (P1)
+var _dwell_token := 0            # bumped by every page shown: a pending opening read is for the page still on show
 var _closing := false
 var _frozen_scene: WeakRef = null
 var _paused_tree := false
@@ -73,15 +80,17 @@ func _ready() -> void:
 		deck = dm.get_tarot_deck() if dm != null and dm.has_method("get_tarot_deck") else []
 	_build()
 	_freeze(true)
+	print(open_line(opened_from))
 	var chapters: Array = _cfg.chapters
-	show_chapter(str(chapters[0].get("id", "")) if not chapters.is_empty() else "")
+	show_chapter(str(chapters[0].get("id", "")) if not chapters.is_empty() else "", null, false)
 	get_viewport().size_changed.connect(_fit)
 	_fit()
 
 
 ## Show chapter `id`: both pages rebuilt in place (the same book), its tab marked; `focus` picks what the chapter shows
 ## first (a hero's id, an artefact's index, a run, a card id). An id with no builder: a stub page and one warning.
-func show_chapter(id: String, focus = null) -> void:
+## `by_reader` false only for the chapter the book opens on: its first page is read after the dwell, not at once.
+func show_chapter(id: String, focus = null, by_reader := true) -> void:
 	if _left == null:
 		return
 	_clear(_left)
@@ -107,12 +116,30 @@ func show_chapter(id: String, focus = null) -> void:
 		_left.add_child(stub)
 		return
 	_chapter = (script as GDScript).new()
+	_auto = not by_reader
 	_chapter.build(_left, _right, {"codex": codex, "deck": deck, "cfg": _cfg, "book": self, "focus": focus})
+	_auto = false
 
 
-## A chapter shows a page (`entry_id` in `chapter`): entry_read once (the same page again in a row: no), and the log line
-## a playtest counts.
+## A chapter shows a page (`entry_id` in `chapter`). A page the reader chose is read at once; the page the book opens on
+## is read only if it is still on show after read_dwell_seconds (review P1). Either way entry_read once (the same page
+## again in a row: no) and the log line a playtest counts.
 func note_read(chapter: String, entry_id: String) -> void:
+	_dwell_token += 1
+	if _auto:
+		var token := _dwell_token
+		if is_inside_tree():
+			get_tree().create_timer(UI.dwell_seconds(_cfg), true).timeout.connect(_on_dwell.bind(token, chapter, entry_id))
+		return
+	_emit_read(chapter, entry_id)
+
+
+func _on_dwell(token: int, chapter: String, entry_id: String) -> void:
+	if token == _dwell_token and not _closing:
+		_emit_read(chapter, entry_id)
+
+
+func _emit_read(chapter: String, entry_id: String) -> void:
 	var key := chapter + "/" + entry_id
 	if key == _last_read:
 		return
@@ -123,6 +150,10 @@ func note_read(chapter: String, entry_id: String) -> void:
 
 static func read_line(chapter: String, entry_id: String) -> String:
 	return "[Codex] read: %s %s" % [chapter, entry_id]
+
+
+static func open_line(from: String) -> String:
+	return "[Codex] open: %s" % from
 
 
 ## Close the book: the world as it was, `closed`, gone.
@@ -196,14 +227,11 @@ func _build() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
 	_spread = Control.new()
 	_spread.name = "Spread"
 	_spread.mouse_filter = Control.MOUSE_FILTER_STOP
-	center.add_child(_spread)
+	_spread.size = Vector2(float(_cfg.size[0]), float(_cfg.size[1]))
+	add_child(_spread)
 	_placeholder = _build_placeholder()
 	_spread.add_child(_placeholder)
 	_texture = NinePatchRect.new()
@@ -357,15 +385,22 @@ static func _anchor(c: Control, r: Array) -> void:
 	c.offset_bottom = 0
 
 
-## The spread's size: codex_book.json `size`, scaled down (never up) to fit max_screen_fraction of the window.
+## The window changed: fit the spread again.
 func _fit() -> void:
 	if _spread == null or not is_inside_tree():
 		return
-	var vp := get_viewport().get_visible_rect().size
+	fit_to(get_viewport().get_visible_rect().size)
+
+
+## The spread keeps its layout at codex_book.json `size` and is SCALED down (never up) to fit max_screen_fraction of
+## `vp`, centred (review P2: shrinking the layout let the Tarot grid spill over the gutter on a 1366 x 768 window).
+func fit_to(vp: Vector2) -> void:
 	var want := Vector2(float(_cfg.size[0]), float(_cfg.size[1]))
 	var f := float(_cfg.max_screen_fraction)
 	var s := minf(1.0, minf(vp.x * f / want.x, vp.y * f / want.y))
-	_spread.custom_minimum_size = want * s
+	_spread.size = want
+	_spread.scale = Vector2(s, s)
+	_spread.position = ((vp - want * s) * 0.5).round()
 
 
 static func _clear(node: Node) -> void:

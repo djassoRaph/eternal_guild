@@ -35,7 +35,9 @@ func _on_settings_pressed() -> void:
 	add_child(preload("res://scripts/menus/settings_menu.gd").new())
 
 func _on_codex_pressed() -> void:
-	add_child(preload("res://scripts/menus/codex_menu.gd").new())
+	var book = preload("res://scripts/menus/codex_menu.gd").new()
+	book.opened_from = "main_menu"   # Story 18.1 review P1: the "[Codex] open:" line says where
+	add_child(book)
 
 func _on_start_button_pressed():
 	# Guard against silently overwriting an existing save (Story 2.1)

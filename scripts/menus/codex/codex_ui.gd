@@ -31,6 +31,7 @@ const DEFAULTS := {
 	"lectern_body": "",
 	"lectern_prompt": "Press E - Read the Codex",
 	"lectern_glow": {"min": 0.6, "max": 1.6, "period": 3.0},
+	"read_dwell_seconds": 3.0,
 	"text": {
 		"close": "Close",
 		"stub": "This chapter is not written yet.",
@@ -151,6 +152,8 @@ static func _usable(key: String, d, v) -> bool:
 			return v is Array and (v as Array).size() == 4 and (v as Array).all(num)
 		"left", "right":
 			return v is Array and (v as Array).size() == 4 and (v as Array).all(num)
+		"read_dwell_seconds":
+			return num.call(v) and float(v) > 0.0
 		"max_screen_fraction":
 			return num.call(v) and float(v) > 0.2 and float(v) <= 1.0
 	if num.call(d):
@@ -179,6 +182,12 @@ static func text(cfg: Dictionary, key: String, values := {}) -> String:
 		t = DEFAULTS.text.get(key, key)
 	var s := str(t)
 	return s.format(values) if not values.is_empty() else s
+
+
+## How long the page the book opens on must stay in view before it counts as read (review P1).
+static func dwell_seconds(cfg: Dictionary) -> float:
+	var v = cfg.get("read_dwell_seconds", DEFAULTS.read_dwell_seconds)
+	return float(v) if (v is int or v is float) and float(v) > 0.0 else float(DEFAULTS.read_dwell_seconds)
 
 
 ## A placeholder colour.
