@@ -56,23 +56,32 @@ func load_config_data():
 
 var _profile_warned := false   # a profile with no usable block is warned about once a session (Story 14.6)
 
+## Story 14.6 review P5 (K-13, provisional): the profile is per run. A loaded run keeps the profile it was saved under
+## (GameManager.load_save_data sets it from the save; an older save without one is the full game); New Game drops it
+## (GameManager.begin_new_run), and the run takes game_config.json's "profile". "" = none: the file's.
+var run_profile := ""
+
 ## A config value for the active profile (Story 14.6, DP-1): game_config.json's profiles.<profile>.<key> when the active
-## profile's block has the key, else the top-level value (the full game's), else `fallback`. Returned as stored.
+## profile's block has the key, else the top-level value (the full game's), else `fallback`. Returned as stored. The
+## active profile is the run's (run_profile) when one is set, else the file's; get_config("profile") is the active one.
 func get_config(key: String, fallback = null) -> Variant:
+	if key == "profile" and run_profile != "":
+		return run_profile
 	var warn: Array = []
-	var v = resolve_config(game_config, key, fallback, warn)
+	var v = resolve_config(game_config, key, fallback, warn, run_profile)
 	if not warn.is_empty() and not _profile_warned:
 		_profile_warned = true
 		push_warning(warn[0])
 	return v
 
-## get_config's rule (Story 14.6, pure: tests feed it fixtures). The active profile is cfg's top-level "profile" (missing:
-## "full"). Its block in cfg.profiles replaces a key's whole value (lists and objects are never merged); "profile" and
-## "profiles" come only from the top level. A profile other than "full" with no block, or a block that isn't an object,
-## reads the top level and appends one "[DataManager] fallback: ..." text to `warn`.
-static func resolve_config(cfg: Dictionary, key: String, fallback = null, warn: Array = []) -> Variant:
+## get_config's rule (Story 14.6, pure: tests feed it fixtures). The active profile is `run` when it isn't "" (a loaded
+## run's, review P5), else cfg's top-level "profile" (missing: "full"). Its block in cfg.profiles replaces a key's whole
+## value (lists and objects are never merged); "profile" and "profiles" come only from the top level. A profile other
+## than "full" with no block, or a block that isn't an object, reads the top level and appends one
+## "[DataManager] fallback: ..." text to `warn`.
+static func resolve_config(cfg: Dictionary, key: String, fallback = null, warn: Array = [], run := "") -> Variant:
 	if key != "profile" and key != "profiles":
-		var profile := str(cfg.get("profile", "full"))
+		var profile := run if run != "" else str(cfg.get("profile", "full"))
 		var profiles = cfg.get("profiles")
 		var block = profiles.get(profile) if profiles is Dictionary else null
 		if block is Dictionary:
@@ -84,9 +93,18 @@ static func resolve_config(cfg: Dictionary, key: String, fallback = null, warn: 
 			warn.append("[DataManager] fallback: profile '%s' has no block in profiles; the top-level (full game) values" % profile)
 	return cfg.get(key, fallback)
 
-## The active profile: game_config.json's top-level "profile" ("full" when it has none). Story 14.6.
+## The active profile: the run's (review P5) when one is set, else game_config.json's top-level "profile" ("full" when
+## it has none). Story 14.6.
 func get_profile() -> String:
-	return str(game_config.get("profile", "full"))
+	return run_profile if run_profile != "" else str(game_config.get("profile", "full"))
+
+## Review P5: a loaded run's profile (GameManager.load_save_data, from the save).
+func set_run_profile(profile: String) -> void:
+	run_profile = profile
+
+## Review P5: New Game (GameManager.begin_new_run): the run takes game_config.json's profile.
+func clear_run_profile() -> void:
+	run_profile = ""
 
 ## The Kickstarter demo build (profile "demo"). Story 14.6.
 func is_demo() -> bool:

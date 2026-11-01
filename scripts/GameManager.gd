@@ -2646,6 +2646,9 @@ func get_save_data() -> Dictionary:
 			adv.status = AdventurerStatus.for_save(adv.status)
 
 	var data = {
+		# The run's profile (Story 14.6 review P5, K-13 provisional): a load keeps the profile the run was saved under
+		"profile": DataManager.get_profile(),
+
 		# Core resources
 		"gold": gold,
 		"gold_peak": gold_peak,   # Story 13.4
@@ -2716,6 +2719,7 @@ func load_save_data(data: Dictionary):
 	
 	# Every value is read defensively (Story 11.2): a junk or null value loads as its default instead of
 	# aborting the load half-way; keys this build doesn't know are ignored.
+	DataManager.set_run_profile(profile_from_save(data))   # Story 14.6 review P5: first, every config read below is the run's
 	# Core resources
 	gold = _save_int(data.get("gold"), 10)
 	gold_peak = gold_peak_from_save(data.get("gold_peak"), gold, _save_int(DataManager.get_config("starting_gold", 1000), 1000))   # Story 13.4 (+ review P12)
@@ -2819,6 +2823,12 @@ func load_save_data(data: Dictionary):
 	print("   Fuel: ", fireplace_fuel, "%")
 
 # === Load helpers (Story 11.2) ===
+
+## Story 14.6 review P5 (K-13, provisional): the profile a save was made under (pure): its "profile"; an older save
+## without one, junk or "" is the full game (the demo build shipped after the full game's saves existed).
+static func profile_from_save(data: Dictionary) -> String:
+	var p = data.get("profile")
+	return p if p is String and p != "" else "full"
 
 ## A saved number read defensively: an int or a float (or a numeric string) as itself, anything else (null, junk)
 ## as `fallback`. int(null) aborts load_save_data half-way and leaves a half-loaded run.
@@ -3141,6 +3151,7 @@ func _check_soft_lock() -> void:
 ## screen goes in front of NEW_RUN_SCENE; Epic 22's LegacyTransition wraps this (execute_total_wipe) or follows The
 ## Reading (execute) for a run with an heir. Callers change scene to NEW_RUN_SCENE.
 func begin_new_run() -> void:
+	DataManager.clear_run_profile()   # Story 14.6 review P5: a new run takes game_config.json's profile
 	reset_game_state()
 	pending_new_game_save = true
 
