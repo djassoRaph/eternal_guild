@@ -18,7 +18,7 @@ const UI := preload("res://scripts/menus/codex/codex_ui.gd")
 const CARD_SCENE := "res://scenes/ui/TarotCard.tscn"
 const CARD_SCRIPT := preload("res://scripts/ui/tarot_card.gd")
 const SUIT_ORDER := ["wands", "cups", "swords", "pentacles"]
-const SLOT_WIDTH := 70.0
+const SLOT_WIDTH := 76.0
 const PAGE_CARD_WIDTH := 190.0
 const COLUMNS := 7
 
@@ -319,5 +319,6 @@ func _slot(i: int, cfg: Dictionary, group: ButtonGroup) -> Control:
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.clip_text = true
 	name_label.custom_minimum_size = Vector2(SLOT_WIDTH, 0)
+	name_label.add_theme_font_size_override("font_size", maxi(10, UI.font_size(cfg, "small") - 2))
 	v.add_child(name_label)
 	return box

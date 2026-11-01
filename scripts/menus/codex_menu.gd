@@ -220,7 +220,7 @@ func _build() -> void:
 	close_button.name = "CloseButton"
 	close_button.toggle_mode = false
 	close_button.button_group = null
-	_anchor(close_button, [0.86, 0.935, 0.11, 0.05])
+	_anchor(close_button, [0.84, 0.954, 0.12, 0.04])   # in the cover's bottom margin, under the right page
 	close_button.pressed.connect(close)
 	_spread.add_child(close_button)
 
@@ -244,14 +244,14 @@ func _build_placeholder() -> Control:
 		page.name = side[0]
 		page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		page.add_theme_stylebox_override("panel", UI.box(UI.color(_cfg, "page"), UI.color(_cfg, "page_edge"), 2, 6))
-		_anchor(page, [float(r[0]) - 0.02, float(r[1]) - 0.035, float(r[2]) + 0.04, float(r[3]) + 0.07])
+		_anchor(page, [float(r[0]) - 0.02, float(r[1]) - 0.035, float(r[2]) + 0.04, float(r[3]) + 0.06])
 		root.add_child(page)
 	var gutter := ColorRect.new()
 	gutter.name = "PlaceholderGutter"
 	gutter.color = UI.color(_cfg, "gutter")
 	gutter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var gx := (float(pages.left[0]) + float(pages.left[2]) + float(pages.right[0])) * 0.5
-	_anchor(gutter, [gx - 0.006, float(pages.left[1]) - 0.035, 0.012, float(pages.left[3]) + 0.07])
+	_anchor(gutter, [gx - 0.006, float(pages.left[1]) - 0.035, 0.012, float(pages.left[3]) + 0.06])
 	root.add_child(gutter)
 	var eye := Panel.new()
 	eye.name = "PlaceholderEye"
