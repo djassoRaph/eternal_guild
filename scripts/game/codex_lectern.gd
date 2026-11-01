@@ -157,14 +157,19 @@ func interact() -> void:
 	open_book()
 
 
-## Open the book over the scene, the world frozen while it is open. Returns it (or the one already open).
+## Open the book over the scene, the world frozen while it is open. Returns it (or the one already open). Never over a
+## fall or a paused tree (review P4: a game over while Den Fa's line was up opened it over the fall screen).
 func open_book() -> Node:
 	if is_book_open():
 		return _book
-	if not is_inside_tree():
+	if not is_inside_tree() or get_tree().paused:
+		return null
+	var gm := get_node_or_null("/root/GameManager")
+	if gm != null and gm.get("game_over_active"):
 		return null
 	var book = load(BOOK_SCRIPT).new()
 	book.pause_world = true
+	book.opened_from = "hall"
 	var host: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	host.add_child(book)
 	_book = book
