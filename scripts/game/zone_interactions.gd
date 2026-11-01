@@ -10,6 +10,7 @@ extends Node3D
 @onready var fireplace_area = %FireplaceArea
 
 # var MissionBoardScene = preload("res://scenes/ui/MissionBoard.tscn")  # kept on disk as fallback
+const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
 var WorldMapBoardScene = preload("res://scenes/world/WorldMapBoard.tscn")
 
 # Player state tracking
@@ -95,9 +96,11 @@ func _input(event: InputEvent) -> void:
 	if bedroom_popup and bedroom_popup.visible:
 		return
 	
-	# Handle E key - ONLY ONCE!
-	if event.is_action_pressed("interact"):
-		handle_interaction_priority()
+	# Handle E key - ONLY ONCE! (Story 10.7 review P3: a zone that acted, or a served patron, keeps the key from
+	# everything behind it, the visitors' and Den Fa's unhandled-input E included)
+	if event.is_action_pressed("interact") and not event.is_echo():
+		if handle_interaction_priority():
+			get_viewport().set_input_as_handled()
 
 
 func setup_interaction_areas() -> void:
@@ -118,10 +121,10 @@ func setup_interaction_areas() -> void:
 	fireplace_area.body_exited.connect(_on_fireplace_exited)
 
 
-func handle_interaction_priority() -> void:
-	"""Handle E key with priority: Patrons > Zone interactions"""
+func handle_interaction_priority() -> bool:
+	"""Handle E key with priority: Patrons > Zone interactions. True when something acted."""
 	if GameManager.game_over_active:
-		return
+		return false
 	
 	var player = get_tree().get_first_node_in_group("player")
 	if not player:
@@ -130,13 +133,13 @@ func handle_interaction_priority() -> void:
 	
 	if not player:
 		print("Player not found!")
-		return
+		return false
 	
 	var served_patron = try_serve_nearby_patron(player)
 	if served_patron:
-		return  
+		return true
 	
-	handle_zone_interactions()
+	return handle_zone_interactions()
 
 
 func try_serve_nearby_patron(player) -> bool:
@@ -147,24 +150,36 @@ func try_serve_nearby_patron(player) -> bool:
 	return false
 
 
-func handle_zone_interactions() -> void:
-	"""Handle zone-based interactions (existing functionality)"""	
-	if player_in_bar:
+## Story 10.7 review P3 (the root cause): a zone acts on E only while it owns E per the scene's ZonePromptUI (one owner a
+## frame: the nearest registered zone the player stands in, nothing else in the way), so a visitor, Den Fa or the cat
+## standing nearer than the bar or the bed gets the key. A zone the ZonePromptUI doesn't know (no UI: tests) acts as before.
+func _owns_e(zone: Area3D) -> bool:
+	var ui = ZONE_PROMPT_UI.find(get_tree())
+	if ui == null or zone == null or not ui.connected_zones.has(zone):
+		return true
+	return ui.owns_e(zone)
+
+
+func handle_zone_interactions() -> bool:
+	"""Handle zone-based interactions (existing functionality). True when a zone acted."""	
+	if player_in_bar and _owns_e(bar_area):
 		open_tavern_management()
-	elif player_in_mission:
+	elif player_in_mission and _owns_e(mission_area):
 		open_mission_board()
-	elif player_in_recruitment:
+	elif player_in_recruitment and _owns_e(recruitment_area):
 		open_recruitment_desk()
-	elif player_in_bedroom:
+	elif player_in_bedroom and _owns_e(bedroom_area):
 		print("DEBUG: Calling advance_day()...") 
 		advance_day()
 	elif player_in_fireplace:
 		# Fireplace interaction is handled by fireplace_zone.gd's own _input()
 		# Do NOT duplicate the interaction here — it causes double-handling
 		# fireplace_zone.gd opens the minigame when player presses E nearby
-		pass
+		return false
 	else:
-		print("DEBUG: No zone active!")
+		print("DEBUG: No zone owns E here")
+		return false
+	return true
 
 
 func open_tavern_management() -> void:
