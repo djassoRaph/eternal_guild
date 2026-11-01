@@ -5,8 +5,8 @@
 # porch is a step below the hall; his body still opens the door), then to the
 # player along the navmesh (a NavigationAgent3D; straight at the target when there is no path, as the visitors walk out),
 # stopping stop_distance short and facing them, re-aimed at most every repath_seconds when they moved more than 1.5 m;
-# not there after approach_timeout (or no player in the hall, or approach off) he walks to the wait spot and waits, facing
-# the hall. Not inside the door after walk_in_timeout, he is placed at the last route point. The hall's controller
+# not there after approach_timeout (or no player in the hall, the player in another E zone, or approach off) he walks to
+# the wait spot and waits, facing the hall. He seeks the player once per arrival and never follows (review P3). Not inside the door after walk_in_timeout, he is placed at the last route point. The hall's controller
 # (scripts/game/royal_messenger.gd) decides when he comes and what a talk does. Built in code (no scene file); no
 # class_name: loaded by path.
 extends "res://scripts/npcs/disturbance_npc.gd"
@@ -16,6 +16,7 @@ signal settled(npc: Node, where: String)   # he stopped: "player" (beside them) 
 const REPATH_MOVE := 1.5      # the player moved this far from where he was aiming: aim again (at most every repath_seconds)
 const STEP_ARRIVE := 0.35     # this close to a route point or the wait spot counts as there
 const STOP_SLACK := 0.1       # beside the player: within stop_distance + this; the stop point itself: within this
+const TALK_COOLDOWN := 3.0    # KM-6: after a talk, before E is his again (the visitors' is 1 s)
 
 var route: Array = []                 # world points walked first, in order (inside the door)
 var wait_spot := Vector3.ZERO
@@ -34,9 +35,11 @@ var _target := Vector3.ZERO
 var _phase_left := 0.0
 var _repath_left := 0.0
 var _aimed_at := Vector3.INF
+var _approached := false              # review P3: he seeks the player once per arrival (or placement), never follows
 
 
 func _ready() -> void:
+	cooldown_seconds = TALK_COOLDOWN
 	super()   # the body, the agent, the talk zone and its E (claimed once the ZonePromptUI is there)
 	remove_from_group("disturbance_npc")   # not one of the disturbances: their director and Test 38 count that group
 	add_to_group("royal_messenger")
@@ -44,6 +47,7 @@ func _ready() -> void:
 
 ## Walk in: from where he stands (the porch) along `route`, then to the player (or the wait spot).
 func walk_in() -> void:
+	_approached = false
 	_route_i = 0
 	if route.is_empty():
 		_after_route()
@@ -57,12 +61,16 @@ func walk_in() -> void:
 func place_waiting() -> void:
 	global_position = wait_spot
 	rotation.y = deg_to_rad(wait_yaw_deg)
+	_approached = false
 	_after_route()
 
 
+## Review P3: he seeks the player once per arrival; not when the player stands in another E zone (the bar, the bed, the
+## board, the desk, the hearth: he would walk into it), nor without a player in the hall: then he waits at the wait spot.
 func _after_route() -> void:
 	var p := _player_node()
-	if approach and p != null:
+	if approach and p != null and not _approached and not player_in_other_zone(p):
+		_approached = true
 		mode = "approaching"
 		_phase_left = approach_timeout
 		_repath_left = 0.0
@@ -90,6 +98,17 @@ func _stop_point(p: Vector3) -> Vector3:
 	if d.length() < 0.01:
 		return p
 	return p + d.normalized() * stop_distance
+
+
+## Whether the player stands in an E zone of the scene's ZonePromptUI other than his own (review P3).
+func player_in_other_zone(p: Node3D) -> bool:
+	var ui = ZONE_UI.find(get_tree()) if is_inside_tree() else null
+	if ui == null:
+		return false
+	for z in ui.connected_zones.keys():
+		if is_instance_valid(z) and z != talk_zone and (z as Area3D).is_inside_tree() and (z as Area3D).overlaps_body(p):
+			return true
+	return false
 
 
 func _player_node() -> Node3D:
@@ -146,13 +165,10 @@ func _physics_process(delta: float) -> void:
 			else:
 				_step_toward(wait_spot, delta)
 		"by_player":
+			# he stays where he stopped (review P3: once per arrival, never follows), turned to the player while near
 			var p2 := _player_node()
-			if p2 != null:
+			if p2 != null and _flat(p2.global_position - global_position).length() <= stop_distance + REPATH_MOVE + 1.0:
 				_face(p2.global_position, delta)
-				if _flat(p2.global_position - global_position).length() > stop_distance + REPATH_MOVE + 1.0:
-					mode = "approaching"   # the player walked off: follow once more, with a fresh clock
-					_phase_left = approach_timeout
-					_aim(_stop_point(p2.global_position))
 
 
 func _stand(where: String, face_at: Vector3) -> void:

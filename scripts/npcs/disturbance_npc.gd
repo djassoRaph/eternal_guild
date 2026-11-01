@@ -25,6 +25,7 @@ var prompt := "Press E - Talk to the stranger"
 var exit_point := Vector3(8.7, 0.0, 3.3)
 var leave_timeout := 12.0
 var fade_seconds := 1.0        # TD-6: not out in time, he fades this long before he goes (0: at once)
+var cooldown_seconds := COOLDOWN   # after a talk, before E is his again (Story 10.7 review P10: the King's messenger takes 3 s)
 var event_key: Array = []      # the director's: [day, type, truth] of the event he stands in for
 var pool_override: Array = []  # tests: a townsfolk pool instead of townsfolk.json's
 var body_variant: Dictionary = {}
@@ -155,13 +156,13 @@ func can_talk() -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact") and not event.is_echo() and can_talk():
 		get_viewport().set_input_as_handled()
-		_cooldown = COOLDOWN
+		_cooldown = cooldown_seconds
 		talk_requested.emit(self)
 
 
 ## The conversation closed: E is his again after the cooldown.
 func conversation_over() -> void:
-	_cooldown = COOLDOWN
+	_cooldown = cooldown_seconds
 
 
 ## Walk out: E released at once; the patrons' exit on the navmesh; freed there, or faded and freed after leave_timeout.
