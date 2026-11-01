@@ -28,16 +28,17 @@ static var _box: Node = null              # the open box, if any
 static var _compiled: Dictionary = {}     # path -> DialogueResource compiled from text (not imported yet)
 
 
-## Open `title` of the .dialogue at `path`, said by `speaker`. Returns the box, or null (nothing opened).
-static func start(speaker: Node, path: String, title: String) -> Node:
+## Open `title` of the .dialogue at `path`, said by `speaker`. Returns the box, or null (nothing opened). `bridge`
+## (Story 14.4): the game-state bridge to use, so the caller can read its `choice` when the box closes; null: a new one.
+static func start(speaker: Node, path: String, title: String, bridge: RefCounted = null) -> Node:
 	var resource := load_dialogue(path)
 	if resource == null:
 		return null
-	return open(speaker, resource, title)
+	return open(speaker, resource, title, bridge)
 
 
 ## Open `title` of an already loaded DialogueResource (Test 20 opens its inline fixtures this way).
-static func open(speaker: Node, resource: Resource, title: String) -> Node:
+static func open(speaker: Node, resource: Resource, title: String, bridge: RefCounted = null) -> Node:
 	if speaker == null or not speaker.is_inside_tree():
 		push_warning("[Dialogue] refuse: no speaker in the tree for ~ %s" % title)
 		return null
@@ -68,7 +69,7 @@ static func open(speaker: Node, resource: Resource, title: String) -> Node:
 	_box = box
 	print("[Dialogue] open: %s ~ %s (%s)" % [_name_of(resource), title, speaker.name])
 	box.begin()   # open now (groups: the blockers stand down this frame); the first line comes after the caller connected
-	box.start.call_deferred(resource, title, [{"bridge": new_bridge()}])
+	box.start.call_deferred(resource, title, [{"bridge": bridge if bridge != null else new_bridge()}])
 	return box
 
 

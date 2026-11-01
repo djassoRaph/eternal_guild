@@ -5,7 +5,8 @@
 # `if bridge.deaths_this_run > 0` or `do bridge.mark_seen("den_fa_first_contact")`, never `GameManager.x`
 # (Test 20 lints every .dialogue under data/dialogue/ against this script's names).
 # Every value is read live from GameManager / DataManager by their autoload names (NFR-9) and is
-# read-only; the conversation flags are the one thing a conversation writes (saved per run).
+# read-only; the conversation flags are the one thing a conversation writes (saved per run), plus (Story 14.4) its own
+# answer, choose(id), which the caller reads when the box closes (not saved).
 # No class_name (S8): preloaded by path (dialogue_runner.gd).
 extends RefCounted
 
@@ -75,6 +76,35 @@ var is_demo: bool:
 		return DataManager.is_demo()   # Story 14.6
 	set(_v):
 		_read_only("is_demo")
+
+
+## Story 14.4: today's tavern disturbance's type ("" when none) and its subject (the mourner's lost adventurer; "" else).
+var disturbance_type: String:
+	get:
+		return str(GameManager.pending_disturbance.get("type", ""))
+	set(_v):
+		_read_only("disturbance_type")
+
+var disturbance_subject: String:
+	get:
+		return str(GameManager.pending_disturbance.get("subject", ""))
+	set(_v):
+		_read_only("disturbance_subject")
+
+## Story 14.4: this conversation's answer, set by choose(id) in the file; the caller that opened the box with this
+## bridge (dialogue_runner's optional argument) reads it when the box closes. Per conversation, never saved.
+var choice: String:
+	get:
+		return _choice
+	set(_v):
+		_read_only("choice")
+
+var _choice := ""
+
+
+## Story 14.4: record the player's answer (a .dialogue reply: do bridge.choose("eject")).
+func choose(id: String) -> void:
+	_choice = id
 
 
 ## Whether a conversation flag is set this run (e.g. "den_fa_first_contact").
