@@ -33,6 +33,11 @@ func _input(event: InputEvent) -> void:
 		if event.keycode == KEY_F12:
 			_visible = !_visible
 			_panel.visible = _visible
+			# Story 3.7 (CL-12): the open panel holds the day clock (a jump stays where it was put while you read)
+			if _visible:
+				add_to_group("day_clock_hold")
+			else:
+				remove_from_group("day_clock_hold")
 			if _visible and _current_tab == 0:
 				_refresh_state_tab()
 
@@ -108,7 +113,7 @@ func _build_tab_state(parent: VBoxContainer) -> void:
 
 	var keys := [
 		"gold", "beer", "firewood", "fuel",
-		"day", "tax_due_day", "tax", "disturbance", "demo_ending",
+		"day", "clock", "tax_due_day", "tax", "disturbance", "demo_ending",
 		"adventurers_count", "active_missions_count",
 		"tier_unlocked", "reputation",
 		"beer_shortage_days", "total_missions_completed"
@@ -155,6 +160,9 @@ func _refresh_state_tab() -> void:
 	_sl("firewood",                str(gm.firewood_stock) + " logs")
 	_sl("fuel",                    str(snappedf(gm.fireplace_fuel * 100.0, 0.1)) + "%")
 	_sl("day",                     "Day " + str(gm.current_day))
+	var dc = gm.day_clock_node() if gm.has_method("day_clock_node") else null   # Story 3.7
+	_sl("clock",                   clock_line(gm.day_clock_minutes, gm.day_clock_phase(), dc.get_speed() if dc else 1.0,
+		dc.held_reason() if dc else "no clock"))
 	_sl("tax_due_day",             "Day " + str(gm.tax_due_day))
 	# Story 13.1 (DT-7): the cycle as the morning check will see it
 	var tax_cfg: Dictionary = gm.tax_config()
@@ -227,6 +235,14 @@ static func demo_ending_line(st: Dictionary, cfg: Dictionary, reputation: int, t
 		head = ("due day %d" if str(st.get("state", "")) == "due" else str(st.get("state", "?")) + ", day %d") % int(st.get("day", 0))
 	return "%s · rep %d/%d · taxes %d/%d" % [head, reputation, int(cfg.get("min_reputation", 0)), taxes, int(cfg.get("min_taxes_paid", 0))]
 
+## Story 3.7 (CL-12): the day clock as the State tab shows it: "20:40 evening · x1 · running", "… · held: a screen",
+## "… · off: MainMenu".
+static func clock_line(minutes: float, phase: String, speed: float, hold: String) -> String:
+	var t := "%d:%02d" % [posmod(int(floor(minutes)) / 60, 24), posmod(int(floor(minutes)), 60)]
+	var state := "running" if hold == "" else (hold if hold.begins_with("off") or hold == "no clock" else "held: " + hold)
+	var sp := str(int(speed)) if is_equal_approx(speed, roundf(speed)) else str(speed)
+	return "%s %s · x%s · %s" % [t, phase, sp, state]
+
 ## Story 14.4: today's disturbance as the State tab shows it.
 static func disturbance_line(ev: Dictionary, last_day: int) -> String:
 	if ev.is_empty():
@@ -277,6 +293,18 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 	_btn_full(parent, "Demo ending now",            func(): GameManager.debug_demo_ending_now())   # Story 10.7 (demo only)
 
 	parent.add_child(HSeparator.new())
+	_h(parent, "DAY CLOCK (Story 3.7: forward only; the panel holds the clock while open)")
+	var clock_row := HBoxContainer.new()
+	parent.add_child(clock_row)
+	for hm in [[9, 0], [17, 0], [19, 0], [20, 0], [22, 59], [23, 59], [24, 59], [25, 58]]:
+		var minutes: float = float(hm[0]) * 60.0 + float(hm[1])
+		_btn(clock_row, "%d:%02d" % [int(hm[0]) % 24, int(hm[1])], func(): _debug_clock_jump(minutes))
+	var speed_row := HBoxContainer.new()
+	parent.add_child(speed_row)
+	for s in [1.0, 10.0, 60.0]:
+		_btn(speed_row, "Speed x%d" % int(s), func(): _debug_clock_speed(s))
+
+	parent.add_child(HSeparator.new())
 	_h(parent, "JUMP TO DAY")
 	var day_row := HBoxContainer.new()
 	parent.add_child(day_row)
@@ -316,6 +344,19 @@ func _build_tab_economy(parent: VBoxContainer) -> void:
 		print("Debug: Tier 3 unlocked (all prerequisites set)")
 	)
 	tier_row.add_child(t3_btn)
+
+## Story 3.7: the day clock forward to `minutes` (DayClock.jump_to: the crossed phases sent in order; earlier: refused).
+func _debug_clock_jump(minutes: float) -> bool:
+	var dc = GameManager.day_clock_node()
+	var ok: bool = dc != null and dc.jump_to(minutes)
+	_refresh_state_tab()
+	return ok
+
+func _debug_clock_speed(s: float) -> void:
+	var dc = GameManager.day_clock_node()
+	if dc != null:
+		dc.set_speed(s)
+	_refresh_state_tab()
 
 func _force_gold(v: int) -> void:
 	GameManager.gold = v
