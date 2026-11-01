@@ -370,6 +370,7 @@ func _initialize() -> void:
 	await test_codex_book()
 	await test_codex_tarot()
 	await test_codex_artefacts()
+	await test_codex_history()
 
 	_finish()
 
@@ -16921,3 +16922,135 @@ func _check_t46_link(dm) -> void:
 		"'See The Fallen' opens the Fallen Heroes chapter in the same book with the finder's row highlighted")
 	book.close()
 	await process_frame
+
+
+# --- Test 47: The Guild History chapter (Story 18.4) ---
+const CODEX_HISTORY_PATH := "res://scripts/menus/codex/history_chapter.gd"
+const T47_DIR := "user://failsafe_t47"
+
+
+## AC 1-4 (Story 18.4): the run entries newest first, every line of an entry (13.4's shape) with its fallbacks (no guild
+## name, no Fame, the heir / wiped / no heir, the cause, the reading's ending, the date, junk numbers), the chapter's pages
+## and totals, and one real run end (Story 13.4's record_run_end on a redirected codex) read back first. Read only.
+func test_codex_history() -> void:
+	print("[Test 47] The Guild History chapter (Story 18.4)")
+	var ss = root.get_node_or_null("SaveSystem")
+	if ss == null or not ResourceLoader.exists(CODEX_HISTORY_PATH):
+		check(false, "the SaveSystem autoload and history_chapter.gd")
+		return
+	var H = load(CODEX_HISTORY_PATH)
+	var UI = load(CODEX_UI_PATH)
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	_check_t47_rules(H, UI)
+	_check_t47_chapter(H, UI)
+	_check_t47_real_entry(H, ss)
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 47 never touched the real save or codex")
+	print("")
+
+
+## A run end in Story 13.4's shape (GameManager.run_summary + the run number record_run_end adds).
+static func _t47_entry(run: int, cause: String, survivors: int, heir = null) -> Dictionary:
+	return {"cause": cause, "ending": "fall", "end_day": 14.0, "days_survived": 13.0, "adventurers_lost": 2.0, "adventurers_hired": 5.0,
+		"survivors": float(survivors), "gold_peak": 1480.0, "gold_at_end": 0.0, "missions_completed": 9.0, "taxes_paid": 0.0,
+		"reputation": 12.0, "legacy_adventurer": heir, "timestamp": 1793500000.0, "run": float(run)}
+
+
+## AC 1, 2: history_entries and history_view.
+func _check_t47_rules(H, UI) -> void:
+	var cfg: Dictionary = UI.config()
+	var codex := {"guild_history": [_t47_entry(1, "bankruptcy", 0), "junk", _t47_entry(2, "soft_lock", 2), _t47_entry(3, "bankruptcy", 0)]}
+	var runs: Array = H.history_entries(codex).map(func(e): return int(e.run))
+	check(runs == [3, 2, 1] and H.history_entries({}).is_empty() and H.history_entries({"guild_history": {}}).is_empty(),
+		"history_entries: newest run first (the list's reverse), junk skipped; none / not a list -> [] %s" % [runs])
+	var v: Dictionary = H.history_view(_t47_entry(1, "bankruptcy", 0), cfg)
+	check(v.guild == "The guild of run 1" and v.days == "Days survived: 13" and v.lost == "Adventurers lost: 2" and v.gold_peak == "Gold at its peak: 1480"
+		and v.fame == "" and v.heir == "Guild Wiped" and v.outcome == "Wiped" and v.cause == "Fell to the tax collector."
+		and v.date == Time.get_date_string_from_unix_time(1793500000) and v.row == "13 days · Wiped",
+		"a 13.4 entry: 'The guild of run 1' (no guild name yet), days survived, adventurers lost, gold at its peak, no Fame line, 'Guild Wiped', the cause, the date %s" % [v])
+	var no_heir: Dictionary = H.history_view(_t47_entry(2, "soft_lock", 2), cfg)
+	var heir: Dictionary = H.history_view(_t47_entry(2, "soft_lock", 2, {"name": "Nina", "class": "Healer", "id": 5}), cfg)
+	var heir_s: Dictionary = H.history_view(_t47_entry(2, "soft_lock", 2, "Rex"), cfg)
+	var named := _t47_entry(4, "no_survivors", 0)
+	named["guild_name"] = "The Ember Lanterns"
+	named["fame"] = 140.0
+	var nv: Dictionary = H.history_view(named, cfg)
+	var reading := _t47_entry(5, "", 3)
+	reading["ending"] = "reading"
+	var odd: Dictionary = H.history_view({"cause": "a typo", "days_survived": "lots", "adventurers_lost": null}, cfg)
+	check(no_heir.heir == "No heir carried forward" and no_heir.outcome == "No heir" and no_heir.cause == "No hands left, and no coin to hire more."
+		and heir.heir == "Carried forward: Nina, Healer" and heir.outcome == "Nina" and heir_s.heir == "Carried forward: Rex"
+		and nv.guild == "The Ember Lanterns" and nv.fame == "Fame: 140" and nv.cause == "No one came back."
+		and H.history_view(reading, cfg).cause == "The cards were read. The guild passed on."
+		and odd.guild == "A guild" and odd.days == "Days survived: ?" and odd.lost == "Adventurers lost: ?" and odd.cause == "The guild fell."
+		and odd.date == "" and odd.heir == "Guild Wiped",
+		"survivors but no heir: 'No heir carried forward'; an heir (21.3): 'Carried forward: Nina, Healer'; a guild name (5.1) and Fame (20.x) when there; the reading's ending; junk: '?', the fallback cause, no date")
+
+
+## AC 1: the chapter on fixture pages: totals, rows newest first, the newest page, focus, a click, empty.
+func _check_t47_chapter(H, UI) -> void:
+	var cfg: Dictionary = UI.config()
+	var codex := {"guild_history": [_t47_entry(1, "bankruptcy", 0), _t47_entry(2, "soft_lock", 2, {"name": "Nina", "class": "Healer"})],
+		"total_runs": 2.0, "best_day_reached": 14.0, "total_gold_earned": 320.0, "total_missions_completed": 18.0}
+	var reader := _t45_reader()
+	var ch = H.new()
+	var left := VBoxContainer.new()
+	var right := VBoxContainer.new()
+	ch.build(left, right, {"codex": codex, "deck": [], "cfg": cfg, "book": reader, "focus": null})
+	var totals: Array = ["runs", "best_day", "gold", "missions"].map(func(k): return (left.find_child("Total_" + k, true, false) as Label).text)
+	var titles: Array = ch.row_nodes.map(func(r): return (r.find_child("Title", true, false) as Label).text)
+	var subs: Array = ch.row_nodes.map(func(r): return (r.find_child("Sub", true, false) as Label).text)
+	var page := func(n: String) -> String:
+		var l: Label = right.find_child(n, true, false)
+		return l.text if l != null else ""
+	var first_ok: bool = (totals == ["2", "14", "320", "18"] and titles == ["The guild of run 2", "The guild of run 1"]
+		and subs == ["13 days · Nina", "13 days · Wiped"] and ch.selected == 0 and page.call("PageGuild") == "The guild of run 2"
+		and page.call("PageHeir") == "Carried forward: Nina, Healer" and page.call("PageFame") == "" and page.call("PageDays") == "Days survived: 13")
+	(ch.row_nodes[1] as Button).pressed.emit()
+	var click_ok: bool = ch.selected == 1 and page.call("PageHeir") == "Guild Wiped" and page.call("PageCause") == "Fell to the tax collector."
+	check(first_ok and click_ok and reader.reads == [["history", "run_2"], ["history", "run_1"]],
+		"the chapter: the four totals as ints, runs newest first ('13 days · Nina'), the newest page by default; a click shows run 1 ('Guild Wiped'); each page a read %s %s" % [totals, subs])
+	left.free()
+	right.free()
+	var ch2 = H.new()
+	var l2 := VBoxContainer.new()
+	var r2 := VBoxContainer.new()
+	ch2.build(l2, r2, {"codex": codex, "deck": [], "cfg": cfg, "book": null, "focus": 1})
+	var focus_ok: bool = ch2.selected == 1
+	l2.free()
+	r2.free()
+	var ch3 = H.new()
+	var l3 := VBoxContainer.new()
+	var r3 := VBoxContainer.new()
+	ch3.build(l3, r3, {"codex": {}, "deck": [], "cfg": cfg, "book": null, "focus": null})
+	var empty: Label = l3.find_child("Empty", true, false)
+	var empty_ok: bool = empty != null and empty.text == "Your guild's history has yet to be written" and (l3.find_child("Total_runs", true, false) as Label).text == "0"
+	l3.free()
+	r3.free()
+	check(focus_ok and empty_ok, "focus (a run number) opens that run; no run yet: the totals (0) and 'Your guild's history has yet to be written'")
+
+
+## AC 3, 4: Story 13.4's writer on a redirected codex; the entry it appends is the chapter's first. The book only reads.
+func _check_t47_real_entry(H, ss) -> void:
+	if not ss.has_method("record_run_end"):
+		print("  (Test 47: SaveSystem.record_run_end missing: Story 13.4 isn't in; skipped)")
+		return
+	var saved := [ss.save_path, ss.codex_path, ss.codex_data]
+	DirAccess.make_dir_recursive_absolute(T47_DIR)
+	ss.save_path = T47_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T47_DIR + "/codex.dat"
+	ss.codex_data = {"schema_version": 2, "total_runs": 1.0, "guild_history": [_t47_entry(1, "bankruptcy", 0)]}
+	var entry := _t47_entry(0, "soft_lock", 1)
+	entry.erase("run")
+	ss.record_run_end(entry)
+	var first: Dictionary = H.history_entries(ss.codex_data)[0] if not H.history_entries(ss.codex_data).is_empty() else {}
+	var disk = _read_json(T47_DIR + "/codex.dat")
+	check(int(first.get("run", 0)) == 2 and first.get("cause") == "soft_lock" and disk is Dictionary
+		and H.history_entries(disk).size() == 2 and int(H.history_entries(disk)[0].get("run", 0)) == 2,
+		"a run's end written by SaveSystem.record_run_end (Story 13.4) is the chapter's first entry (run 2), on disk too")
+	ss.save_path = saved[0]
+	ss.codex_path = saved[1]
+	ss.codex_data = saved[2]
+	for f in ["codex.dat", "codex.dat.tmp"]:
+		if FileAccess.file_exists(T47_DIR + "/" + f):
+			DirAccess.remove_absolute(T47_DIR + "/" + f)
+	DirAccess.remove_absolute(T47_DIR)
