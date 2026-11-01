@@ -374,6 +374,7 @@ func _initialize() -> void:
 	await test_codex_in_hall()
 	await test_codex_review()
 	await test_day_clock()   # Story 3.7
+	await test_bard_visit()   # Story 9.1
 
 	_finish()
 
@@ -8450,7 +8451,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"fallen_this_run", "disturbance_note", "reputation_peak_tier",   # Stories 14.4 / 14.6 code review (P4, P3, P9)
 	"demo_ending", "_demo_ending_warnings",   # Story 10.7: the demo's ending
 	"codex_first_opened",   # Story 18.5: Den Fa's line about the hall's Codex, once a run
-	"day_clock_minutes", "_day_clock_warnings", "pending_night"]   # Story 3.7: the day clock
+	"day_clock_minutes", "_day_clock_warnings", "pending_night",   # Story 3.7: the day clock
+	"bard_visit", "bard_last_visit_day", "_bard_warnings"]   # Story 9.1: the Bard's visit
 
 
 func test_load_and_resume() -> void:
@@ -18844,3 +18846,613 @@ func _check_t70_sources() -> void:
 		and _func_body(bed, "_ready").contains("add_to_group(\"bedroom\")") and _func_body(spn, "can_spawn_patron").contains("is_running()")
 		and bus.contains("signal day_phase_changed(phase: String)") and bus.contains("signal day_clock_changed(minutes: int)"),
 		"the bedroom: a reason (only 'bed' can be refused), in group bedroom; the spawner asks the clock; GameBus has day_phase_changed and day_clock_changed")
+
+
+# --- Test 39: the Bard's visit (Story 9.1, Epic 9) ---
+const T39_DIR := "user://failsafe_t39"
+const T39_RULES := "res://scripts/game/bard_rules.gd"
+const T39_CONTROLLER := "res://scripts/game/bard.gd"
+const T39_NPC := "res://scripts/npcs/bard_npc.gd"
+const T39_DATA := "res://data/narrative/bard.json"
+const T39_DIALOGUE := "res://data/dialogue/bard.dialogue"
+const T39_WAIT_ZONE_CLEAR := 2.3    # as the visitors' spots (Test 38/53): his talk radius (1.2) + two player radii
+const T39_WAIT_SEAT_CLEAR := 4.55   # a patron waiting within 3 m of the player takes E; + 1.2 + the player's 0.35
+const T39_PERFORM_SEAT_CLEAR := 1.5 # where he plays: near the tables (an audience), never on a seat
+const T39_ROUTE_CLEAR := 0.8        # off the staff's walks and Den Fa's
+
+func test_bard_visit() -> void:
+	print("[Test 39] The Bard's visit (Story 9.1)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	var nm = root.get_node_or_null("NotificationManager")
+	var dmgr = root.get_node_or_null("DialogueManager")
+	if gm == null or wm == null or dm == null or gb == null or ss == null or nm == null or dmgr == null:
+		check(false, "the GameManager, WorldManager, DataManager, GuildBus, SaveSystem, NotificationManager, DialogueManager autoloads")
+		return
+	var missing := [T39_RULES, T39_CONTROLLER, T39_NPC].filter(func(p): return not ResourceLoader.exists(p))
+	if not missing.is_empty() or not gm.has_method("bard_arrived") or not gb.has_signal("bard_visit_changed"):
+		check(false, "the Bard's scripts %s, GameManager.bard_arrived and GuildBus.bard_visit_changed" % [missing])
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active]
+	ss.run_active = false
+	ss.save_path = T39_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T39_DIR + "/codex.dat"
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	var events: Array = []
+	var spy := func(s, d): events.append([s, d])
+	gb.bard_visit_changed.connect(spy)
+	gm.game_over_active = false
+	gm.demo_ending = {}
+	gm.pending_disturbance = {}
+
+	_check_t39_rules()
+	_check_t39_config(gm, dm)
+	_check_t39_manager(gm, dm, events)
+	_check_t39_save(gm, events)
+	await _check_t39_dialogue(dmgr, gm)
+	await _check_t39_spots()
+	await _check_t39_hall(gm, dm, nm, events)
+	_check_t39_sources()
+
+	if gb.bard_visit_changed.is_connected(spy):
+		gb.bard_visit_changed.disconnect(spy)
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	nm.clear_banners()
+	await process_frame
+	check(not FileAccess.file_exists(T39_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T39_DIR + "/codex.dat"),
+		"Test 39 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 39 never touched the real save or codex")
+	print("")
+
+
+## AC 1: the pure rules (bard_rules.gd).
+func _check_t39_rules() -> void:
+	var R = load(T39_RULES)
+	var warn: Array = []
+	var cfg: Dictionary = R.config_from({"bard_daily_chance": 0.4, "bard_cooldown_days": 2, "bard_schedule": [{"day": 3, "hook": true}, {"day": 8, "hour": 12}],
+		"bard_arrival_hours": [11, 19], "bard_wait_hours": 3, "bard_arrival_delay_seconds": 5, "bard_min_tier": "Known"}, warn)
+	check(warn.is_empty() and cfg.daily_chance == 0.4 and cfg.cooldown_days == 2 and cfg.schedule == [{"day": 3, "hook": true}, {"day": 8, "hook": false, "hour": 12.0}]
+		and cfg.arrival_hours == [11.0, 19.0] and cfg.wait_hours == 3.0 and cfg.arrival_delay_seconds == 5.0 and cfg.min_tier == "Known",
+		"config_from: good values taken as they are (%s)" % [cfg])
+	var bad_warn: Array = []
+	var bad: Dictionary = R.config_from({"bard_daily_chance": 1.5, "bard_cooldown_days": -1, "bard_schedule": [{"day": 1}, {"day": 2.5}, "x", {"day": 4}],
+		"bard_arrival_hours": [19, 11], "bard_wait_hours": 0, "bard_arrival_delay_seconds": NAN, "bard_min_tier": 3}, bad_warn)
+	var bad2_warn: Array = []
+	var bad2: Dictionary = R.config_from({"bard_schedule": "day 3"}, bad2_warn)
+	check(bad.daily_chance == 0.25 and bad.cooldown_days == 3 and bad.schedule == [{"day": 4, "hook": false}] and bad.arrival_hours == [11.0, 19.0]
+		and bad.wait_hours == 3.0 and bad.arrival_delay_seconds == 5.0 and bad.min_tier == "Known" and bad_warn.size() == 9
+		and bad2.schedule.is_empty() and bad2_warn.size() == 1 and R.config_from({}, []).daily_chance == 0.25,
+		"config_from: each bad value takes its default with one warning (a Day-1, a half-day or a junk schedule entry skipped); nothing given: the defaults, silently (%d warnings)" % bad_warn.size())
+	var tiers := [{"threshold": 0, "label": "Unknown"}, {"threshold": 25, "label": "Known"}, {"threshold": 50, "label": "Trusted"}]
+	var tw: Array = []
+	check(R.tier_index_of("Trusted", tiers, tw) == 2 and tw.is_empty() and R.tier_index_of("Nope", tiers, tw) == 1 and tw.size() == 1
+		and R.tier_index_of("Nope", [{"threshold": 0, "label": "Unknown"}], []) == 0,
+		"tier_index_of: a label's index; an unknown label: the second tier, with a warning (a one-tier list: 0)")
+	var c: Dictionary = R.config_from({"bard_daily_chance": 0.4, "bard_cooldown_days": 2, "bard_schedule": [{"day": 3, "hook": true}, {"day": 8, "hour": 12}]}, [])
+	var sched: Dictionary = R.pick_visit(3, 0, 1, 2, c, [0.99, 0.5])
+	var sched_hour: Dictionary = R.pick_visit(8, 0, 1, 7, c, [0.99, 0.0])
+	check(sched == {"day": 3, "state": "coming", "hook": true, "arrive_minute": 900, "wait_until": -1} and sched_hour.arrive_minute == 720 and sched_hour.hook == false,
+		"pick_visit: a schedule entry wins over the tier, the cooldown and the chance, with its hook; its hour fixes the minute (%s, %s)" % [sched, sched_hour])
+	check(R.pick_visit(5, 0, 1, 0, c, [0.0, 0.0]).is_empty() and R.pick_visit(5, 1, 1, 4, c, [0.0, 0.0]).is_empty()
+		and not R.pick_visit(5, 1, 1, 3, c, [0.0, 0.0]).is_empty() and not R.pick_visit(5, 1, 1, 0, c, [0.0, 0.0]).is_empty()
+		and R.pick_visit(5, 1, 1, 0, c, [0.4, 0.0]).is_empty() and not R.pick_visit(5, 1, 1, 0, c, [0.399, 0.0]).is_empty()
+		and R.pick_visit(5, 2, 1, 0, c, [0.0, 0.0]).hook == false,
+		"pick_visit: below the minimum tier none; the cooldown's edge (1 day after: none, 2 days: yes); no visit yet: always eligible; the chance's edge (0.4 none, 0.399 yes)")
+	check(R.arrive_minute(c, 0.0) == 660 and R.arrive_minute(c, 0.999999) == 1139 and R.arrive_minute(c, 0.5) == 900,
+		"arrive_minute: in arrival_hours (11:00 to before 19:00)")
+	var v := {"state": "coming", "day": 4, "arrive_minute": 700}
+	var OP := ["day", "dusk", "evening"]
+	check(R.may_arrive(v, 4, "day", 700.0, OP, false, false) and R.may_arrive(v, 4, "evening", 1300.0, OP, false, false)
+		and not R.may_arrive(v, 4, "day", 699.0, OP, false, false) and not R.may_arrive(v, 4, "morning", 800.0, OP, false, false)
+		and not R.may_arrive(v, 4, "late_night", 1400.0, OP, false, false) and not R.may_arrive(v, 5, "day", 800.0, OP, false, false)
+		and not R.may_arrive(v, 4, "day", 800.0, OP, true, false) and not R.may_arrive(v, 4, "day", 800.0, OP, false, true)
+		and not R.may_arrive({"state": "waiting", "day": 4}, 4, "day", 800.0, OP, false, false),
+		"may_arrive: his minute reached, an open phase (day, dusk, evening), today's, no fall, nothing in the way, still coming")
+	check(R.wait_over({"state": "waiting", "wait_until": 900}, 900.0) and not R.wait_over({"state": "waiting", "wait_until": 900}, 899.0)
+		and not R.wait_over({"state": "performing", "wait_until": 900}, 1000.0) and not R.wait_over({"state": "waiting", "wait_until": -1}, 1000.0),
+		"wait_over: waiting and the clock at wait_until")
+	var good: Dictionary = R.visit_from_save({"day": 4.0, "state": "waiting", "hook": true, "arrive_minute": 700.0, "wait_until": 880.0})
+	check(R.visit_from_save(null).visit.is_empty() and R.visit_from_save(null).warning == "" and R.visit_from_save({}).warning == ""
+		and R.visit_from_save("junk").visit.is_empty() and R.visit_from_save("junk").warning != ""
+		and R.visit_from_save({"day": 4, "state": "dancing"}).warning != "" and R.visit_from_save({"day": 0, "state": "coming"}).warning != ""
+		and R.visit_from_save({"day": 2.5, "state": "coming"}).warning != ""
+		and good.visit == {"day": 4, "state": "waiting", "hook": true, "arrive_minute": 700, "wait_until": 880} and good.warning == "",
+		"visit_from_save: none silently; junk, an unknown state, a bad day: none with a warning; a good one with whole numbers")
+	var last := -1
+	var repeats := 0
+	var used := {}
+	for i in 60:
+		var k: int = R.pick_index(3, last, randf())
+		if k == last:
+			repeats += 1
+		used[k] = true
+		last = k
+	check(repeats == 0 and used.size() == 3 and R.pick_index(0, -1, 0.5) == -1 and R.pick_index(1, 0, 0.5) == 0,
+		"pick_index: 60 picks of 3 never repeat in a row and use all three; none: -1; one: 0")
+
+
+## AC 1 / BD-5: the shipped config under the demo profile and the full game.
+func _check_t39_config(gm, dm) -> void:
+	var out := {}
+	for prof in ["demo", "full"]:
+		dm.set("run_profile", prof)
+		out[prof] = gm.bard_config()
+	dm.set("run_profile", "")
+	var d: Dictionary = out.demo
+	var f: Dictionary = out.full
+	check(d.daily_chance == 0.4 and d.cooldown_days == 2 and d.schedule == [{"day": 3, "hook": true}] and d.min_tier_index == 1
+		and f.daily_chance == 0.25 and f.cooldown_days == 3 and f.schedule.is_empty() and f.min_tier_index == 1
+		and f.arrival_hours == [11.0, 19.0] and f.wait_hours == 3.0 and d.arrival_hours == [11.0, 19.0],
+		"the shipped config: the demo has a sure Day-3 visit with a hook, then 40%% a morning 2 days apart; the full game 25%%, 3 days apart, from Known (%s / %s)" % [d, f])
+	var cfg = _read_json(GAME_CONFIG_PATH)
+	var demo: Dictionary = cfg.profiles.demo
+	check(["bard_daily_chance", "bard_cooldown_days", "bard_schedule"].all(func(k): return demo.has(k) and cfg.has(k))
+		and str(cfg.get("_bard_comment", "")).contains("Epic 9"),
+		"game_config.json: the demo's Bard keys are in profiles.demo and at the top level (14.6's one-source rule); a _bard_comment")
+
+
+## AC 1, 7: GameManager's visit, the morning roll, the transitions and their signals.
+func _check_t39_manager(gm, dm, events: Array) -> void:
+	dm.set("run_profile", "full")
+	gm.game_over_active = false
+	gm.demo_ending = {}
+	gm.pending_disturbance = {}
+	gm.bard_visit = {}
+	gm.bard_last_visit_day = 0
+	gm.tavern_reputation = 30   # Known in the full game's tiers
+	gm.current_day = 5
+	gm.day_clock_minutes = 600.0
+	var gold0: int = gm.gold
+	var rep0: int = gm.tavern_reputation
+	events.clear()
+	gm._advance_bard([0.0, 0.5])
+	var queued: Dictionary = gm.bard_visit.duplicate()
+	gm._advance_bard([0.0, 0.0])
+	var kept: bool = gm.bard_visit == queued
+	check(queued == {"day": 5, "state": "coming", "hook": false, "arrive_minute": 900, "wait_until": -1} and gm.bard_last_visit_day == 5
+		and kept and events == [["coming", 5]],
+		"the morning: a visit queued for today at its rolled minute (15:00), one signal; a second roll the same day changes nothing (%s)" % [queued])
+	gm.bard_visit.state = "waiting"
+	gm.current_day = 6
+	events.clear()
+	gm._advance_bard([1.0, 0.0])
+	check(gm.bard_visit.is_empty() and events.is_empty() and gm.gold == gold0 and gm.tavern_reputation == rep0,
+		"the next morning: yesterday's undecided visit is closed (as turned away), nothing changes; no new roll inside the cooldown")
+	gm.current_day = 9
+	gm.demo_ending = {"state": "coming", "day": 9}
+	gm._advance_bard([0.0, 0.0])
+	var none_messenger: bool = gm.bard_visit.is_empty()
+	gm.demo_ending = {}
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 9, "state": "queued", "subject": ""}
+	gm._advance_bard([0.0, 0.0])
+	var none_disturbance: bool = gm.bard_visit.is_empty()
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 8, "state": "fired", "subject": ""}
+	gm._advance_bard([0.0, 0.0])
+	var other_day_ok: bool = not gm.bard_visit.is_empty()
+	gm.pending_disturbance = {}
+	gm.bard_visit = {}
+	gm.game_over_active = true
+	gm._advance_bard([0.0, 0.0])
+	var none_fall: bool = gm.bard_visit.is_empty()
+	gm.game_over_active = false
+	check(none_messenger and none_disturbance and other_day_ok and none_fall,
+		"one visitor a day (K-20): no visit on the King's messenger's day nor on a day with a tavern disturbance (another day's doesn't count); none after the fall")
+	dm.set("run_profile", "demo")
+	gm.tavern_reputation = 0
+	gm.current_day = 3
+	gm.bard_visit = {}
+	gm.bard_last_visit_day = 0
+	gm._advance_bard([0.99, 0.0])
+	var demo_day3: Dictionary = gm.bard_visit.duplicate()
+	check(demo_day3.get("hook") == true and demo_day3.get("state") == "coming" and demo_day3.get("day") == 3,
+		"the demo: Day 3's scheduled visit comes whatever the tier and the roll, with a hook (%s)" % [demo_day3])
+	dm.set("run_profile", "full")
+	events.clear()
+	gm.day_clock_minutes = 700.0
+	var no_arrive_from_none: bool = false
+	var a1: bool = gm.bard_arrived()
+	var waiting: Dictionary = gm.bard_visit.duplicate()
+	var a2: bool = gm.bard_arrived()
+	var r1: bool = gm.refuse_bard("refused")
+	var r2: bool = gm.refuse_bard("refused")
+	var al: bool = gm.allow_bard()
+	gm.bard_visit = {}
+	no_arrive_from_none = not gm.bard_arrived()
+	check(a1 and not a2 and waiting.state == "waiting" and waiting.wait_until == 880 and r1 and not r2 and not al and no_arrive_from_none
+		and events == [["waiting", 3], ["refused", 3]],
+		"bard_arrived: coming -> waiting, patient until 3 clock hours later (11:40 -> 14:40); refuse_bard: waiting -> refused, once; nothing to let in after (%s)" % [events])
+	gm.bard_visit = {"day": 3, "state": "waiting", "hook": false, "arrive_minute": 700, "wait_until": 880}
+	events.clear()
+	var al2: bool = gm.allow_bard()
+	check(al2 and gm.bard_visit.state == "performing" and events == [["performing", 3]], "allow_bard: waiting -> performing, one signal")
+	gm.bard_visit = {}
+	gm.day_clock_minutes = 812.4
+	events.clear()
+	var dq: bool = gm.debug_queue_bard(true)
+	var dqv: Dictionary = gm.bard_visit.duplicate()
+	gm.demo_ending = {"state": "coming", "day": 3}
+	var dq2: bool = gm.debug_queue_bard()
+	gm.demo_ending = {}
+	check(dq and dqv == {"day": 3, "state": "coming", "hook": true, "arrive_minute": 812, "wait_until": -1} and not dq2 and events == [["coming", 3]],
+		"debug_queue_bard: today at the clock's minute, with a hook; refused on the King's messenger's day")
+	gm.bard_visit = {}
+	gm.bard_last_visit_day = 0
+	dm.set("run_profile", "")
+
+
+## AC 8: saved, loaded (junk-proof), reset; silent.
+func _check_t39_save(gm, events: Array) -> void:
+	gm.bard_visit = {"day": 4, "state": "waiting", "hook": true, "arrive_minute": 700, "wait_until": 880}
+	gm.bard_last_visit_day = 4
+	var data: Dictionary = gm._bard_save_data()
+	var parsed = JSON.parse_string(JSON.stringify(data))
+	gm._reset_bard_state()
+	var reset_ok: bool = gm.bard_visit.is_empty() and gm.bard_last_visit_day == 0
+	events.clear()
+	gm._load_bard_data(parsed)
+	var round_ok: bool = gm.bard_visit == {"day": 4, "state": "waiting", "hook": true, "arrive_minute": 700, "wait_until": 880} and gm.bard_last_visit_day == 4
+	gm._load_bard_data({})
+	var old_ok: bool = gm.bard_visit.is_empty() and gm.bard_last_visit_day == 0
+	gm._load_bard_data({"bard_visit": "junk", "bard_last_visit_day": "x"})
+	var junk_ok: bool = gm.bard_visit.is_empty() and gm.bard_last_visit_day == 0
+	check(reset_ok and round_ok and old_ok and junk_ok and events.is_empty(),
+		"the visit round-trips through JSON (whole numbers back); an older save: none and 0; junk: none; New Game: none; a load and a reset are silent")
+	var src := FileAccess.get_file_as_string("res://scripts/GameManager.gd")
+	check(_func_body(src, "get_save_data").contains("_bard_save_data()") and _func_body(src, "load_save_data").contains("_load_bard_data(data)")
+		and _func_body(src, "reset_game_state").contains("_reset_bard_state()")
+		and ["bard_visit", "bard_last_visit_day", "_bard_warnings"].all(func(k): return D1_GM_FIELDS.has(k)),
+		"get_save_data / load_save_data / reset_game_state carry the visit; Test 26's field list has it")
+	gm.bard_visit = {}
+	gm.bard_last_visit_day = 0
+
+
+## AC 5: bard.dialogue: DRAFT, compiles, the door titles and their three replies, greets by the hour, keeps his voice.
+func _check_t39_dialogue(dmgr, gm) -> void:
+	var text := FileAccess.get_file_as_string(T39_DIALOGUE)
+	var compiled = DMCompiler.compile_string(text, T39_DIALOGUE)
+	var bridge_script = load(BRIDGE_SCRIPT)
+	var names := []
+	for p in (bridge_script as GDScript).get_script_property_list():
+		names.append(p.name)
+	for mm in (bridge_script as GDScript).get_script_method_list():
+		names.append(mm.name)
+	names = names.filter(func(n): return not str(n).begins_with("_") and not str(n).ends_with(".gd"))
+	var titles: Dictionary = compiled.titles
+	var lower := text.to_lower()
+	var voice_bad := ["den fa", "mask", "thee", "thou", "thy "].filter(func(w): return lower.contains(w))
+	check(text.begins_with("# DRAFT (Epic 9)") and compiled.errors.is_empty() and titles.has("door_first") and titles.has("door_1")
+		and titles.has("door_2") and titles.has("door_3") and _dialogue_lint(text, names).is_empty() and names.has("day_phase") and voice_bad.is_empty(),
+		"bard.dialogue: DRAFT, compiles, door_first and door_1..3, passes the bridge lint (bridge.day_phase), never names Den Fa or the mask, no thee/thou (%s)" % [voice_bad])
+	check(FileAccess.file_exists(T39_DIALOGUE + ".import"), "bard.dialogue.import is there (imported, committed)")
+	var runner = load(RUNNER_SCRIPT)
+	var res = runner.compile_text(text, T39_DIALOGUE)
+	var keep_min: float = gm.day_clock_minutes
+	var keep_flags: Dictionary = gm.dialogue_flags.duplicate()
+	var greet := {}
+	for m in [600.0, 1050.0, 1200.0]:
+		gm.day_clock_minutes = m
+		var b = runner.new_bridge()
+		var l = await dmgr.get_next_dialogue_line(res, "door_first", [{"bridge": b}])
+		greet[m] = str(l.text) if l else ""
+	check(greet[600.0].begins_with("Good day, keeper.") and greet[1050.0].begins_with("The light's going, keeper.") and greet[1200.0].begins_with("Evening, keeper."),
+		"door_first greets by the clock: 10:00 'Good day', 17:30 'The light's going', 20:00 'Evening' (%s)" % [greet])
+	var walks := []
+	for t in ["door_first", "door_1", "door_2", "door_3"]:
+		for pick in 3:
+			gm.day_clock_minutes = 700.0
+			var b = runner.new_bridge()
+			var st := [{"bridge": b}]
+			var l = await dmgr.get_next_dialogue_line(res, t, st)
+			var replies := []
+			var steps := 0
+			while l != null and steps < 30:
+				steps += 1
+				if l.responses.size() > 0:
+					replies = l.responses.map(func(r): return r.text)
+					l = await dmgr.get_next_dialogue_line(res, l.responses[pick].next_id, st)
+				else:
+					l = await dmgr.get_next_dialogue_line(res, l.next_id, st)
+			walks.append([t, pick, replies, b.choice, l == null])
+	gm.day_clock_minutes = keep_min
+	gm.dialogue_flags = keep_flags
+	var want := ["Play, then.", "Not tonight.", "(Walk away.)"]
+	var ok := walks.all(func(w): return w[2] == want and w[4] and w[3] == ["allow", "refuse", ""][w[1]])
+	check(ok and walks.size() == 12, "every door title ends with the same three replies: 'Play, then.' chooses allow, 'Not tonight.' refuse, '(Walk away.)' nothing (%s)" % [walks.filter(func(w): return not (w[2] == want and w[3] == ["allow", "refuse", ""][w[1]])).map(func(w): return [w[0], w[1], w[3]])])
+
+
+## AC 4: the wait spot and the perform spot measured against MainTavern (on the navmesh, clear of the other E zones, the
+## patron seats and the staff's and Den Fa's walks). The other visitors' spots don't count: one visitor a day (K-20).
+func _check_t39_spots() -> void:
+	var data = _read_json(T39_DATA)
+	var scene: Node = (load(TAVERN_SCENE_PATH) as PackedScene).instantiate()
+	var tn_path := "SubViewportContainer/SubViewport/TavernNavigation"
+	var routes := []
+	for n in ["Staff/Bartender", "Staff/QuestDealer", "Furniture/DenFa"]:
+		var node := scene.get_node_or_null(tn_path + "/" + n)
+		for prop in ["arrive_route", "bar_route"]:
+			var r = node.get(prop) if node else null
+			if r is PackedVector3Array and r.size() > 1:
+				routes.append(Array(r).map(func(q): return Vector2(q.x, q.z)))
+	var psn = load("res://scripts/npcs/PatronSpawner.gd").new()
+	var tables: Array = (psn.table_positions as Array).duplicate()
+	psn.free()
+	_strip_scripts(scene)
+	root.add_child(scene)
+	await process_frame
+	var tn := scene.get_node(tn_path) as NavigationRegion3D
+	var zones := []
+	for a in scene.find_children("*", "Area3D", true, false):
+		for c in a.find_children("*", "CollisionShape3D", true, false):
+			var t: Transform3D = (c as CollisionShape3D).global_transform
+			var sh = (c as CollisionShape3D).shape
+			var o := Vector2(t.origin.x, t.origin.z)
+			if sh is BoxShape3D:
+				var s: Vector3 = (sh as BoxShape3D).size
+				zones.append([str(a.name), "box", o, Vector2(t.basis.x.x, t.basis.x.z) * s.x * 0.5, Vector2(t.basis.z.x, t.basis.z.z) * s.z * 0.5])
+			elif sh is SphereShape3D:
+				zones.append([str(a.name), "circle", o, (sh as SphereShape3D).radius])
+	var marks := []
+	for n in scene.find_children("*", "Node3D", true, false):
+		if n.is_in_group("patron_seat"):
+			marks.append((n as Node3D).global_transform)
+	var seats: Array = load("res://scripts/npcs/PatronSpawner.gd").build_seats(marks, tables)
+	var seat_pts := []
+	for s in seats:
+		seat_pts.append(Vector2(s.approach.x, s.approach.z))
+	for mk in marks:
+		seat_pts.append(Vector2((mk as Transform3D).origin.x, (mk as Transform3D).origin.z))
+	var polys := []
+	var nav: NavigationMesh = tn.navigation_mesh if tn else null
+	if nav:
+		var verts := nav.get_vertices()
+		for i in nav.get_polygon_count():
+			var pg := PackedVector2Array()
+			for vi in nav.get_polygon(i):
+				pg.append(Vector2(verts[vi].x, verts[vi].z))
+			polys.append(pg)
+	var on_nav := func(q: Vector2) -> bool: return polys.any(func(pg): return Geometry2D.is_point_in_polygon(q, pg))
+	var report := {}
+	for key in ["wait_spot", "perform_spot"]:
+		var sp = data.bard[key]
+		var p := Vector2(float(sp[0]), float(sp[1]))
+		var inside: bool = on_nav.call(p)
+		for k in 8:
+			inside = inside and on_nav.call(p + Vector2.from_angle(k * PI / 4.0) * 0.4)
+		var zc := INF
+		var zn := ""
+		for z in zones:
+			var dz := _t38_zone_dist(p, z)
+			if dz < zc:
+				zc = dz
+				zn = z[0]
+		var sc := INF
+		for q in seat_pts:
+			sc = minf(sc, p.distance_to(q))
+		var rc := INF
+		for r in routes:
+			rc = minf(rc, _t38_polyline_dist(p, r))
+		report[key] = {"nav": inside, "zone": snappedf(zc, 0.01), "zone_name": zn, "seat": snappedf(sc, 0.01), "route": snappedf(rc, 0.01)}
+	var porch = data.bard.porch
+	var walk_ok: bool = on_nav.call(Vector2(float(porch[0]), float(porch[2])))
+	for q in data.bard.route_in:
+		walk_ok = walk_ok and on_nav.call(Vector2(float(q[0]), float(q[2])))
+	var w: Dictionary = report.wait_spot
+	var pf: Dictionary = report.perform_spot
+	check(nav != null and w.nav and w.zone >= T39_WAIT_ZONE_CLEAR and w.seat >= T39_WAIT_SEAT_CLEAR and w.route >= T39_ROUTE_CLEAR and walk_ok,
+		"his wait spot: on the navmesh, %.1f m from every E zone, %.2f m from every patron seat, %.1f m off the staff's and Den Fa's walks; the porch and the route in on the navmesh %s" % [T39_WAIT_ZONE_CLEAR, T39_WAIT_SEAT_CLEAR, T39_ROUTE_CLEAR, w])
+	check(nav != null and pf.nav and pf.zone >= T39_WAIT_ZONE_CLEAR and pf.seat >= T39_PERFORM_SEAT_CLEAR and pf.route >= T39_ROUTE_CLEAR,
+		"his perform spot: on the navmesh, %.1f m from every E zone, %.1f m from every patron seat (near the tables, never on one), off the walks %s" % [T39_WAIT_ZONE_CLEAR, T39_PERFORM_SEAT_CLEAR, pf])
+	scene.queue_free()
+	await process_frame
+
+
+## AC 2, 3, 5, 6, 7 (and V-5): the hall's controller and the Bard in a stand-in hall.
+func _check_t39_hall(gm, dm, nm, events: Array) -> void:
+	dm.set("run_profile", "full")
+	dm.game_config["bard_arrival_delay_seconds"] = 0
+	var world := Node3D.new()
+	world.name = "T39Hall"
+	root.add_child(world)
+	_d1_set_scene(world)
+	var svc := SubViewportContainer.new()
+	svc.name = "SubViewportContainer"
+	world.add_child(svc)
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	world.add_child(ui)
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.add_to_group("player")
+	world.add_child(player)
+	player.global_position = Vector3(3.0, 0.0, -3.0)
+	gm.game_over_active = false
+	gm.demo_ending = {}
+	gm.pending_disturbance = {}
+	gm.current_day = 4
+	gm.bard_visit = {}
+	nm.clear_banners()
+	gm.day_clock_minutes = 600.0
+	var c = load(T39_CONTROLLER).new()
+	c.world_parent = world
+	c.phase = "day"
+	c.player_provider = func(): return player
+	c.data_override = {"bard": {"porch": [0.0, 0.0, 2.0], "route_in": [[0.0, 0.0, 1.0]], "wait_spot": [1.5, 0.0, 180.0], "walk_in_timeout_seconds": 6.0}}
+	world.add_child(c)
+	await process_frame
+	c.check()
+	var none_without_visit: bool = c.npc == null and not ui.connected_zones.keys().any(func(z): return is_instance_valid(z) and z.get_parent() and z.get_parent().is_in_group("bard"))
+	gm.bard_visit = {"day": 4, "state": "coming", "hook": false, "arrive_minute": 700, "wait_until": -1}
+	c.check()
+	var none_early: bool = c.npc == null
+	gm.day_clock_minutes = 700.0
+	c.phase = "morning"
+	c.check()
+	var none_morning: bool = c.npc == null
+	c.phase = "late_night"
+	c.check()
+	var none_night: bool = c.npc == null
+	c.phase = "day"
+	var gate := Node.new()
+	world.add_child(gate)
+	var held := {}
+	for g in ["morning_briefing", "disturbance_npc", "royal_messenger", "card_reveal"]:
+		gate.add_to_group(g)
+		c.check()
+		held[g] = [c.npc == null, c.blocker()]
+		gate.remove_from_group(g)
+	gm.game_over_active = true
+	c.check()
+	held["fall"] = [c.npc == null, ""]
+	gm.game_over_active = false
+	check(none_without_visit and none_early and none_morning and none_night and held.values().all(func(h): return h[0])
+		and held.disturbance_npc[1] == "a visitor" and held.royal_messenger[1] == "a visitor" and held.morning_briefing[1] == "morning_briefing",
+		"no visit: no Bard and no prompt; with one, not before his minute, not in the morning or at night, nor while the briefing, another visitor (K-20), a card reveal or the fall holds the hall %s" % [held])
+	events.clear()
+	c.phase = "evening"
+	c.check()
+	var v = c.npc
+	var banners: Array = _t38_banners(nm)
+	var lute_ok: bool = v != null and v.lute != null and v.lute.get_parent() is BoneAttachment3D and (v.lute.get_parent() as BoneAttachment3D).bone_name == "chest" and v.lute_pose == "carry"
+	check(v != null and v.model != null and str(v.body_variant.get("id", "")) == "merchant" and v.is_in_group("bard") and not v.is_in_group("royal_messenger")
+		and not v.is_in_group("disturbance_npc") and not v.is_in_group("patrons") and gm.bard_visit.state == "waiting" and gm.bard_visit.wait_until == 880
+		and banners.has(["A travelling bard is waiting at the door.", true]) and events == [["waiting", 4]] and lute_ok,
+		"in the evening, at his minute, he walks in: the merchant's body (a placeholder, one data key) in group bard (not a patron, not the other visitors'), a lute on his chest bone, an event banner, 'waiting' until 3 clock hours later")
+	var t0 := Time.get_ticks_msec()
+	while v != null and is_instance_valid(v) and v.mode != "waiting" and Time.get_ticks_msec() - t0 < 6000:
+		await physics_frame
+	var at_wait: bool = v.mode == "waiting" and Vector2(v.global_position.x - 1.5, v.global_position.z).length() < 0.4 and absf(wrapf(v.rotation.y - PI, -PI, PI)) < 0.05
+	var claimed: bool = ui.connected_zones.has(v.talk_zone) and str(ui.connected_zones[v.talk_zone]) == "Press E - Talk to the Bard"
+	check(at_wait and claimed and not v.approach, "he walks in to the wait spot and waits there facing its yaw (he never walks up to the player); his talk zone has 'Press E - Talk to the Bard'")
+	# E: door_first, then a door_N; a choice when the box closes
+	var flags_keep: Dictionary = gm.dialogue_flags.duplicate()
+	gm.dialogue_flags.erase("bard_first_visit")
+	v.talk_requested.emit(v)
+	await process_frame
+	await process_frame
+	var first_title: String = c._box_title
+	var faced: bool = absf(wrapf(v.rotation.y - atan2(player.global_position.x - v.global_position.x, player.global_position.z - v.global_position.z), -PI, PI)) < 0.05
+	gm.day_clock_minutes = 900.0   # past his patience while the box is open: the box holds him
+	c.check()
+	var held_by_box: bool = gm.bard_visit.state == "waiting"
+	if c._box:
+		c._box.close()
+	for i in 3:
+		await process_frame
+	gm.day_clock_minutes = 720.0
+	var still: bool = gm.bard_visit.state == "waiting" and not v.leaving
+	v._cooldown = 0.0
+	v.talk_requested.emit(v)
+	await process_frame
+	await process_frame
+	var second_title: String = c._box_title
+	var b = c._bridge
+	if b:
+		b.choose("refuse")
+	if c._box:
+		c._box.close()
+	for i in 3:
+		await process_frame
+	banners = _t38_banners(nm)
+	check(first_title == "door_first" and faced and held_by_box and still and second_title.begins_with("door_") and second_title != "door_first"
+		and gm.bard_visit.state == "refused" and v.leaving and banners.has(["The Bard moves on.", true]) and gm.dialogue_flags.get("bard_first_visit") == true,
+		"E: door_first (marked seen), he turns to the player; the clock past his patience doesn't send him off while the box is open; Esc keeps him waiting; next a door_N; 'Not tonight.' turns him away: the walk out and a banner (%s, %s)" % [first_title, second_title])
+	gm.dialogue_flags = flags_keep
+	t0 = Time.get_ticks_msec()
+	while is_instance_valid(v) and Time.get_ticks_msec() - t0 < 8000:
+		await physics_frame
+	var gone: bool = not is_instance_valid(v) and not ui.connected_zones.keys().any(func(z): return not is_instance_valid(z))
+	check(gone, "turned away, he walks out to the porch and is gone; his talk zone released")
+	# the timeout: a second visit (another day), his patience runs out
+	c.npc = null
+	gm.current_day = 5
+	gm.bard_visit = {"day": 5, "state": "coming", "hook": false, "arrive_minute": 700, "wait_until": -1}
+	gm.day_clock_minutes = 700.0
+	c.phase = "day"
+	nm.clear_banners()
+	c.check()
+	var v2 = c.npc
+	gm.day_clock_minutes = 881.0
+	events.clear()
+	c.check()
+	var bubble := false
+	var said := ""
+	if v2 and is_instance_valid(v2):
+		for ch in v2.get_children():
+			if ch is PatronSpeechBubble:
+				bubble = true
+				for l in ch.find_children("*", "Label3D", true, false):
+					said = (l as Label3D).text.replace("\n", " ")
+	banners = _t38_banners(nm)
+	var leave_lines: Array = _read_json(T39_DATA).leave_lines
+	check(v2 != null and gm.bard_visit.state == "refused" and events == [["refused", 5]] and v2.leaving and bubble
+		and leave_lines.any(func(ln): return said == str(ln) or said.replace(" ", "") == str(ln).replace(" ", ""))
+		and banners.has(["The Bard got tired of waiting and moved on.", true]),
+		"tired of waiting (3 clock hours): turned away by the clock, a leaving line in a bubble ('%s'), a banner, the walk out" % said)
+	if is_instance_valid(v2):
+		v2.queue_free()
+	c.npc = null
+	await process_frame
+	# a load during his wait: placed back, no new banner; a load after his patience ran out: gone, the banner
+	gm.bard_visit = {"day": 5, "state": "waiting", "hook": false, "arrive_minute": 700, "wait_until": 880}
+	gm.day_clock_minutes = 800.0
+	nm.clear_banners()
+	c.check()
+	var v3 = c.npc
+	for i in 3:
+		await physics_frame
+	var placed: bool = v3 != null and v3.mode == "waiting" and Vector2(v3.global_position.x - 1.5, v3.global_position.z).length() < 0.4 and _t38_banners(nm).is_empty()
+	# the night: the visit is no longer today's -> gone
+	gm.current_day = 6
+	c.check()
+	var night_gone: bool = c.npc == null and (v3 == null or v3.is_queued_for_deletion())
+	await process_frame
+	gm.current_day = 5
+	gm.bard_visit = {"day": 5, "state": "waiting", "hook": false, "arrive_minute": 700, "wait_until": 880}
+	gm.day_clock_minutes = 900.0
+	c.check()
+	var expired_none: bool = c.npc == null and gm.bard_visit.state == "refused" and _t38_banners(nm).has(["The Bard got tired of waiting and moved on.", true])
+	# late night with him at the door: he moves on
+	gm.bard_visit = {"day": 5, "state": "waiting", "hook": false, "arrive_minute": 700, "wait_until": 1500}
+	gm.day_clock_minutes = 1300.0
+	c.phase = "evening"
+	c.check()
+	var v4 = c.npc
+	gm.day_clock_minutes = 1385.0
+	c.phase = "late_night"
+	c.check()
+	var late_left: bool = v4 != null and v4.leaving and gm.bard_visit.state == "refused"
+	check(placed and night_gone and expired_none and late_left,
+		"a load during his wait puts him back at the wait spot (no banner); the night takes him away; a load after his patience ran out shows the banner, no body; at 23:00 a waiting Bard moves on")
+	if is_instance_valid(v4):
+		v4.queue_free()
+	gm.bard_visit = {}
+	world.queue_free()
+	await process_frame
+	await process_frame
+
+
+## The wiring: the morning, the hall, the bus; no direct /root paths; the rules know no autoload; patrons skip his body.
+func _check_t39_sources() -> void:
+	var gms := FileAccess.get_file_as_string("res://scripts/GameManager.gd")
+	var adv := _func_body(gms, "advance_day")
+	var hall := FileAccess.get_file_as_string("res://scripts/game/main_tavern.gd")
+	var rules := "\n".join(Array(FileAccess.get_file_as_string(T39_RULES).split("\n")).filter(func(l): return not str(l).strip_edges().begins_with("#")))
+	var ctl := FileAccess.get_file_as_string(T39_CONTROLLER)
+	var npc := FileAccess.get_file_as_string(T39_NPC)
+	var pat := FileAccess.get_file_as_string(PATRON_SCRIPT_PATH)
+	var bus := FileAccess.get_file_as_string("res://scripts/buses/GuildBus.gd")
+	check(adv.find("_advance_bard()") > adv.find("_advance_disturbances()") and adv.find("_advance_disturbances()") > 0 and gms.count("_advance_bard(") == 2
+		and _func_body(hall, "_ready").contains("load(BARD)") and bus.contains("signal bard_visit_changed(state: String, day: int)"),
+		"advance_day rolls the visit after the disturbance (and only there); main_tavern adds the controller; GuildBus.bard_visit_changed")
+	check(not rules.contains("GameManager.") and not rules.contains("DataManager.") and not ctl.contains("/root/") and not npc.contains("/root/")
+		and ctl.contains("DayClockRules.OPEN_PHASES") and _func_body(pat, "_visitor_bodies").contains("\"bard\""),
+		"bard_rules.gd names no autoload; the controller and the body use no /root paths; he arrives in the clock's open hours; no new patron wears his body while he is in")
