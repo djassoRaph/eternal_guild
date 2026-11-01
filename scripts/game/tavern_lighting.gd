@@ -23,7 +23,8 @@
 #
 # Phase triggers (LM-8): GameBus.day_phase_changed(phase), sent where the loop already turns (the bedroom: evening;
 # sleep: late_night; the new day: morning; the briefing's end: day). "reveal" (Story 24.2's word) is late_night.
-# A morning with no briefing pending turns to day after tavern_light_morning_hold_seconds.
+# A morning with no briefing pending turns to day after tavern_light_morning_hold_seconds, announced on GameBus (Story
+# 14.4 review P1: the hall's disturbance director listens).
 #
 # The logic is static and node-free (tests call it); the node only applies the result. Loaded by path: no class_name.
 # Dev selector (debug builds): 1 the mood, 2 the phase, 3 the cast's shading preset (anime_look.gd), 4 the edge pass on/off.
@@ -433,7 +434,7 @@ func _process(delta: float) -> void:
 	if _hold_left >= 0.0:
 		_hold_left -= delta
 		if _hold_left < 0.0:
-			set_phase("day")
+			_end_morning_hold()
 	if _blend_t < 1.0:
 		_blend_t = minf(_blend_t + (delta / _blend_len if _blend_len > 0.0 else 1.0), 1.0)
 		applied = blend(_from, _to, _blend_t)
@@ -490,6 +491,17 @@ func reapply_config(to_configured := false) -> void:
 ## {mood, phase, preset}: what the hall shows now.
 func current() -> Dictionary:
 	return {"mood": mood, "phase": phase, "preset": ANIME_LOOK.preset(), "blending": _blend_t < 1.0}
+
+
+## The morning hold is over (no briefing came): the day, for everyone listening (Story 14.4 review P1: the hall's
+## disturbance director waits for "day" on GameBus, and the hold used to turn only the light). GameBus.day_phase_changed
+## comes back here as set_phase("day"); the hold arms only on "morning", so no loop. Without GameBus, the light alone.
+func _end_morning_hold() -> void:
+	var gb := get_node_or_null("/root/GameBus")
+	if gb and gb.has_signal("day_phase_changed") and gb.day_phase_changed.is_connected(_on_day_phase):
+		gb.day_phase_changed.emit("day")
+	else:
+		set_phase("day")
 
 
 func _on_day_phase(phase_name: String) -> void:

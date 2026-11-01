@@ -1,11 +1,15 @@
 # disturbance_director.gd — the hall's side of the tavern disturbances (Story 14.4). GameManager rolls today's event in the
 # morning (advance_day) and keeps it (pending_disturbance, saved); this node, added by main_tavern.gd, shows it: in the
-# hall's day phase (TavernLighting's phase, then GameBus.day_phase_changed), with no Game Over and no conversation open,
-# the visitor (disturbance_npc.gd) appears at his type's spot with the type's banner, and the event is "fired". E on him
-# opens his title of data/dialogue/disturbances.dialogue with a bridge kept here; when the box closes, the bridge's
-# choice (bridge.choose(id) in the file) goes to GameManager.resolve_disturbance(), the outcome's line is a banner and he
-# walks out. No choice (Esc, "Walk away"): he stays. Sleep (late_night) sends him off unresolved: the next morning
-# applies the type's "ignored" outcome. A load during the day brings a fired event's visitor back (no banner again).
+# hall's day phase, with no Game Over and no conversation open, the visitor (disturbance_npc.gd) appears at his type's
+# spot with the type's banner, and the event is "fired". The phase is TavernLighting's, read live (code review P1: a
+# morning with no briefing turns to day inside the lighting), else the last GameBus.day_phase_changed. E on him opens his
+# title of data/dialogue/disturbances.dialogue with a bridge kept here; when the box closes, the bridge's choice
+# (bridge.choose(id) in the file) goes to GameManager.resolve_disturbance(), the outcome's line is a banner and he walks
+# out. No choice (Esc, "Walk away"): he stays. Sleep (late_night) sends him off unresolved: the next morning applies the
+# type's "ignored" outcome, logged then, and its line is a banner here once that day begins (GameManager.disturbance_note,
+# review P3). A visitor whose event is no longer today's pending one (a debug path cleared or replaced it, or the day
+# moved) walks out (review P7). A load during the day brings a fired event's visitor back (no banner again). Banners are
+# events (NotificationManager.show_banner(msg, true)): they wait their turn and no low-resource warning pushes them out.
 # No class_name: loaded by path.
 extends Node
 
@@ -17,7 +21,9 @@ const DEFAULT_EXIT := Vector3(8.7, 0.0, 3.3)   # PatronSpawner.entrance_position
 
 ## Where the visitor is added (the patrons' parent, TavernNavigation); found in the scene unless set first (tests).
 var world_parent: Node3D = null
-## The hall's phase: TavernLighting's at start ("day" without one), then GameBus.day_phase_changed's.
+## The hall's TavernLighting (its `phase` is read live); found in the scene unless set first (tests). None: `phase`.
+var lighting: Node = null
+## The last GameBus.day_phase_changed ("reveal" is late_night); at start the lighting's, or "day" without one.
 var phase := ""
 var exit_point := DEFAULT_EXIT
 var leave_timeout := 12.0
@@ -37,9 +43,10 @@ func _ready() -> void:
 			var e = spawner.get("entrance_position")
 			if e is Vector3:
 				exit_point = e
-	if phase == "" and scene:
-		var lighting := scene.find_child("TavernLighting", true, false)
-		phase = str(lighting.get("phase")) if lighting and lighting.get("phase") != null else "day"
+	if lighting == null and scene:
+		lighting = scene.find_child("TavernLighting", true, false)
+	if phase == "":
+		phase = _lighting_phase()
 	if phase == "":
 		phase = "day"
 	GameBus.day_phase_changed.connect(_on_day_phase)
@@ -60,15 +67,41 @@ static func should_fire(ev: Dictionary, day: int, phase_now: String, game_over: 
 		and phase_now == "day" and not game_over and not box_open
 
 
-## Show today's event if it is due and nobody is standing in for it yet.
+## An event's identity (pure): [day, type, truth]; [] for none. A visitor carries his.
+static func event_key(ev: Dictionary) -> Array:
+	return [] if ev.is_empty() else [int(ev.get("day", -1)), str(ev.get("type", "")), str(ev.get("truth", ""))]
+
+
+## The hall's phase now: TavernLighting's, read live (review P1), else the last GameBus phase.
+func phase_now() -> String:
+	var p := _lighting_phase()
+	return p if p != "" else phase
+
+
+func _lighting_phase() -> String:
+	if lighting == null or not is_instance_valid(lighting):
+		return ""
+	var p = lighting.get("phase")
+	return str(p) if p != null else ""
+
+
+## Show today's event if it is due and nobody is standing in for it yet; send away a visitor whose event is gone; show
+## the morning's ignored line once the day has begun.
 func check() -> void:
+	var ev: Dictionary = GameManager.pending_disturbance
+	var now := phase_now()
 	if npc != null and is_instance_valid(npc):
-		return
+		var key = npc.get("event_key")
+		if key == event_key(ev) and int(ev.get("day", -1)) == GameManager.current_day:
+			_show_note(now)
+			return
+		print("[Disturbance] send away: %s, his event is no longer today's (%s)" % [npc.name, event_key(ev)])
+		npc.leave()   # review P7: cleared, replaced or another day's: nobody could resolve him
 	npc = null
+	_show_note(now)
 	if world_parent == null or not is_instance_valid(world_parent):
 		return
-	var ev: Dictionary = GameManager.pending_disturbance
-	if not should_fire(ev, GameManager.current_day, phase, GameManager.game_over_active, Runner.is_open()):
+	if not should_fire(ev, GameManager.current_day, now, GameManager.game_over_active, Runner.is_open()):
 		return
 	var data: Dictionary = GameManager.disturbance_types().get(str(ev.get("type", "")), {})
 	var spot = data.get("spot")
@@ -79,6 +112,7 @@ func check() -> void:
 	var n = load(NPC_SCRIPT).new()
 	n.name = "Disturbance_%s" % ev.get("type", "visitor")
 	n.leave_timeout = leave_timeout
+	n.event_key = event_key(ev)
 	n.setup(str(data.get("body", "traveller")), str(data.get("prompt", "Press E - Talk")), exit_point)
 	world_parent.add_child(n)
 	n.global_position = Vector3(float(spot[0]), 0.0, float(spot[1]))
@@ -88,7 +122,17 @@ func check() -> void:
 	GameManager.mark_disturbance_fired()
 	print("[Disturbance] fire: %s (%s) at (%.2f, %.2f)%s" % [ev.get("type"), ev.get("truth"), float(spot[0]), float(spot[1]), "" if first else ", back after a load"])
 	if first and str(data.get("banner", "")) != "":
-		NotificationManager.show_banner(str(data.banner))
+		NotificationManager.show_banner(str(data.banner), true)
+
+
+## Review P3: the morning's ignored outcome (GameManager.disturbance_note) as a banner once the day has begun (the
+## briefing first), the run not fallen and no conversation open; once.
+func _show_note(now: String) -> void:
+	var note := str(GameManager.disturbance_note)
+	if note == "" or now != "day" or GameManager.game_over_active or Runner.is_open():
+		return
+	GameManager.disturbance_note = ""
+	NotificationManager.show_banner(note, true)
 
 
 func _on_day_phase(p: String) -> void:
@@ -127,7 +171,7 @@ func _on_conversation_closed() -> void:
 	if out.is_empty():
 		return   # an unknown choice: GameManager warned; he stays
 	if str(out.get("line", "")) != "":
-		NotificationManager.show_banner(str(out.line))
+		NotificationManager.show_banner(str(out.line), true)
 	if npc != null and is_instance_valid(npc):
 		npc.leave()
 	npc = null
