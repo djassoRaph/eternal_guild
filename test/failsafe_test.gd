@@ -8409,7 +8409,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"gold_peak", "last_run_summary", "_tax_warnings",   # Stories 13.1 / 13.4: the reset writes these too
 	"staff", "desk_round_day",   # Story 16.1: the staff records; Story 16.4: the day of the Quest Dealer's last round
 	"_rep_warnings", "_death_mult_warnings",   # Story 14.6: the reset re-arms these
-	"pending_disturbance", "last_disturbance_day", "_disturbance_warnings"]   # Story 14.4: the day's disturbance
+	"pending_disturbance", "last_disturbance_day", "_disturbance_warnings",   # Story 14.4: the day's disturbance
+	"fallen_this_run", "disturbance_note", "reputation_peak_tier"]   # Stories 14.4 / 14.6 code review (P4, P3, P9)
 
 
 func test_load_and_resume() -> void:
@@ -8761,7 +8762,8 @@ func _d1_snapshot(gm, wm, pm, ss) -> Dictionary:
 	return {"gm": g, "world_map": wm.world_map, "chosen_center": wm.chosen_center, "rumours": wm.overheard_rumours.duplicate(),
 		"player": pm.player, "spawn": pm.pending_spawn_position, "has_spawn": pm.has_pending_spawn, "save_path": ss.save_path,
 		"scene": current_scene, "run_active": ss.get("run_active"), "codex_path": ss.get("codex_path"),
-		"codex": ss.codex_data.duplicate(true), "last_scene_name": pm._last_scene_name}
+		"codex": ss.codex_data.duplicate(true), "last_scene_name": pm._last_scene_name,
+		"run_profile": root.get_node("DataManager").get("run_profile") if root.get_node_or_null("DataManager") else null}
 
 
 func _d1_restore(s: Dictionary, gm, wm, pm, ss) -> void:
@@ -8783,6 +8785,8 @@ func _d1_restore(s: Dictionary, gm, wm, pm, ss) -> void:
 		ss.codex_path = s.codex_path
 	ss.codex_data = s.codex
 	pm._last_scene_name = s.last_scene_name
+	if s.get("run_profile") != null and root.get_node_or_null("DataManager"):
+		root.get_node("DataManager").set("run_profile", s.run_profile)   # Story 14.6 review P5
 
 
 static func _d1_adv(id: int, adv_name: String, status: int, card: String) -> Dictionary:
@@ -8860,6 +8864,7 @@ func test_pause_menu_save_first() -> void:
 	var run_before = ss.get("run_active")
 	var codex_path_before = ss.get("codex_path")
 	var codex_before: Dictionary = ss.codex_data.duplicate(true)
+	var run_profile_before = root.get_node("DataManager").get("run_profile") if root.get_node_or_null("DataManager") else null
 	_d1_remove_tmp_dir()
 	_d1_clear_dir(D1_PAUSE_DIR)
 	DirAccess.make_dir_recursive_absolute(D1_PAUSE_DIR)
@@ -8885,6 +8890,8 @@ func test_pause_menu_save_first() -> void:
 	paused = false
 	for k in g:
 		gm.set(k, g[k])
+	if run_profile_before != null:
+		root.get_node("DataManager").set("run_profile", run_profile_before)   # Story 14.6 review P5
 	ss.save_path = path_before
 	ss.save_in_progress = false
 	current_scene = scene_before
@@ -9819,7 +9826,7 @@ func _t28_snapshot(gm, wm, dm) -> Dictionary:
 		g[k] = v.duplicate(true) if v is Array or v is Dictionary else v
 	return {"gm": g, "world_map": wm.world_map, "chosen_center": wm.chosen_center, "config": dm.game_config.duplicate(true),
 		"artifacts": dm.artifacts, "scene": current_scene, "warned": gm.get("_party_missions_warned"),
-		"warnings": gm.get("_party_missions_warnings")}
+		"warnings": gm.get("_party_missions_warnings"), "run_profile": dm.get("run_profile")}
 
 
 func _t28_restore(s: Dictionary, gm, wm, dm) -> void:
@@ -9833,6 +9840,8 @@ func _t28_restore(s: Dictionary, gm, wm, dm) -> void:
 		gm.set("_party_missions_warned", s.warned)
 	if s.warnings != null:
 		gm.set("_party_missions_warnings", s.warnings)
+	if s.get("run_profile") != null:
+		dm.set("run_profile", s.run_profile)   # Story 14.6 review P5: a load inside the test set the run's profile
 	_d1_set_scene(s.scene)
 
 
@@ -11333,7 +11342,7 @@ func _check_t31_skipped(gm, events: Array) -> void:
 ## AC 5: no tax number left in the cycle's two functions; they emit on the bus.
 func _check_t31_source() -> void:
 	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
-	var body: String = _func_body(src, "check_tax_deadline") + _func_body(src, "handle_tax_payment")
+	var body: String = _func_body(src, "check_tax_deadline") + _func_body(src, "check_tax_warning") + _func_body(src, "handle_tax_payment")
 	var literals := []
 	for lit in ["1000", "* 5", "+= 30", ">= 3", "== 7", "== 3", "/3", "== 1"]:   # "== 1": review P13
 		if body.contains(lit):
@@ -13720,18 +13729,21 @@ func _check_t36_holds(gm, wm, gb, qd, world: Node3D) -> void:
 func _pin_profile(dm, profile: String):
 	if dm == null:
 		return null
-	var keep = dm.game_config.get("profile")
+	var keep = [dm.game_config.get("profile"), dm.get("run_profile")]
 	dm.game_config["profile"] = profile
+	dm.set("run_profile", "")   # review P5: a run's profile (set by a load) would win over the pin
 	return keep
 
 
 func _unpin_profile(dm, keep) -> void:
-	if dm == null:
+	if dm == null or not (keep is Array):
 		return
-	if keep == null:
+	if keep[0] == null:
 		dm.game_config.erase("profile")
 	else:
-		dm.game_config["profile"] = keep
+		dm.game_config["profile"] = keep[0]
+	if keep[1] != null:
+		dm.set("run_profile", keep[1])
 
 
 # --- Test 37: The demo pacing profile (Story 14.6) ---
@@ -13780,6 +13792,7 @@ func test_demo_pacing() -> void:
 		return
 	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
 	var snap := _t28_snapshot(gm, wm, dm)
+	dm.set("run_profile", "")   # review P5: no run's profile left from an earlier test's load
 	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
 	ss.run_active = false
 	ss.save_path = T37_DIR + "/eternal_guild_save.json"
@@ -13805,6 +13818,12 @@ func test_demo_pacing() -> void:
 	_check_t37_death(gm, dm)
 	_check_t37_welcome(gm, dm)
 	_check_t37_sources()
+	# Code review patches (2026-11-01)
+	_check_t37_run_profile(gm, dm, gb)
+	_check_t37_tier_peak(gm, dm, nm, gb)
+	_check_t37_first_warning(gm, dm, capture)
+	_check_t37_den_fa(gm, dm)
+	_check_t37_review_gaps(gm, dm)
 
 	for s in recs:
 		if gb.is_connected(s, recs[s]):
@@ -14103,23 +14122,29 @@ func _check_t37_warnings(gm, dm) -> void:
 		"New Game re-arms the rep and death warnings; Test 26's field list snapshots them")
 
 
-## AC 5 (DP-6): a tier rise shows a banner; a drop doesn't.
+## AC 5 (DP-6; review P9): a tier reached for the first time this run shows an event banner; a tier change alone shows
+## nothing (a drop, or a rise back to a tier already reached).
 func _check_t37_banner(dm, nm, gb) -> void:
 	dm.game_config["profile"] = "demo"
 	nm.clear_banners()
 	var before: int = _t37_live_banners(nm)
 	gb.reputation_tier_changed.emit("Unknown", "Known")
-	var after_rise: int = _t37_live_banners(nm)
-	var text := ""
-	var last = _t37_last_banner(nm)
-	if last:
-		for l in last.find_children("*", "Label", true, false):
-			text = (l as Label).text
 	gb.reputation_tier_changed.emit("Known", "Unknown")
-	var after_drop: int = _t37_live_banners(nm)
-	check(after_rise == before + 1 and text == "The guild is now Known." and after_drop == after_rise
+	var after_changes: int = _t37_live_banners(nm)
+	var after_reach := -1
+	var text := ""
+	var is_event := false
+	if gb.has_signal("reputation_tier_reached"):
+		gb.reputation_tier_reached.emit("Known")
+		after_reach = _t37_live_banners(nm)
+		var last = _t37_last_banner(nm)
+		if last:
+			is_event = bool(last.get_meta("event", false))
+			for l in last.find_children("*", "Label", true, false):
+				text = (l as Label).text
+	check(after_changes == before and after_reach == before + 1 and text == "The guild is now Known." and is_event
 		and nm.has_method("tier_rise_text") and nm.tier_rise_text("Respected") == "The guild is now Respected.",
-		"NotificationManager: a tier rise shows 'The guild is now Known.'; a drop shows nothing ('%s', %d -> %d -> %d)" % [text, before, after_rise, after_drop])
+		"NotificationManager: reputation_tier_reached shows 'The guild is now Known.' as an event banner; a tier change alone (up or down) shows nothing ('%s', %d -> %d -> %d)" % [text, before, after_changes, after_reach])
 	nm.clear_banners()
 
 
@@ -14247,6 +14272,19 @@ func _check_t37_welcome(gm, dm) -> void:
 	check(tscn.contains("\n- Tax day comes every") and _func_body(mt, "_ready").contains("_fix_welcome_tax_line()")
 		and _func_body(mt, "_fix_welcome_tax_line").contains("tax_rule_line("),
 		"the hall replaces the scene's '- Tax day comes every …' line with the active tax at load (the marker is still in MainTavern.tscn)")
+	var arity := 0
+	for m in (load(GAME_MANAGER_SCRIPT_PATH) as GDScript).get_script_method_list():
+		if m.name == "tax_rule_line":
+			arity = (m.args as Array).size()
+	if arity < 3:
+		check(false, "tax_rule_line(cfg, next_due_day, today) (review P11)")
+	else:
+		var od: String = gm.tax_rule_line(demo_cfg, 3, 4)
+		var due: String = gm.tax_rule_line(demo_cfg, 6, 4)
+		check(od == "- Taxes: 20 gold every 3 days; overdue since Day 3. Gold and beer are your lifelines: run out of both and it's over."
+			and due == "- Taxes: 20 gold every 3 days; the next is due on Day 6. Gold and beer are your lifelines: run out of both and it's over."
+			and _func_body(mt, "_fix_welcome_tax_line").contains("GameManager.current_day"),
+			"on a grace day the welcome text says the tax is overdue since its day, not due on a past day (review P11) ('%s')" % od)
 
 
 ## AC 3: the patron's call and no reputation literal left at the four sources.
@@ -14262,6 +14300,9 @@ func _check_t37_sources() -> void:
 		if body == "" or RegEx.create_from_string("adjust_reputation\\(\\s*-?\\d").search(body) != null:
 			lit.append(f)
 	check(lit.is_empty(), "no reputation literal left in complete_mission / complete_party_mission / dismiss_adventurer %s" % [lit])
+	var dis := _func_body(src, "dismiss_adventurer")
+	check(not dis.contains("-1 reputation") and dis.contains("rep_gain(\"rep_dismiss\")"),
+		"the dismissal's log line reads the profile's rep_dismiss, not a literal -1 (review P15)")
 
 
 # --- Test 38: Tavern disturbances (Story 14.4) ---
@@ -14276,6 +14317,13 @@ const DISTURBANCE_DIALOGUE := "res://data/dialogue/disturbances.dialogue"
 const DIRECTOR_SCRIPT := "res://scripts/game/disturbance_director.gd"
 const VISITOR_SCRIPT := "res://scripts/npcs/disturbance_npc.gd"
 const T38_TYPES := ["thief", "rowdy_drunk", "grieving_family", "rival_guild_rep"]
+## AC 5's DRAFT outcomes, pinned (review P14): type -> truth -> choice -> [reputation, gold].
+const T38_OUTCOMES := {
+	"thief": {"guilty": {"eject": [2, 0], "let_be": [-1, -10], "ignored": [-1, -10]}, "innocent": {"eject": [-2, 0], "let_be": [0, 0], "ignored": [0, 0]}},
+	"rowdy_drunk": {"plain": {"eject": [1, 0], "let_be": [-1, -5], "ignored": [-1, -5]}},
+	"grieving_family": {"plain": {"pay": [2, -15], "talk": [1, 0], "send_away": [-2, 0], "ignored": [-1, 0]}},
+	"rival_guild_rep": {"plain": {"courteous": [1, 0], "drink": [2, -6], "eject": [-1, 0], "ignored": [0, 0]}},
+}
 const T38_FIX := {
 	"a": {"weight": 1, "truths": {"x": 1, "y": 3}, "conditions": {}},
 	"b": {"weight": 3, "truths": {"plain": 1}, "conditions": {}},
@@ -14303,6 +14351,7 @@ func test_disturbances() -> void:
 		return
 	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
 	var snap := _t28_snapshot(gm, wm, dm)
+	dm.set("run_profile", "")   # review P5: no run's profile left from an earlier test's load
 	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
 	ss.run_active = false
 	ss.save_path = T38_DIR + "/eternal_guild_save.json"
@@ -14320,13 +14369,14 @@ func test_disturbances() -> void:
 
 	_check_t38_config(gm, dm)
 	_check_t38_pick(gm)
-	_check_t38_advance(gm, dm, events)
+	_check_t38_advance(gm, dm, events, capture)
 	_check_t38_resolve(gm, events)
-	_check_t38_save(gm)
+	_check_t38_save(gm, events)
 	_check_t38_sources()
-	_check_t38_spots(gm)
+	await _check_t38_spots(gm)
 	await _check_t38_runner_bridge(gm)
 	await _check_t38_hall(gm, nm, events)
+	await _check_t38_quiet_morning(gm, nm)   # code review P1 (2026-11-01)
 
 	for s in recs:
 		if gb.is_connected(s, recs[s]):
@@ -14384,6 +14434,15 @@ func _check_t38_data(dm) -> void:
 	var loaded = dm.get("disturbances")
 	check(loaded is Dictionary and loaded.get("types") is Dictionary and T38_TYPES.all(func(t): return (loaded.types as Dictionary).has(t)),
 		"DataManager loads the types (DataManager.disturbances)")
+	var table := {}
+	for t in types:
+		table[t] = {}
+		for tr in types[t].get("outcomes", {}):
+			table[t][tr] = {}
+			for c in types[t].outcomes[tr]:
+				var o = types[t].outcomes[tr][c]
+				table[t][tr][c] = [_whole_or_null(o.get("rep")), _whole_or_null(o.get("gold"))]
+	check(table == T38_OUTCOMES, "AC 5's DRAFT outcome table, pinned: every type, truth and choice's reputation and gold (review P14) %s" % [table])
 
 
 static func _whole_or_null(v):
@@ -14456,6 +14515,23 @@ func _check_t38_dialogue(dmgr) -> void:
 	check(bad.is_empty() and walks > 10, "every title walked through every reply: each ends; a reply records one of its truth's choices, at least two do, one ('Walk away') records none %s" % [bad])
 	check(not "\n".join(w0.texts).contains("rode out") and "\n".join(w1.texts).contains("Lysa rode out with your guild"),
 		"the mourner names the lost adventurer only when there is one (bridge.disturbance_subject)")
+	var gold_keep = gm.gold
+	var ev_keep = gm.pending_disturbance
+	gm.pending_disturbance = {"type": "grieving_family", "truth": "plain", "day": 1, "state": "fired", "subject": ""}
+	gm.gold = 14
+	var m_poor: Array = await _t38_menu(dmgr, res, "grieving_family")
+	gm.gold = 15
+	var m_rich: Array = await _t38_menu(dmgr, res, "grieving_family")
+	gm.pending_disturbance = {"type": "rival_guild_rep", "truth": "plain", "day": 1, "state": "fired", "subject": ""}
+	gm.gold = 5
+	var r_poor: Array = await _t38_menu(dmgr, res, "rival_guild_rep")
+	gm.gold = 6
+	var r_rich: Array = await _t38_menu(dmgr, res, "rival_guild_rep")
+	gm.gold = gold_keep
+	gm.pending_disturbance = ev_keep
+	check(not m_poor.has("Give her some coin.") and m_poor.has("Tell her about them.") and m_rich.has("Give her some coin.")
+		and not r_poor.has("Buy him a drink.") and r_poor.has("Wish him luck.") and r_rich.has("Buy him a drink."),
+		"the paid replies only when the guild can pay: the mourner's coin from 15 gold, the rival's drink from 6 (review P8) %s %s %s %s" % [m_poor, m_rich, r_poor, r_rich])
 
 
 ## AC 2 (TD-3): the roll's config, pure, and the shipped values under both profiles.
@@ -14482,6 +14558,19 @@ func _check_t38_config(gm, dm) -> void:
 		and demo.schedule == [{"day": 2, "type": "thief", "truth": "guilty"}]
 		and full.reputation_below == 50 and is_equal_approx(full.daily_chance, 0.3) and full.cooldown_days == 3 and full.schedule == [],
 		"the shipped config: the demo's thief on Day 2, then 40%% a morning below 40, 2 days apart; the full game below 50, 30%%, 3 days, no schedule")
+	var keep_c = dm.game_config.get("disturbance_daily_chance")
+	var keep_p = dm.game_config.get("profile")
+	dm.game_config["profile"] = "full"
+	dm.game_config["disturbance_daily_chance"] = "x"
+	gm._disturbance_warnings = 0
+	gm.disturbance_config()
+	gm.disturbance_config()
+	var once: int = gm._disturbance_warnings
+	gm._reset_disturbance_state()
+	var rearmed: int = gm._disturbance_warnings
+	dm.game_config["disturbance_daily_chance"] = keep_c
+	dm.game_config["profile"] = keep_p
+	check(once == 1 and rearmed == 0, "a bad disturbance_* value is warned once a run (%d), New Game re-arms it (%d) (review P14)" % [once, rearmed])
 
 
 ## AC 2, AC 6 (TD-2): pick_disturbance, pure, on fixtures.
@@ -14520,11 +14609,16 @@ func _check_t38_pick(gm) -> void:
 		"pick_disturbance: the schedule first (its truth, else by weight), then the gate, the cooldown, the chance, the deaths a type needs, the weights and the truth; an unknown scheduled type warned %s" % [wrong])
 	check(gm.pick_truth({"truths": {}}, 0.5) == "plain" and gm.pick_truth({"truths": {"x": 1, "y": 3}}, 0.2) == "x" and gm.pick_truth({"truths": {"x": 1, "y": 3}}, 0.3) == "y",
 		"pick_truth: by weight, names in order; none -> plain")
+	var w4: Array = []
+	var sm0: Dictionary = gm.pick_disturbance(4, 0, 0, 0, {"schedule": [{"day": 4, "type": "m", "truth": ""}]}, T38_FIX, [0.99, 0.0, 0.0], w4)
+	var sm1: Dictionary = gm.pick_disturbance(4, 0, 0, 1, {"schedule": [{"day": 4, "type": "m", "truth": ""}]}, T38_FIX, [0.99, 0.0, 0.0], w4)
+	check(sm0.is_empty() and w4.size() == 1 and str(w4[0]).contains("min_deaths") and sm1.get("type") == "m",
+		"a scheduled type honours min_deaths: the mourner scheduled before any death this run is skipped with a warning text; after one she comes (review P4) %s" % [w4])
 
 
 ## AC 2, AC 4 (TD-2): the morning's step: yesterday's shown and unresolved -> its ignored outcome; never shown -> dropped;
 ## then today's roll; a fallen run -> nothing.
-func _check_t38_advance(gm, dm, events: Array) -> void:
+func _check_t38_advance(gm, dm, events: Array, capture) -> void:
 	dm.game_config["profile"] = "full"
 	gm.game_over_active = false
 	gm.current_day = 7
@@ -14534,11 +14628,16 @@ func _check_t38_advance(gm, dm, events: Array) -> void:
 	gm.deaths_this_run = 0
 	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 6, "state": "fired", "subject": ""}
 	events.clear()
+	capture.lines.clear()
 	gm._advance_disturbances([0.99, 0.0, 0.0])
 	var ignored := events.duplicate()
 	var after_ignored: Dictionary = gm.pending_disturbance
 	check(ignored == [["adj", -1, 9, "disturbance_ignored"], ["dist", "thief", "ignored", -1, -10]] and gm.gold == 90 and after_ignored.is_empty(),
 		"yesterday's thief, seen and left alone: the ignored outcome (-1 reputation, -10 gold), reason disturbance_ignored; no new event on a missed roll %s" % [ignored])
+	var logged: bool = capture.lines.any(func(l): return str(l).begins_with("He slipped out. A patron's purse went with him."))
+	check(logged and str(gm.get("disturbance_note")) == "He slipped out. A patron's purse went with him.",
+		"the ignored outcome's line is logged that morning and kept for the hall's banner (review P3) %s" % [capture.lines])
+	gm.set("disturbance_note", "")
 	gm.pending_disturbance = {"type": "rowdy_drunk", "truth": "plain", "day": 6, "state": "queued", "subject": ""}
 	events.clear()
 	gm._advance_disturbances([0.0, 0.0, 0.0])
@@ -14553,14 +14652,17 @@ func _check_t38_advance(gm, dm, events: Array) -> void:
 	var cooled: bool = gm.pending_disturbance.is_empty()
 	gm.current_day = 10
 	gm.deaths_this_run = 1
+	gm.set("fallen_this_run", ["Bram"])
 	gm._advance_disturbances([0.0, 0.0, 0.0])
 	var first_after: Dictionary = gm.pending_disturbance
 	gm.pending_disturbance = {}
 	gm.current_day = 13
+	gm.set("fallen_this_run", [])
 	gm._advance_disturbances([0.0, 0.0, 0.0])
 	var mourner: Dictionary = gm.pending_disturbance
-	check(cooled and first_after.get("type") == "grieving_family" and first_after.get("subject") == "Lysa" and mourner.get("type") == "grieving_family",
-		"the cooldown holds the next two days; after a death the mourner can come, naming the newest fallen (Lysa) %s" % [first_after])
+	check(cooled and first_after.get("type") == "grieving_family" and first_after.get("subject") == "Bram" and mourner.get("type") == "grieving_family"
+		and mourner.get("subject") == "",
+		"the cooldown holds the next two days; after a death the mourner can come, naming THIS run's newest fallen (Bram, not the codex's Lysa); a death with no name kept (an older save) names nobody (review P4) %s %s" % [first_after, mourner])
 	gm.pending_disturbance = {}
 	gm.game_over_active = true
 	gm.current_day = 20
@@ -14578,6 +14680,27 @@ func _check_t38_advance(gm, dm, events: Array) -> void:
 		"a fallen run rolls nothing; the demo's Day 2 brings the guilty thief whatever the reputation and the roll %s" % [demo_thief])
 	gm.pending_disturbance = {}
 	gm.tavern_reputation = 10
+	# Review P7: an event of another day is settled (day != today): a debug jump back leaves nothing frozen
+	gm.current_day = 7
+	gm.pending_disturbance = {"type": "rival_guild_rep", "truth": "plain", "day": 9, "state": "fired", "subject": ""}
+	events.clear()
+	gm._advance_disturbances([0.99, 0.0, 0.0])
+	check(gm.pending_disturbance.is_empty() and events == [["dist", "rival_guild_rep", "ignored", 0, 0]],
+		"an event dated after today (F12's Jump to day, back) is settled too: its ignored outcome, then today's roll (review P7) %s" % [events])
+	gm.set("disturbance_note", "")
+	# Review P4: F12's queue honours min_deaths and names this run's fallen
+	gm.deaths_this_run = 0
+	gm.set("fallen_this_run", [])
+	gm.pending_disturbance = {}
+	var refused_q: bool = not gm.debug_queue_disturbance("grieving_family")
+	var none_q: bool = gm.pending_disturbance.is_empty()
+	gm.deaths_this_run = 1
+	gm.set("fallen_this_run", ["Bram"])
+	var ok_q: bool = gm.debug_queue_disturbance("grieving_family")
+	check(refused_q and none_q and ok_q and gm.pending_disturbance.get("subject") == "Bram",
+		"F12's queue honours min_deaths: no mourner before a death this run; after one she names this run's fallen (review P4)")
+	gm.pending_disturbance = {}
+	gm.deaths_this_run = 0
 
 
 ## AC 5 (TD-6): every outcome of the data applied through resolve_disturbance; the refusals.
@@ -14628,10 +14751,30 @@ func _check_t38_resolve(gm, events: Array) -> void:
 	check(gm.mark_disturbance_fired() and gm.pending_disturbance.state == "fired", "mark_disturbance_fired: today's event becomes fired")
 	gm.pending_disturbance = {}
 	check(not gm.mark_disturbance_fired(), "mark_disturbance_fired: false with no event today")
+	var moved: Array = []
+	var fg := func(v): moved.append(v)
+	gm.gold_changed.connect(fg)
+	gm.current_day = 4
+	gm.gold = 100
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 4, "state": "fired", "subject": ""}
+	gm.resolve_disturbance("eject")
+	var none_moved: bool = moved.is_empty()
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 4, "state": "fired", "subject": ""}
+	gm.resolve_disturbance("let_be")
+	var one: bool = moved == [90]
+	gm.gold = 0
+	moved.clear()
+	gm.pending_disturbance = {"type": "rowdy_drunk", "truth": "plain", "day": 4, "state": "fired", "subject": ""}
+	gm.resolve_disturbance("let_be")
+	var broke: bool = moved.is_empty()
+	gm.gold_changed.disconnect(fg)
+	gm.pending_disturbance = {}
+	check(none_moved and one and broke, "gold_changed only when gold moved: a 0-gold outcome and a loss from an empty purse send none, a 10-gold loss one (review P14) %s" % [moved])
 
 
 ## AC 7 (TD-8): saved, loaded (junk-proof, silent), reset.
-func _check_t38_save(gm) -> void:
+func _check_t38_save(gm, events: Array) -> void:
+	events.clear()
 	gm.pending_disturbance = {"type": "thief", "truth": "innocent", "day": 4, "state": "fired", "subject": ""}
 	gm.last_disturbance_day = 4
 	var saved = JSON.parse_string(JSON.stringify(gm._disturbance_save_data()))
@@ -14652,6 +14795,23 @@ func _check_t38_save(gm) -> void:
 		"the event and the cooldown day survive save -> JSON -> load; an older save, an unknown type, a bad day or state load as none; New Game clears them %s" % [junk])
 	check(D1_GM_FIELDS.has("pending_disturbance") and D1_GM_FIELDS.has("last_disturbance_day") and D1_GM_FIELDS.has("_disturbance_warnings"),
 		"Test 26's D1_GM_FIELDS snapshot the disturbance fields")
+	gm.set("fallen_this_run", ["Bram", "Ilse"])
+	var dsave = JSON.parse_string(JSON.stringify(gm._dialogue_save_data()))
+	gm.set("fallen_this_run", [])
+	gm._load_dialogue_data(dsave)
+	var rt = gm.get("fallen_this_run")
+	gm._load_dialogue_data({"fallen_this_run": ["A", 3, null, "B"]})
+	var cleaned = gm.get("fallen_this_run")
+	gm._load_dialogue_data({})
+	var old = gm.get("fallen_this_run")
+	gm.set("fallen_this_run", ["X"])
+	gm._reset_dialogue_state()
+	var after_reset = gm.get("fallen_this_run")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(rt == ["Bram", "Ilse"] and cleaned == ["A", "B"] and old == [] and after_reset == [] and D1_GM_FIELDS.has("fallen_this_run")
+		and _func_body(src, "handle_adventurer_death").contains("fallen_this_run.append("),
+		"this run's fallen names: added at each death, saved with the conversation state, loaded junk-proof (names only; an older save: none), reset by New Game (review P4) %s %s" % [rt, cleaned])
+	check(events.is_empty(), "the event's and the conversation state's loads and resets send no reputation or disturbance signal (review P14) %s" % [events])
 
 
 ## Source checks: where the morning step, the save, the hall's director live; no class_name on the new scripts.
@@ -14667,31 +14827,70 @@ func _check_t38_sources() -> void:
 	var vs = load(VISITOR_SCRIPT)
 	check(ds is GDScript and (ds as GDScript).get_global_name() == "" and vs is GDScript and (vs as GDScript).get_global_name() == "",
 		"disturbance_director.gd and disturbance_npc.gd have no class_name")
+	check(adv.find("_advance_disturbances()") < adv.find("_check_soft_lock()") and _func_body(src, "_advance_disturbances").contains("_note_ignored("),
+		"the morning's ignored outcome is logged before the soft-lock check can end the run (review P3)")
+	var tl := FileAccess.get_file_as_string("res://scripts/game/tavern_lighting.gd")
+	var dsrc := FileAccess.get_file_as_string(DIRECTOR_SCRIPT)
+	check(_lm_in_func(tl, "_end_morning_hold", "day_phase_changed.emit(\"day\")") and _lm_in_func(tl, "_process", "_end_morning_hold()")
+		and _func_body(dsrc, "check").contains("phase_now()"),
+		"TavernLighting's morning hold ends with GameBus day_phase_changed('day'); the director's check reads the phase live (review P1)")
+	var dp = load(DEBUG_PANEL_SCRIPT_PATH)
+	check(dp.disturbance_line({}, 0) == "none · last 0" and dp.disturbance_line({"type": "thief", "truth": "guilty", "state": "fired", "day": 2}, 2) == "thief (guilty) fired, day 2 · last 2",
+		"F12's State tab reads the disturbance: 'thief (guilty) fired, day 2 · last 2' / 'none · last 0' (AC 8, review P14)")
 
 
-## AC 3 (TD-10): each spot is on the hall's navmesh, at least 1.5 m from every E zone's edge (a box as the disc of half
-## its diagonal) and the front door's trigger, and 1 m from every patron seat.
+## AC 3 (TD-10; review P2): each spot is on the hall's navmesh (0.4 m in from its edge), at least T38_ZONE_CLEAR from
+## every E zone of the hall (every Area3D's shape: oriented boxes and circles; Den Fa's walk to the bar as a moving
+## circle) and at least T38_SEAT_CLEAR from every patron seat (the scene's patron_seat markers, their sit roots and
+## approach points, and the table spots PatronSpawner keeps). The hall is instanced with every script stripped (Test 19).
+const T38_ZONE_CLEAR := 2.3    # his talk radius (1.2) + two player radii: E never has two zones to choose between
+const T38_SEAT_CLEAR := 4.55   # a patron waiting within 3 m of the player takes E (ZonePromptUI); + 1.2 + the player's 0.35
+
+
 func _check_t38_spots(gm) -> void:
-	var tav := _scene_nodes(TAVERN_SCENE_PATH)
-	var nav: NavigationMesh = null
-	var zones := []   # [name, x, z, radius]
-	for path in tav:
-		var n: Dictionary = tav[path]
-		if path.ends_with("TavernNavigation"):
-			nav = n.props.get("navigation_mesh")
-		if n.type == "CollisionShape3D" and (path.contains("/Interactive/") or path.contains("FrontDoor/Trigger")):
-			var sh = n.props.get("shape")
-			var r := 1.0
+	var scene: Node = (load(TAVERN_SCENE_PATH) as PackedScene).instantiate()
+	var tn_path := "SubViewportContainer/SubViewport/TavernNavigation"
+	var den := scene.get_node_or_null(tn_path + "/Furniture/DenFa")
+	var den_route = den.get("bar_route") if den else null
+	var psn = load("res://scripts/npcs/PatronSpawner.gd").new()
+	var tables: Array = (psn.table_positions as Array).duplicate()
+	psn.free()
+	_strip_scripts(scene)
+	root.add_child(scene)
+	await process_frame
+	var tn := scene.get_node(tn_path) as NavigationRegion3D
+	var zones := []
+	var den_r := 0.9
+	for a in scene.find_children("*", "Area3D", true, false):
+		for c in a.find_children("*", "CollisionShape3D", true, false):
+			var t: Transform3D = (c as CollisionShape3D).global_transform
+			var sh = (c as CollisionShape3D).shape
+			var o := Vector2(t.origin.x, t.origin.z)
 			if sh is BoxShape3D:
-				r = 0.5 * Vector2((sh as BoxShape3D).size.x, (sh as BoxShape3D).size.z).length()
+				var s: Vector3 = (sh as BoxShape3D).size
+				zones.append([str(a.name), "box", o, Vector2(t.basis.x.x, t.basis.x.z) * s.x * 0.5, Vector2(t.basis.z.x, t.basis.z.z) * s.z * 0.5])
 			elif sh is SphereShape3D:
-				r = (sh as SphereShape3D).radius
-			var o: Vector3 = (n.world as Transform3D).origin
-			zones.append([path.get_file(), o.x, o.z, r])
-		if n.instance.ends_with("DenFa.tscn") or n.instance.ends_with("TheCat.tscn"):
-			var o2: Vector3 = (n.world as Transform3D).origin
-			zones.append([path.get_file(), o2.x, o2.z, 0.9])
+				zones.append([str(a.name), "circle", o, (sh as SphereShape3D).radius])
+				if str(scene.get_path_to(a)).contains("DenFa"):
+					den_r = (sh as SphereShape3D).radius
+	var route := []
+	if den_route is PackedVector3Array:
+		for q in den_route:
+			route.append(Vector2(q.x, q.z))
+	var marks := []
+	for n in scene.find_children("*", "Node3D", true, false):
+		if n.is_in_group("patron_seat"):
+			marks.append((n as Node3D).global_transform)
+	var seats: Array = load("res://scripts/npcs/PatronSpawner.gd").build_seats(marks, tables)
+	var seat_pts := []
+	for s in seats:
+		seat_pts.append(Vector2(s.approach.x, s.approach.z))
+		var r: Vector3 = load(PATRON_SCRIPT_PATH).seat_root(s.sit) if s.sit != null else s.approach
+		seat_pts.append(Vector2(r.x, r.z))
+	for m in marks:
+		seat_pts.append(Vector2((m as Transform3D).origin.x, (m as Transform3D).origin.z))
 	var polys := []
+	var nav: NavigationMesh = tn.navigation_mesh if tn else null
 	if nav:
 		var verts := nav.get_vertices()
 		for i in nav.get_polygon_count():
@@ -14699,18 +14898,36 @@ func _check_t38_spots(gm) -> void:
 			for vi in nav.get_polygon(i):
 				pg.append(Vector2(verts[vi].x, verts[vi].z))
 			polys.append(pg)
-	var seats := [[-3.847, -0.915], [-2.1, -2.5], [-2.715, -3.5], [-4.2, -2.8], [-1.5, -1.2]]   # PatronSpawner.table_positions
+	var on_nav := func(q: Vector2) -> bool: return polys.any(func(pg): return Geometry2D.is_point_in_polygon(q, pg))
 	var bad := []
+	var report := []
 	for t in gm.disturbance_types():
-		var s = gm.disturbance_types()[t].spot
-		var p := Vector2(float(s[0]), float(s[1]))
-		var on := polys.any(func(pg): return Geometry2D.is_point_in_polygon(p, pg))
-		var near := zones.filter(func(z): return p.distance_to(Vector2(z[1], z[2])) - float(z[3]) < 1.5)
-		var seat_near := seats.filter(func(q): return p.distance_to(Vector2(q[0], q[1])) < 1.0)
-		if not on or not near.is_empty() or not seat_near.is_empty():
-			bad.append("%s %s: on the navmesh %s, zones %s, seats %s" % [t, p, on, near, seat_near])
-	check(nav != null and zones.size() >= 9 and bad.is_empty(),
-		"every visitor's spot is on the navmesh, 1.5 m from every E zone (%d) and the door, 1 m from the table seats %s" % [zones.size(), bad])
+		var sp = gm.disturbance_types()[t].spot
+		var p := Vector2(float(sp[0]), float(sp[1]))
+		var inside: bool = on_nav.call(p)
+		for k in 8:
+			inside = inside and on_nav.call(p + Vector2.from_angle(k * PI / 4.0) * 0.4)
+		var zc := INF
+		var zn := ""
+		for z in zones:
+			var dz := _t38_zone_dist(p, z)
+			if dz < zc:
+				zc = dz
+				zn = z[0]
+		if route.size() > 1 and _t38_polyline_dist(p, route) - den_r < zc:
+			zc = _t38_polyline_dist(p, route) - den_r
+			zn = "Den Fa's walk"
+		var sc := INF
+		for q in seat_pts:
+			sc = minf(sc, p.distance_to(q))
+		report.append("%s %.2f (%s) / %.2f" % [t, zc, zn, sc])
+		if not inside or zc < T38_ZONE_CLEAR or sc < T38_SEAT_CLEAR:
+			bad.append("%s %s: on the navmesh %s, zone %.2f (%s), seat %.2f" % [t, p, inside, zc, zn, sc])
+	check(nav != null and zones.size() >= 9 and marks.size() >= 12 and seats.size() >= 17 and route.size() > 1 and bad.is_empty(),
+		"every visitor's spot is on the navmesh, %.1f m from every E zone (%d, Den Fa's walk too) and %.2f m from every patron seat (%d markers, %d seats) %s %s"
+		% [T38_ZONE_CLEAR, zones.size(), T38_SEAT_CLEAR, marks.size(), seats.size(), bad, report])
+	scene.queue_free()
+	await process_frame
 
 
 ## TD-7: the runner hands the box the bridge it is given (the caller reads its choice), or a new one.
@@ -14780,15 +14997,17 @@ func _check_t38_hall(gm, nm, events: Array) -> void:
 	var at_spot: bool = v != null and Vector2(v.global_position.x, v.global_position.z).distance_to(Vector2(spot[0], spot[1])) < 0.05
 	var bodied: bool = v != null and (v.model != null and not v.model.find_children("*", "MeshInstance3D", true, false).is_empty())
 	var banner := ""
+	var banner_event := false
 	for p in nm._container.get_children():
 		if not p.is_queued_for_deletion():
 			for l in p.find_children("*", "Label", true, false):
 				banner = (l as Label).text
+			banner_event = bool(p.get_meta("event", false))
 	for i in 3:
 		await process_frame
 	var claimed: bool = v != null and ui.connected_zones.has(v.talk_zone)
 	check(none_evening and visitors.size() == 1 and at_spot and bodied and gm.pending_disturbance.state == "fired"
-		and banner == "A stranger lingers by the tables." and claimed,
+		and banner == "A stranger lingers in the hall." and claimed,
 		"the director: nothing in the evening; in the day phase ONE visitor at the thief's spot with a body, the event fired, the banner, his talk zone given to the ZonePromptUI (%s, '%s')" % [visitors.size(), banner])
 	# a conversation: E's request opens his title with the director's bridge; closed with no choice, he stays
 	d._on_talk_requested(v)
@@ -14843,7 +15062,367 @@ func _check_t38_hall(gm, nm, events: Array) -> void:
 		and not d.should_fire({"day": 5, "state": "queued"}, 5, "day", false, true) and not d.should_fire({"day": 4, "state": "fired"}, 5, "day", false, false)
 		and not d.should_fire({}, 5, "day", false, false) and d.should_fire({"day": 5, "state": "fired"}, 5, "day", false, false),
 		"should_fire: today's event, queued or shown, in the day phase; not after the fall, not while a conversation is open")
+	# Review P7: a visitor whose event is gone (F12's Reset Economy), replaced, or of another day (Jump to day) walks out;
+	# a new event brings its own visitor.
+	var dv = d2.npc
 	gm.pending_disturbance = {}
+	d2.check()
+	var sent: bool = dv != null and is_instance_valid(dv) and dv.leaving and d2.npc == null
+	gm.pending_disturbance = {"type": "thief", "truth": "innocent", "day": 5, "state": "queued", "subject": ""}
+	d2.check()
+	var nv = d2.npc
+	var fresh: bool = nv != null and is_instance_valid(nv) and nv != dv and gm.pending_disturbance.get("state") == "fired"
+	gm.pending_disturbance = {"type": "rowdy_drunk", "truth": "plain", "day": 5, "state": "queued", "subject": ""}
+	d2.check()
+	var replaced: bool = is_instance_valid(nv) and nv.leaving
+	var nv2 = d2.npc
+	gm.current_day = 6
+	d2.check()
+	var jumped: bool = nv2 != null and is_instance_valid(nv2) and nv2.leaving and d2.npc == null
+	gm.current_day = 5
+	check(sent and fresh and replaced and jumped,
+		"a visitor whose event is gone, replaced or of another day walks out; a new event brings its own visitor (review P7) %s" % [[sent, fresh, replaced, jumped]])
+	# Review P14: a Game Over holds today's visitor back
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 5, "state": "queued", "subject": ""}
+	gm.game_over_active = true
+	d2.check()
+	var over_none: bool = d2.npc == null and gm.pending_disturbance.get("state") == "queued"
+	gm.game_over_active = false
+	gm.pending_disturbance = {}
+	check(over_none, "after the fall (game_over_active) the director shows no visitor, the event left queued")
+	# Review P3: the morning's ignored outcome is a banner once the day begins (after the briefing), an event banner
+	nm.clear_banners()
+	await process_frame
+	gm.set("disturbance_note", "He slipped out. A patron's purse went with him.")
+	d2.phase = "morning"
+	d2.check()
+	var held_note: Array = _t38_banners(nm)
+	d2.phase = "day"
+	d2.check()
+	var shown_note: Array = _t38_banners(nm)
+	check(held_note.is_empty() and shown_note == [["He slipped out. A patron's purse went with him.", true]] and str(gm.get("disturbance_note")) == "",
+		"the morning's ignored line waits for the day phase (the briefing first), then shows once as an event banner %s" % [shown_note])
+	# the director's banners are events (tax and staff events' queue; never pushed out by a low-resource warning)
+	check(banner_event, "the visitor's arrival banner is an event banner (NotificationManager.show_banner(msg, true))")
+	# Review P13: TD-11's talk radius 1.2; TD-6's fade: a visitor who isn't out in time fades over fade_seconds, then goes
+	var VS = load(VISITOR_SCRIPT)
+	var vconst: Dictionary = (VS as GDScript).get_script_constant_map()
+	var fv = VS.new()
+	fv.setup("traveller", "Press E - Talk", Vector3(60.0, 0.0, 60.0))
+	fv.leave_timeout = 0.2
+	fv.set("fade_seconds", 0.4)
+	world.add_child(fv)
+	await process_frame
+	var zone_r := -1.0
+	if fv.talk_zone and fv.talk_zone.get_child_count() > 0 and fv.talk_zone.get_child(0).shape is SphereShape3D:
+		zone_r = (fv.talk_zone.get_child(0).shape as SphereShape3D).radius
+	fv.leave()
+	var tf := Time.get_ticks_msec()
+	var saw_fade := false
+	var saw_clear := false
+	while is_instance_valid(fv) and Time.get_ticks_msec() - tf < 2500:
+		if fv.get("fading") == true:
+			saw_fade = true
+			for g in fv.find_children("*", "GeometryInstance3D", true, false):
+				if (g as GeometryInstance3D).transparency > 0.05:
+					saw_clear = true
+		await physics_frame
+	var gone_ms := Time.get_ticks_msec() - tf
+	check(vconst.get("TALK_RADIUS") == 1.2 and is_equal_approx(zone_r, 1.2) and saw_fade and saw_clear and not is_instance_valid(fv) and gone_ms >= 450,
+		"the talk zone's radius is 1.2 (TD-11); not out within leave_timeout, he fades (transparency) over fade_seconds, then goes (%d ms) (TD-6)" % gone_ms)
+	# Review P14: the body fallbacks: an unknown variant and a variant whose files are missing take the patrons' fallback body
+	var uv = VS.new()
+	uv.setup("t38_no_such_variant", "x", Vector3.ZERO)
+	world.add_child(uv)
+	var gv = VS.new()
+	gv.set("pool_override", [{"id": "t38_ghost", "model_path": "res://t38/no_such_body.glb"}])
+	gv.setup("t38_ghost", "x", Vector3.ZERO)
+	world.add_child(gv)
+	await process_frame
+	var fb: String = load(PATRON_SCRIPT_PATH).FALLBACK_MODELS[0]
+	check(uv.model != null and uv.using_fallback and str(uv.get("body_path")) == fb and gv.model != null and gv.using_fallback and str(gv.get("body_path")) == fb,
+		"an unknown variant and a variant with no body file both take the patrons' fallback body (%s), flagged, not the pool's first townsperson (%s, %s)" % [fb.get_file(), uv.get("body_path"), gv.get("body_path")])
+	uv.queue_free()
+	gv.queue_free()
+	gm.pending_disturbance = {}
+	world.queue_free()
+	await process_frame
+	await process_frame
+
+
+# --- Tests 37 and 38: code review patches (Stories 14.6, 14.4; 2026-11-01) ---
+
+## 14.6 review P5 (K-13, provisional): the profile is per run. The save records it; a load takes the save's (an older save
+## without one: the full game); New Game takes game_config's. A load and New Game stay silent (P14).
+func _check_t37_run_profile(gm, dm, gb) -> void:
+	if not gm.has_method("profile_from_save") or not dm.has_method("set_run_profile") or not dm.has_method("clear_run_profile"):
+		check(false, "GameManager.profile_from_save, DataManager.set_run_profile / clear_run_profile (review P5)")
+		return
+	var fx := {"profile": "demo", "starting_gold": 1000, "profiles": {"demo": {"starting_gold": 40}}}
+	check(dm.resolve_config(fx, "starting_gold", null, [], "full") == 1000 and dm.resolve_config(fx, "starting_gold", null, [], "") == 40
+		and dm.resolve_config(fx, "starting_gold") == 40,
+		"resolve_config: the run's profile wins over the file's (full: 1000); none -> the file's (demo: 40)")
+	check(gm.profile_from_save({}) == "full" and gm.profile_from_save({"profile": "demo"}) == "demo" and gm.profile_from_save({"profile": 3}) == "full"
+		and gm.profile_from_save({"profile": ""}) == "full" and gm.profile_from_save({"profile": "full"}) == "full",
+		"profile_from_save: the saved profile; an older save (none), junk or '' -> full")
+	dm.game_config["profile"] = "demo"
+	var quiet: Array = []
+	var spies := {
+		"reputation_adjusted": func(_d, _v, _r): quiet.append("adj"),
+		"reputation_tier_changed": func(_o, _n): quiet.append("tier"),
+		"reputation_tier_reached": func(_t): quiet.append("reached"),
+	}
+	for s in spies:
+		if gb.has_signal(s):
+			gb.connect(s, spies[s])
+	var full_save: Dictionary = D1_DAY_FIXTURE.duplicate(true)
+	full_save["profile"] = "full"
+	full_save["tavern_reputation"] = 30
+	gm.load_save_data(full_save)
+	var as_full := [dm.get_profile(), dm.is_demo(), int(dm.get_config("starting_gold", 0)), int(gm.tax_config().interval_days), str(gm.get_save_data().get("profile", ""))]
+	gm.load_save_data(D1_DAY_FIXTURE.duplicate(true))
+	var old_save := [dm.get_profile(), int(gm.tax_config().interval_days)]
+	var demo_save: Dictionary = D1_DAY_FIXTURE.duplicate(true)
+	demo_save["profile"] = "demo"
+	gm.load_save_data(demo_save)
+	var as_demo := [dm.get_profile(), int(gm.tax_config().interval_days)]
+	gm.load_save_data(full_save)
+	gm.begin_new_run()
+	var fresh := [dm.get("run_profile"), dm.get_profile(), int(gm.tax_config().interval_days), gm.gold, str(gm.get_save_data().get("profile", ""))]
+	for s in spies:
+		if gb.has_signal(s) and gb.is_connected(s, spies[s]):
+			gb.disconnect(s, spies[s])
+	var pm = root.get_node_or_null("PlayerManager")
+	if pm:
+		pm.clear_pending_spawn()
+	check(as_full == ["full", false, 1000, 30, "full"],
+		"a save made under the full game, loaded with the demo shipped: the run stays the full game (1000 gold, a 30-day tax) and saves as full %s" % [as_full])
+	check(old_save == ["full", 30] and as_demo == ["demo", 3], "an older save (no profile) loads as the full game; a demo save as the demo %s %s" % [old_save, as_demo])
+	check(fresh == ["", "demo", 3, 40, "demo"], "New Game (begin_new_run) drops the run's profile: game_config's (the demo: 40 gold, a 3-day tax), saved as demo %s" % [fresh])
+	check(quiet.is_empty(), "a load (to reputation 30, past a tier) and New Game send no reputation_adjusted, reputation_tier_changed or reputation_tier_reached (review P14) %s" % [quiet])
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var lb := _func_body(src, "load_save_data")
+	var nb := _func_body(src, "begin_new_run")
+	check(lb.find("DataManager.set_run_profile(profile_from_save(data))") >= 0 and lb.find("DataManager.set_run_profile(") < lb.find("gold_peak_from_save(")
+		and nb.find("DataManager.clear_run_profile()") >= 0 and nb.find("DataManager.clear_run_profile()") < nb.find("reset_game_state()")
+		and _func_body(src, "get_save_data").contains("\"profile\": DataManager.get_profile()"),
+		"load_save_data sets the run's profile before it reads any config; begin_new_run drops it before the reset; get_save_data writes it")
+	dm.clear_run_profile()
+
+
+## 14.6 review P9: a tier's banner once a run: the run's highest tier (saved; New Game 0); GuildBus.reputation_tier_reached
+## only above it, so reputation hovering at a threshold shows one banner (an event banner).
+func _check_t37_tier_peak(gm, dm, nm, gb) -> void:
+	if not gb.has_signal("reputation_tier_reached") or not ("reputation_peak_tier" in gm) or not gm.has_method("reputation_peak_from_save"):
+		check(false, "GuildBus.reputation_tier_reached, GameManager.reputation_peak_tier / reputation_peak_from_save (review P9)")
+		return
+	dm.game_config["profile"] = "demo"
+	nm.clear_banners()
+	var reached: Array = []
+	var tiers: Array = []
+	var f_reach := func(t): reached.append(t)
+	var f_tier := func(_o, n): tiers.append(n)
+	gb.reputation_tier_reached.connect(f_reach)
+	gb.reputation_tier_changed.connect(f_tier)
+	gm.tavern_reputation = 9
+	gm.reputation_peak_tier = 0
+	gm.adjust_reputation(1, "t37_hover")
+	gm.adjust_reputation(-1, "t37_hover")
+	gm.adjust_reputation(1, "t37_hover")
+	var banners: int = _t37_live_banners(nm)
+	var last = _t37_last_banner(nm)
+	var is_event: bool = last != null and bool(last.get_meta("event", false))
+	gm.adjust_reputation(14, "t37_next")
+	gb.reputation_tier_reached.disconnect(f_reach)
+	gb.reputation_tier_changed.disconnect(f_tier)
+	check(tiers == ["Known", "Unknown", "Known", "Trusted"] and reached == ["Known", "Trusted"] and banners == 1 and is_event and gm.reputation_peak_tier == 2,
+		"+1 / -1 / +1 at Known's threshold: three tier changes, ONE reputation_tier_reached and one banner (an event); Trusted next is a new peak %s %s" % [tiers, reached])
+	check(gm.reputation_peak_from_save(3, 1) == 3 and gm.reputation_peak_from_save(null, 2) == 2 and gm.reputation_peak_from_save("x", 0) == 0
+		and gm.reputation_peak_from_save(1, 2) == 2 and gm.reputation_peak_from_save(-4, 0) == 0,
+		"reputation_peak_from_save: the saved peak, never below the loaded reputation's tier; an older save or junk -> that tier")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var lb := _func_body(src, "load_save_data")
+	check(_func_body(src, "get_save_data").contains("\"reputation_peak_tier\": reputation_peak_tier") and lb.find("reputation_peak_from_save(") > lb.find("tavern_reputation = _save_int(")
+		and _func_body(src, "reset_game_state").contains("reputation_peak_tier = 0") and D1_GM_FIELDS.has("reputation_peak_tier"),
+		"the peak is saved, loaded after the reputation, reset by New Game; Test 26's D1_GM_FIELDS snapshot it")
+	nm.clear_banners()
+
+
+## 14.6 review P10: the run's first tax is warned from its first day (Day 1 has no morning): check_tax_warning, run once by
+## the hall's first load after New Game, and by each morning's check_tax_deadline.
+func _check_t37_first_warning(gm, dm, capture) -> void:
+	if not gm.has_method("check_tax_warning"):
+		check(false, "GameManager.check_tax_warning (review P10)")
+		return
+	var eb = root.get_node("EconomyBus")
+	var got: Array = []
+	var f := func(d, a): got.append([d, a])
+	eb.tax_warning.connect(f)
+	dm.game_config["profile"] = "demo"
+	gm.adventurers = []
+	gm.tax_grace_days = 0
+	gm.current_day = 1
+	gm.tax_due_day = 3
+	capture.lines.clear()
+	var day1: bool = gm.check_tax_warning()
+	var line1: Array = capture.lines.duplicate()
+	gm.current_day = 2
+	var day2: bool = gm.check_tax_warning()
+	dm.game_config["profile"] = "full"
+	gm.current_day = 1
+	gm.tax_due_day = 30
+	var full1: bool = gm.check_tax_warning()
+	dm.game_config["profile"] = "demo"
+	eb.tax_warning.disconnect(f)
+	check(day1 and day2 and not full1 and got == [[2, 20], [1, 20]] and line1.size() == 1 and str(line1[0]) == "Tax payment due in 2 days. Need 20 gold.",
+		"check_tax_warning: the demo's Day-3 tax is warned on Day 1 (2 days) and Day 2 (1 day); the full game's Day-30 tax says nothing on Day 1 %s %s" % [got, line1])
+	var mt := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
+	var rb := _func_body(mt, "_ready")
+	var at := rb.find("if GameManager.pending_new_game_save:")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(at >= 0 and rb.find("GameManager.check_tax_warning()", at) > at and _func_body(src, "check_tax_deadline").contains("check_tax_warning()"),
+		"the hall's first load after New Game runs check_tax_warning() once; each morning's check_tax_deadline uses it")
+
+
+## 14.6 review P12: Den Fa follows the active profile's tiers (the demo: Known at 10 -> mid, Trusted at 24 -> late).
+func _check_t37_den_fa(gm, dm) -> void:
+	dm.game_config["profile"] = "demo"
+	gm.den_fa_state = "early"
+	gm.tavern_reputation = 9
+	gm.adjust_reputation(1, "t37_den_fa")
+	var mid: String = gm.den_fa_state
+	gm.tavern_reputation = 23
+	gm.adjust_reputation(1, "t37_den_fa")
+	var late: String = gm.den_fa_state
+	check(mid == "mid" and late == "late", "Den Fa under the demo's tiers: 9 -> 10 (Known) is mid, 23 -> 24 (Trusted) is late (%s, %s)" % [mid, late])
+
+
+## 14.6 review P14: a profile with no block is warned once a session; adjust_reputation's log line.
+func _check_t37_review_gaps(gm, dm) -> void:
+	var keep_w = dm.get("_profile_warned")
+	dm.set("_profile_warned", false)
+	dm.game_config["profile"] = "t37_nonesuch"
+	var a = dm.get_config("starting_gold", 0)
+	var first = dm.get("_profile_warned")
+	var b = dm.get_config("starting_gold", 0)
+	var still = dm.get("_profile_warned")
+	dm.game_config["profile"] = "demo"
+	dm.set("_profile_warned", keep_w)
+	check(first == true and still == true and int(a) == 1000 and int(b) == 1000,
+		"a profile with no block reads the full game's values, warned once a session (DataManager._profile_warned)")
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	check(_func_body(src, "adjust_reputation").contains("print(\"[GameManager] reputation: %+d %s (now %d)\" % [applied, reason, tavern_reputation])"),
+		"adjust_reputation logs each change applied: [GameManager] reputation: +N reason (now V)")
+
+
+## 14.4 review P8: the replies a title offers at its first menu (the allowed ones), with a fresh bridge.
+func _t38_menu(dmgr, res, title: String) -> Array:
+	var states := [{"bridge": load(RUNNER_SCRIPT).new_bridge()}]
+	var line = await dmgr.get_next_dialogue_line(res, title, states)
+	var steps := 0
+	while line != null and line.responses.is_empty() and steps < 20:
+		steps += 1
+		line = await dmgr.get_next_dialogue_line(res, line.next_id, states)
+	if line == null:
+		return []
+	return line.responses.filter(func(r): return r.is_allowed).map(func(r): return str(r.text))
+
+
+## 14.4 review P2: the flat distance from p to an E zone ([name, "box", centre, half axis x, half axis z] or
+## [name, "circle", centre, radius]); 0 inside it.
+static func _t38_zone_dist(p: Vector2, z: Array) -> float:
+	if z[1] == "circle":
+		return maxf(0.0, p.distance_to(z[2]) - float(z[3]))
+	var v: Vector2 = p - (z[2] as Vector2)
+	var out := Vector2.ZERO
+	var i := 0
+	for a in [z[3], z[4]]:
+		var la: float = (a as Vector2).length()
+		if la > 0.0:
+			out[i] = maxf(0.0, absf(v.dot(a) / la) - la)
+		i += 1
+	return out.length()
+
+
+static func _t38_polyline_dist(p: Vector2, pts: Array) -> float:
+	var best := INF
+	for i in pts.size() - 1:
+		best = minf(best, p.distance_to(Geometry2D.get_closest_point_to_segment(p, pts[i], pts[i + 1])))
+	return best
+
+
+## The live banner panels' [text, event] (oldest first).
+static func _t38_banners(nm) -> Array:
+	var out := []
+	for p in nm._container.get_children():
+		if p.is_queued_for_deletion():
+			continue
+		var text := ""
+		for l in p.find_children("*", "Label", true, false):
+			text = (l as Label).text
+		out.append([text, bool(p.get_meta("event", false))])
+	return out
+
+
+## 14.4 review P1: a morning with no briefing: TavernLighting's hold ends with GameBus day_phase_changed("day") and the
+## quiet morning's visitor appears; the director also reads the lighting's phase live (a phase set without the bus).
+func _check_t38_quiet_morning(gm, nm) -> void:
+	var gb = root.get_node("GameBus")
+	var TL = load("res://scripts/game/tavern_lighting.gd")
+	var rig: Dictionary = _lm_rig(TL)
+	var world := Node3D.new()
+	root.add_child(world)
+	_d1_set_scene(world)
+	var had_brief = gm.get("has_pending_briefing")
+	gm.has_pending_briefing = false
+	gm.game_over_active = false
+	gm.current_day = 2
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 2, "state": "queued", "subject": ""}
+	nm.clear_banners()
+	var days: Array = []
+	var fd := func(p): days.append(p)
+	gb.day_phase_changed.connect(fd)
+	var d = load(DIRECTOR_SCRIPT).new()
+	d.world_parent = world
+	d.phase = "late_night"
+	world.add_child(d)
+	await process_frame
+	gb.day_phase_changed.emit("morning")
+	var held_morning: bool = get_nodes_in_group("disturbance_npc").is_empty() and rig.ctl.phase == "morning"
+	rig.ctl._hold_left = 0.1
+	var t0 := Time.get_ticks_msec()
+	while get_nodes_in_group("disturbance_npc").is_empty() and Time.get_ticks_msec() - t0 < 2500:
+		await process_frame
+	var spawned: Array = get_nodes_in_group("disturbance_npc")
+	gb.day_phase_changed.disconnect(fd)
+	check(held_morning and days == ["morning", "day"] and rig.ctl.phase == "day" and d.phase == "day" and spawned.size() == 1
+		and gm.pending_disturbance.get("state") == "fired",
+		"a morning with no briefing: the lighting's hold ends with GameBus day_phase_changed('day') and the quiet morning's visitor appears, his event fired %s" % [days])
+	d.queue_free()
+	for n in spawned:
+		n.queue_free()
+	await process_frame
+	await process_frame
+	var has_live: bool = d.has_method("phase_now") if is_instance_valid(d) else (load(DIRECTOR_SCRIPT) as GDScript).get_script_method_list().any(func(m): return m.name == "phase_now")
+	if not has_live:
+		check(false, "the director reads the lighting's phase live (phase_now, review P1)")
+	else:
+		rig.ctl.set_phase("evening", 0.0)
+		gm.pending_disturbance = {"type": "rowdy_drunk", "truth": "plain", "day": 2, "state": "queued", "subject": ""}
+		var d2 = load(DIRECTOR_SCRIPT).new()
+		d2.world_parent = world
+		d2.set("lighting", rig.ctl)
+		world.add_child(d2)
+		await process_frame
+		var none_evening: bool = get_nodes_in_group("disturbance_npc").filter(func(n): return not n.is_queued_for_deletion()).is_empty()
+		rig.ctl.set_phase("day", 0.0)   # no GameBus: the director's own phase stays "evening"
+		d2.check()
+		var live: Array = get_nodes_in_group("disturbance_npc").filter(func(n): return not n.is_queued_for_deletion())
+		check(none_evening and d2.phase == "evening" and d2.phase_now() == "day" and live.size() == 1,
+			"the director reads TavernLighting's phase live: the lighting turned day without the bus, and his check shows the visitor")
+	gm.has_pending_briefing = had_brief
+	gm.pending_disturbance = {}
+	rig.root.free()
 	world.queue_free()
 	await process_frame
 	await process_frame
