@@ -62,3 +62,21 @@ Bard: Shall I play? The usual share.
 	Bard: Then I'll save it for the road.
 - (Walk away.)
 => END
+
+# Story 9.2: while he plays, E is "Listen to the Bard": one of his songs (song_1..N, never the same twice in a row), no
+# replies.
+
+~ song_1
+Bard: This one's about a bridge in the east. It was there one spring and gone the next. Nobody agrees which spring.
+=> END
+
+~ song_2
+Bard: There's an old tune about a pillar that hums. I've never finished it. Every time I try, a string goes slack.
+=> END
+
+~ song_3
+if bridge.deaths_this_run > 0
+	Bard: I put your fallen in the third verse. Not by name. Names belong to the people who knew them.
+else
+	Bard: Every tavern gets a song. Yours doesn't have an ending yet. I'm in no hurry.
+=> END

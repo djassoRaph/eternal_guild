@@ -10,8 +10,12 @@
 # bridge kept here; when the box closes: "allow" -> GameManager.allow_bard() and he goes to play (Story 9.2); "refuse"
 # -> GameManager.refuse_bard("refused") and he walks out; nothing -> he keeps waiting. Not decided by wait_until (clock
 # time, bard_wait_hours), or at late night, he moves on: refuse_bard("timeout"), a leaving line in a bubble, a banner,
-# the walk out. A load during his visit places him back (at the wait spot). The night (the visit is no longer today's)
-# takes him away. The content is data/narrative/bard.json (DRAFT). No class_name: loaded by path.
+# the walk out. Story 9.2: let in, he walks to his perform spot (a bard_perform_point node wins: Story 25.12's corner)
+# and plays until the clock's closing hour (the perform clip, the lute in his hands, a sign over his head, his music:
+# bard.json's music_path or the code-made placeholder phrase); E there opens one of his songs; at closing he says his
+# last line and walks out (he played today: the visit stays "performing"). A load during his visit places him back (at
+# the wait spot, or playing at his spot). The night (the visit is no longer today's) takes him away. The content is
+# data/narrative/bard.json (DRAFT). No class_name: loaded by path.
 extends Node
 
 const NPC_SCRIPT := "res://scripts/npcs/bard_npc.gd"
@@ -31,9 +35,15 @@ const DEFAULTS := {
 		"indicator": "♪", "music_path": "", "music_volume_db": -10.0},
 	"text": {"prompt_door": "Press E - Talk to the Bard", "prompt_play": "Press E - Listen to the Bard",
 		"banner_arrival": "A travelling bard is waiting at the door.", "banner_refused": "The Bard moves on.",
-		"banner_timeout": "The Bard got tired of waiting and moved on."},
+		"banner_timeout": "The Bard got tired of waiting and moved on.",
+		"banner_allowed": "The Bard plays for the room. He keeps a share of the tips.",
+		"day_end": "The Bard kept {share} gold of the day's tips.", "payment_suffix": " (the Bard keeps {share})"},
 	"leave_lines": ["No one at the door. The road it is."],
+	"closing_lines": ["That's the last song. Good night, keeper."],
+	"rumours": ["The Bard sang of {place}."],
 }
+const PERFORM_POINT_GROUP := "bard_perform_point"   # Story 25.12's corner: a node in this group wins over perform_spot
+const PLACEHOLDER_LUTE := "res://scripts/audio/placeholder_lute.gd"
 const POINT_KEYS := ["porch"]
 const SPOT_KEYS := ["wait_spot", "perform_spot"]
 const POINT_LIST_KEYS := ["route_in"]
@@ -59,6 +69,7 @@ var _counting := false      # the arrival delay is running (everything was clear
 var _delay_left := 0.0
 var _check_left := 0.0
 static var _last_door := -1   # the door opening he used last (never twice in a row; the session's)
+static var _last_song := -1   # Story 9.2: the song he sang last, the same rule
 
 
 func _ready() -> void:
@@ -228,6 +239,8 @@ func check() -> void:
 			_timeout()
 		elif st == "refused" and not npc.leaving:
 			npc.leave()
+		elif st == "performing" and not npc.leaving and not _box_open() and minutes() >= closing_minute():
+			_close_performance()
 		return
 	npc = null
 	if world_parent == null or not is_instance_valid(world_parent) or not today or GameManager.game_over_active:
@@ -238,6 +251,10 @@ func check() -> void:
 			_timeout()   # the player came back after his patience ran out: he has gone (no body, the banner)
 		else:
 			_spawn(true)   # a load (or the hall re-entered) during his wait: back at the wait spot, no banner
+		return
+	if st == "performing":
+		if minutes() < closing_minute():
+			_spawn(true)   # Story 9.2: a load during his performance: back at his spot, playing
 		return
 	if not BardRules.may_arrive(v, GameManager.current_day, now, minutes(), DayClockRules.OPEN_PHASES,
 			GameManager.game_over_active, blocker() != ""):
@@ -270,9 +287,21 @@ func _spawn(placed: bool) -> void:
 	n.route = route
 	n.approach = false
 	n.walk_in_timeout = float(m.get("walk_in_timeout_seconds", 12.0))
+	var ps := perform_spot()   # Story 9.2: where and how he plays
+	n.perform_spot = ps[0]
+	n.perform_yaw_deg = float(ps[1])
+	n.perform_clip = str(m.get("perform_clip", "Interact"))
+	n.indicator_text = str(m.get("indicator", ""))
+	n.music_stream = music_stream()
+	n.music_volume_db = float(m.get("music_volume_db", -10.0))
 	world_parent.add_child(n)
 	n.talk_requested.connect(_on_talk_requested)
 	npc = n
+	if placed and str(GameManager.bard_visit.get("state", "")) == "performing":
+		n.place_performing()
+		n.set_prompt(str(data.text.get("prompt_play", "Press E - Listen")))
+		print("[Bard] back at his spot, playing (a load)")
+		return
 	if placed:
 		n.place_waiting()
 		print("[Bard] back at the wait spot (a load)")
@@ -321,7 +350,7 @@ func _on_talk_requested(who: Node) -> void:
 	if _box_open():
 		return
 	var st := str(GameManager.bard_visit.get("state", ""))
-	if not GameManager.bard_today() or st != "waiting":
+	if not GameManager.bard_today() or not (st in ["waiting", "performing"]):
 		if who.has_method("conversation_over"):
 			who.conversation_over()
 		return
@@ -331,15 +360,24 @@ func _on_talk_requested(who: Node) -> void:
 		return
 	_bridge = Runner.new_bridge()
 	var titles: Dictionary = res.get("titles") if res.get("titles") is Dictionary else {}
-	var pick := door_title(titles, Runner.numbered_titles(res, "door_"), _bridge.seen(FIRST_FLAG), _last_door, randf())
+	var pick: Array
+	if st == "performing":   # Story 9.2: listening to him: one of his songs, never the same twice in a row
+		var songs := Runner.numbered_titles(res, "song_")
+		var k := BardRules.pick_index(songs.size(), _last_song, randf())
+		pick = ["", _last_song] if k < 0 else [str(songs[k]), k]
+	else:
+		pick = door_title(titles, Runner.numbered_titles(res, "door_"), _bridge.seen(FIRST_FLAG), _last_door, randf())
 	var title := str(pick[0])
 	if title == "":
-		push_warning("[Bard] refuse: %s has no door_first or door_N title" % path)
+		push_warning("[Bard] refuse: %s has no title for him now (%s)" % [path, st])
 		return
 	_box = Runner.open(who, res, title, _bridge)
 	if _box == null:
 		return
-	_last_door = int(pick[1])
+	if st == "performing":
+		_last_song = int(pick[1])
+	else:
+		_last_door = int(pick[1])
 	_box_title = title
 	_box.closed.connect(_on_conversation_closed)
 	if title == "door_first":
@@ -372,6 +410,49 @@ func _on_conversation_closed() -> void:
 			push_warning("[Bard] ignore: an unknown choice '%s' from %s" % [choice, _box_title])
 
 
-## Story 9.2: he goes to play.
+# ---------------------------------------------------------------- the performance (Story 9.2)
+
+## Let in: he goes to his spot and plays until closing; the banner says what he keeps.
 func _start_performing() -> void:
-	pass
+	if npc != null and is_instance_valid(npc):
+		npc.go_perform()
+		npc.set_prompt(str(data.text.get("prompt_play", "Press E - Listen")))
+	var banner := str(data.text.get("banner_allowed", ""))
+	if banner != "":
+		NotificationManager.show_banner(banner, true)
+
+
+## Closing time (the day clock's closing_hour, as the guests go home): his last line, the walk out. The visit stays
+## "performing": he played today.
+func _close_performance() -> void:
+	var lines: Array = data.get("closing_lines", [])
+	if not lines.is_empty():
+		npc.say(str(lines[randi() % lines.size()]))
+	npc.leave()
+	print("[Bard] closing time: the last song (day %d, %s)" % [GameManager.current_day, DayClockRules.format_time(minutes())])
+
+
+## The clock's closing minute (day_clock closing_hour; the guests not yet served go home then).
+func closing_minute() -> float:
+	return float(GameManager.day_clock_config().get("closing", 1440.0))
+
+
+## Where he plays: a node in group bard_perform_point (Story 25.12's corner) wins, else bard.json's perform_spot.
+## [Vector3, yaw_deg].
+func perform_spot() -> Array:
+	for n in get_tree().get_nodes_in_group(PERFORM_POINT_GROUP):
+		if n is Node3D and (n as Node3D).is_inside_tree():
+			return [(n as Node3D).global_position, rad_to_deg((n as Node3D).global_rotation.y)]
+	var s = data.bard.get("perform_spot")
+	return [spot_point(s), float(s[2]) if is_point(s) else 90.0]
+
+
+## His music: bard.json's music_path when it loads, else the code-made placeholder phrase.
+func music_stream() -> AudioStream:
+	var p := str(data.bard.get("music_path", ""))
+	if p != "":
+		var s = load(p) if ResourceLoader.exists(p) else null
+		if s is AudioStream:
+			return s
+		push_warning("[Bard] fallback: music_path %s doesn't load; the placeholder phrase" % p)
+	return load(PLACEHOLDER_LUTE).phrase()

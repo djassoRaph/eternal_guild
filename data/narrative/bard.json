@@ -1,5 +1,5 @@
 {
-	"_comment": "DRAFT (Epic 9, Stories 9.1-9.5): the travelling Bard in the hall (scripts/game/bard.gd; his body scripts/npcs/bard_npc.gd). When he comes is game_config.json's bard_* keys (GameManager.bard_visit). bard.body: the townsfolk variant id his body comes from (data/characters/townsfolk.json): a PLACEHOLDER, the merchant (his feathered beret reads as a minstrel), until Story 25.12's Bard replaces it here; while he is in the hall no new patron wears that body. speaker: his id in data/dialogue/speakers.json. dialogue: his conversation (data/dialogue/bard.dialogue: door_first, door_N, song_N). porch [x, y, z]: where he appears, outside the front door (the staff's porch point); route_in: the points he walks first (inside the door), then the wait spot. wait_spot / perform_spot [x, z, yaw_deg]: MainTavern coordinates, measured (Story 9.1 T1: on the navmesh, 2.3 m from every other E zone, 4.55 m from every patron seat for the wait spot, off the staff's routes; Test 39); a node in group bard_perform_point (Story 25.12's corner) wins over perform_spot. walk_in_timeout_seconds: not inside by then, he is placed at the last route point. perform_clip: the clip he plays while performing (a PLACEHOLDER until Story 25.16's lute clip). lute: a PLACEHOLDER lute built from primitives (Story 25.12's H9 replaces it): carry (on his back while he walks and waits) and play (in his hands while he performs): bone, offset [x, y, z] metres in the bone's frame, rotation_deg [x, y, z]; scale. indicator: the sign over his head while he plays ('' = none). music_path: his music ('' = the code-made placeholder phrase, scripts/audio/placeholder_lute.gd); music_volume_db on the Music bus. text: the prompts and banners. leave_lines: what he says as he moves on unheard. Every line is DRAFT: Raphael rewrites.",
+	"_comment": "DRAFT (Epic 9, Stories 9.1-9.5): the travelling Bard in the hall (scripts/game/bard.gd; his body scripts/npcs/bard_npc.gd). When he comes is game_config.json's bard_* keys (GameManager.bard_visit). bard.body: the townsfolk variant id his body comes from (data/characters/townsfolk.json): a PLACEHOLDER, the merchant (his feathered beret reads as a minstrel), until Story 25.12's Bard replaces it here; while he is in the hall no new patron wears that body. speaker: his id in data/dialogue/speakers.json. dialogue: his conversation (data/dialogue/bard.dialogue: door_first, door_N, song_N). porch [x, y, z]: where he appears, outside the front door (the staff's porch point); route_in: the points he walks first (inside the door), then the wait spot. wait_spot / perform_spot [x, z, yaw_deg]: MainTavern coordinates, measured (Story 9.1 T1: on the navmesh, 2.3 m from every other E zone, 4.55 m from every patron seat for the wait spot, off the staff's routes; Test 39); a node in group bard_perform_point (Story 25.12's corner) wins over perform_spot. walk_in_timeout_seconds: not inside by then, he is placed at the last route point. perform_clip: the clip he plays while performing (a PLACEHOLDER until Story 25.16's lute clip). lute: a PLACEHOLDER lute built from primitives (Story 25.12's H9 replaces it): carry (on his back while he walks and waits) and play (in his hands while he performs): bone, offset [x, y, z] metres in the bone's frame, rotation_deg [x, y, z]; scale. indicator: the sign over his head while he plays ('' = none). music_path: his music ('' = the code-made placeholder phrase, scripts/audio/placeholder_lute.gd); music_volume_db on the Music bus. text: the prompts and banners (banner_allowed says what he keeps; day_end and payment_suffix fill {share}). leave_lines: what he says as he moves on unheard; closing_lines: his last line at closing time (Story 9.2). rumours (Story 9.2): what his songs leave in Latest News after a performance; {place} a factions.json biome, {faction} a rival guild, {capital} a capitals.json capital (MOD-7); each line names at least one. Every line is DRAFT: Raphael rewrites.",
 	"bard": {
 		"body": "merchant",
 		"speaker": "bard",
@@ -24,11 +24,27 @@
 		"prompt_play": "Press E - Listen to the Bard",
 		"banner_arrival": "A travelling bard is waiting at the door.",
 		"banner_refused": "The Bard moves on.",
-		"banner_timeout": "The Bard got tired of waiting and moved on."
+		"banner_timeout": "The Bard got tired of waiting and moved on.",
+		"banner_allowed": "The Bard plays for the room. He keeps a share of the tips.",
+		"day_end": "The Bard kept {share} gold of the day's tips.",
+		"payment_suffix": " (the Bard keeps {share})"
 	},
 	"leave_lines": [
 		"No one at the door. The road it is.",
 		"Another hearth, another night.",
 		"Suit yourself, keeper. The song keeps."
+	],
+	"closing_lines": [
+		"That's the last song. Good night, keeper.",
+		"The fire's low and so am I. Good night.",
+		"Same time on the road, keeper."
+	],
+	"rumours": [
+		"The Bard sang of {place}, where the old road floods each spring and nobody rebuilds it.",
+		"The Bard sang of the {faction}: three went out, two came back, and nobody sings the third.",
+		"The Bard sang of {capital}, where the bells ring for a king nobody has seen.",
+		"The Bard sang of lights under {place}, the kind that move when you look away.",
+		"The Bard sang of the {faction} buying maps of {place}. Nobody knows what they're looking for.",
+		"The Bard sang of a shrine in {place} where the offerings are never touched, and never there in the morning."
 	]
 }

@@ -162,7 +162,7 @@
 		"min_taxes_paid": 2
 	},
 
-	"_bard_comment": "Epic 9 (Story 9.1): the travelling Bard. Each morning (after the disturbance roll; one visitor a day, K-20: none on the King's messenger's day or a disturbance's day) a visit is queued when the guild's reputation tier is at least bard_min_tier (a tier label), at least bard_cooldown_days have passed since the last visit and a bard_daily_chance roll (0..1) comes up. bard_schedule: [{day, hook?, hour?}] forces a visit on a day (day >= 2) whatever the rest says; hook: a quest hook if he plays (Story 9.4). He comes to the door at an hour rolled in bard_arrival_hours [from, to] (the day clock's hours, inside the hall's open hours 9-23), once the hall is clear and bard_arrival_delay_seconds (real) have passed, and waits bard_wait_hours of clock time before he moves on. DRAFT numbers; a bad value falls back with a warning.",
+	"_bard_comment": "Epic 9 (Story 9.1): the travelling Bard. Each morning (after the disturbance roll; one visitor a day, K-20: none on the King's messenger's day or a disturbance's day) a visit is queued when the guild's reputation tier is at least bard_min_tier (a tier label), at least bard_cooldown_days have passed since the last visit and a bard_daily_chance roll (0..1) comes up. bard_schedule: [{day, hook?, hour?}] forces a visit on a day (day >= 2) whatever the rest says; hook: a quest hook if he plays (Story 9.4). He comes to the door at an hour rolled in bard_arrival_hours [from, to] (the day clock's hours, inside the hall's open hours 9-23), once the hall is clear and bard_arrival_delay_seconds (real) have passed, and waits bard_wait_hours of clock time before he moves on. Story 9.2: let in, he plays until the clock's closing hour and keeps bard_tip_share (0..1) of every patron's payment meanwhile; the next morning bard_rumours_per_performance (1..5) of his rumours reach Latest News. DRAFT numbers; a bad value falls back with a warning.",
 	"bard_daily_chance": 0.25,
 	"bard_cooldown_days": 3,
 	"bard_min_tier": "Known",
@@ -170,6 +170,8 @@
 	"bard_arrival_hours": [11, 19],
 	"bard_arrival_delay_seconds": 5,
 	"bard_wait_hours": 3,
+	"bard_tip_share": 0.25,
+	"bard_rumours_per_performance": 2,
 
 	"profiles": {
 		"_comment": "Story 14.6 (DP-1): per-profile values. DataManager.get_config(key) returns profiles.<profile>.<key> when the active profile's block has the key, else the top-level value: the top level is the full game. A block replaces a key's whole value (lists and objects are never merged). Every key in a block also exists at the top level; profile and profiles are never in a block. Keys tools read straight from this file can't be overridden: anime_look_preset(s), edge_pass, tavern_light_*, autosave_interval_seconds. The demo's other switches are top-level demo-only keys: demo_start_staff, demo_party_missions.",

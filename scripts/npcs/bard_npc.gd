@@ -19,6 +19,21 @@ var lute_cfg: Dictionary = {}
 var lute: Node3D = null
 var lute_pose := ""
 var _lute_attach: Node3D = null
+## Story 9.2, set by the controller: where and how he plays.
+var perform_spot := Vector3.ZERO
+var perform_yaw_deg := 90.0
+var perform_clip := "Interact"
+var indicator_text := "♪"
+var music_stream: AudioStream = null
+var music_volume_db := -10.0
+var perform_walk_timeout := 30.0
+## The sign over his head while he plays, and his music (a non-positional player on the Music bus: the hall's 3D world
+## is inside a SubViewport with no 3D listener set up).
+var indicator: Label3D = null
+var music: AudioStreamPlayer = null
+var _perform_left := 0.0
+var _bob := 0.0
+var _clip_warned := false
 
 
 func _ready() -> void:
@@ -62,6 +77,127 @@ func say(line: String, seconds := 3.5) -> void:
 func head_top() -> float:
 	var h = body_variant.get("head_top")
 	return float(h) if (h is float or h is int) and not using_fallback else DEFAULT_HEAD_TOP
+
+
+# ---------------------------------------------------------------- the performance (Story 9.2)
+
+## Let in: walk (on the navmesh) to the perform spot, then play. Not there after perform_walk_timeout: placed there.
+func go_perform() -> void:
+	if leaving:
+		return
+	mode = "to_perform"
+	_perform_left = perform_walk_timeout
+	_aim(perform_spot)
+
+
+## He is playing already (a load, the hall re-entered): at the perform spot, playing.
+func place_performing() -> void:
+	global_position = perform_spot
+	_begin_performance()
+
+
+func is_performing() -> bool:
+	return mode == "performing"
+
+
+func _begin_performance() -> void:
+	mode = "performing"
+	velocity = Vector3.ZERO
+	rotation.y = deg_to_rad(perform_yaw_deg)
+	set_lute_pose("play")
+	_show_indicator(true)
+	_start_music()
+	_play_perform_clip()
+	print("[Bard] plays at (%.2f, %.2f)" % [global_position.x, global_position.z])
+
+
+## The playing stops (closing time, the walk out): the music, the sign, the lute back on his back.
+func stop_performing() -> void:
+	_show_indicator(false)
+	_stop_music()
+	set_lute_pose("carry")
+	if mode in ["to_perform", "performing"]:
+		mode = ""
+
+
+func leave() -> void:
+	stop_performing()
+	super()
+
+
+func _play_perform_clip() -> void:
+	if _anim == null:
+		return
+	var clip := perform_clip
+	if not _anim.has_animation(clip):
+		if not _clip_warned:
+			_clip_warned = true
+			push_warning("[Bard] fallback: his body has no clip '%s'; he plays Idle" % clip)
+		clip = "Idle"
+	if _anim.current_animation != clip or not _anim.is_playing():
+		_anim.play(clip, 0.2)
+
+
+func _show_indicator(on: bool) -> void:
+	if on and indicator_text != "":
+		if indicator == null or not is_instance_valid(indicator):
+			indicator = Label3D.new()
+			indicator.name = "PlayingSign"
+			indicator.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			indicator.no_depth_test = true          # over the ink-outline quad (godot-dev-gotchas: render_priority >= 1)
+			indicator.render_priority = 3
+			indicator.outline_render_priority = 2
+			indicator.font_size = 72
+			indicator.outline_size = 14
+			indicator.pixel_size = 0.006
+			indicator.modulate = Color(1.0, 0.86, 0.45)
+			add_child(indicator)
+		indicator.text = indicator_text
+		indicator.position = Vector3(0.0, head_top() + 0.35, 0.0)
+		indicator.visible = true
+	elif indicator != null and is_instance_valid(indicator):
+		indicator.visible = false
+
+
+func _start_music() -> void:
+	if music_stream == null:
+		return
+	if music == null or not is_instance_valid(music):
+		music = AudioStreamPlayer.new()
+		music.name = "BardMusic"
+		music.bus = "Music" if AudioServer.get_bus_index("Music") != -1 else "Master"
+		add_child(music)
+	music.stream = music_stream
+	music.volume_db = music_volume_db
+	if not music.playing:
+		music.play()
+
+
+func _stop_music() -> void:
+	if music != null and is_instance_valid(music):
+		music.stop()
+
+
+func _physics_process(delta: float) -> void:
+	super(delta)
+	if leaving or fading:
+		return
+	match mode:
+		"to_perform":
+			_perform_left -= delta
+			if _flat(perform_spot - global_position).length() <= STEP_ARRIVE:
+				_begin_performance()
+			elif _perform_left <= 0.0:
+				print("[Bard] not at his spot after %.0f s: placed there" % perform_walk_timeout)
+				global_position = perform_spot
+				_begin_performance()
+			else:
+				_step_toward(perform_spot, delta)
+		"performing":
+			_play_perform_clip()
+			if indicator != null and is_instance_valid(indicator) and indicator.visible:
+				_bob += delta
+				indicator.position.y = head_top() + 0.35 + sin(_bob * 3.0) * 0.06
 
 
 # ---------------------------------------------------------------- the placeholder lute
