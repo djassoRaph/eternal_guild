@@ -474,10 +474,15 @@ func _staff_save_data() -> Dictionary:
 ## Story 16.1: the saved staff, read defensively (Story 11.2's rule) and silently (no staff signal: the hall's staff read
 ## the records when it loads). No key (every save before 16.1): the profile's starting staff; not a list: the same, with a
 ## warning. Junk entries, unknown and duplicate roles are dropped; each value is checked; a role the save lacks is not hired.
-## Story 16.4: the day of the Quest Dealer's last morning round (junk or none: 0).
+## What a role is owed is kept while it is on strike or not hired (K-12: the debt stays with the role); its missed days
+## only on strike.
+## Story 16.4: the day of the Quest Dealer's last morning round. A save that doesn't say (every save before 16.4) or says
+## junk counts today's round as run (review P4: Continue never sends anyone out the moment the hall loads).
 func _load_staff_data(data: Dictionary) -> void:
-	desk_round_day = maxi(0, _save_int(data.get("desk_round_day"), 0))
-	var raw = data.get("staff")
+	_load_staff_records(data.get("staff"))
+	desk_round_day = maxi(0, _save_int(data.get("desk_round_day"), current_day))
+
+func _load_staff_records(raw) -> void:
 	if raw == null:
 		_reset_staff_state()
 		return
@@ -707,11 +712,6 @@ func desk_round() -> Array:
 	if sent.is_empty():
 		print("[GameManager] desk: no minor contract for a Minor Arcana on day %d" % current_day)
 	return sent
-
-## Story 16.4 (SQ-5): the morning reports wait at the guild desk while the Quest Dealer isn't working (not hired, or on
-## strike); the bedroom shows them at once only while she is.
-func briefing_waits_at_desk() -> bool:
-	return not is_staff_working("desk_manager")
 
 func get_reputation_tier() -> Dictionary:
 	"""Highest reputation_tiers entry (data/config/game_config.json) the guild currently qualifies
@@ -1558,6 +1558,12 @@ func _resolve_party_mission(entry: Dictionary) -> Dictionary:
 		"category": mission.get("category", "combat")
 	}
 
+
+## Epic 16 review P1: the morning reports live only in memory (a save holds none: Story 7.1 applies and saves every outcome
+## before the reveal), so a Load drops any the session before it hadn't shown.
+func _clear_unsaved_reports() -> void:
+	pending_reports.clear()
+	has_pending_briefing = false
 
 func get_and_clear_pending_reports() -> Array:
 	"""Called by MorningBriefing UI to consume the pending reports."""
@@ -2761,6 +2767,7 @@ func load_save_data(data: Dictionary):
 
 	# Tax grace period
 	tax_grace_days = _save_int(data.get("tax_grace_days"), 0)
+	_clear_unsaved_reports()
 
 	# Run counters + conversation flags (Story 10.2; older saves have none)
 	_load_dialogue_data(data)

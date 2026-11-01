@@ -13253,7 +13253,7 @@ func test_quest_dealer_works() -> void:
 	gm.staff = gm._seeded_staff()
 	_check_t36_pure(gm, dm)
 	_check_t36_round(gm, wm, ab, capture)
-	_check_t36_briefing(gm)
+	_check_t36_briefing(gm, dm, capture)
 	await _check_t36_brain(gm, wm, gb)
 	ss.save_path = ss_saved[0]
 	ss.codex_path = ss_saved[1]
@@ -13372,31 +13372,106 @@ func _check_t36_round(gm, wm, ab, capture) -> void:
 	gm.desk_round_day = 0
 	gm._load_staff_data(JSON.parse_string(JSON.stringify(saved)))
 	var loaded: int = gm.desk_round_day
+	gm.current_day = 37
 	gm._load_staff_data({"staff": saved.staff, "desk_round_day": "x"})
 	var junk: int = gm.desk_round_day
+	gm.desk_round_day = 0
+	gm._load_staff_data({"staff": saved.staff})        # a save from before 16.4 (Raphael's day 37)
+	var no_key: int = gm.desk_round_day
+	gm.desk_round_day = 0
+	gm._load_staff_data({})                            # a save from before 16.1
+	var no_staff: int = gm.desk_round_day
 	gm._reset_staff_state()
-	check(loaded == 12 and junk == 0 and gm.desk_round_day == 0 and D1_GM_FIELDS.has("desk_round_day"),
-		"desk_round_day is saved with the staff (junk 0), New Game 0, in Test 26's field list")
+	check(loaded == 12 and junk == 37 and no_key == 37 and no_staff == 37 and gm.desk_round_day == 0 and D1_GM_FIELDS.has("desk_round_day"),
+		"desk_round_day is saved with the staff; a save without it (or junk) counts today's round as run: no dispatch on load (review P4: %d %d %d); New Game 0; in Test 26's field list" % [junk, no_key, no_staff])
+	gm.staff = gm._seeded_staff()
 
 
-## AC 5 (16.4): the morning reports wait at the desk while she isn't working.
-func _check_t36_briefing(gm) -> void:
-	var rec: Dictionary = gm.staff_record("desk_manager")
-	var a: bool = gm.briefing_waits_at_desk()
-	rec.on_strike = true
-	var b: bool = gm.briefing_waits_at_desk()
-	rec.on_strike = false
-	rec.hired = false
-	var c: bool = gm.briefing_waits_at_desk()
-	rec.hired = true
-	check(not a and b and c, "briefing_waits_at_desk: false while she works; true on strike or not hired")
+## AC 5 (16.4) as amended by K-10 (Raphael 2026-11-01, review P1): the morning reports ALWAYS open on waking, whatever the
+## Quest Dealer's state (the "reports wait at the guild desk" path is gone); she still briefs while they show. A Load drops
+## reports the save doesn't hold (none does: Story 7.1 saves the outcomes before the reveal); a held key (echo) doesn't
+## skip a report.
+func _check_t36_briefing(gm, dm, capture) -> void:
 	var bed := FileAccess.get_file_as_string(BEDROOM_SCRIPT)
 	var fade := _func_body(bed, "_on_fade_complete")
 	var zone := _func_body(FileAccess.get_file_as_string(ZONE_SCRIPT), "open_recruitment_desk")
+	var gm_src := FileAccess.get_file_as_string("res://scripts/GameManager.gd")
 	var mb := FileAccess.get_file_as_string("res://scenes/ui/script/morning_briefing.gd")
-	check(fade.contains("briefing_waits_at_desk()") and fade.contains("wait at the guild desk") and zone.contains("has_pending_briefing")
-		and zone.contains(".present(") and _func_body(bed, "_show_morning_briefing").contains(".present(") and mb.contains("static func present("),
-		"the bedroom shows the reports only while she works (else they wait at the desk); E at the desk shows waiting reports; one shared present()")
+	check(not fade.contains("briefing_waits_at_desk") and not fade.contains("guild desk") and not zone.contains("has_pending_briefing")
+		and not zone.contains(".present(") and not gm_src.contains("func briefing_waits_at_desk") and not gm.has_method("briefing_waits_at_desk")
+		and _func_body(bed, "_show_morning_briefing").contains(".present(") and mb.contains("static func present("),
+		"K-10: no reports-wait-at-the-desk path (the bedroom, E at the desk, GameManager); the bedroom shows them through present() (review P1)")
+	# the bedroom's morning, for real (advance_day), with her not hired and then on strike: the reveal opens both times
+	var sub := GDScript.new()
+	sub.source_code = "extends \"%s\"\nvar shown := 0\nfunc _show_morning_briefing():\n\tshown += 1\n" % BEDROOM_SCRIPT
+	sub.reload()
+	var keep = _pin_profile(dm, "full")
+	var rec: Dictionary = gm.staff_record("desk_manager")
+	var results := []
+	for case in ["not hired", "on strike"]:
+		rec.hired = case == "on strike"
+		rec.on_strike = case == "on strike"
+		rec.owed = 3 if case == "on strike" else 0
+		rec.missed_days = 1 if case == "on strike" else 0
+		gm.current_day = 30
+		gm.tax_due_day = 50
+		gm.gold = 100
+		gm.beer_stock = 50
+		gm.beer_shortage_days = 0
+		gm.game_over_active = false
+		gm.adventurers = [_t36_adv(950, "Rook", "wands_02_two", 10)]
+		gm.active_missions = []
+		gm.pending_reports = [{"type": "solo", "mission_name": "Clear Slime Infestation", "success": true, "adventurer_name": "Rook"}]
+		gm.has_pending_briefing = true
+		capture.lines.clear()
+		var pop := PopupPanel.new()
+		pop.set_script(sub)
+		pop._on_fade_complete()
+		var desk_line: bool = capture.lines.any(func(l): return str(l).contains("guild desk"))
+		results.append([case, pop.shown, gm.is_staff_working("desk_manager"), gm.current_day, desk_line])
+		pop.free()
+		gm.pending_reports = []
+		gm.has_pending_briefing = false
+	_unpin_profile(dm, keep)
+	rec.hired = true
+	rec.on_strike = false
+	rec.owed = 0
+	rec.missed_days = 0
+	var nm = root.get_node_or_null("NotificationManager")
+	if nm:
+		nm.clear_banners()
+	check(results == [["not hired", 1, false, 31, false], ["on strike", 1, false, 31, false]],
+		"waking (advance_day) with the Quest Dealer not hired, then on strike: the reveal opens at once both times, nothing waits at the desk (K-10) %s" % [results])
+	# a Load: the session's unshown reports go (a save holds none)
+	gm.pending_reports = [{"type": "solo", "mission_name": "Old", "success": true}]
+	gm.has_pending_briefing = true
+	var cleared := false
+	if gm.has_method("_clear_unsaved_reports"):
+		gm._clear_unsaved_reports()
+		cleared = gm.pending_reports.is_empty() and not gm.has_pending_briefing
+	check(cleared and _func_body(gm_src, "load_save_data").contains("_clear_unsaved_reports()"),
+		"a Load drops the session's unshown morning reports (load_save_data -> _clear_unsaved_reports) (review P1)")
+	gm.pending_reports = []
+	gm.has_pending_briefing = false
+	# a held key's repeats (echo) don't skip a report; a real press does
+	var mbs := GDScript.new()
+	mbs.source_code = "extends \"res://scenes/ui/script/morning_briefing.gd\"\nvar presses := 0\nfunc _ready() -> void:\n\tpass\nfunc _on_continue_pressed():\n\tpresses += 1\n"
+	mbs.reload()
+	var mbn := CanvasLayer.new()
+	mbn.set_script(mbs)
+	root.add_child(mbn)
+	var held := InputEventKey.new()
+	held.keycode = KEY_SPACE
+	held.pressed = true
+	held.echo = true
+	mbn._input(held)
+	var echo_presses: int = mbn.presses
+	var tap := InputEventKey.new()
+	tap.keycode = KEY_SPACE
+	tap.pressed = true
+	mbn._input(tap)
+	check(echo_presses == 0 and mbn.presses == 1, "the morning briefing: a held key's echo doesn't advance; a press does (%d, %d) (review P1)" % [echo_presses, mbn.presses])
+	mbn.queue_free()
 
 
 ## AC 1, 4 (16.4): the brain in a small world: the states, the screens, the player at the desk, the round.

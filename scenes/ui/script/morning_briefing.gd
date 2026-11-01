@@ -30,8 +30,8 @@ func _ready():
 
 const SCENE_PATH := "res://scenes/ui/MorningBriefing.tscn"
 
-## Show the pending morning reports (the one way in: the bedroom's morning, and Story 16.4's guild desk when the reports
-## waited there). The reports are taken from GameManager; without the scene they go to the event log. The briefing, or null.
+## Show the pending morning reports (the one way in: the bedroom's morning; K-10, 2026-11-01: always on waking). The
+## reports are taken from GameManager; without the scene they go to the event log. The briefing, or null.
 static func present(tree: SceneTree) -> Node:
 	var gm := tree.root.get_node_or_null("GameManager")
 	if gm == null:
@@ -396,8 +396,8 @@ func _on_continue_pressed():
 
 
 func _input(event):
-	"""Allow spacebar/enter to advance"""
-	if event is InputEventKey and event.pressed:
+	"""Allow spacebar/enter to advance (a press, not a held key's repeats: Epic 16 review P1)"""
+	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode in [KEY_SPACE, KEY_ENTER, KEY_E]:
 			_on_continue_pressed()
 			get_viewport().set_input_as_handled()

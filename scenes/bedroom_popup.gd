@@ -149,13 +149,9 @@ func _on_fade_complete():
 	GameBus.day_phase_changed.emit("morning")   # Story 25.23: the new day's morning light (day follows the briefing)
 
 	if GameManager.has_pending_briefing:
-		if GameManager.briefing_waits_at_desk():
-			# Story 16.4 (SQ-5): the Quest Dealer presents the reports; when she isn't working they wait at the desk (E there)
-			GameManager.log_message("The morning reports wait at the guild desk.")
-		else:
-			_show_morning_briefing()
+		_show_morning_briefing()   # K-10 (2026-11-01): always on waking, whatever the staff (the Quest Dealer briefs while it shows)
 
 
 func _show_morning_briefing():
-	"""Create and display the morning briefing UI (morning_briefing.gd present(), shared with the guild desk)"""
+	"""Create and display the morning briefing UI (morning_briefing.gd present())"""
 	load("res://scenes/ui/script/morning_briefing.gd").present(get_tree())
