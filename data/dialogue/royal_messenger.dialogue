@@ -1,0 +1,21 @@
+# DRAFT (Story 10.7): the King's messenger, the demo's ending. Raphael rewrites every line. The hall opens ~ deliver
+# when the player talks to him (scripts/game/royal_messenger.gd); bridge.choose("heard") just before the last line means
+# the King's request was delivered: when the box closes, the demo ends (the "to be continued" card, then the main menu).
+# Esc before it leaves him waiting: talk again. The King stays distant and the kingdom unnamed; the Demon King is never
+# named (narrative-design.md). Game state only through `bridge` (scripts/dialogue/dialogue_bridge.gd).
+
+~ deliver
+Royal Messenger: You keep this guild? Good. I was told to find you and no one else.
+Royal Messenger: I ride for the King.
+Royal Messenger: Your guild's name has reached the capital. Contracts kept, the Crown's tax paid on time. That gets noticed.
+if bridge.deaths_this_run > 0
+	Royal Messenger: He knows you've buried some of your own. He says that's how you tell a guild from a sign over a door.
+Royal Messenger: Villages past the border have gone quiet. No traders, no letters. The riders sent to look haven't come back.
+Royal Messenger: His soldiers hold the roads. They can't go where your people go.
+- Why us?
+	Royal Messenger: Someone at court spoke your name. A Mages-Guild man, tall. I never got a look at his face.
+- What does he want?
+	Royal Messenger: Help. Not a favour. A commission, sealed and paid.
+do bridge.choose("heard")
+Royal Messenger: The King asks for your guild's help. He'll send for you soon. Have your best ready.
+=> END

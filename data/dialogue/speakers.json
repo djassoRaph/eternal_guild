@@ -68,6 +68,11 @@
 			"name": "The Bard",
 			"portrait": "res://assets/characters/portraits/npc/bard.png",
 			"colour": "#5c3458"
+		},
+		"royal_messenger": {
+			"name": "The King's Messenger",
+			"portrait": "res://assets/characters/portraits/npc/royal_messenger.png",
+			"colour": "#7a2430"
 		}
 	}
 }

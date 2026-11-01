@@ -1,0 +1,16 @@
+[remap]
+
+importer="dialogue_manager"
+importer_version=15
+type="Resource"
+uid="uid://cj16x44cnlvl5"
+path="res://.godot/imported/royal_messenger.dialogue-84e638df281885b2f217b77e102b7420.tres"
+
+[deps]
+
+source_file="res://data/dialogue/royal_messenger.dialogue"
+dest_files=["res://.godot/imported/royal_messenger.dialogue-84e638df281885b2f217b77e102b7420.tres"]
+
+[params]
+
+defaults=true

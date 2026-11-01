@@ -1,0 +1,36 @@
+{
+	"_comment": "DRAFT (Story 10.7): the demo's ending, the King's messenger (sprint-change-proposal-2026-10-31.md K-2, K-3). When it comes is game_config.json's demo_ending (profiles.demo: on, reputation 32, 2 taxes; the full game never runs it). This file is what the hall shows (scripts/game/royal_messenger.gd). messenger.body: the townsfolk variant id his body comes from (data/characters/townsfolk.json; a placeholder: the guard, until Story 26.3's royal emissary replaces it here). speaker: his id in data/dialogue/speakers.json. dialogue / title: his conversation (its last line's bridge.choose(\"heard\") ends the demo). porch [x, y, z]: where he appears, outside the front door (the staff's porch point); route_in: the points he walks to first, in order (inside the door); then he walks to the player and stops approach_stop_m short (inside his 1.2 m talk zone's reach of the player's 0.5 m capsule, so E works without a step; approach false: he waits at the wait spot instead), re-aiming at most every repath_seconds when the player has moved, and gives up after approach_timeout_seconds for the wait spot; walk_in_timeout_seconds: not inside by then, he is placed at the last route point. wait_spot [x, z, yaw_deg]: where he waits (measured: on the navmesh, 2.3 m from every E zone and the visitors' spots, 4.55 m from every patron seat; Test 53). arrival_delay_seconds: how long into the day phase he comes. text: the banners (arrival; return: a later morning, he was not heard yet) and the E prompt. panel_id: Story 10.1's court panel played before the end card (\"\" = none; a no-op while no panel director exists). end_card: the 'to be continued' card (kickstarter_line \"\" = hidden; the button shows after min_seconds; fade_seconds: the fade to black). Every line is DRAFT: Raphael rewrites.",
+	"messenger": {
+		"body": "guard",
+		"speaker": "royal_messenger",
+		"dialogue": "res://data/dialogue/royal_messenger.dialogue",
+		"title": "deliver",
+		"porch": [9.6, -0.33, 6.2],
+		"route_in": [[9.6, 0.0, 3.4]],
+		"wait_spot": [6.0, 0.75, 180.0],
+		"approach": true,
+		"approach_stop_m": 1.3,
+		"repath_seconds": 1.5,
+		"approach_timeout_seconds": 25.0,
+		"walk_in_timeout_seconds": 12.0,
+		"arrival_delay_seconds": 10.0
+	},
+	"text": {
+		"banner_arrival": "A messenger of the King has come. He's asking for the guild master.",
+		"banner_return": "The King's messenger is back. He still has word for the guild master.",
+		"prompt": "Press E - Hear the King's messenger"
+	},
+	"panel_id": "the_kings_request",
+	"end_card": {
+		"title": "To be continued",
+		"lines": [
+			"The King has sent for your guild.",
+			"The road from here runs past the border, and further than this tavern.",
+			"Thank you for playing the Eternal Guild demo."
+		],
+		"kickstarter_line": "",
+		"button": "Return to the main menu",
+		"min_seconds": 3.0,
+		"fade_seconds": 1.0
+	}
+}

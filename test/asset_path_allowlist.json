@@ -18,6 +18,11 @@
 			"owner": "Story 14.4"
 		},
 		{
+			"path": "res://assets/characters/portraits/npc/royal_messenger.png",
+			"reason": "The dialogue portrait of the King's messenger, the demo's ending (data/dialogue/speakers.json): a placeholder townsfolk body (the guard) with no portrait rendered, so the dialogue box draws the plate. Render it with the portrait studio (Story 25.17) when Story 26.3 builds the royal emissary, then remove this entry.",
+			"owner": "Story 10.7"
+		},
+		{
 			"path": "res://assets/characters/portraits/npc/rival.png",
 			"reason": "The dialogue portrait of the rival guild's man, a tavern disturbance (data/dialogue/speakers.json): a placeholder townsfolk body with no portrait rendered, so the dialogue box draws the plate. Render it with the portrait studio (Story 25.17) when the disturbance cast is made (Epic 26), then remove this entry.",
 			"owner": "Story 14.4"
