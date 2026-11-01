@@ -76,6 +76,7 @@ func _ready():
 	if GameManager.pending_new_game_save:
 		GameManager.pending_new_game_save = false
 		SaveSystem.start_new_run_save()   # also starts the run: the automatic saves may now write (Story 11.2 review)
+		GameManager.check_tax_warning()   # Story 14.6 review P10: a first tax due within the warning days (the demo's Day 3) is warned on Day 1
 
 
 # === UI UPDATE FUNCTIONS (Connected to GameManager signals) ===
@@ -230,14 +231,15 @@ func toggle_pause_menu():
 # pause_menu.gd, attached to the PauseMenu CanvasLayer. main_tavern only shows/hides it.
 
 ## Story 14.6: the welcome text (MainTavern.tscn's EventLog) said "Tax day comes every 30 days! ... 1000 gold coins"
-## whatever the profile; its "- Tax day comes every" line is replaced from the active tax config at load.
+## whatever the profile; its "- Tax day comes every" line is replaced from the active tax config at load (on a grace day:
+## overdue since the due day, review P11).
 func _fix_welcome_tax_line() -> void:
 	if not (game_log is RichTextLabel):
 		return
 	var lines: PackedStringArray = game_log.text.split("\n")
 	for i in lines.size():
 		if lines[i].begins_with("- Tax day comes every"):
-			lines[i] = GameManager.tax_rule_line(GameManager.tax_config(), GameManager.tax_due_day)
+			lines[i] = GameManager.tax_rule_line(GameManager.tax_config(), GameManager.tax_due_day, GameManager.current_day)
 	game_log.text = "\n".join(lines)
 
 # === LOGGING SYSTEM ===

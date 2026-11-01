@@ -1693,27 +1693,39 @@ static func tax_warning_log_line(days_left: int, amount: int) -> String:
 	return "Tax payment due in " + str(days_left) + " days. Need " + str(amount) + " gold."
 
 ## The hall's welcome text's tax line (Story 14.6: MainTavern.tscn said "every 30 days, 1000 gold" whatever the profile;
-## main_tavern.gd puts this in its place at load). Pure. DRAFT wording (Raphael rewrites).
-static func tax_rule_line(cfg: Dictionary, next_due_day: int) -> String:
+## main_tavern.gd puts this in its place at load). Pure. DRAFT wording (Raphael rewrites). `today` (review P11): on or
+## after the due day (a grace day: the tax unpaid) the line says it is overdue since that day.
+static func tax_rule_line(cfg: Dictionary, next_due_day: int, today := 0) -> String:
 	var interval := int(cfg.get("interval_days", TAX_DEFAULTS.interval_days))
 	var base := int(cfg.get("base_amount", TAX_DEFAULTS.base_amount))
 	var per := int(cfg.get("per_adventurer", TAX_DEFAULTS.per_adventurer))
 	var amount := ("%d gold" % base) if per <= 0 else ("%d gold, plus %d for each adventurer," % [base, per])
 	var every := "every day" if interval == 1 else ("every %d days" % interval)
-	return "- Taxes: %s %s; the next is due on Day %d. Gold and beer are your lifelines: run out of both and it's over." % [amount, every, next_due_day]
+	var when := ("overdue since Day %d" % next_due_day) if today > 0 and today >= next_due_day else ("the next is due on Day %d" % next_due_day)
+	return "- Taxes: %s %s; %s. Gold and beer are your lifelines: run out of both and it's over." % [amount, every, when]
 
 ## Runs each morning (advance_day): a warning on a configured day before the due day; from the due day on, the payment.
 func check_tax_deadline():
-	var cfg := tax_config()
 	var days_until_tax := tax_due_day - current_day
 	if days_until_tax <= 0:
 		handle_tax_payment()
 		return
-	if (cfg.warning_days as Array).has(days_until_tax):
-		var amount := tax_amount_for(adventurers.size(), cfg)
-		log_message(tax_warning_log_line(days_until_tax, amount))
-		print("[GameManager] tax: warning, due in %d day(s), %d gold" % [days_until_tax, amount])
-		EconomyBus.tax_warning.emit(days_until_tax, amount)
+	check_tax_warning()
+
+## The warning half of check_tax_deadline: on a configured day before the due day, the log line and
+## EconomyBus.tax_warning (the banner). True when it warned. Story 14.6 review P10: also run once at a run's start (the
+## hall's first load after New Game), so a first tax due within the warning days (the demo's Day 3) is warned on Day 1,
+## which has no morning.
+func check_tax_warning() -> bool:
+	var cfg := tax_config()
+	var days_until_tax := tax_due_day - current_day
+	if days_until_tax <= 0 or not (cfg.warning_days as Array).has(days_until_tax):
+		return false
+	var amount := tax_amount_for(adventurers.size(), cfg)
+	log_message(tax_warning_log_line(days_until_tax, amount))
+	print("[GameManager] tax: warning, due in %d day(s), %d gold" % [days_until_tax, amount])
+	EconomyBus.tax_warning.emit(days_until_tax, amount)
+	return true
 
 ## The due morning and each grace morning: the demand (first morning of the cycle only), then the payment or the grace.
 func handle_tax_payment():
