@@ -1,0 +1,79 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/codex_lectern.gd" id="1_lectern"]
+
+[sub_resource type="StandardMaterial3D" id="placeholder_codex_leather"]
+resource_name = "placeholder_codex_leather"
+albedo_color = Color(0.227, 0.141, 0.094, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="placeholder_codex_page"]
+resource_name = "placeholder_codex_page"
+albedo_color = Color(0.91, 0.863, 0.753, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="placeholder_codex_eye"]
+resource_name = "placeholder_codex_eye"
+albedo_color = Color(0.051, 0.231, 0.212, 1)
+roughness = 0.4
+emission_enabled = true
+emission = Color(0.247, 0.718, 0.651, 1)
+emission_energy_multiplier = 1.1
+
+[sub_resource type="BoxMesh" id="BoxMesh_cover"]
+size = Vector3(0.56, 0.03, 0.7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_page"]
+size = Vector3(0.5, 0.04, 0.32)
+
+[sub_resource type="BoxMesh" id="BoxMesh_spine"]
+size = Vector3(0.54, 0.05, 0.045)
+
+[sub_resource type="SphereMesh" id="SphereMesh_eye"]
+radius = 0.06
+height = 0.065
+radial_segments = 16
+rings = 8
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_read"]
+radius = 0.75
+
+[node name="CodexLectern" type="Node3D"]
+script = ExtResource("1_lectern")
+
+[node name="PlaceholderBody" type="Node3D" parent="."]
+
+[node name="Cover" type="MeshInstance3D" parent="PlaceholderBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, 0)
+mesh = SubResource("BoxMesh_cover")
+material_override = SubResource("placeholder_codex_leather")
+
+[node name="PageLeft" type="MeshInstance3D" parent="PlaceholderBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.005, 0.05, -0.168)
+mesh = SubResource("BoxMesh_page")
+material_override = SubResource("placeholder_codex_page")
+
+[node name="PageRight" type="MeshInstance3D" parent="PlaceholderBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.005, 0.05, 0.168)
+mesh = SubResource("BoxMesh_page")
+material_override = SubResource("placeholder_codex_page")
+
+[node name="Spine" type="MeshInstance3D" parent="PlaceholderBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, 0)
+mesh = SubResource("BoxMesh_spine")
+material_override = SubResource("placeholder_codex_leather")
+
+[node name="Eye" type="MeshInstance3D" parent="PlaceholderBody"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.26, 0.08, 0)
+mesh = SubResource("SphereMesh_eye")
+material_override = SubResource("placeholder_codex_eye")
+
+[node name="Anchor" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0, 0)
+
+[node name="ReadZone" type="Area3D" parent="."]
+monitorable = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ReadZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, -0.4, 0.85)
+shape = SubResource("SphereShape3D_read")

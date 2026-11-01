@@ -76,6 +76,9 @@ const DEN_FA_DEFAULT_TIERS := {"mid": "Known", "late": "Trusted"}
 const DEN_FA_UNREACHABLE := 1 << 30    # a tier index no reputation reaches (too few tiers for Mid and Late)
 var den_fa_state: String = "early"
 var _den_fa_tier_warnings: int = 0     # a bad den_fa_state_tiers is warned about once a run (New Game re-arms it)
+## Story 18.5 (DC-12): Den Fa has said his line about the Codex in the hall this run (the book on the trunk opens
+## directly after that). Saved with the run's dialogue state; a New Game or New Run resets it (he says it again).
+var codex_first_opened := false
 
 
 
@@ -3123,6 +3126,7 @@ func _dialogue_save_data() -> Dictionary:
 		"fallen_this_run": fallen_this_run.duplicate(),   # Story 14.4 review P4
 		"dialogue_flags": dialogue_flags.duplicate(),
 		"den_fa_state": den_fa_state,
+		"codex_first_opened": codex_first_opened,   # Story 18.5
 	}
 
 func _load_dialogue_data(data: Dictionary) -> void:
@@ -3141,6 +3145,9 @@ func _load_dialogue_data(data: Dictionary) -> void:
 		state = "early"
 	den_fa_state = state
 	_update_den_fa_state(false)
+	# Story 18.5: Den Fa's line about the Codex was said this run (a bool; an older save or junk: not yet).
+	var heard = data.get("codex_first_opened", false)
+	codex_first_opened = heard if heard is bool else false
 
 ## A saved counter, parsed defensively: null, junk or a negative number load as 0 (int(null) would abort
 ## load_save_data half-way).
@@ -3158,6 +3165,7 @@ func _reset_dialogue_state() -> void:
 	dialogue_flags = {}
 	den_fa_state = "early"            # silently, like a load: no den_fa_state_changed
 	_den_fa_tier_warnings = 0         # "once a run": a New Game warns again
+	codex_first_opened = false        # Story 18.5: Den Fa says his line about the Codex again in a new run
 
 ## Den Fa's state for a reputation tier index (Story 10.3, pure): "late" at late_index or above, "mid" at
 ## mid_index or above, else "early"; never earlier than `current` (an unknown current counts as early).
