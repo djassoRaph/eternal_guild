@@ -16,6 +16,7 @@ extends Node3D
 var reputation_label: Label  # code-built (Epic 14) — no scene-file changes needed
 
 const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
+const DISTURBANCE_DIRECTOR := "res://scripts/game/disturbance_director.gd"   # Story 14.4 (loaded by path)
 
 
 ## Story 4.2 review P4: the event log sits on the hall's HUD layer, which draws over the hall's popups (the hire desk,
@@ -35,6 +36,9 @@ func _ready():
 	await get_tree().process_frame
 	_init_zone_prompts()
 	_fix_welcome_tax_line()   # Story 14.6: the welcome text states the active profile's tax
+	var director = load(DISTURBANCE_DIRECTOR).new()   # Story 14.4: today's tavern disturbance, shown in the day phase
+	director.name = "DisturbanceDirector"
+	add_child(director)
 	log_message("Game started successfully!")
 	add_to_group("main_tavern")
 	# Epic 16 (Stories 16.3, 16.4): the hall's staff work by themselves (their brains); elsewhere they stay cosmetic
