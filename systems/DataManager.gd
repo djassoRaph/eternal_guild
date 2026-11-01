@@ -14,6 +14,7 @@ var equipment: Dictionary = {}   # data/economy/equipment.json — Epic 12 loot
 var artifacts: Dictionary = {}   # data/economy/artifacts.json — Epic 12 loot
 var dialogue_lines: Dictionary = {}
 var settlements: Dictionary = {}
+var disturbances: Dictionary = {}   # data/disturbances/disturbances.json — Story 14.4
 signal data_ready
 signal data_loaded(data_type: String)
 signal data_modified(data_type: String, data: Dictionary)
@@ -42,6 +43,7 @@ func load_all_base_data():
 	load_economy_data()
 	load_dialogue_data()
 	load_settlement_data()
+	load_disturbance_data()
 	print("All base data loaded")
 	data_ready.emit()
 
@@ -142,6 +144,15 @@ func get_random_artifact_id() -> String:
 func load_dialogue_data():
 	dialogue_lines = load_data_file("res://data/dialogue/patron_lines.json", {})
 	data_loaded.emit("dialogue")
+
+## Story 14.4: the tavern disturbances' types. A missing or broken file, or one without types: none (one warning), and
+## no disturbance ever rolls.
+func load_disturbance_data():
+	var d = load_data_file("res://data/disturbances/disturbances.json", {})
+	disturbances = d if d is Dictionary else {}
+	if not (disturbances.get("types") is Dictionary) or (disturbances.types as Dictionary).is_empty():
+		push_warning("[DataManager] missing: no disturbance types in data/disturbances/disturbances.json; none will come")
+	data_loaded.emit("disturbances")
 
 func load_settlement_data():
 	settlements = load_data_file("res://data/settlements/locations.json", {})

@@ -1693,6 +1693,269 @@ func handle_tax_payment():
 			EconomyBus.tax_overdue.emit(days_left)
 
 
+# === Tavern disturbances (Story 14.4) ===
+# GameManager, the day authority, rolls them: each morning (advance_day, after the tax) yesterday's event is settled (seen
+# and left unresolved: its type's "ignored" outcome; never seen: dropped), then today's is picked: a disturbance_schedule
+# entry for today first (the demo's Day-2 thief), else below disturbance_reputation_below, out of the cooldown, on a
+# daily-chance roll, a type by weight among those whose conditions hold, a truth by weight. One at a time, saved. The
+# hall's director (scripts/game/disturbance_director.gd) shows it in the day phase and calls mark_disturbance_fired();
+# a conversation's choice comes back through resolve_disturbance(). Types: data/disturbances/disturbances.json.
+const DISTURBANCE_DEFAULTS := {"reputation_below": 50, "daily_chance": 0.3, "cooldown_days": 3, "schedule": []}
+const DISTURBANCE_STATES := ["queued", "fired"]
+var pending_disturbance: Dictionary = {}   # {type, truth, day, state (queued | fired), subject}; {} when none
+var last_disturbance_day: int = 0          # the day the last event was queued (the cooldown counts from it)
+var _disturbance_warnings: int = 0         # a bad disturbance config is warned about once a run (New Game re-arms it)
+
+## The disturbance types (DataManager.disturbances.types; {} when the file has none).
+func disturbance_types() -> Dictionary:
+	var t = DataManager.disturbances.get("types") if DataManager.disturbances is Dictionary else null
+	return t if t is Dictionary else {}
+
+## The roll's numbers from the config's disturbance_* keys (pure): {reputation_below, daily_chance, cooldown_days,
+## schedule: [{day, type, truth}]}. A missing key takes DISTURBANCE_DEFAULTS' silently; a bad one takes it with a warning
+## text in `warn`; a schedule entry without a whole day >= 1 and a type is skipped with a warning text.
+static func disturbance_config_from(raw: Dictionary, warn: Array = []) -> Dictionary:
+	var out := DISTURBANCE_DEFAULTS.duplicate(true)
+	for k in [["disturbance_reputation_below", "reputation_below"], ["disturbance_cooldown_days", "cooldown_days"]]:
+		if not raw.has(k[0]):
+			continue
+		var n = _whole_number(raw[k[0]])
+		if n == null or int(n) < 0:
+			warn.append("[GameManager] fallback: %s %s is not a whole number >= 0; using %s" % [k[0], raw[k[0]], out[k[1]]])
+		else:
+			out[k[1]] = int(n)
+	if raw.has("disturbance_daily_chance"):
+		var c = raw.disturbance_daily_chance
+		if (c is int or c is float) and is_finite(float(c)) and float(c) >= 0.0 and float(c) <= 1.0:
+			out.daily_chance = float(c)
+		else:
+			warn.append("[GameManager] fallback: disturbance_daily_chance %s is not a number from 0 to 1; using %s" % [c, out.daily_chance])
+	if raw.has("disturbance_schedule"):
+		var s = raw.disturbance_schedule
+		if not (s is Array):
+			warn.append("[GameManager] fallback: disturbance_schedule %s is not a list; none" % [s])
+		else:
+			for e in s:
+				var d = _whole_number(e.get("day")) if e is Dictionary else null
+				if d == null or int(d) < 1 or not (e.get("type") is String):
+					warn.append("[GameManager] fallback: disturbance_schedule entry %s needs a whole day >= 1 and a type; skipped" % [e])
+					continue
+				out.schedule.append({"day": int(d), "type": str(e.type), "truth": str(e.get("truth", ""))})
+	return out
+
+## disturbance_config_from() for game_config.json (the active profile's values), its warnings pushed once a run.
+func disturbance_config() -> Dictionary:
+	var raw := {}
+	for k in ["disturbance_reputation_below", "disturbance_daily_chance", "disturbance_cooldown_days", "disturbance_schedule"]:
+		var v = DataManager.get_config(k)
+		if v != null:
+			raw[k] = v
+	var warn: Array = []
+	var cfg := disturbance_config_from(raw, warn)
+	_warn_disturbance(warn)
+	return cfg
+
+func _warn_disturbance(warn: Array) -> void:
+	if not warn.is_empty() and _disturbance_warnings == 0:
+		_disturbance_warnings += 1
+		for w in warn:
+			push_warning(w)
+
+## A type's truth by its truths' weights (pure; names in order; "plain" when it has none). `roll` in [0, 1).
+static func pick_truth(type_data: Dictionary, roll: float) -> String:
+	var truths = type_data.get("truths")
+	if not (truths is Dictionary) or (truths as Dictionary).is_empty():
+		return "plain"
+	var names: Array = (truths as Dictionary).keys()
+	names.sort()
+	var total := 0.0
+	for n in names:
+		total += maxf(0.0, float(truths[n]) if (truths[n] is int or truths[n] is float) else 0.0)
+	if total <= 0.0:
+		return str(names[0])
+	var x := clampf(roll, 0.0, 0.999999) * total
+	for n in names:
+		x -= maxf(0.0, float(truths[n]) if (truths[n] is int or truths[n] is float) else 0.0)
+		if x < 0.0:
+			return str(n)
+	return str(names[-1])
+
+## Today's event, or {} (pure). `rolls`: [chance, type, truth], each in [0, 1). A schedule entry for `day` wins over the
+## gate, the cooldown and the chance (its truth if it names a known one, else by weight); an unknown scheduled type is
+## skipped with a warning text. Else: reputation below the gate, `day - last_day` at least the cooldown (no event yet:
+## always), the chance roll below daily_chance, then a type by weight (names in order) among those with a weight > 0 whose
+## conditions hold (min_deaths), then the truth.
+static func pick_disturbance(day: int, reputation: int, last_day: int, deaths: int, cfg: Dictionary, types: Dictionary,
+		rolls: Array, warn: Array = []) -> Dictionary:
+	var r: Array = rolls if rolls.size() >= 3 else [1.0, 0.0, 0.0]
+	for e in cfg.get("schedule", []):
+		if int(e.get("day", 0)) != day:
+			continue
+		var st := str(e.get("type", ""))
+		if not (types.get(st) is Dictionary):
+			warn.append("[GameManager] fallback: disturbance_schedule names an unknown type '%s' on day %d; skipped" % [st, day])
+			continue
+		var tr := str(e.get("truth", ""))
+		var known = types[st].get("truths")
+		if tr == "" or not (known is Dictionary and (known as Dictionary).has(tr)):
+			tr = pick_truth(types[st], float(r[2]))
+		return {"type": st, "truth": tr, "day": day, "state": "queued", "subject": ""}
+	if reputation >= int(cfg.get("reputation_below", 50)):
+		return {}
+	if last_day > 0 and day - last_day < int(cfg.get("cooldown_days", 3)):
+		return {}
+	if float(r[0]) >= float(cfg.get("daily_chance", 0.3)):
+		return {}
+	var names: Array = types.keys().filter(func(k): return types[k] is Dictionary)
+	names.sort()
+	var eligible: Array = []
+	var total := 0.0
+	for n in names:
+		var d: Dictionary = types[n]
+		var w = d.get("weight", 0)
+		if not (w is int or w is float) or float(w) <= 0.0 or deaths < deaths_needed(d):
+			continue
+		eligible.append(n)
+		total += float(w)
+	if eligible.is_empty():
+		return {}
+	var x := clampf(float(r[1]), 0.0, 0.999999) * total
+	var pick: String = eligible[-1]
+	for n in eligible:
+		x -= float(types[n].weight)
+		if x < 0.0:
+			pick = n
+			break
+	return {"type": pick, "truth": pick_truth(types[pick], float(r[2])), "day": day, "state": "queued", "subject": ""}
+
+## The deaths this run a type needs before it can come (pure): conditions.min_deaths, else 0.
+static func deaths_needed(type_data) -> int:
+	var cond = type_data.get("conditions") if type_data is Dictionary else null
+	var md = _whole_number(cond.get("min_deaths", 0)) if cond is Dictionary else null
+	return maxi(0, int(md)) if md != null else 0
+
+## An outcome of the data (pure): {rep, gold, line} for a type, a truth and a choice (or "ignored"); {} when it has none.
+static func disturbance_outcome(types: Dictionary, type: String, truth: String, choice: String) -> Dictionary:
+	var d = types.get(type)
+	var by_truth = d.get("outcomes", {}).get(truth) if d is Dictionary and d.get("outcomes") is Dictionary else null
+	var o = by_truth.get(choice) if by_truth is Dictionary else null
+	if not (o is Dictionary):
+		return {}
+	var rep = _whole_number(o.get("rep", 0))
+	var g = _whole_number(o.get("gold", 0))
+	return {"rep": int(rep) if rep != null else 0, "gold": int(g) if g != null else 0, "line": str(o.get("line", ""))}
+
+## The morning's step (advance_day): settle yesterday's event, then roll today's. `rolls` (tests): [chance, type, truth].
+func _advance_disturbances(rolls: Array = []) -> void:
+	if game_over_active:
+		return
+	var p := pending_disturbance
+	if not p.is_empty() and int(p.get("day", 0)) < current_day:
+		pending_disturbance = {}
+		if p.get("state") == "fired":
+			_apply_disturbance_outcome(p, "ignored", "disturbance_ignored")
+		else:
+			print("[GameManager] disturbance: dropped %s (%s) from day %d (never seen)" % [p.get("type"), p.get("truth"), int(p.get("day", 0))])
+	if not pending_disturbance.is_empty():
+		return
+	var warn: Array = []
+	var r := rolls if rolls.size() >= 3 else [randf(), randf(), randf()]
+	var e := pick_disturbance(current_day, tavern_reputation, last_disturbance_day, deaths_this_run, disturbance_config(), disturbance_types(), r, warn)
+	_warn_disturbance(warn)
+	if e.is_empty():
+		return
+	if deaths_needed(disturbance_types().get(e.type)) > 0:
+		e.subject = _last_fallen_name()
+	pending_disturbance = e
+	last_disturbance_day = current_day
+	print("[GameManager] disturbance: queued %s (%s) for day %d" % [e.type, e.truth, current_day])
+
+## The newest name on the codex's fallen heroes ("" when none): the mourner's lost one (she comes only after a death
+## this run, so it is this run's).
+func _last_fallen_name() -> String:
+	var fallen = SaveSystem.codex_data.get("fallen_heroes", []) if SaveSystem.codex_data is Dictionary else []
+	return str(fallen[-1].get("name", "")) if fallen is Array and not fallen.is_empty() and fallen[-1] is Dictionary else ""
+
+## The hall showed today's event (the director): queued -> fired. False when there is none for today.
+func mark_disturbance_fired() -> bool:
+	if pending_disturbance.is_empty() or int(pending_disturbance.get("day", -1)) != current_day:
+		return false
+	pending_disturbance.state = "fired"
+	return true
+
+## The conversation's choice for today's shown event (the director, when the box closes): the data's outcome applied
+## (reason "disturbance_resolved"), the event cleared; {rep, gold, line}. No event shown today, or a choice the outcomes
+## don't have ("ignored" is the morning's, not a choice): {} with a warning, nothing changed.
+func resolve_disturbance(choice: String) -> Dictionary:
+	var p := pending_disturbance
+	if p.is_empty() or int(p.get("day", -1)) != current_day or p.get("state") != "fired":
+		push_warning("[GameManager] refuse: no disturbance shown today to resolve (%s)" % choice)
+		return {}
+	if choice == "ignored" or disturbance_outcome(disturbance_types(), str(p.type), str(p.truth), choice).is_empty():
+		push_warning("[GameManager] refuse: %s (%s) has no outcome '%s'" % [p.type, p.truth, choice])
+		return {}
+	pending_disturbance = {}
+	return _apply_disturbance_outcome(p, choice, "disturbance_resolved")
+
+## Apply an outcome: gold first (a loss takes what there is, never below 0), then reputation through the authority with
+## the reason; then GuildBus.disturbance_resolved with what was applied. {rep, gold, line}.
+func _apply_disturbance_outcome(p: Dictionary, choice: String, reason: String) -> Dictionary:
+	var o := disturbance_outcome(disturbance_types(), str(p.get("type", "")), str(p.get("truth", "")), choice)
+	var g := int(o.get("gold", 0))
+	var gold_delta := 0
+	if g > 0:
+		add_gold(g)
+		gold_delta = g
+	elif g < 0:
+		var take := mini(-g, gold)
+		if take > 0 and spend_gold(take):
+			gold_delta = -take
+	var before := tavern_reputation
+	if int(o.get("rep", 0)) != 0:
+		adjust_reputation(int(o.rep), reason)
+	var rep_delta := tavern_reputation - before
+	print("[GameManager] disturbance: %s (%s) %s: rep %+d, gold %+d" % [p.get("type"), p.get("truth"), choice, rep_delta, gold_delta])
+	GuildBus.disturbance_resolved.emit(str(p.get("type", "")), choice, rep_delta, gold_delta)
+	return {"rep": rep_delta, "gold": gold_delta, "line": str(o.get("line", ""))}
+
+## F12 (Story 14.4): today's event made `type` with `truth` (by weight when it isn't one of the type's), queued: the hall
+## shows it in the day phase. False for an unknown type.
+func debug_queue_disturbance(type: String, truth := "") -> bool:
+	var d = disturbance_types().get(type)
+	if not (d is Dictionary):
+		return false
+	var known = d.get("truths")
+	var tr := truth if known is Dictionary and (known as Dictionary).has(truth) else pick_truth(d, randf())
+	pending_disturbance = {"type": type, "truth": tr, "day": current_day, "state": "queued",
+		"subject": _last_fallen_name() if deaths_needed(d) > 0 else ""}
+	last_disturbance_day = current_day
+	print("[GameManager] disturbance: debug queued %s (%s) for day %d" % [type, tr, current_day])
+	return true
+
+func _disturbance_save_data() -> Dictionary:
+	return {"pending_disturbance": pending_disturbance.duplicate(), "last_disturbance_day": last_disturbance_day}
+
+## Story 14.4: the saved event, read defensively and silently: no key (an older save) -> none; an unknown type, a bad day
+## or state -> none, with a warning.
+func _load_disturbance_data(data: Dictionary) -> void:
+	last_disturbance_day = maxi(0, _save_int(data.get("last_disturbance_day"), 0))
+	pending_disturbance = {}
+	var p = data.get("pending_disturbance")
+	if p == null or (p is Dictionary and (p as Dictionary).is_empty()):
+		return
+	var d = _whole_number(p.get("day")) if p is Dictionary else null
+	if not (p is Dictionary) or not (disturbance_types().get(str(p.get("type", ""))) is Dictionary) or d == null \
+			or not (str(p.get("state", "")) in DISTURBANCE_STATES):
+		push_warning("[GameManager] load: pending_disturbance %s is not a known event; none" % [p])
+		return
+	pending_disturbance = {"type": str(p.type), "truth": str(p.get("truth", "plain")), "day": int(d), "state": str(p.state),
+		"subject": str(p.get("subject", ""))}
+
+func _reset_disturbance_state() -> void:
+	pending_disturbance = {}
+	last_disturbance_day = 0
+	_disturbance_warnings = 0
+
 # === LOGGING SYSTEM ===
 func log_message(message: String):
 	"""Send message to game log"""
@@ -2147,6 +2410,7 @@ func advance_day():
 	check_tax_deadline()
 	if game_over_active:
 		return   # Story 13.4 review P6: the guild fell this morning (the tax): the night ends here (it saved itself)
+	_advance_disturbances()   # Story 14.4: yesterday's event settled, today's rolled
 	
 	# Show daily status if beer shortage is active
 	if beer_shortage_days > 0:
@@ -2397,6 +2661,7 @@ func get_save_data() -> Dictionary:
 	}
 	data.merge(_dialogue_save_data())  # run counters + conversation flags (Story 10.2)
 	data.merge(_staff_save_data())     # the staff records (Story 16.1)
+	data.merge(_disturbance_save_data())   # today's tavern disturbance and the cooldown (Story 14.4)
 
 	print("   Saved: ", data.keys().size(), " fields")
 	print("   Day: ", data.current_day, ", Gold: ", data.gold)
@@ -2464,6 +2729,7 @@ func load_save_data(data: Dictionary):
 	# Run counters + conversation flags (Story 10.2; older saves have none)
 	_load_dialogue_data(data)
 	_load_staff_data(data)   # the staff records (Story 16.1; an older save: the profile's starting staff)
+	_load_disturbance_data(data)   # Story 14.4 (an older save: none)
 
 	# World map (restore hex grid so mission board works after load) + the Latest News rumours (Story 11.2)
 	var world_data = data.get("world_data", {})
@@ -2875,6 +3141,7 @@ func reset_game_state():
 	mission_tier_unlocked = 1
 	_reset_dialogue_state()  # run counters + conversation flags (Story 10.2)
 	_reset_staff_state()     # the profile's starting staff (Story 16.1)
+	_reset_disturbance_state()   # Story 14.4
 
 	# Game state
 	game_over_active = false

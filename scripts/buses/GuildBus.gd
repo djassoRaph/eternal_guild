@@ -12,6 +12,10 @@ signal reputation_changed(new_value: int)
 # Loading a save and New Game set the value silently: these mean "earned in play".
 signal reputation_adjusted(delta: int, new_value: int, reason: String)
 signal reputation_tier_changed(old_tier: String, new_tier: String)
+# Story 14.4: a tavern disturbance was settled: by the player's choice in its conversation (choice: the outcome id, e.g.
+# "eject"), or by the morning after it was left alone ("ignored"). rep_delta and gold_delta: what was applied (the
+# reputation also went through reputation_adjusted, reason "disturbance_resolved" / "disturbance_ignored").
+signal disturbance_resolved(type: String, choice: String, rep_delta: int, gold_delta: int)
 
 # Den Fa's state (Story 10.3): "early" -> "mid" -> "late", forward only. GameManager owns it
 # (den_fa_state, moved by adjust_reputation() at game_config.json's den_fa_state_tiers) and emits this when
