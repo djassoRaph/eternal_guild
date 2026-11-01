@@ -17157,7 +17157,7 @@ func _check_t48_tavern() -> void:
 	var lec = (load(CODEX_LECTERN_SCENE) as PackedScene).instantiate()
 	var zone_local: Vector3 = (lec.get_node("ReadZone").get_child(0) as Node3D).position
 	var anchor_local: Vector3 = (lec.get_node("Anchor") as Node3D).position
-	var cover: Vector3 = ((lec.get_node("PlaceholderBody/Cover") as MeshInstance3D).mesh as BoxMesh).size
+	var cover: Vector3 = ((lec.get_node("PlaceholderBody/Rest") as MeshInstance3D).mesh as BoxMesh).size   # what stands on the lid
 	lec.free()
 	if not (book is Vector3) or not (trunk is Vector3):
 		check(false, "MainTavern.tscn: a CodexLectern under Furniture and TrunkLargeA with their transforms (%s, %s)" % [book, trunk])
@@ -17244,7 +17244,7 @@ func _t48_world() -> Dictionary:
 	cap.position = Vector3(0, 0.75, 0)
 	player.add_child(cap)
 	world.add_child(player)
-	player.position = Vector3(1.0, 0, 0)
+	player.position = Vector3(0.5, 0, 0.6)
 	return {"world": world, "ui": ui, "lec": lec, "player": player}
 
 
@@ -17321,7 +17321,7 @@ func _check_t48_flow(gm) -> void:
 	w.player.position = Vector3(6, 0, 0)
 	await _t48_settle(6)
 	table["away"] = lec.can_read()
-	w.player.position = Vector3(1.0, 0, 0)
+	w.player.position = Vector3(0.5, 0, 0.6)
 	await _t48_settle(6)
 	var blocker := Control.new()
 	blocker.add_to_group("blocks_player")
