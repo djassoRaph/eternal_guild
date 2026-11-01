@@ -66,6 +66,7 @@ var _party_missions_warnings: Array = []   # what that gate let through (Story 6
 # === Dialogue state (Story 10.2): what conversations may notice this run, read through dialogue_bridge.gd ===
 var adventurers_hired_this_run: int = 0
 var deaths_this_run: int = 0
+var fallen_this_run: Array = []        # Story 14.4 review P4: this run's dead, by name (the mourner's lost one), saved per run
 var dialogue_flags: Dictionary = {}    # conversation flag id -> true (e.g. "den_fa_first_contact"), saved per run
 # Den Fa's state (Story 10.3): "early" -> "mid" -> "late", forward only, moved by adjust_reputation() at the
 # tiers named in game_config.json's den_fa_state_tiers; saved per run; GuildBus.den_fa_state_changed on each step
@@ -1769,6 +1770,9 @@ const DISTURBANCE_STATES := ["queued", "fired"]
 var pending_disturbance: Dictionary = {}   # {type, truth, day, state (queued | fired), subject}; {} when none
 var last_disturbance_day: int = 0          # the day the last event was queued (the cooldown counts from it)
 var _disturbance_warnings: int = 0         # a bad disturbance config is warned about once a run (New Game re-arms it)
+## Review P3: this morning's ignored outcome's line (logged at once); the hall's director shows it as a banner once the
+## day begins (after the briefing) and clears it. Not saved.
+var disturbance_note := ""
 
 ## The disturbance types (DataManager.disturbances.types; {} when the file has none).
 func disturbance_types() -> Dictionary:
@@ -1845,8 +1849,8 @@ static func pick_truth(type_data: Dictionary, roll: float) -> String:
 	return str(names[-1])
 
 ## Today's event, or {} (pure). `rolls`: [chance, type, truth], each in [0, 1). A schedule entry for `day` wins over the
-## gate, the cooldown and the chance (its truth if it names a known one, else by weight); an unknown scheduled type is
-## skipped with a warning text. Else: reputation below the gate, `day - last_day` at least the cooldown (no event yet:
+## gate, the cooldown and the chance (its truth if it names a known one, else by weight); an unknown scheduled type, or
+## one whose min_deaths this run hasn't reached (review P4), is skipped with a warning text. Else: reputation below the gate, `day - last_day` at least the cooldown (no event yet:
 ## always), the chance roll below daily_chance, then a type by weight (names in order) among those with a weight > 0 whose
 ## conditions hold (min_deaths), then the truth.
 static func pick_disturbance(day: int, reputation: int, last_day: int, deaths: int, cfg: Dictionary, types: Dictionary,
@@ -1858,6 +1862,9 @@ static func pick_disturbance(day: int, reputation: int, last_day: int, deaths: i
 		var st := str(e.get("type", ""))
 		if not (types.get(st) is Dictionary):
 			warn.append("[GameManager] fallback: disturbance_schedule names an unknown type '%s' on day %d; skipped" % [st, day])
+			continue
+		if deaths < deaths_needed(types[st]):
+			warn.append("[GameManager] fallback: disturbance_schedule's %s on day %d needs %d death(s) this run (min_deaths); skipped" % [st, day, deaths_needed(types[st])])
 			continue
 		var tr := str(e.get("truth", ""))
 		var known = types[st].get("truths")
@@ -1909,15 +1916,16 @@ static func disturbance_outcome(types: Dictionary, type: String, truth: String, 
 	var g = _whole_number(o.get("gold", 0))
 	return {"rep": int(rep) if rep != null else 0, "gold": int(g) if g != null else 0, "line": str(o.get("line", ""))}
 
-## The morning's step (advance_day): settle yesterday's event, then roll today's. `rolls` (tests): [chance, type, truth].
+## The morning's step (advance_day): settle the event of another day (yesterday's; review P7: any day but today, so a debug
+## jump back can't freeze the rolls), then roll today's. `rolls` (tests): [chance, type, truth].
 func _advance_disturbances(rolls: Array = []) -> void:
 	if game_over_active:
 		return
 	var p := pending_disturbance
-	if not p.is_empty() and int(p.get("day", 0)) < current_day:
+	if not p.is_empty() and int(p.get("day", 0)) != current_day:
 		pending_disturbance = {}
 		if p.get("state") == "fired":
-			_apply_disturbance_outcome(p, "ignored", "disturbance_ignored")
+			_note_ignored(_apply_disturbance_outcome(p, "ignored", "disturbance_ignored"))
 		else:
 			print("[GameManager] disturbance: dropped %s (%s) from day %d (never seen)" % [p.get("type"), p.get("truth"), int(p.get("day", 0))])
 	if not pending_disturbance.is_empty():
@@ -1934,11 +1942,29 @@ func _advance_disturbances(rolls: Array = []) -> void:
 	last_disturbance_day = current_day
 	print("[GameManager] disturbance: queued %s (%s) for day %d" % [e.type, e.truth, current_day])
 
-## The newest name on the codex's fallen heroes ("" when none): the mourner's lost one (she comes only after a death
-## this run, so it is this run's).
+## Review P3: an ignored outcome, told: its line in the morning's log (with what it cost) before anything else that
+## morning can end the run (advance_day's soft-lock check), and kept for the hall's banner (disturbance_note).
+func _note_ignored(out: Dictionary) -> void:
+	var line := str(out.get("line", ""))
+	if line == "":
+		return
+	log_message(ignored_log_line(out))
+	disturbance_note = line
+
+## The morning log's line for an ignored outcome (pure): the outcome's line, then what it cost or gave.
+static func ignored_log_line(out: Dictionary) -> String:
+	var parts := []
+	if int(out.get("gold", 0)) != 0:
+		parts.append("%+d gold" % int(out.gold))
+	if int(out.get("rep", 0)) != 0:
+		parts.append("%+d reputation" % int(out.rep))
+	var line := str(out.get("line", ""))
+	return line if parts.is_empty() else "%s (%s)" % [line, ", ".join(parts)]
+
+## The newest name among this run's fallen ("" when none): the mourner's lost one. Review P4: run-scoped (the codex's
+## list outlives runs and loads); an older save's deaths have no names kept: none, and her line without a name.
 func _last_fallen_name() -> String:
-	var fallen = SaveSystem.codex_data.get("fallen_heroes", []) if SaveSystem.codex_data is Dictionary else []
-	return str(fallen[-1].get("name", "")) if fallen is Array and not fallen.is_empty() and fallen[-1] is Dictionary else ""
+	return str(fallen_this_run[-1]) if not fallen_this_run.is_empty() else ""
 
 ## The hall showed today's event (the director): queued -> fired. False when there is none for today.
 func mark_disturbance_fired() -> bool:
@@ -1983,10 +2009,13 @@ func _apply_disturbance_outcome(p: Dictionary, choice: String, reason: String) -
 	return {"rep": rep_delta, "gold": gold_delta, "line": str(o.get("line", ""))}
 
 ## F12 (Story 14.4): today's event made `type` with `truth` (by weight when it isn't one of the type's), queued: the hall
-## shows it in the day phase. False for an unknown type.
+## shows it in the day phase. False for an unknown type, or one whose min_deaths this run hasn't reached (review P4).
 func debug_queue_disturbance(type: String, truth := "") -> bool:
 	var d = disturbance_types().get(type)
 	if not (d is Dictionary):
+		return false
+	if deaths_this_run < deaths_needed(d):
+		push_warning("[GameManager] refuse: %s needs %d death(s) this run (min_deaths)" % [type, deaths_needed(d)])
 		return false
 	var known = d.get("truths")
 	var tr := truth if known is Dictionary and (known as Dictionary).has(truth) else pick_truth(d, randf())
@@ -2019,6 +2048,7 @@ func _reset_disturbance_state() -> void:
 	pending_disturbance = {}
 	last_disturbance_day = 0
 	_disturbance_warnings = 0
+	disturbance_note = ""
 
 # === LOGGING SYSTEM ===
 func log_message(message: String):
@@ -2980,6 +3010,7 @@ func _dialogue_save_data() -> Dictionary:
 	return {
 		"adventurers_hired_this_run": adventurers_hired_this_run,
 		"deaths_this_run": deaths_this_run,
+		"fallen_this_run": fallen_this_run.duplicate(),   # Story 14.4 review P4
 		"dialogue_flags": dialogue_flags.duplicate(),
 		"den_fa_state": den_fa_state,
 	}
@@ -2987,6 +3018,8 @@ func _dialogue_save_data() -> Dictionary:
 func _load_dialogue_data(data: Dictionary) -> void:
 	adventurers_hired_this_run = _save_count(data.get("adventurers_hired_this_run", 0))
 	deaths_this_run = _save_count(data.get("deaths_this_run", 0))
+	var names = data.get("fallen_this_run", [])   # Story 14.4 review P4: names only; an older save has none
+	fallen_this_run = (names as Array).filter(func(n): return n is String and n != "") if names is Array else []
 	var flags = data.get("dialogue_flags", {})
 	dialogue_flags = flags.duplicate() if flags is Dictionary else {}
 	# Den Fa's state (Story 10.3): an older save has none (early); an unknown value is early with a warning.
@@ -3011,6 +3044,7 @@ static func _save_count(v) -> int:
 func _reset_dialogue_state() -> void:
 	adventurers_hired_this_run = 0
 	deaths_this_run = 0
+	fallen_this_run = []
 	dialogue_flags = {}
 	den_fa_state = "early"            # silently, like a load: no den_fa_state_changed
 	_den_fa_tier_warnings = 0         # "once a run": a New Game warns again
@@ -3771,6 +3805,7 @@ func handle_adventurer_death(adventurer: Dictionary, mission: Dictionary):
 	# Remove from adventurer roster
 	adventurers.erase(adventurer)
 	_count_death()
+	fallen_this_run.append(str(adventurer.get("name", "")))   # Story 14.4 review P4: the mourner names this run's dead
 	adventurer_roster_changed.emit()
 	on_adventurer_died(adventurer)
 
