@@ -418,19 +418,33 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ---
 
 ## Epic 14: Reputation & Tavern Disturbances
-**Status: ~40% — Tiers, HUD display, and effects shipped (2026-08-18, T3-2). Disturbance system still not started.**
+**Status: ~75% — Tiers, HUD display and effects (2026-08-18); the demo pacing profile (14.6) and the tavern disturbances (14.4) built 2026-11-01, in review. Left: 14.5 (reputation-gated content), 14.3's animated label, passive decay.**
 
-- [x] `tavern_reputation` integer tracked in GameManager, mutated only via `adjust_reputation()` (single authority)
-- [x] +2 reputation on successful mission
-- [x] -1 reputation on mission failure (2026-08-18) — previously only moved on success/dismiss
-- [x] -1 reputation on adventurer dismiss
+- [x] `tavern_reputation` integer tracked in GameManager, mutated only via `adjust_reputation(delta, reason)` (single authority; Story 14.6 added the reason)
+- [x] The gains are config keys (Story 14.6): `rep_mission_success` 2, `rep_mission_failure` -1, `rep_party_mission_success` 0, `rep_party_mission_failure` -1, `rep_dismiss` -1, `rep_patron_satisfied` 0 in the full game (today's numbers); the demo profile's are faster
+- [x] A patron who finishes and pays is a source (`GameManager.patron_satisfied()`, 0 in the full game; +1 in the demo)
 - [x] Tier system partially uses reputation (tier 3 requires reputation >= 50)
 - [x] **5-tier label** (2026-08-18) — Unknown → Known → Trusted → Respected → Honored, data-driven via `data/config/game_config.json` `reputation_tiers`, `GameManager.get_reputation_tier()`
 - [x] **Reputation effects** (2026-08-18) — tier's `tip_bonus` applied in `calculate_patron_tip()`; `recruit_stat_bonus` applied to rolled stats in `generate_fallback_recruits()`
 - [x] **HUD display** (2026-08-18) — "Reputation: N (Tier)" in the tavern top stats bar, code-built, updates live via the new `reputation_changed` signal (bridged to `GuildBus`, previously an empty stub)
-- [ ] **No disturbance system** (pickpocket, drunk, rare visitor)
-- [ ] **No reputation decay over time** (only moves on success/failure/dismiss — no passive drift)
-- [ ] **No reputation display** in HUD
+- [x] **Reputation events on GuildBus** (Story 14.6): `reputation_adjusted(delta, new_value, reason)` and `reputation_tier_changed(old_tier, new_tier)`; a banner when the tier rises ("The guild is now Known.", DRAFT)
+- [x] **Tavern disturbances** (Story 14.4): the thief (guilty or innocent), the rowdy drunk, the grieving family, the rival guild's man
+- [ ] **No reputation decay over time** (only moves on its sources — no passive drift)
+- [ ] 14.3's animated tier label (a plain label and the rise banner today)
+
+### Epic 14 progress
+
+**Story 14.6: the demo pacing profile (built 2026-11-01, in review; demo roadmap D6).**
+- **Profiles.** `DataManager.get_config(key)` returns `game_config.json` `profiles.<profile>.<key>` when the active profile's block has it, else the top-level value: the top level is the full game. A block replaces a value whole; `profile`, `profiles` and the keys tools read straight from the file can't be overridden. `DataManager.get_profile()` / `is_demo()`.
+- **The demo's values** (`profiles.demo`, DRAFT): tiers 0/10/24/40/70 (Known, Trusted, Respected, Honored), a mission success +3, a group success +3, a satisfied patron +1; 40 gold and 20 beer to start (K-1); a 20-gold tax every 3 days from Day 3, warned 2 days and 1 day before (DP-12); `demo_ending` on at reputation 32 after 2 taxes (Story 10.7's keys, K-9); nobody on the staff at start and the staff hireable once the guild has held 300 gold (`staff_unlock`, K-7: the rule is carried in `staff_ctx()`; Story 16.1's `staff_hire_block_for` reads it from D5's review on); deaths twice as likely (`death_chance_multiplier` 2, K-8).
+- **The welcome text** in the hall's event log states the active tax (it said "every 30 days, 1000 gold").
+- Test 37; Tests 19, 20, 26, 31, 32, 33, 35, 36 pin the full profile or K9's staff seed where they check the full game's numbers. Suite 1422 / 0 (from 1379). Stage D in the hall: the profile live, a real served patron's +1, the tier banners, Den Fa's mid_enter and late_enter at the demo tiers, and an 8-day driven demo session (two taxes paid on Days 3 and 6, Respected on Day 4, deaths on Day 5); shots in `eternal_guild_art/shots/demo/14-6/`.
+
+**Story 14.4: tavern disturbances (built 2026-11-01, in review; demo roadmap D6).**
+- **The roll** (GameManager, each morning after the tax): yesterday's event settled (shown and left alone: its `ignored` outcome; never shown: dropped), then today's: a `disturbance_schedule` entry first (the demo's guilty thief on Day 2), else below `disturbance_reputation_below`, out of `disturbance_cooldown_days`, on a `disturbance_daily_chance` roll; a type and a truth by weight. Saved (`pending_disturbance`, `last_disturbance_day`).
+- **The hall** (`scripts/game/disturbance_director.gd`): in the day phase the visitor (`scripts/npcs/disturbance_npc.gd`, a placeholder townsfolk body) stands at his type's spot with a banner; E opens his conversation (`data/dialogue/disturbances.dialogue`, DRAFT); the reply's `bridge.choose(id)` decides it: `GameManager.resolve_disturbance()` applies the outcome from `data/disturbances/disturbances.json`, a banner says what happened, he walks out. Walking away leaves him; sleep sends him off and the morning applies "ignored". `GuildBus.disturbance_resolved`.
+- **The dialogue runner** takes an optional bridge; the bridge gains `choose(id)` / `choice` and the disturbance's type and subject.
+- F12: the State tab's `disturbance` line and Economy › "Queue a thief now". Test 38; suite 1460 / 0. Stage D: the Day-2 thief through real E presses (thrown out, +2), an innocent thrown out (-2), a drunk walked away from and ignored into the next morning, the mourner and the rival's man at their spots; shots in `eternal_guild_art/shots/demo/14-4/`.
 
 ---
 
@@ -454,7 +468,7 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 ### Epic 16 progress
 
 **Stories 16.1-16.5: the Bartender and the Quest Dealer actually work (built 2026-10-31, in review; demo roadmap D5).**
-- **16.1 Staff records.** GameManager keeps one saved record per staff role (`staff`: staff_id `role/variant`, name, daily wage, hired, on strike, owed, missed days), seeded from the profile (the demo's starting staff, K9). `hire_staff` / `dismiss_staff` are the one way in and out and emit `GuildBus.staff_hired` / `staff_fired` (the bodies walk in and out); new `GuildBus.staff_strike_changed`. `is_staff_hired` reads the record; `is_staff_working` = hired and not on strike. F12: a staff readout and Hire / Dismiss / Pay / Strike buttons. Test 33 part A.
+- **16.1 Staff records.** GameManager keeps one saved record per staff role (`staff`: staff_id `role/variant`, name, daily wage, hired, on strike, owed, missed days), seeded from the profile (the demo's starting staff: K9 had both; since K-7, 2026-11-01, the demo starts with none and hires them once the guild has held 300 gold, Story 14.6). `hire_staff` / `dismiss_staff` are the one way in and out and emit `GuildBus.staff_hired` / `staff_fired` (the bodies walk in and out); new `GuildBus.staff_strike_changed`. `is_staff_hired` reads the record; `is_staff_working` = hired and not on strike. F12: a staff readout and Hire / Dismiss / Pay / Strike buttons. Test 33 part A.
 - **16.5 Wages.** Each morning, right after the adventurers' wages (before the tax), each hired member is paid in full or goes on strike owing the wage (`EconomyBus.staff_wage_paid` / `staff_wage_unpaid`, a banner); a striker isn't paid automatically; after 3 unpaid mornings in a row they leave (a warning banner the day before). The back wage is paid from the Staff section or F12. Wages (3 and 4 gold, placeholders) and the 3 days live in `game_config.json` `staff_wages`, so Story 14.6's demo profile can override them. Test 33 part B.
 - **16.2 Staff section (placeholder hire UX).** E at the Bar: Tavern Management lists the staff: Working (Dismiss asks first), On strike with "Pay N gold", a candidate with "Hire (N gold)" (the first day's wage; disabled with "Not enough gold"), or locked ("Joins at Trusted" / "Respected" in the full profile). `scripts/ui/staff_panel.gd`; every rule is GameManager's. Test 34.
 - **16.3 The Bartender serves.** His brain (`scripts/game/bartender_ai.gd` on `staff_ai.gd`, a LimboAI `LimboHSM` built in code, MANUAL, updated by his own tick): IDLE (wiping) -> SERVING (a patron on a bar stool who has waited 3 s: the pour at the taps, the hand-over at the counter through the patron's own `serve_patron()`, the player's `consume_drink` path) -> RESTOCKING (at the kegs while the beer is out; then the same patron). No orders on strike or after a fall; table patrons stay the player's. A serve takes about 13 s. The hall turns automation on (`main_tavern.gd`); tests and LookDev keep 25.13's cosmetic body. Test 35 (with a LimboAI probe).
@@ -667,13 +681,14 @@ A player can:
 8. Open mission board, dispatch solo/party adventurers on timed missions
 9. Advance the day → the End-of-Day Reveal plays: per-adventurer portraits, fate-toned panels (returned/wounded/dead), authored flavor lines, a forced pause on death, and group panels with party bonds — deaths are written to the `codex.dat` cemetery
 10. Manage beer shortage consequences (escalating morale damage)
-11. Pay taxes every 30 days (warnings, a grace period) or the guild falls: "The Guild Falls" shows how long it lasted, then New Run or the main menu
+11. Pay taxes (the full game: every 30 days; the demo: 20 gold every 3 days from Day 3, Story 14.6), with warnings and a grace period, or the guild falls: "The Guild Falls" shows how long it lasted, then New Run or the main menu
+11b. Deal with a tavern disturbance (Story 14.4): a stranger by the tables (a thief, or not), a drunk, a mourner at the door, a rival guild's man; talk to them and choose
 12. Save/Load/Continue from main menu
 13. Pause → Save & Exit → Continue later
 14. Walk between tavern interior and exterior world (player only — NPCs don't cross scenes yet)
 15. Walk a dressed tavern hall (Epic 25): the Hourglass Pillar, the hearth (its fire follows the fireplace state), the round bar where patrons sit on stools, the guild desk and the mission board (one notice per open contract)
 16. Pet the Cat in her basket by the hearth (or on her stroll outside); talk to Den Fa by the fire (his first contact in the dialogue box, Story 10.2; as the guild's reputation grows, his Mid and Late conversations, Story 10.3; a DRAFT script)
-17. Watch the Bartender serve the bar's stool patrons by himself (and restock when the beer runs out) and the Quest Dealer send a Minor Arcana on a contract each morning; hire, dismiss and pay them back from the Staff section at the Bar; unpaid, they strike, then leave (both present from day 1 in the demo profile)
+17. Watch the Bartender serve the bar's stool patrons by himself (and restock when the beer runs out) and the Quest Dealer send a Minor Arcana on a contract each morning; hire, dismiss and pay them back from the Staff section at the Bar; unpaid, they strike, then leave (in the demo profile hired once the guild has held 300 gold since K-7, 2026-11-01; until D5's review wires that rule, they unlock at the demo's Trusted and Respected)
 18. Walk out to the tavern's hill, down the path and over the bridge into the village, with six villagers and their barks; patrons and villagers wear the townsfolk kit
 19. Hire from six classes (Fighter, Rogue, Mage, Healer, Barbarian, Ranger)
 
