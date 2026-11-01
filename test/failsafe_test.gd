@@ -12265,6 +12265,29 @@ func _check_t33_block(gm) -> void:
 	var b2: String = gm.staff_hire_block_for(bt, bogus, full.merged({"tier_index": 4}, true))
 	check(b1 == "Joins at Honored." and b2 == "" and warn.size() == 1,
 		"an unknown unlock tier counts as the highest tier, with a warning ('%s', '%s', %s)" % [b1, b2, warn])
+	# Review P2 / P10 (K-7, amended 2026-11-01: 150 gold): the profile's unlock rule. The demo with no starting staff locks
+	# every role until the run's gold peak reaches the threshold (not the gold now), with no tier text; a demo role outside
+	# the start list under the tier rule locks by tier; the full game keeps its tiers.
+	var gp := {"profile": "demo", "start_staff": [], "tier_index": 4, "tiers": T33_TIERS, "gold": 100, "gold_peak": 149,
+		"unlock": {"rule": "gold_peak", "gold_peak": 150}}
+	var k7 := [
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, gp),
+		gm.staff_hire_block_for(recs[1], T33_ROLES.desk_manager, gp),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, gp.merged({"gold_peak": 150}, true)),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, gp.merged({"gold_peak": 150, "tier_index": 0}, true)),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, gp.merged({"gold_peak": 400, "gold": 1}, true)),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, gp.merged({"start_staff": ["bartender"]}, true)),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, {"profile": "demo", "start_staff": ["desk_manager"], "tier_index": 0, "tiers": T33_TIERS, "gold": 100}),
+		gm.staff_hire_block_for(bt, T33_ROLES.bartender, full.merged({"gold_peak": 0, "unlock": {"rule": "tier"}}, true)),
+	]
+	check(k7 == ["Joins at 150 gold.", "Joins at 150 gold.", "", "", "Not enough gold.", "", "Joins at Trusted.", "Joins at Trusted."],
+		"the unlock rule: the demo's gold peak (149 locked 'Joins at 150 gold.', 150 open, whatever the tier; the gold peak, not the gold now), a start role never locked; a demo role outside the start list under the tier rule and the full game by tier %s" % [k7])
+	# Review P3 (K-12): a debt stays with the role: hiring it again costs the day's wage and the debt
+	var owing := bt.duplicate()
+	owing.owed = 8
+	var debt := [gm.staff_hire_block_for(owing, T33_ROLES.bartender, demo.merged({"gold": 10}, true)),
+		gm.staff_hire_block_for(owing, T33_ROLES.bartender, demo.merged({"gold": 11}, true))]
+	check(debt == ["Not enough gold.", ""], "a role that left owing 8 needs the wage and the debt (3 + 8) to come back %s" % [debt])
 
 
 ## AC 4 (16.1): hire_staff and dismiss_staff on the live records.
@@ -12304,13 +12327,26 @@ func _check_t33_hire_dismiss(gm, dm, events: Array, capture) -> void:
 	capture.lines.clear()
 	var d1: String = gm.dismiss_staff("bartender")
 	check(d1 == "" and events == [["strike", "bartender/barkeep", false, false], ["fired", "bartender/barkeep", "bartender", false]]
-		and bt.hired == false and bt.on_strike == false and bt.owed == 0 and bt.missed_days == 0
+		and bt.hired == false and bt.on_strike == false and bt.owed == 3 and bt.missed_days == 0
 		and capture.lines.has("[GameManager] staff: dismissed the Bartender"),
-		"dismiss_staff on a striker: the record cleared first, then staff_strike_changed(false), then ONE staff_fired %s" % [events])
+		"dismiss_staff on a striker: the record cleared first (the debt stays with the role, K-12), then staff_strike_changed(false), then ONE staff_fired %s" % [events])
 	events.clear()
 	var d2: String = gm.dismiss_staff("bartender")
 	var d3: String = gm.dismiss_staff("garden_manager")
 	check(d2 == "Not hired." and d3 == "Unknown staff." and events.is_empty(), "dismiss_staff refused: not hired, unknown role, no signal")
+	# K-12: hiring him back costs the day's wage and the debt (3 + 3)
+	gm.gold = 5
+	events.clear()
+	var h1: String = gm.hire_staff("bartender")
+	var h1_still: bool = events.is_empty() and gm.gold == 5 and bt.hired == false and bt.owed == 3
+	gm.gold = 10
+	capture.lines.clear()
+	var h2: String = gm.hire_staff("bartender")
+	check(h1 == "Not enough gold." and h1_still and h2 == "" and gm.gold == 4 and bt.hired == true and bt.owed == 0
+		and events == [["gold", 4], ["paid", "bartender/barkeep", 6], ["hired", "bartender/barkeep", "bartender"]]
+		and capture.lines.has("Paid the Bartender's back wages: 3 gold."),
+		"K-12: the debt stays with the role: 5 gold can't hire him back (3 + 3 owed), 10 can: 6 paid at once, the debt cleared (%s, %s) %s" % [h1, h2, events])
+	gm.dismiss_staff("bartender")    # not hired again, for the debug strike's last row
 	events.clear()
 	gm.debug_set_staff_strike("desk_manager", true)
 	gm.debug_set_staff_strike("desk_manager", true)
@@ -12347,6 +12383,9 @@ func _check_t33_save(gm, events: Array) -> void:
 	var junk: bool = (gm.staff.size() == 2 and b.get("hired") == true and b.get("daily_wage") == int(start[0].daily_wage)
 		and b.get("owed") == 0 and b.get("on_strike") == false and b.get("staff_id") == "bartender/barkeep"
 		and b.get("name") == "the Bartender" and d.get("hired") == false and d.get("staff_id") == "desk_manager/silver_elf")
+	gm._load_staff_data({"staff": [{"role": "desk_manager", "hired": false, "owed": 8, "missed_days": 2}]})
+	var kept_debt: bool = gm.staff_record("desk_manager").get("owed") == 8 and gm.staff_record("desk_manager").get("missed_days") == 0
+	check(kept_debt, "load: a role not hired keeps its debt (K-12), not its missed days")
 	gm.staff = []
 	gm._reset_staff_state()
 	var reset: bool = gm.staff == start
@@ -12381,10 +12420,15 @@ func _check_t33_debug_panel(gm, events: Array) -> void:
 	recs[1].hired = false
 	panel._refresh_state_tab()
 	var text2: String = (lbl as Label).text if lbl is Label else ""
+	recs[1].owed = 8
+	panel._refresh_state_tab()
+	var text3: String = (lbl as Label).text if lbl is Label else ""
 	check(text.contains("• the Bartender [bartender/barkeep] hired, 3 g/day, on strike (owes 4 g, missed 1)")
 		and text.contains("• the Quest Dealer [desk_manager/silver_elf] hired, 4 g/day, working")
-		and text2.contains("• the Quest Dealer [desk_manager/silver_elf] not hired, 4 g/day"),
-		"the F12 State tab's staff lines: '%s' / '%s'" % [text, text2])
+		and text2.ends_with("• the Quest Dealer [desk_manager/silver_elf] not hired, 4 g/day")
+		and text3.contains("• the Quest Dealer [desk_manager/silver_elf] not hired, 4 g/day, owes 8 g (paid on hiring, K-12)"),
+		"the F12 State tab's staff lines (a role not hired shows the debt it left with, K-12): '%s' / '%s' / '%s'" % [text, text2, text3])
+	recs[1].owed = 0
 	recs[1].hired = true
 	var by_text := {}
 	for b in panel.find_children("*", "Button", true, false):
@@ -12464,9 +12508,9 @@ func _check_t33b_wages(gm, events: Array, capture) -> void:
 	capture.lines.clear()
 	gm.apply_staff_wages()
 	check(events == [["gold", 94], ["paid", bt, 3], ["unpaid", qd], ["strike", qd, false, false], ["fired", qd, "desk_manager", false]]
-		and d.hired == false and d.on_strike == false and d.owed == 0 and d.missed_days == 0
-		and capture.lines.has("[GameManager] staff: the Quest Dealer left (unpaid 3 days)"),
-		"the third unpaid morning (missed_days_to_leave): unpaid, then they leave (the record cleared first, strike off, staff_fired), the debt dropped %s" % [events])
+		and d.hired == false and d.on_strike == false and d.owed == 12 and d.missed_days == 0
+		and capture.lines.has("[GameManager] staff: the Quest Dealer left (unpaid 3 days)") and capture.lines.count("The Quest Dealer has left the guild, unpaid.") == 1,
+		"the third unpaid morning (missed_days_to_leave): unpaid, then they leave (the record cleared first, strike off, staff_fired); the debt (12) stays with the role (K-12) %s" % [events])
 	events.clear()
 	gm.apply_staff_wages()
 	check(events == [["gold", 91], ["paid", bt, 3]], "a staff member who isn't hired draws nothing %s" % [events])
@@ -12600,6 +12644,7 @@ func test_staff_panel() -> void:
 		and sp.get_instance_base_type() == "VBoxContainer",
 		"staff_panel.gd: a VBoxContainer section with staff_rows() and refresh(), loaded by path (no class_name)")
 	var snap := _t28_snapshot(gm, wm, dm)
+	dm.game_config["demo_start_staff"] = ["bartender", "desk_manager"]   # K9's seed as a fixture (the shipped demo has none, K-7); restored with the snapshot
 	_check_t34_rows(gm, sp)
 	await _check_t34_live(gm, gb, sp)
 	var src := FileAccess.get_file_as_string(TAVERN_MGMT_SCRIPT)
@@ -12640,6 +12685,19 @@ func _check_t34_rows(gm, sp) -> void:
 		"the full profile: locked rows say the tier (no button); a candidate shows Hire (3 gold), disabled with \"Not enough gold\" when short %s %s" % [_t34_acts(at_trusted[0]), _t34_acts(poor[0])])
 	var with_unknown: Array = recs.duplicate(true) + [{"role": "garden_manager", "staff_id": "garden_manager/x", "name": "x", "daily_wage": 1, "hired": true}]
 	check(sp.staff_rows(with_unknown, T33_ROLES, demo).size() == 2, "a record for a role staff.json doesn't name is not shown")
+	# Review P2 (K-7, 150 gold): the demo's gold-peak lock is a locked row; P3 (K-12): a role that left owing shows the debt
+	var gp := {"profile": "demo", "start_staff": [], "tier_index": 4, "tiers": T33_TIERS, "gold": 100, "gold_peak": 100,
+		"unlock": {"rule": "gold_peak", "gold_peak": 150}}
+	var gp_rows: Array = sp.staff_rows(free_recs, T33_ROLES, gp)
+	var gp_open: Array = sp.staff_rows(free_recs, T33_ROLES, gp.merged({"gold_peak": 150}, true))
+	var owing: Array = free_recs.duplicate(true)
+	owing[1].owed = 4
+	var o_rows: Array = sp.staff_rows(owing, T33_ROLES, gp.merged({"gold_peak": 150, "gold": 7}, true))
+	var o_rich: Array = sp.staff_rows(owing, T33_ROLES, gp.merged({"gold_peak": 150, "gold": 8}, true))
+	check(gp_rows.all(func(v): return v.state == "locked" and v.line == "Joins at 150 gold" and v.actions.is_empty())
+		and _t34_acts(gp_open[0]) == ["hire:Hire (3 gold):true"] and o_rows[1].line == "Not hired, owed 4 gold"
+		and _t34_acts(o_rows[1]) == ["hire:Hire (8 gold):false"] and _t34_acts(o_rich[1]) == ["hire:Hire (8 gold):true"],
+		"the demo's lock: 'Joins at 150 gold' (no button) until the gold peak reaches it; a role that left owing 4: 'Not hired, owed 4 gold', Hire (8 gold) %s %s" % [gp_rows.map(func(v): return v.line), _t34_acts(o_rows[1])])
 
 
 ## A view's actions as "id:text:enabled" strings.
@@ -13438,7 +13496,8 @@ func _unpin_profile(dm, keep) -> void:
 # the top level is the full game). Reputation gains are config keys (the full game's are today's literals; the demo's
 # faster), adjust_reputation carries a reason and emits GuildBus.reputation_adjusted / reputation_tier_changed, a satisfied
 # patron is a source, a tier rise shows a banner. DP-12 (2026-10-31): the demo's 40 gold, its tax and demo_ending (10.7).
-# Raphael 2026-11-01: K-7 the demo's staff by a gold peak (the rule is a seam here), K-8 the demo's death chance x2, K-9 N 32.
+# Raphael 2026-11-01: K-7 the demo's staff by a gold peak (150 since its amendment; Test 33 checks the lock), K-8 the demo's
+# death chance x2, K-9 N 32.
 # Files: user://failsafe_t37/ (save_path and codex_path); the real save and codex are checked unchanged.
 const T37_DIR := "user://failsafe_t37"
 const T37_DEMO_THRESHOLDS := [0, 10, 24, 40, 70]
@@ -13588,8 +13647,8 @@ func _check_t37_shipped(dm) -> void:
 	check(demo.ending == [true, 32, 2] and full.ending == [false, 32, 2],
 		"demo_ending (Story 10.7's keys): demo enabled, N 32 (K-9), 2 taxes; full off (%s / %s)" % [demo.ending, full.ending])
 	check(demo.death == 2.0 and full.death == 1.0, "death_chance_multiplier: demo 2.0 (K-8), full 1.0 (%s / %s)" % [demo.death, full.death])
-	check(demo.unlock == {"rule": "gold_peak", "gold_peak": 300} and full.unlock == {"rule": "tier"} and demo.start == [] ,
-		"the staff (K-7): the demo hires nobody at start (demo_start_staff []) and unlocks them at a gold peak of 300; the full game by tier (%s / %s)" % [demo.unlock, full.unlock])
+	check(demo.unlock == {"rule": "gold_peak", "gold_peak": 150} and full.unlock == {"rule": "tier"} and demo.start == [] ,
+		"the staff (K-7, amended 2026-11-01): the demo hires nobody at start (demo_start_staff []) and unlocks them at a gold peak of 150; the full game by tier (%s / %s)" % [demo.unlock, full.unlock])
 	dm.game_config["profile"] = "demo"
 	var is_demo: bool = dm.is_demo() and dm.get_profile() == "demo"
 	dm.game_config["profile"] = "full"
@@ -13875,8 +13934,8 @@ func _check_t37_arc(gm, dm) -> void:
 	check(demo_ok and full_ok, "_apply_config (a New Game): the demo starts with 40 gold (its peak too), 20 beer, the tax due on Day 3; the full game 1000, 5, Day 30")
 
 
-## AC 7 (DP-10, K-7): the demo's staff by a gold peak (the seam: staff_ctx carries the rule and the peak; Story 16.1's
-## staff_hire_block_for reads them in D5's review); the full game's tier locks on the demo's tiers.
+## AC 7 (DP-10, K-7): the demo's staff by a gold peak (staff_ctx carries the rule and the peak; Story 16.1's
+## staff_hire_block_for locks by them since Epic 16's review, P2: Test 33); the full game's tier locks on the demo's tiers.
 func _check_t37_staff(gm, dm) -> void:
 	var w: Array = []
 	var a: Dictionary = gm.staff_unlock_from({"rule": "tier"}, w)
@@ -13893,9 +13952,9 @@ func _check_t37_staff(gm, dm) -> void:
 	gm.gold_peak = 123
 	var ctx: Dictionary = gm.staff_ctx()
 	var seeded: Array = gm.staff_seed(gm.staff_roles(), "demo", dm.get_config("demo_start_staff", ["x"]), dm.get_config("staff_wages", {}))
-	check(ctx.get("unlock") == {"rule": "gold_peak", "gold_peak": 300} and ctx.get("gold_peak") == 123
+	check(ctx.get("unlock") == {"rule": "gold_peak", "gold_peak": 150} and ctx.get("gold_peak") == 123
 		and seeded.size() == 2 and seeded.all(func(r): return r.hired == false),
-		"K-7: the demo seeds no staff hired, and staff_ctx carries the unlock rule (gold peak 300) and the run's gold peak for staff_hire_block_for")
+		"K-7: the demo seeds no staff hired, and staff_ctx carries the unlock rule (gold peak 150, amended 2026-11-01) and the run's gold peak for staff_hire_block_for")
 	var roles: Dictionary = gm.staff_roles()
 	var labels: Array = gm.reputation_tier_list(dm.get_config("reputation_tiers", [])).map(func(t): return str(t.label))
 	var locks := []

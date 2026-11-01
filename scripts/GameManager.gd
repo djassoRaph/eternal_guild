@@ -318,9 +318,12 @@ func is_staff_working(role: String) -> bool:
 	return is_staff_hired(role) and staff_record(role).get("on_strike") != true
 
 ## Why a role can't be hired now (Story 16.1, pure; Story 16.2's panel shows it): "" when it can. In order: an unknown
-## role, already hired, locked (the full profile below the role's unlock_tier; a role among the demo's starting staff is
-## never locked in the demo profile), then the first day's wage (Story 16.5, SW-5). ctx: profile, start_staff,
-## tier_index, tiers (the reputation tier labels, lowest first), gold; optionally warn (an Array). DRAFT text.
+## role, already hired, locked, then the gold. Locked follows the profile's unlock rule (ctx.unlock, staff_unlock_from;
+## none: by tier): by tier, below the role's unlock_tier ("Joins at <tier>."); by gold peak (K-7, the demo: 150), while
+## the run's gold peak is below the threshold ("Joins at N gold.", whatever the tier). A role among the demo's starting
+## staff is never locked in the demo profile. The gold: the first day's wage (Story 16.5, SW-5) plus what the role is still
+## owed (K-12: an unpaid debt stays with the role). ctx: profile, start_staff, tier_index, tiers (the reputation tier
+## labels, lowest first), gold; optionally unlock, gold_peak, warn (an Array). DRAFT text.
 static func staff_hire_block_for(record: Dictionary, role_data: Dictionary, ctx: Dictionary) -> String:
 	if record.is_empty() or role_data.is_empty():
 		return "Unknown staff."
@@ -328,13 +331,24 @@ static func staff_hire_block_for(record: Dictionary, role_data: Dictionary, ctx:
 		return "Already hired."
 	var start = ctx.get("start_staff", [])
 	var demo_start: bool = ctx.get("profile") == "demo" and start is Array and (start as Array).has(record.get("role"))
-	var need := staff_unlock_index(role_data, ctx)
-	if not demo_start and int(ctx.get("tier_index", 0)) < need:
-		var tiers: Array = ctx.get("tiers", [])
-		return "Joins at %s." % (tiers[need] if need >= 0 and need < tiers.size() else "a higher reputation")
-	if int(ctx.get("gold", 0)) < int(record.get("daily_wage", 1)):
+	if not demo_start:
+		var unlock = ctx.get("unlock")
+		if unlock is Dictionary and unlock.get("rule") == "gold_peak":
+			var threshold := int(unlock.get("gold_peak", 0))
+			if int(ctx.get("gold_peak", 0)) < threshold:
+				return "Joins at %d gold." % threshold
+		else:
+			var need := staff_unlock_index(role_data, ctx)
+			if int(ctx.get("tier_index", 0)) < need:
+				var tiers: Array = ctx.get("tiers", [])
+				return "Joins at %s." % (tiers[need] if need >= 0 and need < tiers.size() else "a higher reputation")
+	if int(ctx.get("gold", 0)) < staff_hire_cost(record):
 		return "Not enough gold."
 	return ""
+
+## What hiring a role costs now (pure): the first day's wage plus what the role is still owed (K-12).
+static func staff_hire_cost(record: Dictionary) -> int:
+	return int(record.get("daily_wage", 1)) + maxi(0, int(record.get("owed", 0)))
 
 ## The tier index (in ctx.tiers) a role unlocks at (staff.json unlock_tier); an unknown label counts as the highest tier,
 ## with a warning text in ctx.warn (pure).
@@ -350,8 +364,8 @@ static func staff_unlock_index(role_data: Dictionary, ctx: Dictionary) -> int:
 	return i
 
 ## The live context staff_hire_block_for reads (today's profile, reputation tier and gold). Story 14.6 (K-7): also the
-## active unlock rule (`unlock`: staff_unlock_rule()) and the run's gold peak; staff_hire_block_for reads them from D5's
-## review on (until then every role unlocks by its tier).
+## active unlock rule (`unlock`: staff_unlock_rule()) and the run's gold peak, which staff_hire_block_for locks by (Epic 16
+## review P2).
 func staff_ctx() -> Dictionary:
 	var tiers := reputation_tier_list(DataManager.get_config("reputation_tiers", []))
 	return {"profile": _staff_profile(), "start_staff": _staff_start(), "tier_index": reputation_tier_index_for(tavern_reputation, tiers),
@@ -359,7 +373,8 @@ func staff_ctx() -> Dictionary:
 		"unlock": staff_unlock_rule(), "gold_peak": gold_peak}
 
 # Story 14.6 (K-7, Raphael 2026-11-01: "in the demo the Bartender and the Quest Dealer are not hired at start; they become
-# hireable once the guild has reached 300 gold, and stay unlocked"): game_config.json staff_unlock, by profile.
+# hireable once the guild has reached 300 gold, and stay unlocked"; amended the same day to 150 gold, the pacing model
+# showing nobody reaches 300 in a demo): game_config.json staff_unlock, by profile.
 const STAFF_UNLOCK_DEFAULT := {"rule": "tier"}
 
 ## The staff unlock rule (pure): {"rule": "tier"} (each role at its staff.json unlock_tier: the full game, Story 16.1) or
@@ -378,7 +393,7 @@ static func staff_unlock_from(cfg, warn: Array = []) -> Dictionary:
 	warn.append("[GameManager] fallback: staff_unlock %s is not {rule: tier} or {rule: gold_peak, gold_peak: a whole number >= 0}; by tier" % [cfg])
 	return STAFF_UNLOCK_DEFAULT.duplicate()
 
-## The active profile's staff unlock rule (game_config.json staff_unlock; the demo's: a gold peak of 300).
+## The active profile's staff unlock rule (game_config.json staff_unlock; the demo's: a gold peak of 150).
 func staff_unlock_rule() -> Dictionary:
 	var warn: Array = []
 	var r := staff_unlock_from(DataManager.get_config("staff_unlock"), warn)
@@ -396,29 +411,33 @@ func staff_hire_block_reason(role: String) -> String:
 	return why
 
 ## Hire a staff role (Story 16.1; Story 16.2's panel calls it): "" when hired, else the reason, with nothing changed.
-## The first day's wage is paid at once through spend_gold (Story 16.5, SW-5); then GuildBus.staff_hired: the body
-## walks in through the front door (25.13).
+## The first day's wage, and what the role is still owed (K-12), are paid at once through spend_gold (Story 16.5, SW-5;
+## one staff_wage_paid for the total); then GuildBus.staff_hired: the body walks in through the front door (25.13).
 func hire_staff(role: String) -> String:
 	var why := staff_hire_block_reason(role)
 	if why != "":
 		return why
 	var rec := staff_record(role)
 	var wage := int(rec.get("daily_wage", 1))
-	if not spend_gold(wage):
+	var debt := maxi(0, int(rec.get("owed", 0)))
+	if not spend_gold(wage + debt):
 		return "Not enough gold."
 	rec.hired = true
 	rec.on_strike = false
 	rec.owed = 0
 	rec.missed_days = 0
 	log_message("[GameManager] staff: hired %s (%d gold a day)" % [rec.name, wage])
+	if debt > 0:
+		log_message("[GameManager] staff: paid %s's back wages (%d gold)" % [rec.name, debt])
+		log_message("Paid %s's back wages: %d gold." % [rec.name, debt])
 	log_message("%s is on the payroll. %d gold a day." % [staff_title(str(rec.name)), wage])
-	EconomyBus.staff_wage_paid.emit(str(rec.staff_id), wage)   # the first day's wage (Story 16.5)
+	EconomyBus.staff_wage_paid.emit(str(rec.staff_id), wage + debt)   # the first day's wage and the debt (Story 16.5, K-12)
 	GuildBus.staff_hired.emit(str(rec.staff_id), role)
 	return ""
 
 ## Dismiss a hired staff role (Story 16.1; the panel's Dismiss): "" when done, else the reason. The record is cleared
-## first (not hired, no strike, the debt dropped: Story 16.5's SW-4), then a striker's staff_strike_changed(false), then
-## GuildBus.staff_fired: the body walks out.
+## first (not hired, no strike; a striker's debt stays with the role, K-12: hiring them back pays it), then a striker's
+## staff_strike_changed(false), then GuildBus.staff_fired: the body walks out.
 func dismiss_staff(role: String) -> String:
 	var rec := staff_record(role)
 	if rec.is_empty():
@@ -428,12 +447,11 @@ func dismiss_staff(role: String) -> String:
 	_release_staff(rec, "[GameManager] staff: dismissed %s" % rec.name, "%s leaves the guild's service." % staff_title(str(rec.name)))
 	return ""
 
-## Clear a staff record and tell the bus (dismissed, or left unpaid: Story 16.5).
+## Clear a staff record and tell the bus (dismissed, or left unpaid: Story 16.5). What they are owed stays (K-12).
 func _release_staff(rec: Dictionary, system_line: String, player_line: String) -> void:
 	var was_striking: bool = rec.get("on_strike") == true
 	rec.hired = false
 	rec.on_strike = false
-	rec.owed = 0
 	rec.missed_days = 0
 	log_message(system_line)
 	log_message(player_line)
@@ -485,7 +503,7 @@ func _load_staff_data(data: Dictionary) -> void:
 		rec.daily_wage = w if w > 0 else int(rec.daily_wage)
 		rec.hired = e.get("hired") is bool and e.hired
 		rec.on_strike = rec.hired and e.get("on_strike") is bool and e.on_strike
-		rec.owed = maxi(0, _save_int(e.get("owed"), 0)) if rec.on_strike else 0
+		rec.owed = maxi(0, _save_int(e.get("owed"), 0)) if (rec.on_strike or not rec.hired) else 0
 		rec.missed_days = maxi(0, _save_int(e.get("missed_days"), 0)) if rec.on_strike else 0
 		by_role[e.role] = rec
 	var ids: Array = roles.keys().filter(func(k): return k is String and roles[k] is Dictionary)

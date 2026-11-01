@@ -4,7 +4,8 @@
 # only through GameManager.hire_staff / dismiss_staff / pay_staff_back_wage; the reasons a button is off come from
 # GameManager.staff_hire_block_for, so the panel has no rule of its own.
 # One row per staff.json role: hired (Working, or On strike with "Pay N gold"; Dismiss asks once first), a candidate
-# ("Hire (N gold)", disabled with its reason) or locked ("Joins at <tier>", no button). Loaded by path (no class_name).
+# ("Hire (N gold)": the first day's wage plus any debt the role left with, K-12; disabled with its reason) or locked
+# ("Joins at <tier>", or the demo's "Joins at 150 gold", K-7; no button). Loaded by path (no class_name).
 # Player-facing text is DRAFT.
 extends VBoxContainer
 
@@ -55,9 +56,12 @@ static func staff_rows(records: Array, roles: Dictionary, ctx: Dictionary, armed
 				view.state = "locked"
 				view.line = why.trim_suffix(".")
 			else:
+				var debt := maxi(0, int(rec.get("owed", 0)))   # K-12: what the role left owed, paid back on hiring
 				view.state = "candidate"
-				view.line = "Not hired"
-				view.actions = [{"id": "hire", "text": "Hire (%d gold)" % wage, "enabled": why == "", "reason": why.trim_suffix(".")}]
+				view.owed = debt
+				view.line = "Not hired, owed %d gold" % debt if debt > 0 else "Not hired"
+				view.actions = [{"id": "hire", "text": "Hire (%d gold)" % gm_script.staff_hire_cost(rec), "enabled": why == "",
+					"reason": why.trim_suffix(".")}]
 		out.append(view)
 	return out
 

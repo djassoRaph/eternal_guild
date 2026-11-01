@@ -210,7 +210,8 @@ static func staff_line(rec: Dictionary) -> String:
 	var head := "• %s [%s] %s, %d g/day" % [rec.get("name", "?"), rec.get("staff_id", "?"),
 		"hired" if rec.get("hired") == true else "not hired", int(rec.get("daily_wage", 0))]
 	if rec.get("hired") != true:
-		return head
+		var debt := int(rec.get("owed", 0))
+		return head + (", owes %d g (paid on hiring, K-12)" % debt if debt > 0 else "")
 	if rec.get("on_strike") == true:
 		return head + ", on strike (owes %d g, missed %d)" % [int(rec.get("owed", 0)), int(rec.get("missed_days", 0))]
 	return head + ", working"
