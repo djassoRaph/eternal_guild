@@ -652,7 +652,7 @@ static func desk_contract_picks(ready: Array, contracts: Array, cfg: Dictionary,
 			if not (m is Dictionary) or required_party_size(m) != 1 or int(m.get("tier", 99)) > int(cfg.get("max_tier", 1)):
 				continue
 			var chance := int(estimate.call(adv, m))
-			if chance < int(cfg.get("min_chance", 75)):
+			if chance < int(cfg.get("min_chance", DESK_DEFAULTS.min_chance)):
 				continue
 			pairs.append({"id": adv.get("id"), "mission": m, "hex_id": str(c.get("hex_id", "")), "chance": chance, "ai": ai, "ci": ci})
 	pairs.sort_custom(func(x, y): return x.chance > y.chance or (x.chance == y.chance and (x.ai < y.ai or (x.ai == y.ai and x.ci < y.ci))))

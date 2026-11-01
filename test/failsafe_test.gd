@@ -13369,6 +13369,13 @@ func _check_t36_pure(gm, dm) -> void:
 	var sa = dm.get_config("staff_automation", {})
 	check(sa is Dictionary and (sa.get("desk_round_delay_seconds") is float or sa.get("desk_round_delay_seconds") is int),
 		"game_config.json staff_automation.desk_round_delay_seconds")
+	var ai_s = load(DEALER_AI_SCRIPT)
+	var delays := [ai_s.round_delay_from({}), ai_s.round_delay_from({"desk_round_delay_seconds": -1}),
+		ai_s.round_delay_from({"desk_round_delay_seconds": "x"}), ai_s.round_delay_from({"desk_round_delay_seconds": 2.5}), ai_s.round_delay_from(null)]
+	check(delays == [4.0, 4.0, 4.0, 2.5, 4.0], "round_delay_from: a number >= 0, else 4 s (review P6) %s" % [delays])
+	var picks_src := _func_body(FileAccess.get_file_as_string("res://scripts/GameManager.gd").replace("\nstatic func ", "\nfunc "), "desk_contract_picks")
+	check(picks_src.contains("DESK_DEFAULTS.min_chance") and not picks_src.contains("75"),
+		"desk_contract_picks: a cfg without min_chance falls back to DESK_DEFAULTS.min_chance (70, K-11)")
 	var roles: Dictionary = gm.staff_roles()
 	var barks = roles.get("desk_manager", {}).get("round_barks", [])
 	check(barks is Array and barks.size() >= 3 and barks.all(func(b): return str(b).contains("{name}") and str(b).contains("{mission}")),
@@ -13645,11 +13652,61 @@ func _check_t36_brain(gm, wm, gb) -> void:
 	var strike_ok: bool = gm.desk_round_day == 22 and qd.autopilot and brain.state() == "IDLE"
 	gm.staff_record("desk_manager").on_strike = false
 	check(armed_at_setup and strike_ok, "a brain set up on a morning whose round hasn't run runs it; on strike no round and the cosmetic autopilot is back")
+	# review P12 (AC 4): the strike cancelled that morning's round: paid back the same day, she sends nobody until tomorrow
+	var back := _t35_tick(qd, 10.0, func(): return qd.can_drive() and not qd.autopilot)
+	_t35_tick(qd, brain.round_delay + 2.0, func(): return gm.desk_round_day != 22)
+	check(gm.desk_round_day == 22 and gm.active_missions.size() == 1 and not qd.autopilot,
+		"a strike cancels the armed round: back at work the same morning (after %.1f s), no round that day (review P12)" % back)
 	var pos0: Vector3 = qd.global_position
 	var st0: String = brain.state()
 	qd.tick(0.0)
 	check(qd.global_position == pos0 and brain.state() == st0, "tick(0.0) changes nothing")
+	await _check_t36_holds(gm, wm, gb, qd, world)
 	world.queue_free()
+	await process_frame
+
+
+## Review P6: what holds her round: the morning reports (13.4's morning_briefing group: BRIEFING while they show), a
+## paused game, a game over; a dismissal (staff_fired) means no round at all.
+func _check_t36_holds(gm, wm, gb, qd, world: Node3D) -> void:
+	var brain = qd.brain
+	var reports := Control.new()
+	reports.add_to_group("morning_briefing")
+	world.add_child(reports)
+	gm.adventurers = [_t36_adv(906, "Sela", "wands_05_five", 10)]
+	gm.active_missions = []
+	wm.world_map = [_t36_hex("hex_8", T36_SLIME.duplicate(true))]
+	gm.current_day = 24
+	gb.day_changed.emit(24)
+	_t35_tick(qd, brain.round_delay + 2.0, func(): return false)
+	var held: bool = gm.desk_round_day == 22 and brain.state() == "BRIEFING" and qd.work_state() == "BRIEFING"
+	reports.visible = false
+	var t := _t35_tick(qd, brain.round_delay + 4.0, func(): return gm.desk_round_day == 24)
+	check(held and gm.desk_round_day == 24 and gm.active_missions.size() == 1 and t >= brain.round_delay - 0.1,
+		"the morning reports up: she BRIEFS and the armed round waits; closed: it runs %.1f s later (review P6)" % t)
+	reports.queue_free()
+	# paused, then a game over: the armed round waits; neither cancels it
+	gm.active_missions = []
+	gm.current_day = 25
+	gb.day_changed.emit(25)
+	var tree: SceneTree = qd.get_tree()
+	tree.paused = true
+	_t35_tick(qd, brain.round_delay + 2.0, func(): return false)
+	var paused_held: bool = gm.desk_round_day == 24
+	tree.paused = false
+	gm.game_over_active = true
+	_t35_tick(qd, brain.round_delay + 2.0, func(): return false)
+	var over_held: bool = gm.desk_round_day == 24
+	gm.game_over_active = false
+	_t35_tick(qd, brain.round_delay + 2.0, func(): return gm.desk_round_day == 25)
+	check(paused_held and over_held and gm.desk_round_day == 25, "paused or a game over: the armed round waits (%s, %s); then it runs (review P6)" % [paused_held, over_held])
+	# dismissed (GuildBus.staff_fired): no round, her autopilot back
+	gm.current_day = 26
+	gb.day_changed.emit(26)
+	var why: String = gm.dismiss_staff("desk_manager")
+	_t35_tick(qd, brain.round_delay + 2.0, func(): return false)
+	check(why == "" and gm.desk_round_day == 25 and qd.autopilot and brain.state() == "IDLE",
+		"dismissed (staff_fired) on an armed morning: no round, the cosmetic autopilot back (review P6)")
 	await process_frame
 
 

@@ -10,6 +10,8 @@
 #     GameManager.desk_round_day). Once she works and sits, no screen is up and the game runs, she waits
 #     desk_round_delay_seconds (staff_automation in game_config.json), then briefs, GameManager.desk_round() sends who it
 #     sends (dispatch_adventurers), she says so (staff.json round_barks, DRAFT), holds the Brief a moment, and writes.
+#     A strike cancels that morning's round (review P12); the morning reports always open on waking (K-10), and she briefs
+#     while they show.
 # The hire panel does not open by itself when the player walks up (SQ-6: the desk keeps its E). Timers use the tick's
 # delta, never the wall clock.
 extends "res://scripts/game/staff_ai.gd"
@@ -77,6 +79,8 @@ func _game_running() -> bool:
 # ------------------------------------------------------------------ every update
 
 func _before_update(delta: float) -> void:
+	if GameManager.is_staff_hired("desk_manager") and not GameManager.is_staff_working("desk_manager"):
+		_armed = false                # review P12 (AC 4): a strike cancels the morning's round (paid back: tomorrow's)
 	if not _on_duty():
 		_round_left = 0.0
 		npc.set_autopilot(true)       # cosmetic while she isn't working or isn't seated
