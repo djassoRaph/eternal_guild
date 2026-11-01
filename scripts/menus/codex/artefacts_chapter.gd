@@ -3,8 +3,9 @@
 # Every relic in the codex's `artifacts_found`, oldest first (the list is only ever appended to, so its order is the order
 # of discovery), on the left page: its name and "Run 2 · Day 14". The right page: the one selected (the oldest when the
 # chapter opens): its name, its description, who found it ("Finder unknown" for a find recorded before Story 18.3) and
-# when. A finder who later fell (the same id and name in `fallen_heroes`; ids are never reused since Story 4.2, the name
-# guards an old codex) adds "Nina fell on Day 20." and a link to the Fallen Heroes chapter, that hero highlighted.
+# when. A finder who later fell (the same id, name and, when both have it, hire day in `fallen_heroes`: an id can come
+# back in a later session, review P3) adds "Nina fell on Day 20." and a link to the Fallen Heroes chapter, that hero
+# highlighted.
 # Each page shown is a read (the book's note_read); the arrow keys turn the pages.
 # Loaded by path; no class name, no autoload names (the book passes the codex).
 extends RefCounted
@@ -26,8 +27,9 @@ static func artefact_entries(codex: Dictionary) -> Array:
 	return (raw as Array).filter(func(e): return e is Dictionary)
 
 
-## The finder's fate (pure): {id, name, death_day} when the codex's fallen heroes hold the same id (numbers compared as
-## numbers: a loaded codex has floats) AND the same name; else {}.
+## The finder's fate (pure): {id, name, hire_day, death_day} when the codex's fallen heroes hold the same id (numbers
+## compared as numbers: a loaded codex has floats), the same name AND, when both record it, the same hire day
+## (the save system's same-hero rule; review P3); else {}.
 static func finder_fate(entry: Dictionary, codex: Dictionary) -> Dictionary:
 	var fid = entry.get("found_by_id")
 	var fname := str(entry.get("found_by", ""))
@@ -40,8 +42,13 @@ static func finder_fate(entry: Dictionary, codex: Dictionary) -> Dictionary:
 		if not (h is Dictionary):
 			continue
 		var hid = h.get("id")
-		if (hid is int or hid is float) and int(hid) == int(fid) and str(h.get("name", "")) == fname:
-			return {"id": hid, "name": fname, "death_day": h.get("death_day", h.get("day_fallen"))}
+		if not ((hid is int or hid is float) and int(hid) == int(fid) and str(h.get("name", "")) == fname):
+			continue
+		var eh = entry.get("found_by_hire_day")
+		var fh = h.get("hire_day")
+		if (eh is int or eh is float) and (fh is int or fh is float) and int(eh) != int(fh):
+			continue
+		return {"id": hid, "name": fname, "hire_day": fh, "death_day": h.get("death_day", h.get("day_fallen"))}
 	return {}
 
 
@@ -129,7 +136,7 @@ func show_entry(i: int) -> void:
 		link.name = "SeeFallen"
 		link.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		if book != null and is_instance_valid(book) and book.has_method("show_chapter"):
-			link.pressed.connect(book.show_chapter.bind("fallen", fate.id))
+			link.pressed.connect(book.show_chapter.bind("fallen", {"id": fate.id, "name": fate.name, "hire_day": fate.hire_day}))
 		_right.add_child(link)
 	if book != null and is_instance_valid(book) and book.has_method("note_read"):
 		book.note_read("artefacts", "%s#%d" % [str(e.get("id", "?")), i])

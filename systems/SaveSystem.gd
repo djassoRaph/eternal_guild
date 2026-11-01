@@ -83,6 +83,7 @@ func save_end_of_day() -> bool:
 func start_new_run_save() -> bool:
 	if FileAccess.file_exists(save_path + FALLEN_SUFFIX):
 		DirAccess.remove_absolute(save_path + FALLEN_SUFFIX)   # Story 13.4 review P3: the new run takes the slot
+	count_run_started()
 	run_active = true
 	return save_game_state("new_game_start", true)
 
@@ -401,6 +402,25 @@ func _default_codex() -> Dictionary:
 		"total_missions_completed": 0,
 	}
 
+## Story 18.3 review P5: every new run counts itself in codex.dat (`runs_started`, one codex write at its first save), so
+## a Prior artefact's `run` is the run it was found in, whether that run ends in a fall, a New Game or the demo's end
+## (`total_runs` grows only at a fall). An older codex starts the count after its falls.
+func count_run_started() -> void:
+	codex_data["runs_started"] = maxi(_codex_int("runs_started"), _codex_int("total_runs")) + 1
+	_save_codex()
+
+## The run this session plays (pure): codex `runs_started` when a run was counted, else the run after the last fall.
+static func current_run_number(codex: Dictionary) -> int:
+	var started = codex.get("runs_started")
+	if (started is int or started is float) and int(started) > 0:
+		return int(started)
+	var falls = codex.get("total_runs")
+	return (int(falls) if (falls is int or falls is float) else 0) + 1
+
+func _codex_int(key: String) -> int:
+	var v = codex_data.get(key)
+	return int(v) if (v is int or v is float) else 0
+
 func get_codex(key: String, fallback = null):
 	return codex_data.get(key, fallback)
 
@@ -463,12 +483,14 @@ func record_artifact_found(artifact_id: String, finder: Dictionary = {}) -> void
 		"description": def.get("description", ""),
 		"found_day": GameManager.current_day,
 		"timestamp": Time.get_unix_time_from_system(),
-		"run": (int(codex_data.get("total_runs")) if (codex_data.get("total_runs") is int or codex_data.get("total_runs") is float) else 0) + 1,
+		"run": current_run_number(codex_data),
 	}
 	if not finder.is_empty():
 		entry["found_by"] = str(finder.get("name", "Unknown"))
 		entry["found_by_id"] = finder.get("id", -1)
 		entry["found_by_class"] = str(finder.get("class", ""))
+		if finder.get("hire_day") is int or finder.get("hire_day") is float:
+			entry["found_by_hire_day"] = int(finder.hire_day)   # review P3: an id alone can come back in a later session
 	# codex.dat files written before this field existed won't have the key yet — _load_codex()
 	# doesn't merge in new _default_codex() keys, it uses the file as-is (same latent gap
 	# record_fallen_hero() has for fallen_heroes, just guarding against it explicitly here).

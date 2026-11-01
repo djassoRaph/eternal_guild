@@ -2394,6 +2394,11 @@ func _taken_ids() -> Array:
 		for h in fallen:
 			if h is Dictionary:
 				out.append(h.get("id"))
+	var finds = SaveSystem.codex_data.get("artifacts_found", [])   # Story 18.3 review P3: a finder's id is never handed out again
+	if finds is Array:
+		for a in finds:
+			if a is Dictionary and a.has("found_by_id"):
+				out.append(a.get("found_by_id"))
 	return out
 
 ## Story 4.2 (DH-1): the hire desk always has the day's applicants. advance_day makes the pool each morning; a day that
