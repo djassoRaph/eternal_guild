@@ -175,6 +175,7 @@ func adjust_reputation(delta: int, reason := "") -> void:
 		reputation_peak_tier = new_tier
 		GuildBus.reputation_tier_reached.emit(str(tiers[new_tier].get("label", "")))
 	reputation_changed.emit(tavern_reputation)
+	_update_demo_ending()   # Story 10.7: reputation is one of the demo ending's two conditions
 
 ## Story 14.6 review P9: the run's highest tier from a save (pure): the saved index, never below the loaded reputation's
 ## tier (`current_index`); an older save without one, or junk, is that tier.
@@ -1745,6 +1746,7 @@ func handle_tax_payment():
 		print("[GameManager] tax: paid %d gold, next due day %d" % [tax_amount, tax_due_day])
 		EconomyBus.tax_paid.emit(tax_amount)
 		check_tier_unlocks()
+		_update_demo_ending()   # Story 10.7: the taxes paid are the demo ending's other condition
 	else:
 		tax_grace_days += 1
 		log_message("OVERDUE: Cannot pay taxes (%d gold needed). Grace period: %d/%d days." % [tax_amount, tax_grace_days, grace_period])
@@ -1930,6 +1932,9 @@ func _advance_disturbances(rolls: Array = []) -> void:
 			print("[GameManager] disturbance: dropped %s (%s) from day %d (never seen)" % [p.get("type"), p.get("truth"), int(p.get("day", 0))])
 	if not pending_disturbance.is_empty():
 		return
+	if demo_ending_today():   # Story 10.7 (KM-9 as built): the King's messenger's day has no disturbance (one visitor a day)
+		print("[GameManager] disturbance: none today, the King's messenger comes")
+		return
 	var warn: Array = []
 	var r := rolls if rolls.size() >= 3 else [randf(), randf(), randf()]
 	var e := pick_disturbance(current_day, tavern_reputation, last_disturbance_day, deaths_this_run, disturbance_config(), disturbance_types(), r, warn)
@@ -2049,6 +2054,108 @@ func _reset_disturbance_state() -> void:
 	last_disturbance_day = 0
 	_disturbance_warnings = 0
 	disturbance_note = ""
+
+# === The demo's ending: the King's messenger (Story 10.7) ===
+# Demo profile only (sprint-change-proposal-2026-10-31.md K-2, K-3): when the guild's reputation is at least
+# demo_ending.min_reputation AND at least demo_ending.min_taxes_paid taxes are paid (game_config.json, profiles.demo), the
+# ending is due the next morning; that morning it is "coming" and the hall (scripts/game/royal_messenger.gd) shows the
+# King's messenger in the day phase ("waiting" once he walked in); when the player has heard him, "ended": no automatic
+# save after that (SaveSystem.run_active false), and a save never holds "ended" (written as "waiting"), so Continue replays
+# the final day. Forward only, never twice; the full game (and enabled false) never evaluates it. The rules are pure, in
+# scripts/game/demo_ending_rules.gd. GuildBus.demo_ending_changed for every move in play; a load and New Game are silent.
+const DemoEndingRules := preload("res://scripts/game/demo_ending_rules.gd")
+var demo_ending: Dictionary = {}       # {} | {state: due | coming | waiting | ended, day, returning}
+var _demo_ending_warnings: int = 0     # a bad demo_ending config is warned about once a run (New Game re-arms it)
+
+## The resolved demo_ending config for the run's profile ({active, min_reputation, min_taxes_paid}); its warnings pushed
+## once a run, in the demo only (the full game never reads the numbers).
+func demo_ending_config() -> Dictionary:
+	var cfg := DemoEndingRules.config_from(DataManager.get_config("demo_ending"), DataManager.is_demo())
+	if not (cfg.warnings as Array).is_empty() and DataManager.is_demo() and _demo_ending_warnings == 0:
+		_demo_ending_warnings += 1
+		for w in cfg.warnings:
+			push_warning(w)
+	return cfg
+
+## The trigger (adjust_reputation, a tax paid, a load): both conditions met today -> due the next morning. `announce`
+## false (a load) is silent.
+func _update_demo_ending(announce := true) -> void:
+	if not demo_ending.is_empty():
+		return
+	var cfg := demo_ending_config()
+	var next := DemoEndingRules.queue_if_met(demo_ending, tavern_reputation, taxes_paid_count, current_day, cfg)
+	if next.is_empty():
+		return
+	demo_ending = next
+	print("[GameManager] demo ending: due day %d (reputation %d/%d, taxes %d/%d)%s" % [int(next.day), tavern_reputation,
+		int(cfg.min_reputation), taxes_paid_count, int(cfg.min_taxes_paid), "" if announce else ", on load"])
+	if announce:
+		GuildBus.demo_ending_changed.emit("due", int(next.day))
+
+## The morning's step (advance_day, before the disturbance roll): a due ending's day, or yesterday's unheard messenger ->
+## "coming" today. Nothing after the fall, and nothing when the config is off (the full game).
+func _advance_demo_ending() -> void:
+	if game_over_active or demo_ending.is_empty() or not demo_ending_config().active:
+		return
+	var next := DemoEndingRules.morning(demo_ending, current_day)
+	if next == demo_ending:
+		return
+	demo_ending = next
+	print("[GameManager] demo ending: the King's messenger comes today (day %d)%s" % [current_day, ", again" if next.get("returning") == true else ""])
+	GuildBus.demo_ending_changed.emit("coming", current_day)
+
+## Today is the King's messenger's day (coming or already in the hall): the hall's other visitors stand down.
+func demo_ending_today() -> bool:
+	return str(demo_ending.get("state", "")) in ["coming", "waiting"] and int(demo_ending.get("day", -1)) == current_day
+
+## The hall: the messenger walked in (coming today -> waiting). False, with a warning, from any other state.
+func demo_ending_arrived() -> bool:
+	if str(demo_ending.get("state", "")) != "coming" or int(demo_ending.get("day", -1)) != current_day:
+		push_warning("[GameManager] refuse: the King's messenger isn't coming today (%s)" % [demo_ending])
+		return false
+	demo_ending = {"state": "waiting", "day": current_day, "returning": demo_ending.get("returning") == true}
+	print("[GameManager] demo ending: the King's messenger is in the hall (day %d)" % current_day)
+	GuildBus.demo_ending_changed.emit("waiting", current_day)
+	return true
+
+## The hall: the player heard him (waiting -> ended). The demo is over: no automatic save from now on (the save on disk
+## stays this day's last one), then the end card. False, with a warning, from any other state.
+func demo_ending_heard() -> bool:
+	if str(demo_ending.get("state", "")) != "waiting":
+		push_warning("[GameManager] refuse: nobody waiting to be heard (%s)" % [demo_ending])
+		return false
+	demo_ending = {"state": "ended", "day": int(demo_ending.get("day", current_day)), "returning": demo_ending.get("returning") == true}
+	SaveSystem.run_active = false   # KM-7: no timer or end-of-day autosave can write the ended run
+	print("[GameManager] demo ending: the King's request heard on day %d; the demo ends (the save stays this day's)" % current_day)
+	GuildBus.demo_ending_changed.emit("ended", int(demo_ending.day))
+	return true
+
+## F12 (KM-13): the King's messenger comes today, whatever the conditions. False (a warning) when the run's profile isn't
+## the demo or demo_ending is off: the full game never shows him.
+func debug_demo_ending_now() -> bool:
+	if not demo_ending_config().active:
+		push_warning("[GameManager] refuse: the demo ending is off for this run's profile (%s)" % DataManager.get_profile())
+		return false
+	demo_ending = {"state": "coming", "day": current_day, "returning": false}
+	print("[GameManager] demo ending: debug, the King's messenger comes today (day %d)" % current_day)
+	GuildBus.demo_ending_changed.emit("coming", current_day)
+	return true
+
+func _demo_ending_save_data() -> Dictionary:
+	return {"demo_ending": DemoEndingRules.for_save(demo_ending)}
+
+## The saved ending, read defensively (junk -> none, with a warning), then re-evaluated silently: an older save (or a
+## config change) that already meets both conditions is due the next morning.
+func _load_demo_ending_data(data: Dictionary) -> void:
+	var r := DemoEndingRules.from_save(data.get("demo_ending"))
+	if str(r.warning) != "":
+		push_warning(r.warning)
+	demo_ending = r.state
+	_update_demo_ending(false)
+
+func _reset_demo_ending_state() -> void:
+	demo_ending = {}
+	_demo_ending_warnings = 0
 
 # === LOGGING SYSTEM ===
 func log_message(message: String):
@@ -2504,6 +2611,7 @@ func advance_day():
 	check_tax_deadline()
 	if game_over_active:
 		return   # Story 13.4 review P6: the guild fell this morning (the tax): the night ends here (it saved itself)
+	_advance_demo_ending()    # Story 10.7: a due ending's morning: the King's messenger comes today (before the roll below)
 	_advance_disturbances()   # Story 14.4: yesterday's event settled, today's rolled
 	
 	# Show daily status if beer shortage is active
@@ -2761,6 +2869,7 @@ func get_save_data() -> Dictionary:
 	data.merge(_dialogue_save_data())  # run counters + conversation flags (Story 10.2)
 	data.merge(_staff_save_data())     # the staff records (Story 16.1)
 	data.merge(_disturbance_save_data())   # today's tavern disturbance and the cooldown (Story 14.4)
+	data.merge(_demo_ending_save_data())   # the demo's ending (Story 10.7; "ended" saved as "waiting")
 
 	print("   Saved: ", data.keys().size(), " fields")
 	print("   Day: ", data.current_day, ", Gold: ", data.gold)
@@ -2832,6 +2941,7 @@ func load_save_data(data: Dictionary):
 	_load_dialogue_data(data)
 	_load_staff_data(data)   # the staff records (Story 16.1; an older save: the profile's starting staff)
 	_load_disturbance_data(data)   # Story 14.4 (an older save: none)
+	_load_demo_ending_data(data)   # Story 10.7 (an older save: none, then re-evaluated silently)
 
 	# World map (restore hex grid so mission board works after load) + the Latest News rumours (Story 11.2)
 	var world_data = data.get("world_data", {})
@@ -3256,6 +3366,7 @@ func reset_game_state():
 	_reset_dialogue_state()  # run counters + conversation flags (Story 10.2)
 	_reset_staff_state()     # the profile's starting staff (Story 16.1)
 	_reset_disturbance_state()   # Story 14.4
+	_reset_demo_ending_state()   # Story 10.7
 
 	# Game state
 	game_over_active = false

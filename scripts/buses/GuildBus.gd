@@ -19,6 +19,11 @@ signal reputation_tier_reached(tier: String)
 # "eject"), or by the morning after it was left alone ("ignored"). rep_delta and gold_delta: what was applied (the
 # reputation also went through reputation_adjusted, reason "disturbance_resolved" / "disturbance_ignored").
 signal disturbance_resolved(type: String, choice: String, rep_delta: int, gold_delta: int)
+# Story 10.7: the demo's ending, the King's messenger (demo profile only). GameManager.demo_ending moved in play: "due"
+# (reputation and taxes both reached; `day` is the morning he comes), "coming" (that morning: the hall shows him in the
+# day phase), "waiting" (he walked into the hall), "ended" (the player heard him: the end card follows). Loading a save
+# and New Game set the state silently.
+signal demo_ending_changed(state: String, day: int)
 
 # Den Fa's state (Story 10.3): "early" -> "mid" -> "late", forward only. GameManager owns it
 # (den_fa_state, moved by adjust_reputation() at game_config.json's den_fa_state_tiers) and emits this when
