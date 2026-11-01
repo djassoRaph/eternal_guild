@@ -365,6 +365,7 @@ func _initialize() -> void:
 	await test_bartender_serves()
 	await test_quest_dealer_works()
 	await test_demo_pacing()
+	await test_disturbances()
 
 	_finish()
 
@@ -8407,7 +8408,8 @@ const D1_GM_FIELDS := ["gold", "beer_stock", "current_day", "tax_due_day", "adve
 	"_den_fa_tier_warnings", "saved_player_scene", "restored_patrons", "game_over_active", "pending_new_game_save",
 	"gold_peak", "last_run_summary", "_tax_warnings",   # Stories 13.1 / 13.4: the reset writes these too
 	"staff", "desk_round_day",   # Story 16.1: the staff records; Story 16.4: the day of the Quest Dealer's last round
-	"_rep_warnings", "_death_mult_warnings"]   # Story 14.6: the reset re-arms these
+	"_rep_warnings", "_death_mult_warnings",   # Story 14.6: the reset re-arms these
+	"pending_disturbance", "last_disturbance_day", "_disturbance_warnings"]   # Story 14.4: the day's disturbance
 
 
 func test_load_and_resume() -> void:
@@ -13930,3 +13932,588 @@ func _check_t37_sources() -> void:
 		if body == "" or RegEx.create_from_string("adjust_reputation\\(\\s*-?\\d").search(body) != null:
 			lit.append(f)
 	check(lit.is_empty(), "no reputation literal left in complete_mission / complete_party_mission / dismiss_adventurer %s" % [lit])
+
+
+# --- Test 38: Tavern disturbances (Story 14.4) ---
+# GameManager rolls one a morning (a schedule entry first, else below a reputation, out of a cooldown, on a chance; a type
+# by weight, a truth by weight), settles yesterday's (ignored / dropped), and applies a conversation's choice from
+# data/disturbances/disturbances.json. The hall's director shows it in the day phase (a townsfolk-bodied visitor at the
+# type's spot, a banner), opens his title of data/dialogue/disturbances.dialogue with a bridge it keeps (bridge.choose),
+# and sends him out. Files: user://failsafe_t38/; the real save and codex are checked unchanged.
+const T38_DIR := "user://failsafe_t38"
+const DISTURBANCES_PATH := "res://data/disturbances/disturbances.json"
+const DISTURBANCE_DIALOGUE := "res://data/dialogue/disturbances.dialogue"
+const DIRECTOR_SCRIPT := "res://scripts/game/disturbance_director.gd"
+const VISITOR_SCRIPT := "res://scripts/npcs/disturbance_npc.gd"
+const T38_TYPES := ["thief", "rowdy_drunk", "grieving_family", "rival_guild_rep"]
+const T38_FIX := {
+	"a": {"weight": 1, "truths": {"x": 1, "y": 3}, "conditions": {}},
+	"b": {"weight": 3, "truths": {"plain": 1}, "conditions": {}},
+	"m": {"weight": 2, "truths": {"plain": 1}, "conditions": {"min_deaths": 1}},
+}
+
+
+func test_disturbances() -> void:
+	print("[Test 38] Tavern disturbances (Story 14.4)")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	var gb = root.get_node_or_null("GuildBus")
+	var ss = root.get_node_or_null("SaveSystem")
+	var nm = root.get_node_or_null("NotificationManager")
+	var dmgr = root.get_node_or_null("DialogueManager")
+	if gm == null or wm == null or dm == null or gb == null or ss == null or nm == null or dmgr == null:
+		check(false, "the GameManager, WorldManager, DataManager, GuildBus, SaveSystem, NotificationManager, DialogueManager autoloads")
+		return
+	_check_t38_data(dm)
+	await _check_t38_dialogue(dmgr)
+	if not gm.has_method("pick_disturbance") or not gm.has_method("resolve_disturbance") or not gb.has_signal("disturbance_resolved") \
+			or not ResourceLoader.exists(DIRECTOR_SCRIPT) or not ResourceLoader.exists(VISITOR_SCRIPT):
+		check(false, "GameManager.pick_disturbance / resolve_disturbance, GuildBus.disturbance_resolved, the director and the visitor scripts")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := _t28_snapshot(gm, wm, dm)
+	var ss_saved := [ss.save_path, ss.codex_path, ss.run_active, ss.codex_data]
+	ss.run_active = false
+	ss.save_path = T38_DIR + "/eternal_guild_save.json"
+	ss.codex_path = T38_DIR + "/codex.dat"
+	ss.codex_data = {"fallen_heroes": [{"name": "Lysa"}], "artifacts_found": []}
+	var capture := _t28_capture()
+	_d1_set_scene(capture)
+	var events: Array = []
+	var recs := {
+		"disturbance_resolved": func(t, c, r, g): events.append(["dist", t, c, r, g]),
+		"reputation_adjusted": func(d, v, r): events.append(["adj", d, v, r]),
+	}
+	for s in recs:
+		gb.connect(s, recs[s])
+
+	_check_t38_config(gm, dm)
+	_check_t38_pick(gm)
+	_check_t38_advance(gm, dm, events)
+	_check_t38_resolve(gm, events)
+	_check_t38_save(gm)
+	_check_t38_sources()
+	_check_t38_spots(gm)
+	await _check_t38_runner_bridge(gm)
+	await _check_t38_hall(gm, nm, events)
+
+	for s in recs:
+		if gb.is_connected(s, recs[s]):
+			gb.disconnect(s, recs[s])
+	ss.save_path = ss_saved[0]
+	ss.codex_path = ss_saved[1]
+	ss.run_active = ss_saved[2]
+	ss.codex_data = ss_saved[3]
+	_t28_restore(snap, gm, wm, dm)
+	capture.free()
+	nm.clear_banners()
+	await process_frame
+	check(not FileAccess.file_exists(T38_DIR + "/eternal_guild_save.json") and not FileAccess.file_exists(T38_DIR + "/codex.dat"),
+		"Test 38 wrote no save and no codex")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 38 never touched the real save or codex")
+	print("")
+
+
+## AC 1: the data file.
+func _check_t38_data(dm) -> void:
+	var data = _read_json(DISTURBANCES_PATH)
+	var types: Dictionary = data.get("types", {}) if data is Dictionary and data.get("types") is Dictionary else {}
+	var folk = _read_json(TOWNSFOLK_PATH)
+	var ids: Array = (folk.get("variants", []) as Array).map(func(v): return str(v.get("id", ""))) if folk is Dictionary else []
+	var bad := []
+	for t in T38_TYPES:
+		var d = types.get(t)
+		if not (d is Dictionary):
+			bad.append("%s: missing" % t)
+			continue
+		var w = d.get("weight")
+		var spot = d.get("spot")
+		var truths = d.get("truths")
+		if not ((w is int or w is float) and float(w) > 0.0) or not (d.get("conditions") is Dictionary) or not ids.has(str(d.get("body", ""))) \
+				or not (spot is Array and spot.size() == 3 and spot.all(func(x): return x is int or x is float)) \
+				or str(d.get("prompt", "")) == "" or str(d.get("banner", "")) == "" or not (truths is Dictionary and not (truths as Dictionary).is_empty()):
+			bad.append("%s: keys" % t)
+			continue
+		for tr in truths:
+			var title = d.get("titles", {}).get(tr)
+			var outs = d.get("outcomes", {}).get(tr)
+			if not (title is String) or not (outs is Dictionary) or not (outs as Dictionary).has("ignored") or (outs as Dictionary).size() < 3:
+				bad.append("%s.%s: title / outcomes (ignored + two choices)" % [t, tr])
+				continue
+			for c in outs:
+				var o = outs[c]
+				if not (o is Dictionary) or _whole_or_null(o.get("rep")) == null or _whole_or_null(o.get("gold")) == null or not (o.get("line") is String):
+					bad.append("%s.%s.%s" % [t, tr, c])
+	check(data is Dictionary and str(data.get("_comment", "")).begins_with("DRAFT (Story 14.4)") and bad.is_empty() and types.size() == 4,
+		"disturbances.json (DRAFT): the thief, the drunk, the mourner, the rival's man, each with a weight, conditions, a townsfolk body, a spot, a prompt, a banner, truths, a title and outcomes (ignored + at least two choices) per truth %s" % [bad])
+	var th = types.get("thief", {})
+	check(th.get("truths", {}).keys().size() == 2 and th.truths.has("guilty") and th.truths.has("innocent")
+		and int(types.get("grieving_family", {}).get("conditions", {}).get("min_deaths", 0)) == 1,
+		"the thief has a hidden truth (guilty / innocent); the mourner comes only after a death (min_deaths 1)")
+	var loaded = dm.get("disturbances")
+	check(loaded is Dictionary and loaded.get("types") is Dictionary and T38_TYPES.all(func(t): return (loaded.types as Dictionary).has(t)),
+		"DataManager loads the types (DataManager.disturbances)")
+
+
+static func _whole_or_null(v):
+	if v is int:
+		return v
+	if v is float and v == floorf(v):
+		return int(v)
+	return null
+
+
+## AC 4: the conversations: compiled, DRAFT, every title of the data, each reply records a choice of its truth's outcomes
+## (or none for the walk-away), lint-clean; the mourner's named line is gated.
+func _check_t38_dialogue(dmgr) -> void:
+	var text := FileAccess.get_file_as_string(DISTURBANCE_DIALOGUE)
+	var compiled = DMCompiler.compile_string(text, DISTURBANCE_DIALOGUE)
+	var data = _read_json(DISTURBANCES_PATH)
+	var types: Dictionary = data.get("types", {}) if data is Dictionary else {}
+	var titles: Dictionary = compiled.titles if compiled.errors.is_empty() else {}
+	var missing := []
+	for t in types:
+		for tr in types[t].get("titles", {}):
+			if not titles.has(str(types[t].titles[tr])):
+				missing.append(types[t].titles[tr])
+	check(text.begins_with("# DRAFT (Story 14.4)") and compiled.errors.is_empty() and missing.is_empty() and titles.size() >= 5,
+		"disturbances.dialogue: DRAFT, compiles, has every title the data names (missing %s)" % [missing])
+	var bridge_script = load(BRIDGE_SCRIPT)
+	var names := []
+	for p in (bridge_script as GDScript).get_script_property_list():
+		names.append(p.name)
+	for m in (bridge_script as GDScript).get_script_method_list():
+		names.append(m.name)
+	names = names.filter(func(n): return not str(n).begins_with("_") and not str(n).ends_with(".gd"))
+	check(_dialogue_lint(text, names).is_empty(), "disturbances.dialogue passes the bridge lint %s" % [_dialogue_lint(text, names)])
+	var runner = load(RUNNER_SCRIPT)
+	var res = runner.compile_text(text, DISTURBANCE_DIALOGUE)
+	var gm = root.get_node("GameManager")
+	var keep = gm.pending_disturbance
+	var bad := []
+	var walks := 0
+	for t in types:
+		for tr in types[t].get("titles", {}):
+			var title := str(types[t].titles[tr])
+			var outs: Dictionary = types[t].outcomes[tr]
+			var resolving := 0
+			for pick in 5:
+				gm.pending_disturbance = {"type": t, "truth": tr, "day": 1, "state": "fired", "subject": "Lysa" if pick % 2 == 0 else ""}
+				var b = runner.new_bridge()
+				var w: Dictionary = await _walk_dialogue(dmgr, res, title, pick, b)
+				walks += 1
+				var ch := str(b.choice)
+				if not w.ended or (ch != "" and (not outs.has(ch) or ch == "ignored")):
+					bad.append("%s/%d: %s" % [title, pick, ch])
+				if ch != "":
+					resolving += 1
+			if resolving < 2:
+				bad.append("%s: %d resolving walks" % [title, resolving])
+			var picks: Dictionary = {}
+			for pick in 4:
+				gm.pending_disturbance = {"type": t, "truth": tr, "day": 1, "state": "fired", "subject": ""}
+				var b2 = runner.new_bridge()
+				await _walk_dialogue(dmgr, res, title, pick, b2)
+				picks[str(b2.choice)] = true
+			if picks.keys().filter(func(k): return k != "").size() < 2 or not picks.has(""):
+				bad.append("%s: replies %s" % [title, picks.keys()])
+	gm.pending_disturbance = {"type": "grieving_family", "truth": "plain", "day": 1, "state": "fired", "subject": ""}
+	var w0: Dictionary = await _walk_dialogue(dmgr, res, "grieving_family", 2, runner.new_bridge())
+	gm.pending_disturbance = {"type": "grieving_family", "truth": "plain", "day": 1, "state": "fired", "subject": "Lysa"}
+	var w1: Dictionary = await _walk_dialogue(dmgr, res, "grieving_family", 2, runner.new_bridge())
+	gm.pending_disturbance = keep
+	check(bad.is_empty() and walks > 10, "every title walked through every reply: each ends; a reply records one of its truth's choices, at least two do, one ('Walk away') records none %s" % [bad])
+	check(not "\n".join(w0.texts).contains("rode out") and "\n".join(w1.texts).contains("Lysa rode out with your guild"),
+		"the mourner names the lost adventurer only when there is one (bridge.disturbance_subject)")
+
+
+## AC 2 (TD-3): the roll's config, pure, and the shipped values under both profiles.
+func _check_t38_config(gm, dm) -> void:
+	var w: Array = []
+	var d: Dictionary = gm.disturbance_config_from({}, w)
+	check(d == {"reputation_below": 50, "daily_chance": 0.3, "cooldown_days": 3, "schedule": []} and w.is_empty(),
+		"disturbance_config_from({}): the defaults (below 50, 30%%, 3 days, no schedule), silently")
+	var w2: Array = []
+	var b: Dictionary = gm.disturbance_config_from({"disturbance_reputation_below": -1, "disturbance_daily_chance": 2, "disturbance_cooldown_days": "x",
+		"disturbance_schedule": [{"day": 0, "type": "a"}, "x", {"day": 3.0, "type": "b", "truth": "plain"}]}, w2)
+	var w3: Array = []
+	var c: Dictionary = gm.disturbance_config_from({"disturbance_schedule": "x"}, w3)
+	check(b.reputation_below == 50 and b.daily_chance == 0.3 and b.cooldown_days == 3 and b.schedule == [{"day": 3, "type": "b", "truth": "plain"}]
+		and w2.size() == 5 and c.schedule == [] and w3.size() == 1,
+		"a bad value -> its default + a warning text each; a bad schedule entry skipped, a good one kept (%d, %d warnings)" % [w2.size(), w3.size()])
+	var keep = dm.game_config.get("profile")
+	dm.game_config["profile"] = "demo"
+	var demo: Dictionary = gm.disturbance_config()
+	dm.game_config["profile"] = "full"
+	var full: Dictionary = gm.disturbance_config()
+	dm.game_config["profile"] = keep
+	check(demo.reputation_below == 40 and is_equal_approx(demo.daily_chance, 0.4) and demo.cooldown_days == 2
+		and demo.schedule == [{"day": 2, "type": "thief", "truth": "guilty"}]
+		and full.reputation_below == 50 and is_equal_approx(full.daily_chance, 0.3) and full.cooldown_days == 3 and full.schedule == [],
+		"the shipped config: the demo's thief on Day 2, then 40%% a morning below 40, 2 days apart; the full game below 50, 30%%, 3 days, no schedule")
+
+
+## AC 2, AC 6 (TD-2): pick_disturbance, pure, on fixtures.
+func _check_t38_pick(gm) -> void:
+	var cfg := {"reputation_below": 50, "daily_chance": 0.3, "cooldown_days": 3, "schedule": []}
+	var r := {}
+	var w: Array = []
+	r["schedule wins"] = gm.pick_disturbance(4, 99, 3, 0, {"reputation_below": 0, "daily_chance": 0.0, "cooldown_days": 9,
+		"schedule": [{"day": 4, "type": "b", "truth": ""}]}, T38_FIX, [0.99, 0.0, 0.0], w)
+	r["schedule truth"] = gm.pick_disturbance(4, 0, 0, 0, {"schedule": [{"day": 4, "type": "a", "truth": "y"}]}, T38_FIX, [0.99, 0.0, 0.0], w)
+	r["schedule bad truth"] = gm.pick_disturbance(4, 0, 0, 0, {"schedule": [{"day": 4, "type": "a", "truth": "z"}]}, T38_FIX, [0.99, 0.0, 0.1], w)
+	var n_before := w.size()
+	r["schedule unknown"] = gm.pick_disturbance(4, 99, 0, 0, {"reputation_below": 50, "schedule": [{"day": 4, "type": "q", "truth": ""}]}, T38_FIX, [0.0, 0.0, 0.0], w)
+	var unknown_warned: bool = w.size() == n_before + 1
+	r["at the gate"] = gm.pick_disturbance(5, 50, 0, 0, cfg, T38_FIX, [0.0, 0.0, 0.0])
+	r["cooldown"] = gm.pick_disturbance(5, 0, 3, 0, cfg, T38_FIX, [0.0, 0.0, 0.0])
+	r["cooldown over"] = gm.pick_disturbance(6, 0, 3, 0, cfg, T38_FIX, [0.0, 0.0, 0.0])
+	r["chance missed"] = gm.pick_disturbance(5, 0, 0, 0, cfg, T38_FIX, [0.3, 0.0, 0.0])
+	r["weight a"] = gm.pick_disturbance(5, 0, 0, 0, cfg, T38_FIX, [0.0, 0.24, 0.2])
+	r["weight b"] = gm.pick_disturbance(5, 0, 0, 0, cfg, T38_FIX, [0.0, 0.26, 0.0])
+	r["truth y"] = gm.pick_disturbance(5, 0, 0, 0, cfg, T38_FIX, [0.0, 0.0, 0.3])
+	r["no death, no mourner"] = gm.pick_disturbance(5, 0, 0, 0, cfg, T38_FIX, [0.0, 0.99, 0.0])
+	r["a death, the mourner"] = gm.pick_disturbance(5, 0, 0, 1, cfg, T38_FIX, [0.0, 0.99, 0.0])
+	r["no types"] = gm.pick_disturbance(5, 0, 0, 0, cfg, {}, [0.0, 0.0, 0.0])
+	var want := {
+		"schedule wins": ["b", "plain"], "schedule truth": ["a", "y"], "schedule bad truth": ["a", "x"], "schedule unknown": [],
+		"at the gate": [], "cooldown": [], "cooldown over": ["a", "x"], "chance missed": [], "weight a": ["a", "x"], "weight b": ["b", "plain"],
+		"truth y": ["a", "y"], "no death, no mourner": ["b", "plain"], "a death, the mourner": ["m", "plain"], "no types": [],
+	}
+	var wrong := []
+	for k in want:
+		var got: Array = [r[k].get("type"), r[k].get("truth")] if not (r[k] as Dictionary).is_empty() else []
+		if got != want[k] or (not got.is_empty() and (r[k].get("state") != "queued" or r[k].get("day") != (4 if k.begins_with("schedule") else (6 if k == "cooldown over" else 5)))):
+			wrong.append("%s: %s" % [k, r[k]])
+	check(wrong.is_empty() and unknown_warned,
+		"pick_disturbance: the schedule first (its truth, else by weight), then the gate, the cooldown, the chance, the deaths a type needs, the weights and the truth; an unknown scheduled type warned %s" % [wrong])
+	check(gm.pick_truth({"truths": {}}, 0.5) == "plain" and gm.pick_truth({"truths": {"x": 1, "y": 3}}, 0.2) == "x" and gm.pick_truth({"truths": {"x": 1, "y": 3}}, 0.3) == "y",
+		"pick_truth: by weight, names in order; none -> plain")
+
+
+## AC 2, AC 4 (TD-2): the morning's step: yesterday's shown and unresolved -> its ignored outcome; never shown -> dropped;
+## then today's roll; a fallen run -> nothing.
+func _check_t38_advance(gm, dm, events: Array) -> void:
+	dm.game_config["profile"] = "full"
+	gm.game_over_active = false
+	gm.current_day = 7
+	gm.gold = 100
+	gm.tavern_reputation = 10
+	gm.last_disturbance_day = 0
+	gm.deaths_this_run = 0
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 6, "state": "fired", "subject": ""}
+	events.clear()
+	gm._advance_disturbances([0.99, 0.0, 0.0])
+	var ignored := events.duplicate()
+	var after_ignored: Dictionary = gm.pending_disturbance
+	check(ignored == [["adj", -1, 9, "disturbance_ignored"], ["dist", "thief", "ignored", -1, -10]] and gm.gold == 90 and after_ignored.is_empty(),
+		"yesterday's thief, seen and left alone: the ignored outcome (-1 reputation, -10 gold), reason disturbance_ignored; no new event on a missed roll %s" % [ignored])
+	gm.pending_disturbance = {"type": "rowdy_drunk", "truth": "plain", "day": 6, "state": "queued", "subject": ""}
+	events.clear()
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	check(events.is_empty() and gm.pending_disturbance.get("type") == "rival_guild_rep" and gm.pending_disturbance.get("day") == 7
+		and gm.pending_disturbance.get("state") == "queued" and gm.last_disturbance_day == 7,
+		"a drunk queued yesterday but never seen is dropped silently; today's roll (weights in name order, no death: no mourner) queues the rival's man %s" % [gm.pending_disturbance])
+	gm.current_day = 8
+	gm.pending_disturbance = {}
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	gm.current_day = 9
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	var cooled: bool = gm.pending_disturbance.is_empty()
+	gm.current_day = 10
+	gm.deaths_this_run = 1
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	var first_after: Dictionary = gm.pending_disturbance
+	gm.pending_disturbance = {}
+	gm.current_day = 13
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	var mourner: Dictionary = gm.pending_disturbance
+	check(cooled and first_after.get("type") == "grieving_family" and first_after.get("subject") == "Lysa" and mourner.get("type") == "grieving_family",
+		"the cooldown holds the next two days; after a death the mourner can come, naming the newest fallen (Lysa) %s" % [first_after])
+	gm.pending_disturbance = {}
+	gm.game_over_active = true
+	gm.current_day = 20
+	gm._advance_disturbances([0.0, 0.0, 0.0])
+	var fallen_none: bool = gm.pending_disturbance.is_empty()
+	gm.game_over_active = false
+	dm.game_config["profile"] = "demo"
+	gm.pending_disturbance = {}
+	gm.last_disturbance_day = 0
+	gm.current_day = 2
+	gm.tavern_reputation = 90
+	gm._advance_disturbances([0.99, 0.99, 0.99])
+	var demo_thief: Dictionary = gm.pending_disturbance
+	check(fallen_none and demo_thief.get("type") == "thief" and demo_thief.get("truth") == "guilty" and demo_thief.get("day") == 2,
+		"a fallen run rolls nothing; the demo's Day 2 brings the guilty thief whatever the reputation and the roll %s" % [demo_thief])
+	gm.pending_disturbance = {}
+	gm.tavern_reputation = 10
+
+
+## AC 5 (TD-6): every outcome of the data applied through resolve_disturbance; the refusals.
+func _check_t38_resolve(gm, events: Array) -> void:
+	var types: Dictionary = gm.disturbance_types()
+	var wrong := []
+	for t in types:
+		for tr in types[t].outcomes:
+			for c in types[t].outcomes[tr]:
+				if c == "ignored":
+					continue
+				var o: Dictionary = types[t].outcomes[tr][c]
+				gm.current_day = 4
+				gm.gold = 100
+				gm.tavern_reputation = 10
+				gm.pending_disturbance = {"type": t, "truth": tr, "day": 4, "state": "fired", "subject": ""}
+				events.clear()
+				var out: Dictionary = gm.resolve_disturbance(c)
+				var rep := int(o.rep)
+				var g := int(o.gold)
+				var want_events: Array = []
+				if rep != 0:
+					want_events.append(["adj", rep, 10 + rep, "disturbance_resolved"])
+				want_events.append(["dist", t, c, rep, g])
+				if out != {"rep": rep, "gold": g, "line": str(o.line)} or events != want_events or gm.gold != 100 + g \
+						or gm.tavern_reputation != 10 + rep or not gm.pending_disturbance.is_empty():
+					wrong.append("%s/%s/%s: %s %s" % [t, tr, c, out, events])
+	check(wrong.is_empty(), "resolve_disturbance: every choice of the data applies its reputation and gold, once each signal, and clears the event %s" % [wrong])
+	gm.gold = 3
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 4, "state": "fired", "subject": ""}
+	events.clear()
+	var floor_out: Dictionary = gm.resolve_disturbance("let_be")
+	check(floor_out.gold == -3 and gm.gold == 0 and events.back() == ["dist", "thief", "let_be", -1, -3],
+		"a gold loss takes what there is (3 of 10), never below 0, and reports what it took %s" % [events])
+	var refused := []
+	gm.pending_disturbance = {}
+	refused.append(gm.resolve_disturbance("eject"))
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 3, "state": "fired", "subject": ""}
+	refused.append(gm.resolve_disturbance("eject"))
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 4, "state": "queued", "subject": ""}
+	refused.append(gm.resolve_disturbance("eject"))
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 4, "state": "fired", "subject": ""}
+	events.clear()
+	refused.append(gm.resolve_disturbance("dance"))
+	refused.append(gm.resolve_disturbance("ignored"))
+	check(refused.all(func(x): return x.is_empty()) and events.is_empty() and gm.pending_disturbance.get("state") == "fired",
+		"no event shown today (none, yesterday's, not shown yet), an unknown choice, 'ignored' as a choice: nothing changes")
+	check(gm.mark_disturbance_fired() and gm.pending_disturbance.state == "fired", "mark_disturbance_fired: today's event becomes fired")
+	gm.pending_disturbance = {}
+	check(not gm.mark_disturbance_fired(), "mark_disturbance_fired: false with no event today")
+
+
+## AC 7 (TD-8): saved, loaded (junk-proof, silent), reset.
+func _check_t38_save(gm) -> void:
+	gm.pending_disturbance = {"type": "thief", "truth": "innocent", "day": 4, "state": "fired", "subject": ""}
+	gm.last_disturbance_day = 4
+	var saved = JSON.parse_string(JSON.stringify(gm._disturbance_save_data()))
+	gm.pending_disturbance = {}
+	gm.last_disturbance_day = 0
+	gm._load_disturbance_data(saved)
+	var round_trip: bool = gm.pending_disturbance == {"type": "thief", "truth": "innocent", "day": 4, "state": "fired", "subject": ""} and gm.last_disturbance_day == 4
+	gm._load_disturbance_data({})
+	var old_save: bool = gm.pending_disturbance.is_empty() and gm.last_disturbance_day == 0
+	var junk := []
+	for p in [{"type": "dragon", "truth": "x", "day": 1, "state": "fired"}, "x", {"type": "thief", "day": "x", "state": "fired"}, {"type": "thief", "day": 2, "state": "done"}]:
+		gm._load_disturbance_data({"pending_disturbance": p, "last_disturbance_day": "junk"})
+		junk.append(gm.pending_disturbance.is_empty() and gm.last_disturbance_day == 0)
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 1, "state": "queued", "subject": ""}
+	gm.last_disturbance_day = 1
+	gm._reset_disturbance_state()
+	check(round_trip and old_save and junk.all(func(x): return x) and gm.pending_disturbance.is_empty() and gm.last_disturbance_day == 0,
+		"the event and the cooldown day survive save -> JSON -> load; an older save, an unknown type, a bad day or state load as none; New Game clears them %s" % [junk])
+	check(D1_GM_FIELDS.has("pending_disturbance") and D1_GM_FIELDS.has("last_disturbance_day") and D1_GM_FIELDS.has("_disturbance_warnings"),
+		"Test 26's D1_GM_FIELDS snapshot the disturbance fields")
+
+
+## Source checks: where the morning step, the save, the hall's director live; no class_name on the new scripts.
+func _check_t38_sources() -> void:
+	var src := FileAccess.get_file_as_string(GAME_MANAGER_SCRIPT_PATH)
+	var adv := _func_body(src, "advance_day")
+	var mt := FileAccess.get_file_as_string(MAIN_TAVERN_SCRIPT_PATH)
+	check(adv.find("_advance_disturbances()") > adv.find("check_tax_deadline()") and adv.find("check_tax_deadline()") > 0
+		and _func_body(src, "get_save_data").contains("_disturbance_save_data()") and _func_body(src, "load_save_data").contains("_load_disturbance_data(data)")
+		and _func_body(src, "reset_game_state").contains("_reset_disturbance_state()") and _func_body(mt, "_ready").contains("DISTURBANCE_DIRECTOR"),
+		"advance_day settles and rolls after the tax; the save, the load and New Game carry the event; the hall adds the director")
+	var ds = load(DIRECTOR_SCRIPT)
+	var vs = load(VISITOR_SCRIPT)
+	check(ds is GDScript and (ds as GDScript).get_global_name() == "" and vs is GDScript and (vs as GDScript).get_global_name() == "",
+		"disturbance_director.gd and disturbance_npc.gd have no class_name")
+
+
+## AC 3 (TD-10): each spot is on the hall's navmesh, at least 1.5 m from every E zone's edge (a box as the disc of half
+## its diagonal) and the front door's trigger, and 1 m from every patron seat.
+func _check_t38_spots(gm) -> void:
+	var tav := _scene_nodes(TAVERN_SCENE_PATH)
+	var nav: NavigationMesh = null
+	var zones := []   # [name, x, z, radius]
+	for path in tav:
+		var n: Dictionary = tav[path]
+		if path.ends_with("TavernNavigation"):
+			nav = n.props.get("navigation_mesh")
+		if n.type == "CollisionShape3D" and (path.contains("/Interactive/") or path.contains("FrontDoor/Trigger")):
+			var sh = n.props.get("shape")
+			var r := 1.0
+			if sh is BoxShape3D:
+				r = 0.5 * Vector2((sh as BoxShape3D).size.x, (sh as BoxShape3D).size.z).length()
+			elif sh is SphereShape3D:
+				r = (sh as SphereShape3D).radius
+			var o: Vector3 = (n.world as Transform3D).origin
+			zones.append([path.get_file(), o.x, o.z, r])
+		if n.instance.ends_with("DenFa.tscn") or n.instance.ends_with("TheCat.tscn"):
+			var o2: Vector3 = (n.world as Transform3D).origin
+			zones.append([path.get_file(), o2.x, o2.z, 0.9])
+	var polys := []
+	if nav:
+		var verts := nav.get_vertices()
+		for i in nav.get_polygon_count():
+			var pg := PackedVector2Array()
+			for vi in nav.get_polygon(i):
+				pg.append(Vector2(verts[vi].x, verts[vi].z))
+			polys.append(pg)
+	var seats := [[-3.847, -0.915], [-2.1, -2.5], [-2.715, -3.5], [-4.2, -2.8], [-1.5, -1.2]]   # PatronSpawner.table_positions
+	var bad := []
+	for t in gm.disturbance_types():
+		var s = gm.disturbance_types()[t].spot
+		var p := Vector2(float(s[0]), float(s[1]))
+		var on := polys.any(func(pg): return Geometry2D.is_point_in_polygon(p, pg))
+		var near := zones.filter(func(z): return p.distance_to(Vector2(z[1], z[2])) - float(z[3]) < 1.5)
+		var seat_near := seats.filter(func(q): return p.distance_to(Vector2(q[0], q[1])) < 1.0)
+		if not on or not near.is_empty() or not seat_near.is_empty():
+			bad.append("%s %s: on the navmesh %s, zones %s, seats %s" % [t, p, on, near, seat_near])
+	check(nav != null and zones.size() >= 9 and bad.is_empty(),
+		"every visitor's spot is on the navmesh, 1.5 m from every E zone (%d) and the door, 1 m from the table seats %s" % [zones.size(), bad])
+
+
+## TD-7: the runner hands the box the bridge it is given (the caller reads its choice), or a new one.
+func _check_t38_runner_bridge(gm) -> void:
+	var runner = load(RUNNER_SCRIPT)
+	var host := Node3D.new()
+	root.add_child(host)
+	_d1_set_scene(host)
+	var res: Resource = runner.compile_text("~ t38\nX: Hm.\ndo bridge.choose(\"x\")\nX: Done.\n=> END\n", "t38_fixture")
+	var mine = runner.new_bridge()
+	var box = runner.open(host, res, "t38", mine)
+	await process_frame
+	await process_frame
+	var given: bool = box != null and box.temporary_game_states.size() == 1 and is_same(box.temporary_game_states[0].get("bridge"), mine)
+	if box:
+		box.close()
+	await process_frame
+	await process_frame
+	var box2 = runner.open(host, res, "t38")
+	await process_frame
+	await process_frame
+	var own: bool = box2 != null and box2.temporary_game_states[0].get("bridge") != null and not is_same(box2.temporary_game_states[0].bridge, mine)
+	if box2:
+		box2.close()
+	await process_frame
+	await process_frame
+	var b = runner.new_bridge()
+	b.choose("eject")
+	b.set("choice", "hack")
+	check(given and own and b.choice == "eject" and runner.new_bridge().choice == "",
+		"the runner passes the given bridge to the box (else a new one); choose() sets the bridge's own choice, read-only from a file, per conversation")
+	host.queue_free()
+	await process_frame
+
+
+## AC 3, AC 4 (TD-4..TD-6, TD-11): the director in a small world: no visitor outside the day phase; one at the spot with
+## the banner in it; a conversation with no choice leaves him; a choice resolves and sends him out; sleep sends him off
+## unresolved; a load brings a shown event back with no banner.
+func _check_t38_hall(gm, nm, events: Array) -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	_d1_set_scene(world)
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	world.add_child(ui)
+	gm.game_over_active = false
+	gm.current_day = 5
+	gm.gold = 100
+	gm.tavern_reputation = 10
+	gm.pending_disturbance = {"type": "thief", "truth": "guilty", "day": 5, "state": "queued", "subject": ""}
+	nm.clear_banners()
+	await process_frame
+	var spot: Array = gm.disturbance_types().thief.spot
+	var d = load(DIRECTOR_SCRIPT).new()
+	d.world_parent = world
+	d.phase = "evening"
+	d.exit_point = Vector3(float(spot[0]) + 1.0, 0.0, float(spot[1]))
+	d.leave_timeout = 0.5
+	world.add_child(d)
+	await process_frame
+	var none_evening: bool = get_nodes_in_group("disturbance_npc").is_empty() and gm.pending_disturbance.state == "queued"
+	d.phase = "day"
+	d.check()
+	d.check()
+	await process_frame
+	var visitors: Array = get_nodes_in_group("disturbance_npc")
+	var v = visitors[0] if visitors.size() == 1 else null
+	var at_spot: bool = v != null and Vector2(v.global_position.x, v.global_position.z).distance_to(Vector2(spot[0], spot[1])) < 0.05
+	var bodied: bool = v != null and (v.model != null and not v.model.find_children("*", "MeshInstance3D", true, false).is_empty())
+	var banner := ""
+	for p in nm._container.get_children():
+		if not p.is_queued_for_deletion():
+			for l in p.find_children("*", "Label", true, false):
+				banner = (l as Label).text
+	for i in 3:
+		await process_frame
+	var claimed: bool = v != null and ui.connected_zones.has(v.talk_zone)
+	check(none_evening and visitors.size() == 1 and at_spot and bodied and gm.pending_disturbance.state == "fired"
+		and banner == "A stranger lingers by the tables." and claimed,
+		"the director: nothing in the evening; in the day phase ONE visitor at the thief's spot with a body, the event fired, the banner, his talk zone given to the ZonePromptUI (%s, '%s')" % [visitors.size(), banner])
+	# a conversation: E's request opens his title with the director's bridge; closed with no choice, he stays
+	d._on_talk_requested(v)
+	await process_frame
+	await process_frame
+	var opened = d._box
+	var right_bridge: bool = opened != null and is_same(opened.temporary_game_states[0].get("bridge"), d._bridge)
+	if opened:
+		opened.close()
+	for i in 3:
+		await process_frame
+	check(right_bridge and is_instance_valid(v) and not v.leaving and gm.pending_disturbance.get("state") == "fired",
+		"his E opens thief_guilty with a bridge the director keeps; closed with no choice (Esc, walk away) he stays, the event still open")
+	# a choice: resolved, the outcome's banner, he walks out and is gone, his zone released
+	d._bridge = load(BRIDGE_SCRIPT).new()
+	d._bridge.choose("eject")
+	events.clear()
+	d._on_conversation_closed()
+	var leaving: bool = is_instance_valid(v) and v.leaving and not ui.connected_zones.has(v.talk_zone)
+	var t0 := Time.get_ticks_msec()
+	while is_instance_valid(v) and Time.get_ticks_msec() - t0 < 3000:
+		await physics_frame
+	var lines := []
+	for p in nm._container.get_children():
+		if not p.is_queued_for_deletion():
+			for l in p.find_children("*", "Label", true, false):
+				lines.append((l as Label).text)
+	check(leaving and not is_instance_valid(v) and gm.pending_disturbance.is_empty() and gm.tavern_reputation == 12
+		and events == [["adj", 2, 12, "disturbance_resolved"], ["dist", "thief", "eject", 2, 0]] and lines.has("He's gone. The purse stays."),
+		"a choice (eject): resolved (+2), the outcome's banner, his E released at once, he walks out and is gone %s" % [lines])
+	# sleep sends a shown visitor off unresolved; a load brings him back, no banner the second time
+	gm.pending_disturbance = {"type": "rowdy_drunk", "truth": "plain", "day": 5, "state": "queued", "subject": ""}
+	d.check()
+	await process_frame
+	var drunk: Array = get_nodes_in_group("disturbance_npc")
+	d._on_day_phase("late_night")
+	await process_frame
+	await process_frame
+	var slept: bool = get_nodes_in_group("disturbance_npc").filter(func(n): return not n.is_queued_for_deletion()).is_empty() and gm.pending_disturbance.get("state") == "fired"
+	nm.clear_banners()
+	await process_frame
+	var d2 = load(DIRECTOR_SCRIPT).new()
+	d2.world_parent = world
+	d2.phase = "day"
+	world.add_child(d2)
+	await process_frame
+	var back: Array = get_nodes_in_group("disturbance_npc").filter(func(n): return not n.is_queued_for_deletion())
+	var quiet: bool = nm._container.get_children().filter(func(c): return not c.is_queued_for_deletion()).is_empty()
+	check(drunk.size() == 1 and slept and back.size() == 1 and quiet,
+		"sleep (late_night) sends a shown visitor off, the event left for the morning's 'ignored'; a fresh director (a load) brings him back without a second banner")
+	check(d.should_fire({"day": 5, "state": "queued"}, 5, "day", false, false) and not d.should_fire({"day": 5, "state": "queued"}, 5, "day", true, false)
+		and not d.should_fire({"day": 5, "state": "queued"}, 5, "day", false, true) and not d.should_fire({"day": 4, "state": "fired"}, 5, "day", false, false)
+		and not d.should_fire({}, 5, "day", false, false) and d.should_fire({"day": 5, "state": "fired"}, 5, "day", false, false),
+		"should_fire: today's event, queued or shown, in the day phase; not after the fall, not while a conversation is open")
+	gm.pending_disturbance = {}
+	world.queue_free()
+	await process_frame
+	await process_frame
