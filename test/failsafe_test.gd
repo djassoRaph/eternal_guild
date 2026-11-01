@@ -15489,6 +15489,8 @@ func test_demo_ending() -> void:
 	_check_t53_quiet_day(gm, dm)
 	await _check_t53_spot()
 	await _check_t53_hall(gm, dm, nm, ss, events)
+	await _check_t53_zone_owner()
+	await _check_t53_robust_data()
 	await _check_t53_card()
 	_check_t53_sources()
 
@@ -15530,11 +15532,13 @@ func _check_t53_rules() -> void:
 		"queue_if_met: one condition alone does nothing; both on day 6 -> due day 7; a state already set and an inactive config are left alone")
 	check(R.morning({"state": "due", "day": 7}, 6) == {"state": "due", "day": 7} and R.morning({"state": "due", "day": 7}, 7) == {"state": "coming", "day": 7, "returning": false}
 		and R.morning({"state": "due", "day": 7}, 9) == {"state": "coming", "day": 9, "returning": false}
-		and R.morning({"state": "coming", "day": 7}, 8) == {"state": "coming", "day": 8, "returning": true}
+		and R.morning({"state": "coming", "day": 7}, 8) == {"state": "coming", "day": 8, "returning": false}
+		and R.morning({"state": "coming", "day": 7, "returning": false}, 8) == {"state": "coming", "day": 8, "returning": false}
+		and R.morning({"state": "coming", "day": 7, "returning": true}, 8) == {"state": "coming", "day": 8, "returning": true}
 		and R.morning({"state": "waiting", "day": 7}, 8) == {"state": "coming", "day": 8, "returning": true}
 		and R.morning({"state": "ended", "day": 7}, 8) == {"state": "ended", "day": 7} and R.morning({}, 8).is_empty()
 		and R.morning({"state": "coming", "day": 8}, 8) == {"state": "coming", "day": 8} and R.morning({"state": "waiting", "day": 8}, 8) == {"state": "waiting", "day": 8},
-		"morning: due on (or after) its day -> coming; an unheard messenger comes again on a later day (returning); today's, ended and none stay")
+		"morning: due on (or after) its day -> coming; an unheard messenger comes again on a later day, 'returning' only once he was in the hall (a 'coming' day he never walked in carries its flag, review P7); today's, ended and none stay")
 	check(R.for_save({"state": "ended", "day": 7, "returning": true}) == {"state": "waiting", "day": 7, "returning": true}
 		and R.for_save({"state": "due", "day": 7}) == {"state": "due", "day": 7} and R.for_save({}).is_empty(),
 		"for_save: a save never holds 'ended' (written as 'waiting': Continue replays the final day)")
@@ -15870,7 +15874,8 @@ func _check_t53_spot() -> void:
 	await process_frame
 
 
-## AC 5, 6, 7 (KM-4..KM-10): the hall's controller and the messenger in a stand-in hall.
+## AC 5, 6, 7 (KM-4..KM-10) and the code review's P1-P5, P8, P10, P12: the hall's controller and the messenger in a
+## stand-in hall.
 func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	dm.set("run_profile", "demo")
 	var world := Node3D.new()
@@ -15895,67 +15900,101 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	var changes: Array = []
 	var c = load(T53_CONTROLLER).new()
 	c.world_parent = world
-	c.phase = "evening"
+	c.phase = "morning"
 	c.player_provider = func(): return player
 	c.scene_changer = func(pth): changes.append(pth)
 	c.data_override = {"messenger": {"porch": [0.0, 0.0, 2.0], "route_in": [[0.0, 0.0, 1.0]], "wait_spot": [1.5, 0.0, 180.0],
-		"arrival_delay_seconds": 0.2, "approach_timeout_seconds": 6.0, "walk_in_timeout_seconds": 6.0},
+		"arrival_delay_seconds": 0.0, "approach_timeout_seconds": 6.0, "walk_in_timeout_seconds": 6.0},
 		"end_card": {"min_seconds": 0.2, "fade_seconds": 0.0}}
 	world.add_child(c)
 	await process_frame
-	var none_evening: bool = c.npc == null
-	# the gates: the morning briefing, a visitor, a card reveal (17.3), a frozen world, a conversation
+	c.check()
+	var none_morning: bool = c.npc == null
+	c.phase = "late_night"
+	c.check()
+	var none_night: bool = c.npc == null
+	# review P5: no arrival delay, so a clear hall in an open phase spawns him at once: each gate is proven by its own check
 	c.phase = "day"
 	var gate := Node.new()
-	gate.add_to_group("morning_briefing")
 	world.add_child(gate)
-	c.check()
-	var held_brief: bool = c.npc == null and c.blocker() == "morning_briefing"
-	gate.remove_from_group("morning_briefing")
-	gate.add_to_group("disturbance_npc")
-	c.check()
-	var held_visitor: bool = c.npc == null and c.blocker() == "a visitor"
-	gate.remove_from_group("disturbance_npc")
-	gate.add_to_group("card_reveal")
-	c.check()
-	var held_card: bool = c.npc == null and c.blocker() == "a card reveal"
-	gate.remove_from_group("card_reveal")
+	var held := {}
+	for g in ["morning_briefing", "disturbance_npc", "card_reveal"]:
+		gate.add_to_group(g)
+		c.check()
+		held[g] = [c.npc == null, c.blocker()]
+		gate.remove_from_group(g)
 	svc.process_mode = Node.PROCESS_MODE_DISABLED
 	c.check()
-	var held_frozen: bool = c.npc == null and c.blocker() == "the world is frozen"
+	held["frozen"] = [c.npc == null, c.blocker()]
 	svc.process_mode = Node.PROCESS_MODE_INHERIT
 	gm.game_over_active = true
 	c.check()
-	var held_fall: bool = c.npc == null
+	held["fall"] = [c.npc == null, ""]
 	gm.game_over_active = false
-	check(none_evening and held_brief and held_visitor and held_card and held_frozen and held_fall and c.may_arrive({"state": "coming", "day": 7}, 7, "day", false, false)
-		and not c.may_arrive({"state": "coming", "day": 6}, 7, "day", false, false) and not c.may_arrive({"state": "due", "day": 7}, 7, "day", false, false),
-		"he never walks in in the evening, nor while the morning briefing, a disturbance's visitor, a pending card reveal (17.3), a frozen world (the pause menu) or the fall holds the hall")
-	# the arrival: after the delay, on the porch, the event banner, the state waiting
+	var runner = load(RUNNER_SCRIPT)
+	var fx: Resource = runner.compile_text("~ t53\nX: Hm.\nX: Done.\n=> END\n", "t53_fixture")
+	var fbox = runner.open(world, fx, "t53")
+	await process_frame
+	await process_frame
 	c.check()
-	var t0 := Time.get_ticks_msec()
-	while c.npc == null and Time.get_ticks_msec() - t0 < 2000:
+	held["box"] = [c.npc == null, c.blocker()]
+	c.phase = "morning"   # the box closes below: no arrival from the controller's own clock until the evening check
+	if fbox:
+		fbox.close()
+	for i in 3:
 		await process_frame
+	var all_held: bool = held.values().all(func(h): return h[0] == true)
+	check(none_morning and none_night and all_held and held.morning_briefing[1] == "morning_briefing" and held.disturbance_npc[1] == "a visitor"
+		and held.card_reveal[1] == "a card reveal" and held.frozen[1] == "the world is frozen" and held.box[1] == "a conversation"
+		and c.may_arrive({"state": "coming", "day": 7}, 7, "day", false, false) and c.may_arrive({"state": "coming", "day": 7}, 7, "evening", false, false)
+		and not c.may_arrive({"state": "coming", "day": 7}, 7, "morning", false, false) and not c.may_arrive({"state": "coming", "day": 7}, 7, "late_night", false, false)
+		and not c.may_arrive({"state": "coming", "day": 7}, 7, "day", true, false) and not c.may_arrive({"state": "coming", "day": 6}, 7, "day", false, false)
+		and not c.may_arrive({"state": "due", "day": 7}, 7, "day", false, false) and not c.may_arrive({"state": "coming", "day": 7}, 7, "day", false, true),
+		"he never walks in in the morning or at night, nor while the briefing, a visitor, a pending card reveal (17.3), the frozen world (the pause menu), the fall or an open conversation holds the hall, each proven with no arrival delay (review P5) %s" % [held])
+	# review P1: the evening (the bedroom opened, then closed: nothing turns the hall back to "day") still lets him in
+	c.phase = "evening"
+	c.check()
 	var v = c.npc
 	var banners: Array = _t38_banners(nm)
 	var bodied: bool = v != null and v.model != null and str(v.body_variant.get("id", "")) == "guard"
-	check(v != null and bodied and v.is_in_group("royal_messenger") and not v.is_in_group("disturbance_npc") and gm.demo_ending.state == "waiting"
+	var toned := false
+	if v != null and v.model != null:
+		for mi in v.model.find_children("*", "MeshInstance3D", true, false):
+			var m := mi as MeshInstance3D
+			if m.material_override != null and m.material_override.has_meta(&"anime_toon"):
+				toned = true
+			elif m.mesh != null:
+				for s in m.mesh.get_surface_count():
+					var om = m.get_surface_override_material(s)
+					if om != null and om.has_meta(&"anime_toon"):
+						toned = true
+	check(v != null and bodied and toned and v.is_in_group("royal_messenger") and not v.is_in_group("disturbance_npc") and gm.demo_ending.state == "waiting"
 		and banners.has(["A messenger of the King has come. He's asking for the guild master.", true]) and events.back() == ["waiting", 7],
-		"after the arrival delay the messenger (the guard's body, by one data key) appears, an event banner names him, the state is 'waiting' %s" % [banners])
+		"review P1: in the evening he still walks in: the guard's body (one data key) with the realistic look, an event banner, the state 'waiting' %s" % [banners])
 	# the walk in, then to the player: he stops approach_stop_m short (inside his talk zone's reach of the player's 0.5 m
 	# capsule, so E works without a step), facing them; his talk zone has E
 	var stop_m := float(c.data.messenger.approach_stop_m)
-	t0 = Time.get_ticks_msec()
+	var t0 := Time.get_ticks_msec()
 	while v != null and is_instance_valid(v) and v.mode != "by_player" and Time.get_ticks_msec() - t0 < 6000:
 		await physics_frame
-	var flat := Vector2(v.global_position.x - player.global_position.x, v.global_position.z - player.global_position.z).length() if v else -1.0
+	var to_p := Vector2(player.global_position.x - v.global_position.x, player.global_position.z - v.global_position.z) if v else Vector2.ZERO
+	var flat := to_p.length()
 	var claimed: bool = v != null and ui.connected_zones.has(v.talk_zone)
 	var zr := -1.0
 	if v and v.talk_zone and v.talk_zone.get_child_count() > 0 and v.talk_zone.get_child(0).shape is SphereShape3D:
 		zr = (v.talk_zone.get_child(0).shape as SphereShape3D).radius
-	check(v != null and v.mode == "by_player" and absf(flat - stop_m) <= 0.25 and flat < zr + 0.5 - 0.2 and claimed,
-		"he walks in along the route, then to the player and stops %.1f m short (%.2f m), within his talk zone's reach of the player (%.1f + 0.5); his talk zone is the ZonePromptUI's" % [stop_m, flat, zr])
-	# the player gone (outside): the next arrival walks to the wait spot
+	var facing: bool = v != null and absf(wrapf(v.rotation.y - atan2(to_p.x, to_p.y), -PI, PI)) < 0.35
+	check(v != null and v.mode == "by_player" and absf(flat - stop_m) <= 0.25 and flat < zr + 0.5 - 0.2 and claimed and facing,
+		"he walks in along the route, then to the player and stops %.1f m short (%.2f m), facing them, within his talk zone's reach (%.1f + 0.5); his talk zone is the ZonePromptUI's" % [stop_m, flat, zr])
+	# review P3: once beside the player he stays: the player walks off, he doesn't follow
+	var stood: Vector3 = v.global_position
+	player.global_position = Vector3(0.0, 0.0, -7.5)
+	for i in 20:
+		await physics_frame
+	var stayed: bool = v.mode == "by_player" and Vector2(v.global_position.x - stood.x, v.global_position.z - stood.z).length() < 0.05
+	player.global_position = Vector3(0.0, 0.0, -2.0)
+	check(stayed, "review P3: he seeks the player once; when they walk 5 m off he stays where he stopped (no following)")
+	# the player gone (outside): an arrival walks to the wait spot
 	var v_far = load(T53_NPC).new()
 	v_far.setup("guard", "Press E", Vector3.ZERO)
 	v_far.route = [Vector3(0.0, 0.0, 1.0)]
@@ -15968,7 +16007,7 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	while v_far.mode != "waiting" and Time.get_ticks_msec() - t0 < 4000:
 		await physics_frame
 	var at_wait: bool = v_far.mode == "waiting" and Vector2(v_far.global_position.x - 1.0, v_far.global_position.z - 1.0).length() < 0.4
-	# an unreachable player: he gives up after the timeout for the wait spot
+	# an unreachable player: he tries, then gives up for the wait spot
 	var far_player := Node3D.new()
 	world.add_child(far_player)
 	far_player.global_position = Vector3(300.0, 0.0, 0.0)
@@ -15981,9 +16020,36 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 		await physics_frame
 	check(at_wait and was_approaching and v_far.mode == "waiting",
 		"no player in the hall: he waits at the wait spot; a player he can't reach: he tries, then gives up for the wait spot")
+	# review P3: a player standing in another E zone (the bar, the bed...): he waits at the wait spot instead of walking in
+	var zone := Area3D.new()
+	var zsh := CollisionShape3D.new()
+	zsh.shape = BoxShape3D.new()
+	(zsh.shape as BoxShape3D).size = Vector3(2.0, 2.0, 2.0)
+	zone.add_child(zsh)
+	world.add_child(zone)
+	zone.global_position = Vector3(6.0, 1.0, 6.0)
+	var p2 := CharacterBody3D.new()
+	var p2s := CollisionShape3D.new()
+	p2s.shape = CapsuleShape3D.new()
+	p2.add_child(p2s)
+	world.add_child(p2)
+	p2.global_position = Vector3(6.0, 0.2, 6.0)
+	ui.register_zone(zone, "Press E - Stand-in zone")
+	for i in 3:
+		await physics_frame
+	var overlap: bool = zone.overlaps_body(p2)
+	var in_other: bool = v_far.player_in_other_zone(p2)
+	v_far.player_provider = func(): return p2
+	v_far.approach_timeout = 6.0
+	v_far.place_waiting()
+	var avoided: bool = v_far.mode == "to_wait" or v_far.mode == "waiting"
+	ui.unregister_zone(zone)
+	zone.queue_free()
+	p2.queue_free()
 	v_far.queue_free()
 	far_player.queue_free()
-	# a talk with no choice (Esc): he stays, nothing ends
+	check(overlap and in_other and avoided, "review P3: the player in another E zone: he goes to the wait spot instead of walking into that zone")
+	# a talk with no choice (Esc): he stays, nothing ends; his cooldown is 3 s (KM-6, review P10)
 	c._on_talk_requested(v)
 	await process_frame
 	await process_frame
@@ -15993,9 +16059,20 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 		opened.close()
 	for i in 3:
 		await process_frame
-	check(right_bridge and is_instance_valid(v) and gm.demo_ending.state == "waiting" and not c.ending and get_nodes_in_group("demo_end_card").is_empty(),
-		"E opens ~ deliver with a bridge the hall keeps; closed with no choice (Esc) he stays and nothing ends")
-	# Story 10.1's panel seam, a director that plays: the card waits for the panel's finished
+	check(right_bridge and is_instance_valid(v) and gm.demo_ending.state == "waiting" and not c.ending and get_nodes_in_group("demo_end_card").is_empty()
+		and v.cooldown_seconds == 3.0 and v._cooldown > 2.5,
+		"E opens ~ deliver with a bridge the hall keeps; closed with no choice (Esc) he stays, nothing ends, and E is his again after 3 s (KM-6; review P10)")
+	# review P2: a day jump while he stands in the hall (F12) leaves the state "coming": the hall calls him arrived again
+	events.clear()
+	gm.current_day = 8
+	gm._advance_demo_ending()
+	var jumped: bool = gm.demo_ending.state == "coming"
+	nm.clear_banners()
+	c.check()
+	check(jumped and gm.demo_ending.state == "waiting" and is_instance_valid(v) and c.npc == v and events == [["coming", 8], ["waiting", 8]]
+		and _t38_banners(nm).is_empty(),
+		"review P2: a day jump while he waits ('coming' again): the hall calls him arrived (no second banner), so hearing him still ends the demo")
+	# heard, with Story 10.1's panel director playing: the banners cleared (review P4), the hall stopped, the panel awaited, then ONE card
 	var pd := GDScript.new()
 	pd.source_code = "extends Node\nsignal finished\nvar asked: Array = []\nvar give_null := false\nfunc play(id: String):\n\tasked.append(id)\n\treturn null if give_null else self\n"
 	pd.reload()
@@ -16003,6 +16080,9 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	director.set_script(pd)
 	director.add_to_group("story_panels")
 	world.add_child(director)
+	nm.show_banner("A banner the end must not leave behind.", true)
+	await process_frame
+	var had_banner: bool = not _t38_banners(nm).is_empty()
 	c._bridge = load(BRIDGE_SCRIPT).new()
 	c._bridge.choose("heard")
 	events.clear()
@@ -16010,13 +16090,14 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	await process_frame
 	var stopped: bool = paused and svc.process_mode == Node.PROCESS_MODE_DISABLED and svc.mouse_filter == Control.MOUSE_FILTER_IGNORE
 	var waited: bool = get_nodes_in_group("demo_end_card").is_empty() and director.asked == ["the_kings_request"]
+	var cleared: bool = _t38_banners(nm).is_empty()
 	director.emit_signal("finished")
 	await process_frame
 	var cards: Array = get_nodes_in_group("demo_end_card")
-	check(c.ending and gm.demo_ending.state == "ended" and ss.run_active == false and events == [["ended", 7]] and stopped and waited and cards.size() == 1,
-		"heard: the demo ends: the state 'ended', no automatic save after it, the hall stopped (its SubViewportContainer frozen, the tree paused); Story 10.1's court panel plays first (play('the_kings_request') awaited), then ONE end card")
+	check(c.ending and gm.demo_ending.state == "ended" and ss.run_active == false and events == [["ended", 8]] and stopped and waited and cards.size() == 1
+		and had_banner and cleared,
+		"heard: the state 'ended', no automatic save after it, the banners cleared (review P4), the hall stopped (its SubViewportContainer frozen, the tree paused); Story 10.1's court panel plays first (play('the_kings_request') awaited), then ONE end card")
 	paused = false
-	# the card's button leaves for the main menu (the test records it)
 	var card = cards[0] if cards.size() == 1 else null
 	t0 = Time.get_ticks_msec()
 	while card != null and card.button.disabled and Time.get_ticks_msec() - t0 < 2000:
@@ -16027,27 +16108,37 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	for n in get_nodes_in_group("demo_end_card"):
 		n.queue_free()
 	await process_frame
-	# no director, and a director whose play() returns null: the card opens at once
+	# no director, one whose play() returns null, and (review P8) one that never says it is done: the card still opens
 	var instant := []
-	for mode_i in 2:
+	c.panel_timeout_seconds = 0.3
+	for mode_i in 3:
 		if mode_i == 0:
 			director.remove_from_group("story_panels")
-		else:
+		elif mode_i == 1:
 			director.add_to_group("story_panels")
 			director.give_null = true
+		else:
+			director.give_null = false   # play() returns the director; it never emits finished
 		c.ending = false
-		gm.demo_ending = {"state": "waiting", "day": 7, "returning": false}
+		gm.demo_ending = {"state": "waiting", "day": 8, "returning": false}
 		svc.process_mode = Node.PROCESS_MODE_INHERIT
 		c._bridge = load(BRIDGE_SCRIPT).new()
 		c._bridge.choose("heard")
 		c._on_conversation_closed()
 		await process_frame
-		instant.append(get_nodes_in_group("demo_end_card").size() == 1)
+		var at_once: bool = get_nodes_in_group("demo_end_card").size() == 1
+		t0 = Time.get_ticks_msec()
+		while get_nodes_in_group("demo_end_card").is_empty() and Time.get_ticks_msec() - t0 < 3000:
+			await process_frame
+		instant.append([at_once, get_nodes_in_group("demo_end_card").size() == 1])
 		paused = false
 		for n in get_nodes_in_group("demo_end_card"):
 			n.queue_free()
 		await process_frame
-	check(instant == [true, true], "no panel director (today), or one whose play() returns null: the end card opens at once %s" % [instant])
+	svc.process_mode = Node.PROCESS_MODE_INHERIT   # the last end froze the stand-in world: thaw it for what follows
+	svc.mouse_filter = Control.MOUSE_FILTER_STOP
+	check(instant == [[true, true], [true, true], [false, true]],
+		"no panel director (today) or one whose play() returns null: the card opens at once; a panel that never finishes: the card opens after panel_timeout_seconds (review P8) %s" % [instant])
 	director.queue_free()
 	# the stop uses the scene's set_world_frozen when it has one (Story 18.1)
 	var fz := GDScript.new()
@@ -16063,33 +16154,57 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	_d1_set_scene(world)
 	hall2.queue_free()
 	check(used_hook, "the hall's stop calls the scene's set_world_frozen(true) when it has one, then pauses the tree")
-	# sleep sends him off unheard; a fresh controller (a load during his day) places him at the wait spot, no banner
+	# sleep sends him off unheard, his talk zone released (nothing left held)
 	c.ending = false
-	gm.demo_ending = {"state": "waiting", "day": 7, "returning": false}
+	gm.demo_ending = {"state": "waiting", "day": 8, "returning": false}
 	c.npc = v
+	var his_zone = v.talk_zone
 	c._on_day_phase("late_night")
 	await process_frame
 	await process_frame
 	var slept: bool = get_nodes_in_group("royal_messenger").filter(func(n): return not n.is_queued_for_deletion()).is_empty() and gm.demo_ending.state == "waiting"
+	var released: bool = not ui.connected_zones.has(his_zone)
+	check(slept and released, "sleep (late_night) sends him off unheard (still waiting: he comes again tomorrow); his talk zone leaves the ZonePromptUI (nothing left held)")
+	# a load during his day: a fresh controller places him at the wait spot, no banner; the body by the one key (farmer)
 	nm.clear_banners()
 	await process_frame
 	var c2 = load(T53_CONTROLLER).new()
 	c2.world_parent = world
 	c2.phase = "day"
 	c2.player_provider = func(): return null
-	c2.data_override = {"messenger": {"wait_spot": [1.5, 0.0, 180.0]}}
+	c2.data_override = {"messenger": {"wait_spot": [1.5, 0.0, 180.0], "body": "farmer", "arrival_delay_seconds": 0.0}}
 	world.add_child(c2)
 	await process_frame
 	var back = c2.npc
 	var placed: bool = back != null and Vector2(back.global_position.x - 1.5, back.global_position.z).length() < 0.05
-	check(slept and placed and _t38_banners(nm).is_empty(),
-		"sleep (late_night) sends him off unheard (still waiting: he comes again tomorrow); a load during his day places him at the wait spot with no banner")
+	var swapped: bool = back != null and str(back.body_variant.get("id", "")) == "farmer"
+	check(placed and swapped and _t38_banners(nm).is_empty(),
+		"a load during his day places him at the wait spot with no banner; demo_ending.json's messenger.body swaps his body (farmer here)")
+	# review P12: the next morning, once he had been in the hall, he comes back with banner_return
+	c2._on_day_phase("late_night")
+	await process_frame
+	gm.current_day = 9
+	gm._advance_demo_ending()
+	var ret: bool = gm.demo_ending.get("returning") == true
+	c2.phase = "day"
+	c2.check()
+	await process_frame
+	check(ret and c2.npc != null and _t38_banners(nm).has(["The King's messenger is back. He still has word for the guild master.", true]),
+		"the morning after an unheard day he comes back with the 'he's back' banner (banner_return) %s" % [_t38_banners(nm)])
+	# review P15: while he is in the hall a new patron never wears his body
+	var RP = load(PATRON_SCRIPT_PATH)
+	var pool: Array = RP.townsfolk_pool()
+	var without: Array = RP.pool_without(pool, ["guard"])
+	check(not without.is_empty() and not without.any(func(x): return str(x.get("id", "")) == "guard") and without.size() == pool.size() - 1
+		and RP.pool_without(pool, pool.map(func(x): return str(x.get("id", "")))).size() == pool.size() and RP.pool_without(pool, []) == pool
+		and FileAccess.get_file_as_string(PATRON_SCRIPT_PATH).contains("pick_variant(pool_without(townsfolk_pool(), _visitor_bodies()), \"\", randf())"),
+		"review P15: a new patron's body skips the variant the King's messenger wears while he is in the hall (pool_without; all taken: the whole pool)")
 	# the full game: no messenger
 	dm.set("run_profile", "full")
 	c2.check()
 	await process_frame
 	var sent: bool = c2.npc == null
-	gm.demo_ending = {"state": "coming", "day": 7, "returning": false}
+	gm.demo_ending = {"state": "coming", "day": 9, "returning": false}
 	c2.check()
 	check(sent and c2.npc == null, "the full game: a messenger in the hall is sent away and none comes, whatever the state")
 	dm.set("run_profile", "demo")
@@ -16099,6 +16214,91 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	world.queue_free()
 	await process_frame
 	await process_frame
+
+
+## Review P3 (b), the root cause: the hall's legacy E zones (zone_interactions.gd: the bar, the board, the hire desk, the
+## bed) act only while their zone owns E per the ZonePromptUI, so the King's messenger (or Den Fa, a visitor, the cat)
+## nearer than the bed gets the key; with no ZonePromptUI, or a zone it doesn't know, they act as before.
+func _check_t53_zone_owner() -> void:
+	var zs := GDScript.new()
+	zs.source_code = "extends \"res://scripts/game/zone_interactions.gd\"\nvar opened: Array = []\nfunc setup_interaction_areas() -> void:\n\tpass\nfunc _connect_exit_zone() -> void:\n\tpass\nfunc advance_day() -> void:\n\topened.append(\"bed\")\nfunc open_tavern_management() -> void:\n\topened.append(\"bar\")\nfunc open_mission_board() -> void:\n\topened.append(\"board\")\nfunc open_recruitment_desk() -> void:\n\topened.append(\"desk\")\n"
+	zs.reload()
+	var hall := Node3D.new()
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var zi := Node3D.new()
+	for n in ["BarArea", "MissionBoard", "RecruitmentDesk", "NextDayArea", "FireplaceArea"]:
+		var a := Area3D.new()
+		a.name = n
+		zi.add_child(a)
+		if n == "FireplaceArea":
+			a.unique_name_in_owner = true
+			a.owner = zi
+	zi.set_script(zs)
+	hall.add_child(zi)
+	var ui = load("res://scripts/game/ZonePromptUI.gd").new()
+	hall.add_child(ui)
+	var his := Area3D.new()
+	his.name = "MessengerTalkZone"
+	hall.add_child(his)
+	await process_frame
+	var bed: Area3D = zi.get_node("NextDayArea")
+	var bar: Area3D = zi.get_node("BarArea")
+	ui.register_zone(bed, "Press E - Rest & Plan")
+	ui.register_zone(bar, "Press E - Tavern Management")
+	ui.claim(his, "Press E - Hear the King's messenger", his)
+	zi.player_in_bedroom = true
+	ui.set_process(false)   # the test sets the owner itself
+	ui.current_zone = his
+	ui._gate = true
+	var his_turn: bool = zi.handle_zone_interactions() == false and zi.opened.is_empty()
+	ui.current_zone = bed
+	var bed_turn: bool = zi.handle_zone_interactions() == true and zi.opened == ["bed"]
+	zi.player_in_bedroom = false
+	zi.player_in_bar = true
+	zi.opened.clear()
+	ui.current_zone = bar
+	ui._gate = false   # a patron waiting in range (the gate): no zone owns E
+	var gated: bool = zi.handle_zone_interactions() == false and zi.opened.is_empty()
+	ui._gate = true
+	ui.unregister_zone(bar)   # a zone the UI doesn't know acts as before
+	var legacy: bool = zi.handle_zone_interactions() == true and zi.opened == ["bar"]
+	var src := FileAccess.get_file_as_string("res://scripts/game/zone_interactions.gd")
+	check(his_turn and bed_turn and gated and legacy and _func_body(src, "_input").contains("if handle_interaction_priority():\n\t\t\tget_viewport().set_input_as_handled()"),
+		"review P3 (b): the player at the bed with the King's messenger nearer: E is his (the bed doesn't open); the bed's own turn opens it; a closed gate (a patron in range) opens nothing; a zone the ZonePromptUI doesn't know acts as before; a zone that acted keeps the key (set_input_as_handled)")
+	hall.queue_free()
+	_d1_set_scene(null)
+	await process_frame
+
+
+## Review P9: demo_ending.json values that don't fit their default keep the default (one warning each): a null number,
+## a 2-element point, a list with a bad point, a non-object section; ints and floats are alike; the card with junk
+## text builds with its defaults.
+func _check_t53_robust_data() -> void:
+	var C = load(T53_CONTROLLER)
+	var bad: Dictionary = C.merged({"messenger": {"approach_stop_m": null, "porch": [1, 2], "wait_spot": "x", "route_in": [[1, 2, 3], [4]],
+		"approach": "yes", "arrival_delay_seconds": 2, "body": 7}, "end_card": {"min_seconds": null, "lines": [1, 2]}, "text": "nope", "panel_id": 3})
+	var d: Dictionary = C.DEFAULTS
+	check(bad.messenger.approach_stop_m == d.messenger.approach_stop_m and bad.messenger.porch == d.messenger.porch
+		and bad.messenger.wait_spot == d.messenger.wait_spot and bad.messenger.route_in == d.messenger.route_in and bad.messenger.approach == true
+		and bad.messenger.arrival_delay_seconds == 2 and bad.messenger.body == "guard" and bad.end_card.min_seconds == d.end_card.min_seconds
+		and bad.end_card.lines == d.end_card.lines and bad.text == d.text and bad.panel_id == "the_kings_request"
+		and (d.end_card.lines as Array).size() == 3 and d.end_card.lines == _read_json(T53_DATA).end_card.lines,
+		"review P9: a value that doesn't fit its default keeps the default (null numbers, short points, bad point lists, non-objects); ints and floats alike; the built-in card lines are the file's three")
+	var card = load(T53_CARD).new()
+	card.text = {"title": null, "lines": null, "min_seconds": null, "fade_seconds": "x", "button": 4, "kickstarter_line": null}
+	var hall := Node3D.new()
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	hall.add_child(card)
+	await process_frame
+	var built: bool = is_instance_valid(card) and card.button != null and card.button.text == "Return to the main menu" and card.labels.size() == 1 \
+		and card.labels[0].text == "To be continued"
+	paused = false
+	hall.queue_free()
+	_d1_set_scene(null)
+	await process_frame
+	check(built, "review P9: the end card with junk text builds with its defaults (no error)")
 
 
 ## AC 7: the end card alone: its layer, groups and text; it stops the hall itself; the button after min_seconds; Esc and
@@ -16133,9 +16333,15 @@ func _check_t53_card() -> void:
 		and texts == ["To be continued", "One.", "Two."] and early and refused and still and not card.button.disabled
 		and paused and svc.process_mode == Node.PROCESS_MODE_DISABLED,
 		"the end card: layer 126 (over the box 110, 10.1's panels 118 and 17.3's reveal 120), runs while paused, blocks the player; its DRAFT text (no Kickstarter line while it is \"\"); opened alone it stops the hall; the button is live only after min_seconds; Esc does nothing %s" % [texts])
+	card._input(esc)   # review P12: Esc once the button is live: still nothing
+	var live_esc: bool = is_instance_valid(card) and changes.is_empty() and not card.left
+	var enter := InputEventKey.new()
+	enter.keycode = KEY_ENTER
+	enter.pressed = true
+	card._input(enter)   # Enter (ui_accept) leaves, as the button does
 	card.button.emit_signal("pressed")
-	card.button.emit_signal("pressed")
-	check(changes == ["res://scenes/MainMenu.tscn"] and not paused, "the button: the tree unpaused, the main menu, once")
+	check(live_esc and changes == ["res://scenes/MainMenu.tscn"] and not paused,
+		"the card once live: Esc still does nothing; Enter (ui_accept) leaves: the tree unpaused, the main menu, once (the button after it does nothing; review P12)")
 	paused = false
 	hall.queue_free()
 	_d1_set_scene(null)
