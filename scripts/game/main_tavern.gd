@@ -224,13 +224,23 @@ func _input(event):
 
 func toggle_pause_menu():
 	pause_menu.visible = !pause_menu.visible
+	# Freeze the whole game world (player, patrons, fireplace drain) while the menu is up.
+	set_world_frozen(pause_menu.visible)
+	print("PauseMenu visible: ", pause_menu.visible)
+
+## The hall's world frozen or running (Story 18.1, DC-11; split out of toggle_pause_menu, same effect): the
+## SubViewportContainer DISABLED (the player, patrons, staff, the fire's zone stop) and the mouse off it. This root runs
+## ALWAYS, so a tree pause alone would leave the hall running; we DISABLE the game subtree instead so this script keeps
+## catching ESC. The pause menu, the Codex opened from the hall's book and the demo ending's stop_hall() use it.
+func set_world_frozen(on: bool) -> void:
 	var svc = get_node_or_null("SubViewportContainer")
 	if svc:
-		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE if pause_menu.visible else Control.MOUSE_FILTER_STOP
-		# Freeze the whole game world (player, patrons, fireplace drain) while the menu is up.
-		# We DISABLE the game subtree instead of get_tree().paused so this script keeps catching ESC.
-		svc.process_mode = Node.PROCESS_MODE_DISABLED if pause_menu.visible else Node.PROCESS_MODE_INHERIT
-	print("PauseMenu visible: ", pause_menu.visible)
+		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE if on else Control.MOUSE_FILTER_STOP
+		svc.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+
+func is_world_frozen() -> bool:
+	var svc = get_node_or_null("SubViewportContainer")
+	return svc != null and svc.process_mode == Node.PROCESS_MODE_DISABLED
 
 # Pause-menu buttons (Main Menu / Save / Load / Save & Exit / Quit) are owned by
 # pause_menu.gd, attached to the PauseMenu CanvasLayer. main_tavern only shows/hides it.
