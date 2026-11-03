@@ -8107,12 +8107,15 @@ func test_light_and_mood() -> void:
 	var hl_on_ok: bool = hl_on.floor >= 1 and hl_on.wall >= 1 and hl_on.low_wall >= 1 and hl_on.timber >= 1 \
 		and hl_on.lanterns == HL.LANTERNS.size() and hl_on.banners == HL.BANNERS.size() and HL.is_on(hl_host) \
 		and hl_floor_mesh.material_override == HL.floor_material() and hl_low_mesh.material_override == HL.wall_material(true) \
-		and hl_lights.size() == HL.LANTERNS.size() \
-		and hl_lights.all(func(l): return l.is_in_group("tavern_candle") and not l.visible and l.has_meta("base_energy"))
+		and hl_lights.size() >= HL.LANTERNS.size() \
+		and hl_lights.all(func(l): return l.is_in_group("tavern_candle") and not l.visible and l.has_meta("base_energy")) \
+		and hl_on.get("memorial", 0) == 1 and hl_on.get("trophy", 0) == 1 and hl_on.get("tankards", 0) == HL.HALL_DRESSING.TANKARD_COUNT \
+		and hl_on.get("notices", 0) == HL.HALL_DRESSING.NOTICES.size() and hl_on.get("portraits", 0) == HL.HALL_DRESSING.PORTRAITS.size() \
+		and hl_on.get("roots", 0) == HL.HALL_DRESSING.ROOT_ANGLES.size() and hl_on.get("dust", 0) == 1
 	var hl_off: Dictionary = HL.apply(hl_nav, hl_host, false)
 	check(hl_on_ok and hl_floor_mesh.material_override == hl_own and hl_low_mesh.material_override == null
 		and not HL.is_on(hl_host) and hl_off.lanterns == 0 and hl_lights.all(func(l): return not is_instance_valid(l)),
-		"hall_look.gd: the shell kit takes the look (%s), the lanterns join tavern_candle hidden; off puts each piece's own material back and frees the props" % [hl_on])
+		"hall_look.gd: the shell kit takes the look and pass 2's dressing is built (%s), every lantern and candle light joins tavern_candle hidden; off puts each piece's own material back and frees the props" % [hl_on])
 	hl_nav.free()
 	hl_host.free()
 	ctl.set_mood("today")
