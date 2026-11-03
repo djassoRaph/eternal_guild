@@ -8216,22 +8216,45 @@ func test_light_and_mood() -> void:
 	check(xr_on1 and xr_off and xr_on2 and xr_we.environment == xr_env,
 		"exterior_look.gd on -> off -> on: the scene's environment, the sun and the ground's own material come back, the props go, a second on works (%s, %s, %s)" % [xr_on1, xr_off, xr_on2])
 	xr_world.free()
-	# the hex look (hex_look.gd; Raphael 2026-11-03, the Octopath reskin of grass, water and forest): its pieces are the
-	# generator's; a grass tile takes the reskin, a mountain topper on it keeps its KayKit look; off puts both back
+	# the hex look (hex_look.gd; Raphael 2026-11-03: the Octopath reskin of every land and sea piece, with its own
+	# beaches): the generator's land and sea pieces are its pieces, the buildings and clouds aren't; a grass tile takes the
+	# reskin while a building on it keeps its look; off restores; the shore mask marks land white and sea black; a coast
+	# hex built as a grass tile shows its hidden KayKit coast tile again when the look goes off
 	var HXL = load("res://scripts/world/hex_look.gd")
 	var HXG = load("res://scripts/world/HexMapGenerator.gd")
-	var hx_pieces_ok: bool = HXL.PIECES.has(HXG.GRASS_SCENE) and HXL.PIECES.has(HXG.WATER_SCENE) 		and HXG.FOREST_TOPPERS.all(func(t): return HXL.PIECES.has(t)) and HXL.PIECES.size() == 2 + HXG.FOREST_TOPPERS.size()
+	var hx_land: Array = [HXG.GRASS_SCENE, HXG.WATER_SCENE] + HXG.COAST_VARIANTS + HXG.FOREST_TOPPERS + HXG.MOUNTAIN_TOPPERS + HXG.GRASS_DECOR + HXG.SEA_DECOR
+	var hx_pieces_ok: bool = hx_land.all(func(t): return HXL.is_piece(t)) and HXG.ZONE_BUILDINGS.all(func(t): return not HXL.is_piece(t)) 		and not HXL.is_piece(HXG.TAVERN_TOPPER) and not HXL.is_piece("res://assets/environment/hexagons/nature/cloud_big.gltf") 		and HXL.COAST == HXG.COAST_VARIANTS and HXL.GRASS == HXG.GRASS_SCENE and HXL.WATER == HXG.WATER_SCENE
 	var hx_tile: Node3D = (load(HXG.GRASS_SCENE) as PackedScene).instantiate()
-	var hx_mtn: Node3D = (load(HXG.MOUNTAIN_TOPPERS[0]) as PackedScene).instantiate()
-	hx_tile.add_child(hx_mtn)
-	var hx_tile_mesh: MeshInstance3D = hx_tile.find_children("*", "MeshInstance3D", false, false)[0] if not hx_tile.find_children("*", "MeshInstance3D", false, false).is_empty() else hx_tile.find_children("*", "MeshInstance3D", true, false)[0]
-	var hx_mtn_meshes: Array = hx_mtn.find_children("*", "MeshInstance3D", true, false)
+	var hx_bld: Node3D = (load(HXG.ZONE_BUILDINGS[0]) as PackedScene).instantiate()
+	hx_tile.add_child(hx_bld)
+	var hx_tile_mesh: MeshInstance3D = hx_tile.find_children("*", "MeshInstance3D", false, false)[0]
+	var hx_bld_meshes: Array = hx_bld.find_children("*", "MeshInstance3D", true, false)
 	var hx_on: int = HXL.dress(hx_tile)
-	var hx_on_ok: bool = hx_on >= 1 and hx_tile_mesh.material_override is ShaderMaterial 		and (hx_tile_mesh.material_override as ShaderMaterial).shader == HXL.SHADER and hx_mtn_meshes.all(func(m): return m.material_override == null)
+	var hx_on_ok: bool = hx_on >= 1 and hx_tile_mesh.material_override is ShaderMaterial 		and (hx_tile_mesh.material_override as ShaderMaterial).shader == HXL.SHADER and hx_bld_meshes.all(func(m): return m.material_override == null)
 	HXL.dress(hx_tile, false)
-	check(hx_pieces_ok and hx_on_ok and hx_tile_mesh.material_override == null and HXL.dress(hx_tile) == hx_on and HXL.dress(hx_tile) == hx_on,
-		"hex_look.gd: its pieces are the generator's grass, water and forest toppers; a grass tile takes the reskin (%d meshes), the mountain on it keeps its look, off restores, a second dress counts the same" % hx_on)
+	var hx_off_ok: bool = hx_tile_mesh.material_override == null and HXL.dress(hx_tile) == hx_on and HXL.dress(hx_tile) == hx_on
+	HXL.dress(hx_tile, false)
 	hx_tile.free()
+	# the coast swap: a grass tile over a hidden KayKit coast tile
+	var hx_swap: Node3D = (load(HXG.GRASS_SCENE) as PackedScene).instantiate()
+	var hx_kk: Node3D = (load(HXG.COAST_VARIANTS[0]) as PackedScene).instantiate()
+	hx_kk.name = HXL.COAST_SWAP_CHILD
+	hx_kk.visible = false
+	hx_swap.add_child(hx_kk)
+	hx_swap.set_meta(HXL.SWAP_META, true)
+	var hx_grass_mesh: MeshInstance3D = hx_swap.find_children("*", "MeshInstance3D", false, false)[0]
+	HXL.dress(hx_swap)
+	var hx_swap_on: bool = hx_grass_mesh.visible and not hx_kk.visible
+	HXL.dress(hx_swap, false)
+	var hx_swap_ok: bool = hx_swap_on and not hx_grass_mesh.visible and hx_kk.visible
+	hx_swap.free()
+	# the shore mask: one texel per hex, land white
+	HXL.set_map([{"coord": Vector2i(-1, 2), "biome": "sea"}, {"coord": Vector2i(1, 3), "biome": "grass"}], Vector3.ZERO)
+	var hx_mask: Image = (HXL._map.hex_mask as Texture2D).get_image()
+	var hx_mask_ok: bool = HXL._map.mask_origin == Vector2(-1, 2) and HXL._map.mask_size == Vector2(3, 2) 		and hx_mask.get_pixel(0, 0).r < 0.5 and hx_mask.get_pixel(2, 1).r > 0.5 and hx_mask.get_pixel(1, 0).r < 0.5
+	HXL.set_map([], Vector3.ZERO)
+	check(hx_pieces_ok and hx_on_ok and hx_off_ok and hx_swap_ok and hx_mask_ok,
+		"hex_look.gd: the generator's land and sea pieces are its pieces (not buildings, the guild's, clouds); a grass tile takes the reskin (%d meshes), a building on it keeps its look, off restores; the coast swap shows KayKit's tile when off; the shore mask (%s, %s, %s, %s, %s)" % [hx_on, hx_pieces_ok, hx_on_ok, hx_off_ok, hx_swap_ok, hx_mask_ok])
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
