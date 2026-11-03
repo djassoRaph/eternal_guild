@@ -22,6 +22,12 @@ uniform float row_step = 2.0;
 uniform float row_offset = 1.0;
 uniform float beach_width = 0.5;
 uniform float shallows_width = 0.75;
+// a mountain piece's own material (hex_look.gd): craggy striated rock, scree at the foot, snow on the high ledges
+uniform float mountain = 0.0;
+uniform float snow_line = 1.45;            // metres above the map (the mountains are stretched up by hex_look.gd)
+uniform vec3 crag_dark : source_color = vec3(0.26, 0.27, 0.3);
+uniform vec3 crag_light : source_color = vec3(0.64, 0.62, 0.58);
+uniform vec3 snow : source_color = vec3(0.88, 0.9, 0.95);
 uniform vec3 grass_a : source_color = vec3(0.33, 0.43, 0.22);
 uniform vec3 grass_b : source_color = vec3(0.23, 0.32, 0.18);
 uniform vec3 grass_dry : source_color = vec3(0.48, 0.46, 0.27);
@@ -140,7 +146,14 @@ void fragment() {
 		// the coast wanders: a slow wide wiggle and a quick small one, so the beach doesn't trace the hex edges
 		sd = shore_distance(lp.xz, own) + (fbm(lp.xz * 0.45) - 0.5) * 0.7 + (noise(lp.xz * 3.0) - 0.5) * 0.12;
 	}
-	if (cell == vec2(0.0, 2.0)) {
+	if (cell == vec2(0.0, 2.0) && mountain > 0.5 && lp.y > snow_line - 0.25) {
+		// a mountain's high ledges: snow, a little blue in its hollows, thinning to grass at the snow line
+		float cover = smoothstep(snow_line - 0.25, snow_line + 0.05, lp.y + (fbm(p * 1.7) - 0.5) * 0.3);
+		vec3 sn = snow * mix(0.82, 1.0, fbm(p * 4.0)) * (n.y > 0.6 ? 1.0 : 0.85);
+		col = mix(grass_b * 0.9, sn, cover);
+		rough = 0.7;
+		spec = 0.35;
+	} else if (cell == vec2(0.0, 2.0)) {
 		// grass: grass on top, layered earth on the sides; a beach where the hex meets the sea
 		if (n.y > 0.6) {
 			col = mix(grass_b, grass_a, smoothstep(0.35, 0.65, fbm(p * 0.18)));
@@ -186,8 +199,19 @@ void fragment() {
 		col = mix(sand_dry, sand_wet, 0.3) * mix(0.9, 1.05, noise(p * 9.0));
 	} else if (cell == vec2(3.0, 2.0) || cell == vec2(5.0, 0.0)) {
 		col = mix(soil, sand_wet, 0.35) * mix(0.82, 1.05, fbm(p * 3.0));
+	} else if ((cell == vec2(2.0, 2.0) || cell == vec2(1.0, 0.0)) && mountain > 0.5) {
+		// a mountain's crags: vertical striations and dark cracks, KayKit's gradient as the light, scree dark at the foot,
+		// snow dusting the flat tops above the snow line
+		float shade = dot(base, vec3(0.299, 0.587, 0.114));
+		float stri = fbm(vec2((world_pos.x + world_pos.z) * 2.6, world_pos.y * 0.7));
+		float crack = 1.0 - smoothstep(0.0, 0.05, abs(noise(vec2((world_pos.x - world_pos.z) * 3.5, world_pos.y * 0.9)) - 0.5));
+		col = mix(crag_dark, crag_light, clamp(shade * 1.35 - 0.25 + (stri - 0.5) * 0.6, 0.0, 1.0));
+		col *= 1.0 - crack * 0.5;
+		col *= mix(0.72, 1.0, smoothstep(0.0, 0.7, lp.y));
+		col = mix(col, snow, smoothstep(0.75, 0.95, n.y) * smoothstep(snow_line - 0.3, snow_line, lp.y));
+		rough = 0.92;
 	} else if (cell == vec2(2.0, 2.0) || cell == vec2(1.0, 0.0)) {
-		// mountain rock: KayKit's gradient as the light, cool grey strata, a little moss on flat ledges
+		// rock (single rocks): KayKit's gradient as the light, cool grey strata, a little moss on flat ledges
 		float shade = dot(base, vec3(0.299, 0.587, 0.114));
 		float strata = fbm(vec2((world_pos.x - world_pos.z) * 0.8, world_pos.y * 6.0));
 		col = mix(rock_dark, rock_light, clamp(shade * 1.2 - 0.15 + (strata - 0.5) * 0.35, 0.0, 1.0));

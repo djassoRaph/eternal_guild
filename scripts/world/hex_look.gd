@@ -29,7 +29,13 @@ const COAST := [
 	"res://assets/environment/hexagons/coast/hex_coast_E.gltf",
 ]
 
-static var _mats := {}   # atlas texture -> its hex_reskin material
+## The mountains (the pieces named mountain_*): their own material (mountain = 1: crags and snow) and stretched up
+## MOUNTAIN_STRETCH, so KayKit's low stone mesas read as mountains (Raphael: "can you also do the mountains?").
+const MOUNTAIN_TAG := "/mountain_"
+const MOUNTAIN_STRETCH := 1.5
+const SCALE_META := &"hex_look_scale"
+
+static var _mats := {}   # [atlas texture, mountain?] -> its hex_reskin material
 static var _map := {}    # the shader's shoreline uniforms (set_map)
 
 
@@ -82,19 +88,27 @@ static func dress(node: Node, on := true) -> int:
 		for c in swap.get_children():
 			if c is MeshInstance3D:
 				(c as MeshInstance3D).visible = on
+	for piece in _mountains(node):
+		if on and not piece.has_meta(SCALE_META):
+			piece.set_meta(SCALE_META, piece.scale)
+			piece.scale = piece.scale * Vector3(1.0, MOUNTAIN_STRETCH, 1.0)
+		elif not on and piece.has_meta(SCALE_META):
+			piece.scale = piece.get_meta(SCALE_META)
+			piece.remove_meta(SCALE_META)
 	var meshes: Array = node.find_children("*", "MeshInstance3D", true, false)
 	if node is MeshInstance3D:
 		meshes.push_front(node)
 	var n := 0
 	for m in meshes:
 		var mi := m as MeshInstance3D
-		if not is_piece(_piece_of(mi, node)):
+		var piece_path := _piece_of(mi, node)
+		if not is_piece(piece_path):
 			continue
 		if on:
 			if mi.has_meta(SAVED_META):
 				n += 1          # already dressed
 				continue
-			var mat := _material(mi.get_active_material(0))
+			var mat := _material(mi.get_active_material(0), MOUNTAIN_TAG in piece_path)
 			if mat == null:
 				continue
 			mi.set_meta(SAVED_META, [mi.material_override])
@@ -105,6 +119,14 @@ static func dress(node: Node, on := true) -> int:
 			mi.remove_meta(SAVED_META)
 			n += 1
 	return n
+
+
+## The mountain pieces (instanced roots) under `node`.
+static func _mountains(node: Node) -> Array:
+	var out: Array = node.find_children("*", "Node3D", true, false).filter(func(x): return MOUNTAIN_TAG in x.scene_file_path and is_piece(x.scene_file_path))
+	if MOUNTAIN_TAG in node.scene_file_path and is_piece(node.scene_file_path):
+		out.push_front(node)
+	return out
 
 
 static func _swapped(node: Node) -> Array:
@@ -127,18 +149,21 @@ static func _piece_of(mi: Node, stop: Node) -> String:
 	return ""
 
 
-## One hex_reskin material per atlas texture (the piece's own), or null for a mesh without a textured material.
-static func _material(src: Material) -> ShaderMaterial:
+## One hex_reskin material per atlas texture (the piece's own) and kind (a mountain's has crags and snow), or null for
+## a mesh without a textured material.
+static func _material(src: Material, is_mountain := false) -> ShaderMaterial:
 	var base := src as BaseMaterial3D
 	if base == null or base.albedo_texture == null:
 		return null
-	if not _mats.has(base.albedo_texture):
+	var key := [base.albedo_texture, is_mountain]
+	if not _mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = SHADER
 		m.set_shader_parameter("atlas", base.albedo_texture)
+		m.set_shader_parameter("mountain", 1.0 if is_mountain else 0.0)
 		_apply_map(m)
-		_mats[base.albedo_texture] = m
-	return _mats[base.albedo_texture]
+		_mats[key] = m
+	return _mats[key]
 
 
 static func _apply_map(m: ShaderMaterial) -> void:
