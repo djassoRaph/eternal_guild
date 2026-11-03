@@ -28,13 +28,11 @@ func _ready() -> void:
 	add_child(pause_menu)
 	# the screen's edge pass by game_config "edge_pass" (scripts/game/edge_pass.gd)
 	preload("res://scripts/game/edge_pass.gd").apply(get_node_or_null("Camera3D"))
-	# the exterior look (scripts/world/exterior_look.gd; brainstorm 2026-11-03: Raphael's Octopath shot) by game_config
-	# "exterior_look" (true when absent)
-	var dm := get_node_or_null("/root/DataManager")
-	if dm == null or bool(dm.get_config("exterior_look", true)):
-		var look: Node = preload("res://scripts/world/exterior_look.gd").new()
-		look.name = "ExteriorLook"
-		add_child(look)
+	# the exterior look (scripts/world/exterior_look.gd; brainstorm 2026-11-03: Raphael's Octopath shot): always there,
+	# it reads game_config "exterior_look" (true when absent) itself, so dev key 5 can turn it on when the config is off
+	var look: Node = preload("res://scripts/world/exterior_look.gd").new()
+	look.name = "ExteriorLook"
+	add_child(look)
 
 	await get_tree().process_frame
 	

@@ -16,6 +16,7 @@ const GRASS_SHADER := preload("res://assets/shaders/ext_grass.gdshader")
 const COBBLE_SHADER := preload("res://assets/shaders/ext_cobble.gdshader")
 const WATER_SHADER := preload("res://assets/shaders/ext_water.gdshader")
 const BUILDING_SHADER := preload("res://assets/shaders/ext_building.gdshader")
+const EDGE_PASS := preload("res://scripts/game/edge_pass.gd")
 const PHASES := ["morning", "day", "dusk", "evening", "late_night", "dawn"]
 const PHASE_ALIASES := {"reveal": "late_night"}
 const DEFAULT_PHASE := "day"
@@ -26,7 +27,14 @@ const PROPS_NAME := "ExteriorLookProps"
 const TERRAIN_PATH := "Terrain/TerrainMesh"
 const GROUND := {"terrain": "grass", "terrain_paths": "cobble", "terrain_water": "water"}
 const VILLAGE_PATH := "Village"
-const VILLAGE_SKIP := ["Street"]
+const VILLAGE_SKIP := ["Street", "Well"]   # not buildings with windows: they keep their own look and get no glow
+## The guild tavern (a1_guild_tavern.gltf) and its own emissive window material, which follows the phase's windows
+## (never below TAVERN_WINDOW_FLOOR: the guild's light is always a little on).
+const TAVERN_PATH := "GuildTavern"
+const TAVERN_WINDOW_MAT := "emissive_window_mat"
+const TAVERN_WINDOW_FLOOR := 0.15
+## The ground rays only take hits under this node (the terrain's collider), never a tent, a cart or the player.
+const GROUND_ROOT := "Terrain"
 ## The light and the air per phase. Colours are [r, g, b]; lamps and windows are 0..1 scales.
 const LOOKS := {
 	"morning": {"sun_color": [1.0, 0.85, 0.7], "sun_energy": 0.6, "ambient_color": [0.5, 0.56, 0.68], "ambient_energy": 0.65,
@@ -58,7 +66,7 @@ const MIST_HEIGHT := -2.0
 ## Props (x, z), put on the ground by raycast: braziers beside the road (tavern -> bridge), lamp posts round the square,
 ## the guild tavern's door and window glows (offsets from it, with heights), and each house's glow toward the square.
 const BRAZIERS := [Vector2(-16.5, 12.4), Vector2(-11.0, 7.6), Vector2(-4.0, 12.8), Vector2(3.2, 12.5), Vector2(9.8, 7.4)]
-const LAMP_POSTS := [Vector2(12.0, 2.5), Vector2(23.5, 2.5), Vector2(23.8, 13.8), Vector2(12.2, 14.0)]
+const LAMP_POSTS := [Vector2(12.0, 2.5), Vector2(23.5, 2.5), Vector2(24.6, 12.2), Vector2(10.6, 12.0)]   # ~0.7 m clear of the stall tents
 const SQUARE_CENTER := Vector2(17.5, 8.0)
 const TAVERN_GLOWS := [Vector3(3.9, 1.6, -1.6), Vector3(2.7, 1.8, 2.2), Vector3(-1.1, 1.8, 3.4)]
 const BRAZIER_ENERGY := 3.0
@@ -76,11 +84,13 @@ var _orig_env: Environment
 var _env: Environment
 var _sun: DirectionalLight3D
 var _sun_saved := {}
-var _building_mat: ShaderMaterial
-var _lamps: Array = []             # [light, base_energy, flicker]
+var _building_mats := {}           # atlas texture -> its ext_building material (apply_materials' cache)
+var _tavern_windows: Array = []    # [mesh, surface, the look's copy, its base emission energy]
+var _lamps: Array = []             # [light, base_energy, flicker, flicker phase]
 var _from := {}
 var _to := {}
 var _blend_t := 1.0
+var _blend_len := BLEND_SECONDS
 var _clock := 0.0
 
 
@@ -90,20 +100,30 @@ func _ready() -> void:
 	if gb and gb.has_signal("day_phase_changed"):
 		gb.day_phase_changed.connect(set_phase)
 	phase = _start_phase()
-	set_on(true)
-	print("[ExteriorLook] phase %s" % phase)
+	# the node is always there (dev key 5 can turn the look on), the config only decides the start
+	var dm := get_node_or_null("/root/DataManager")
+	set_on(config_flag(dm.get_config("exterior_look", true) if dm else true, "exterior_look"))
+	print("[ExteriorLook] look %s, phase %s" % ["on" if is_on() else "off", phase])
+
+
+## A config switch: a bool, or true (with a warning) for anything else, so a typo can't break the scene.
+static func config_flag(v, key: String) -> bool:
+	if v is bool:
+		return v
+	push_warning("[ExteriorLook] game_config %s = %s is not true/false; using true" % [key, v])
+	return true
 
 
 func _process(delta: float) -> void:
 	_clock += delta
 	if is_on() and _blend_t < 1.0:
-		_blend_t = minf(_blend_t + delta / BLEND_SECONDS, 1.0)
+		_blend_t = minf(_blend_t + (delta / _blend_len if _blend_len > 0.0 else 1.0), 1.0)
 		applied = blend(_from, _to, _blend_t)
 		_apply(applied)
 	for l in _lamps:
 		var light := l[0] as OmniLight3D
 		if is_instance_valid(light) and light.visible and l[2]:
-			var t := _clock * 9.0 + float(l[1]) * 7.0
+			var t: float = _clock * 9.0 + float(l[3])
 			light.light_energy = float(light.get_meta("lit", 0.0)) * (0.88 + 0.08 * sin(t) + 0.04 * sin(t * 2.7))
 
 
@@ -119,6 +139,9 @@ func _input(event: InputEvent) -> void:
 	match k.keycode:
 		KEY_2:
 			set_phase(PHASES[(PHASES.find(phase) + 1) % PHASES.size()], 0.0)
+		KEY_4:
+			for q in EDGE_PASS.quads(_world.get_node_or_null("Camera3D") if _world else null):
+				(q as MeshInstance3D).visible = not (q as MeshInstance3D).visible
 		KEY_5:
 			set_on(not is_on())
 		_:
@@ -144,11 +167,15 @@ static func look_values(phase_name: String) -> Dictionary:
 	return out
 
 
-## Every number and colour from a to b at t (0..1).
+## Every number and colour from a to b at t (0..1); a key missing from a (or of another type) takes b's.
 static func blend(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
 	var out := {}
 	for k in b:
-		out[k] = a[k].lerp(b[k], t) if b[k] is Color and a.get(k) is Color else lerpf(float(a.get(k, b[k])), float(b[k]), t)
+		var av = a.get(k)
+		if b[k] is Color:
+			out[k] = (av as Color).lerp(b[k], t) if av is Color else b[k]
+		else:
+			out[k] = lerpf(float(av), float(b[k]), t) if (av is float or av is int) else float(b[k])
 	return out
 
 
@@ -162,10 +189,12 @@ static func ground_material(mesh_name: String) -> ShaderMaterial:
 	return m
 
 
-## Put the ground and building materials on (or back off) the exterior under `world`; returns {ground, buildings}.
-## The buildings share one material (`building_mat`, made from the first building's atlas when null).
-static func apply_materials(world: Node, on: bool, building_mat: ShaderMaterial = null) -> Dictionary:
-	var out := {"ground": 0, "buildings": 0, "building_mat": building_mat}
+## Put the ground and building materials on (or back off) the exterior under `world`; returns {ground, buildings,
+## building_mats, building_mat}. A building mesh takes the look only when its own material is a BaseMaterial3D with an
+## albedo texture: one ext_building material per texture (`building_mats`, texture -> material, reused when given);
+## `building_mat` is the first of them.
+static func apply_materials(world: Node, on: bool, building_mats: Dictionary = {}) -> Dictionary:
+	var out := {"ground": 0, "buildings": 0, "building_mats": building_mats, "building_mat": null}
 	var terrain := world.get_node_or_null(TERRAIN_PATH)
 	if terrain:
 		for mi in terrain.find_children("*", "MeshInstance3D", true, false):
@@ -183,27 +212,42 @@ static func apply_materials(world: Node, on: bool, building_mat: ShaderMaterial 
 			if b is MeshInstance3D:
 				meshes.append(b)
 			for mi in meshes:
-				if on and out.building_mat == null:
-					var src := (mi as MeshInstance3D).get_active_material(0) as BaseMaterial3D
-					if src == null or src.albedo_texture == null:
+				var m: ShaderMaterial = null
+				if on:
+					m = _building_material((mi as MeshInstance3D).get_active_material(0), building_mats)
+					if m == null:
 						continue
-					out.building_mat = ShaderMaterial.new()
-					out.building_mat.shader = BUILDING_SHADER
-					out.building_mat.set_shader_parameter("atlas", src.albedo_texture)
-				if _set_material(mi, out.building_mat if on else null, on):
+				if _set_material(mi, m, on):
 					out.buildings += 1
+	if not building_mats.is_empty():
+		out.building_mat = building_mats.values()[0]
 	return out
 
 
-## On: keep the mesh's own override (once) and put `mat` on. Off: put the kept one back. True when it changed.
+## The ext_building material for a building mesh's own material (one per atlas texture), or null when it has no
+## textured BaseMaterial3D (it keeps its own).
+static func _building_material(src: Material, cache: Dictionary) -> ShaderMaterial:
+	var base := src as BaseMaterial3D
+	if base == null or base.albedo_texture == null:
+		return null
+	if not cache.has(base.albedo_texture):
+		var m := ShaderMaterial.new()
+		m.shader = BUILDING_SHADER
+		m.set_shader_parameter("atlas", base.albedo_texture)
+		cache[base.albedo_texture] = m
+	return cache[base.albedo_texture]
+
+
+## On: keep the mesh's own override (once, wrapped in an array so even a null override is kept) and put `mat` on.
+## Off: put the kept one back. True when it changed.
 static func _set_material(mi: MeshInstance3D, mat: Material, on: bool) -> bool:
 	if on:
 		if not mi.has_meta(SAVED_META):
-			mi.set_meta(SAVED_META, mi.material_override)
+			mi.set_meta(SAVED_META, [mi.material_override])
 		mi.material_override = mat
 		return true
 	if mi.has_meta(SAVED_META):
-		mi.material_override = mi.get_meta(SAVED_META)
+		mi.material_override = (mi.get_meta(SAVED_META) as Array)[0]
 		mi.remove_meta(SAVED_META)
 		return true
 	return false
@@ -221,8 +265,8 @@ func set_on(on: bool) -> void:
 		return
 	if on == is_on():
 		return
-	var mats := apply_materials(_world, on, _building_mat)
-	_building_mat = mats.building_mat if on else _building_mat
+	apply_materials(_world, on, _building_mats)
+	_set_tavern_windows(on)
 	_we = _world.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	_sun = _world.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if on:
@@ -235,12 +279,18 @@ func set_on(on: bool) -> void:
 			_env = Environment.new()
 		if _sun:
 			_sun_saved = {"light_color": _sun.light_color, "light_energy": _sun.light_energy}
-		_build_props()
+		# the props go on after a physics frame (the terrain's collider answers the ground rays from then on); a
+		# one-shot connection to this node's method, so a scene change before that frame drops it with the node
+		if is_inside_tree():
+			if not get_tree().physics_frame.is_connected(_build_props):
+				get_tree().physics_frame.connect(_build_props, CONNECT_ONE_SHOT)
+		else:
+			_build_props()
 		_blend_t = 1.0
 		applied = look_values(phase)
 		_apply(applied)
 	else:
-		if _we and _orig_env:
+		if _we:
 			_we.environment = _orig_env
 		_env = null
 		if _sun:
@@ -264,12 +314,39 @@ func set_phase(phase_name: String, seconds := -1.0) -> void:
 		return
 	_from = applied.duplicate()
 	_to = look_values(p)
-	if seconds == 0.0:
+	_blend_len = BLEND_SECONDS if seconds < 0.0 else seconds
+	if _blend_len <= 0.0:
 		_blend_t = 1.0
 		applied = _to
 		_apply(applied)
 	else:
 		_blend_t = 0.0
+
+
+## The guild tavern's own window material follows the phase: on, each window surface gets a copy (its own surface
+## override kept, wrapped, in metadata); off puts the kept override back.
+func _set_tavern_windows(on: bool) -> void:
+	if not on:
+		for w in _tavern_windows:
+			var mi := w[0] as MeshInstance3D
+			if is_instance_valid(mi) and mi.has_meta(SAVED_META):
+				mi.set_surface_override_material(int(w[1]), (mi.get_meta(SAVED_META) as Array)[0])
+				mi.remove_meta(SAVED_META)
+		_tavern_windows.clear()
+		return
+	var tavern := _world.get_node_or_null(TAVERN_PATH)
+	if tavern == null:
+		return
+	for node in tavern.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		for s in (mi.mesh.get_surface_count() if mi.mesh else 0):
+			var src := mi.get_active_material(s) as BaseMaterial3D
+			if src == null or src.resource_name != TAVERN_WINDOW_MAT or mi.has_meta(SAVED_META):
+				continue
+			mi.set_meta(SAVED_META, [mi.get_surface_override_material(s)])
+			var copy := src.duplicate() as BaseMaterial3D
+			mi.set_surface_override_material(s, copy)
+			_tavern_windows.append([mi, s, copy, src.emission_energy_multiplier])
 
 
 func _start_phase() -> String:
@@ -316,8 +393,10 @@ func _apply(v: Dictionary) -> void:
 	if _sun:
 		_sun.light_color = v.sun_color
 		_sun.light_energy = float(v.sun_energy)
-	if _building_mat:
-		_building_mat.set_shader_parameter("window_glow", float(v.windows))
+	for m in _building_mats.values():
+		(m as ShaderMaterial).set_shader_parameter("window_glow", float(v.windows))
+	for w in _tavern_windows:
+		(w[2] as BaseMaterial3D).emission_energy_multiplier = float(w[3]) * maxf(float(v.windows), TAVERN_WINDOW_FLOOR)
 	for l in _lamps:
 		var light := l[0] as OmniLight3D
 		if not is_instance_valid(light):
@@ -333,11 +412,9 @@ func _apply(v: Dictionary) -> void:
 
 # ---------------------------------------------------------------- the props ---------------------------------------
 
-## The props go on after a physics frame (the terrain's collider answers the ground rays from then on), then the
-## current light is applied to their lamps.
+## The props (set_on connects this to the next physics frame, once): each stands on the terrain where its ground ray
+## lands (a prop whose ray finds no terrain is skipped), then the current light is applied to their lamps.
 func _build_props() -> void:
-	if is_inside_tree():
-		await get_tree().physics_frame
 	if not is_on() or _world.get_node_or_null(PROPS_NAME):
 		return
 	var props := Node3D.new()
@@ -345,17 +422,21 @@ func _build_props() -> void:
 	_world.add_child(props)
 	_lamps.clear()
 	for i in BRAZIERS.size():
-		props.add_child(_brazier(i, _ground(BRAZIERS[i])))
+		var at = _ground(BRAZIERS[i])
+		if at != null:
+			props.add_child(_brazier(i, at))
 	for i in LAMP_POSTS.size():
-		props.add_child(_lamp_post(i, _ground(LAMP_POSTS[i])))
-	var tavern := _world.get_node_or_null("GuildTavern") as Node3D
+		var at = _ground(LAMP_POSTS[i])
+		if at != null:
+			props.add_child(_lamp_post(i, at))
+	var tavern := _world.get_node_or_null(TAVERN_PATH) as Node3D
 	if tavern:
 		for off in TAVERN_GLOWS:
-			props.add_child(_glow(tavern.global_position + off, 1.2, 5.0, false))
+			props.add_child(_glow(tavern.to_global(off), 1.2, 5.0, false))
 	var village := _world.get_node_or_null(VILLAGE_PATH)
 	if village:
 		for b in village.get_children():
-			if b.name in VILLAGE_SKIP or b.name == "Well" or not b is Node3D:
+			if b.name in VILLAGE_SKIP or not b is Node3D:
 				continue
 			var at := (b as Node3D).global_position
 			var to_square := (SQUARE_CENTER - Vector2(at.x, at.z)).normalized() * 1.8
@@ -364,15 +445,25 @@ func _build_props() -> void:
 	_apply(applied)
 
 
-## The ground's height under (x, z) by a ray down (the terrain's collider), else 0.
-func _ground(at: Vector2) -> Vector3:
+## The terrain's surface under (x, z), by a ray down that takes only hits under GROUND_ROOT (anything else above it,
+## a tent, a cart, a villager or the player, is excluded and the ray cast again), or null when there is none.
+func _ground(at: Vector2) -> Variant:
 	var space := _world.get_world_3d().direct_space_state if _world.is_inside_tree() else null
-	if space:
-		var q := PhysicsRayQueryParameters3D.create(Vector3(at.x, 30.0, at.y), Vector3(at.x, -30.0, at.y))
+	var terrain := _world.get_node_or_null(GROUND_ROOT)
+	if space == null or terrain == null:
+		return null
+	var q := PhysicsRayQueryParameters3D.create(Vector3(at.x, 30.0, at.y), Vector3(at.x, -30.0, at.y))
+	var skip: Array[RID] = []
+	for i in 8:
+		q.exclude = skip
 		var hit := space.intersect_ray(q)
-		if not hit.is_empty():
+		if hit.is_empty():
+			break
+		if hit.collider is Node and terrain.is_ancestor_of(hit.collider):
 			return hit.position
-	return Vector3(at.x, 0.0, at.y)
+		skip.append(hit.rid)
+	push_warning("[ExteriorLook] no terrain under (%.1f, %.1f): the prop there is skipped" % [at.x, at.y])
+	return null
 
 
 func _light(at: Vector3, energy: float, light_range: float, color: Color, flicker: bool) -> OmniLight3D:
@@ -383,7 +474,7 @@ func _light(at: Vector3, energy: float, light_range: float, color: Color, flicke
 	l.light_energy = 0.0
 	l.shadow_enabled = false
 	l.visible = false
-	_lamps.append([l, energy, flicker])
+	_lamps.append([l, energy, flicker, _lamps.size() * 2.39])   # each lamp its own flicker phase
 	return l
 
 
@@ -424,7 +515,9 @@ func _brazier(i: int, at: Vector3) -> Node3D:
 	b.position = at
 	b.add_child(_part(_cyl(0.1, 0.14, 0.85), _mat(Color(0.32, 0.31, 0.3)), Vector3(0, 0.425, 0)))
 	b.add_child(_part(_cyl(0.34, 0.16, 0.22), _mat(Color(0.1, 0.09, 0.085), 0.7), Vector3(0, 0.96, 0)))
-	b.add_child(_part(_cyl(0.3, 0.3, 0.03), _mat(Color(0.9, 0.3, 0.08), 0.0, 2.0), Vector3(0, 1.07, 0)))
+	var coals := _part(_cyl(0.3, 0.3, 0.03), _mat(Color(0.9, 0.3, 0.08), 0.0, 2.0), Vector3(0, 1.07, 0))
+	coals.add_to_group("exterior_look_flame")   # cold by day, like the flames
+	b.add_child(coals)
 	var flame_mat := _mat(Color(1.0, 0.6, 0.22), 0.0, 3.5)
 	for k in 3:
 		var a := TAU * k / 3.0 + i
@@ -472,17 +565,17 @@ static func _leaves() -> GPUParticles3D:
 	d.name = "Leaves"
 	d.position = Vector3(0.0, 6.0, 8.0)
 	d.amount = 140
-	d.lifetime = 12.0
-	d.preprocess = 12.0
+	d.lifetime = 10.0
+	d.preprocess = 10.0
 	d.visibility_aabb = AABB(Vector3(-32.0, -12.0, -18.0), Vector3(64.0, 16.0, 36.0))
 	var pm := ParticleProcessMaterial.new()
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	pm.emission_box_extents = Vector3(28.0, 3.0, 14.0)
-	pm.direction = Vector3(1, -0.4, 0.2)
+	pm.direction = Vector3(1, -0.1, 0.2)
 	pm.spread = 40.0
 	pm.initial_velocity_min = 0.2
 	pm.initial_velocity_max = 0.5
-	pm.gravity = Vector3(0.1, -0.35, 0.05)
+	pm.gravity = Vector3(0.1, -0.06, 0.05)   # a slow drift: about 3.5 m of fall in a leaf's life, so it stays above the ground
 	pm.angle_min = 0.0
 	pm.angle_max = 360.0
 	pm.angular_velocity_min = -90.0
