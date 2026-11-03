@@ -44,6 +44,11 @@ An honest check against your own docs:
 > Story 25.31 built the human cast on it and rewrote this section (2026-10-04). The AN spec is kept at
 > the end of the character spec as an appendix: it still governs the anime Quest Dealer, her fallback body.
 
+> **Since 2026-11-03 (sprint-change-proposal-2026-11-03.md, H-1, H-5):** the hall's and the exterior's surfaces are
+> textured in world space at load (Story 25.33's hall_look.gd / exterior_look.gd), so the KayKit box's "flat colours"
+> now hold for the props and buildings, not for the floor, walls and ground. New environment pieces still follow the
+> box below; worn, aged materials ("this place has history") are the direction for anything modelled for the hall.
+
 The style rule has two halves (A-1, 2026-09-26; the characters' half realistic since R-1, 2026-10-04):
 
 - **Environment** (buildings, rooms, furniture, props, landmarks, tiles): the KayKit box, below.
