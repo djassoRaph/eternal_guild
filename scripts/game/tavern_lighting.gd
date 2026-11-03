@@ -28,12 +28,17 @@
 # the clock starts at 6:00 and morning lasts until 9:00.
 #
 # The logic is static and node-free (tests call it); the node only applies the result. Loaded by path: no class_name.
-# Dev selector (debug builds): 1 the mood, 2 the phase, 3 the cast's shading preset (anime_look.gd), 4 the edge pass on/off.
+# The hall look (hall_look.gd, brainstorm 2026-11-03): game_config.json "hall_look" (true when absent) puts the shell's
+# world-space materials and the placeholder lanterns and banners on at _ready, BEFORE the snapshot (the lanterns join
+# tavern_candle hidden, so "today" stays as saved).
+# Dev selector (debug builds): 1 the mood, 2 the phase, 3 the cast's shading preset (anime_look.gd), 4 the edge pass on/off,
+# 5 the hall look on/off.
 extends Node
 
 const GAME_CONFIG_PATH := "res://data/config/game_config.json"
 const ANIME_LOOK := preload("res://scripts/game/anime_look.gd")
 const EDGE_PASS := preload("res://scripts/game/edge_pass.gd")
+const HALL_LOOK := preload("res://scripts/game/hall_look.gd")
 const TODAY := "today"
 const INK_LAYER_MASK := 524288      # render layer 20: the EdgeQuad's alone
 const PHASES := ["morning", "day", "dusk", "evening", "late_night", "dawn"]
@@ -113,6 +118,8 @@ static var _loaded := false
 @export var bar_probe_path := NodePath("../../../BarProbe")
 ## The subtree whose tavern_candle / tavern_window lights this node drives (the hall's SubViewport).
 @export var scope_path := NodePath("../../..")
+## The hall the hall look dresses (TavernNavigation: its Architecture/Shell); the props go under this node.
+@export var hall_path := NodePath("../..")
 ## Keys 1 / 2 / 3 / 4 in debug builds.
 @export var dev_keys := true
 ## Story 3.7: in a day scene (an ancestor in group day_clock_scene) start at the day clock's phase, not the config default.
@@ -215,6 +222,12 @@ static func phase_default() -> String:
 	_ensure()
 	var p := resolve_phase(str(_cfg.get("tavern_light_phase_default", DEFAULT_PHASE)))
 	return p if p != "" else DEFAULT_PHASE
+
+
+## game_config.json › hall_look (true when absent): the hall look at _ready.
+static func hall_look_enabled() -> bool:
+	_ensure()
+	return bool(_cfg.get("hall_look", true))
 
 
 static func blend_seconds() -> float:
@@ -407,6 +420,8 @@ func _ready() -> void:
 	reload_config()
 	# the screen's edge pass by game_config "edge_pass" (deferred: the hall's camera is made current after this node)
 	_apply_edge_pass.call_deferred()
+	if hall_look_enabled():
+		HALL_LOOK.apply(get_node_or_null(hall_path), self, true)
 	for l in _group("tavern_candle") + _group("tavern_window"):
 		_base_energy(l)                # the authored energy, once, before any scale is applied
 	today = _snapshot()
@@ -719,9 +734,21 @@ func _input(event: InputEvent) -> void:
 			retone_cast()
 		KEY_4:
 			toggle_edge_pass()
+		KEY_5:
+			toggle_hall_look()
 		_:
 			return
 	_show_label()
+
+
+## Dev: the hall look on/off (hall_look.gd), the light re-applied so the lanterns follow. Returns the new state.
+func toggle_hall_look() -> bool:
+	var on := not HALL_LOOK.is_on(self)
+	HALL_LOOK.apply(get_node_or_null(hall_path), self, on)
+	for l in _group("tavern_candle"):
+		_base_energy(l)
+	_apply(applied)
+	return on
 
 
 ## Dev: show/hide the screen's edge pass (edge_detection.gdshader on the camera's quad, render layer 20) to see the
@@ -783,6 +810,7 @@ func _show_label() -> void:
 		layer.add_child(_label)
 	var c := current()
 	var q := edge_pass()
-	_label.text = "[1] mood %s  [2] phase %s  [3] preset %s  [4] edges %s" % [c.mood, c.phase, c.preset, "off" if q and not q.visible else "on"]
+	_label.text = "[1] mood %s  [2] phase %s  [3] preset %s  [4] edges %s  [5] hall %s" % [c.mood, c.phase, c.preset,
+		"off" if q and not q.visible else "on", "new" if HALL_LOOK.is_on(self) else "old"]
 	_label.visible = true
 	_label_left = 3.0
