@@ -8118,6 +8118,50 @@ func test_light_and_mood() -> void:
 		"hall_look.gd: the shell kit takes the look and pass 2's dressing is built (%s), every lantern and candle light joins tavern_candle hidden; off puts each piece's own material back and frees the props" % [hl_on])
 	hl_nav.free()
 	hl_host.free()
+	# the exterior look (exterior_look.gd, brainstorm 2026-11-03 #29): every phase has every key; the ground meshes and
+	# the village's buildings (not the Street) take the look's materials, and off puts their own back
+	var XL = load("res://scripts/world/exterior_look.gd")
+	var xl_bad := []
+	for ph in XL.PHASES:
+		var vals: Dictionary = XL.look_values(ph)
+		for k in XL.LOOK_KEYS:
+			if not (XL.LOOKS[ph] as Dictionary).has(k) or not vals.has(k):
+				xl_bad.append("%s.%s" % [ph, k])
+	var xl_mid: Dictionary = XL.blend(XL.look_values("day"), XL.look_values("evening"), 0.5)
+	var xl_world := Node3D.new()
+	var xl_terrain := Node3D.new()
+	xl_terrain.name = "TerrainMesh"
+	var xl_tparent := Node3D.new()
+	xl_tparent.name = "Terrain"
+	xl_world.add_child(xl_tparent)
+	xl_tparent.add_child(xl_terrain)
+	var xl_ground := []
+	for n in ["terrain", "terrain_paths", "terrain_water"]:
+		var mi := MeshInstance3D.new()
+		mi.name = n
+		mi.mesh = BoxMesh.new()
+		xl_terrain.add_child(mi)
+		xl_ground.append(mi)
+	var xl_village := Node3D.new()
+	xl_village.name = "Village"
+	xl_world.add_child(xl_village)
+	var xl_home: Node = (load("res://assets/environment/hexagons/blue/building_home_A_blue.gltf") as PackedScene).instantiate()
+	xl_village.add_child(xl_home)
+	var xl_street := MeshInstance3D.new()
+	xl_street.name = "Street"
+	xl_street.mesh = BoxMesh.new()
+	xl_village.add_child(xl_street)
+	var xl_home_mesh: MeshInstance3D = xl_home.find_children("*", "MeshInstance3D", true, false)[0]
+	var xl_on: Dictionary = XL.apply_materials(xl_world, true)
+	var xl_bm = xl_on.building_mat
+	var xl_on_ok: bool = xl_on.ground == 3 and xl_on.buildings >= 1 and xl_bm is ShaderMaterial and xl_bm.get_shader_parameter("atlas") != null \
+		and xl_ground.all(func(m): return m.material_override is ShaderMaterial) and xl_home_mesh.material_override == xl_bm \
+		and xl_street.material_override == null
+	XL.apply_materials(xl_world, false)
+	check(xl_bad.is_empty() and (xl_mid.sun_color as Color).is_equal_approx((XL.look_values("day").sun_color as Color).lerp(XL.look_values("evening").sun_color, 0.5))
+		and xl_on_ok and xl_ground.all(func(m): return m.material_override == null) and xl_home_mesh.material_override == null,
+		"exterior_look.gd: every phase has every key (missing: %s), phases blend; the ground and the village's buildings (not the Street) take the look (%s) and off puts their own back" % [xl_bad, xl_on])
+	xl_world.free()
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
