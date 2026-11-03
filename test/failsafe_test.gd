@@ -8248,13 +8248,27 @@ func test_light_and_mood() -> void:
 	HXL.dress(hx_swap, false)
 	var hx_swap_ok: bool = hx_swap_on and not hx_grass_mesh.visible and hx_kk.visible
 	hx_swap.free()
+	# the mountains (review of "can you also do the mountains?"): their own material (mountain = 1), stretched up, and off
+	# puts the scale and the material back
+	var hx_mtn: Node3D = (load(HXG.MOUNTAIN_TOPPERS[0]) as PackedScene).instantiate()
+	var hx_mtn_scale: Vector3 = hx_mtn.scale
+	var hx_mtn_mesh: MeshInstance3D = hx_mtn.find_children("*", "MeshInstance3D", true, false)[0]
+	HXL.dress(hx_mtn)
+	var hx_mtn_mat = hx_mtn_mesh.material_override
+	var hx_mtn_on: bool = hx_mtn_mat is ShaderMaterial and float(hx_mtn_mat.get_shader_parameter("mountain")) == 1.0 		and hx_mtn.scale.is_equal_approx(hx_mtn_scale * Vector3(1.0, HXL.MOUNTAIN_STRETCH, 1.0))
+	HXL.dress(hx_mtn, false)
+	var hx_plain: Node3D = (load(HXG.GRASS_SCENE) as PackedScene).instantiate()
+	var hx_plain_mat: ShaderMaterial = HXL._material(hx_plain.find_children("*", "MeshInstance3D", true, false)[0].get_active_material(0))
+	var hx_mtn_ok: bool = hx_mtn_on and hx_mtn.scale.is_equal_approx(hx_mtn_scale) and hx_mtn_mesh.material_override == null 		and float(hx_plain_mat.get_shader_parameter("mountain")) == 0.0
+	hx_plain.free()
+	hx_mtn.free()
 	# the shore mask: one texel per hex, land white
 	HXL.set_map([{"coord": Vector2i(-1, 2), "biome": "sea"}, {"coord": Vector2i(1, 3), "biome": "grass"}], Vector3.ZERO)
 	var hx_mask: Image = (HXL._map.hex_mask as Texture2D).get_image()
 	var hx_mask_ok: bool = HXL._map.mask_origin == Vector2(-1, 2) and HXL._map.mask_size == Vector2(3, 2) 		and hx_mask.get_pixel(0, 0).r < 0.5 and hx_mask.get_pixel(2, 1).r > 0.5 and hx_mask.get_pixel(1, 0).r < 0.5
 	HXL.set_map([], Vector3.ZERO)
-	check(hx_pieces_ok and hx_on_ok and hx_off_ok and hx_swap_ok and hx_mask_ok,
-		"hex_look.gd: the generator's land and sea pieces are its pieces (not buildings, the guild's, clouds); a grass tile takes the reskin (%d meshes), a building on it keeps its look, off restores; the coast swap shows KayKit's tile when off; the shore mask (%s, %s, %s, %s, %s)" % [hx_on, hx_pieces_ok, hx_on_ok, hx_off_ok, hx_swap_ok, hx_mask_ok])
+	check(hx_pieces_ok and hx_on_ok and hx_off_ok and hx_swap_ok and hx_mask_ok and hx_mtn_ok,
+		"hex_look.gd: the generator's land and sea pieces are its pieces (not buildings, the guild's, clouds); a grass tile takes the reskin (%d meshes), a building on it keeps its look, off restores; the coast swap shows KayKit's tile when off; the shore mask; a mountain stretched with its own material, restored (%s, %s, %s, %s, %s, %s)" % [hx_on, hx_pieces_ok, hx_on_ok, hx_off_ok, hx_swap_ok, hx_mask_ok, hx_mtn_ok])
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
