@@ -48,6 +48,9 @@ const SETTLE_DURATION := 0.8
 
 # ── Asset paths ───────────────────────────────────────────────────────────────
 const GRASS_SCENE := "res://assets/environment/hexagons/base/hex_grass.gltf"
+## The hex look (hex_look.gd; Raphael 2026-11-03 "Octopath reskin": grass, water and forest for now), on by game_config
+## "hex_look" (true when absent); dev key 5 on the map toggles it.
+const HEX_LOOK := preload("res://scripts/world/hex_look.gd")
 const WATER_SCENE := "res://assets/environment/hexagons/base/hex_water.gltf"
 
 const COAST_VARIANTS := [
@@ -138,9 +141,16 @@ var _is_revealing: bool = false
 var _noise := FastNoiseLite.new()
 var _rng := RandomNumberGenerator.new()
 var _scene_cache := {}   # path -> PackedScene; gltf loads are not free
+var _hex_look_on := true
 
 
 func _ready() -> void:
+	var dm := get_node_or_null("/root/DataManager")
+	var hl = dm.get_config("hex_look", true) if dm else true
+	if not hl is bool:
+		push_warning("[HexMapGenerator] game_config hex_look = %s is not true/false; using true" % [hl])
+		hl = true
+	_hex_look_on = hl
 	if display_mode:
 		display_stored_world()
 	else:
@@ -445,7 +455,19 @@ func _instantiate_tile(rec: Dictionary) -> Node3D:
 		var tp_packed := _load_scene(tp)
 		if tp_packed != null:
 			bt.add_child(tp_packed.instantiate() as Node3D)
+	if _hex_look_on:
+		HEX_LOOK.dress(bt)
 	return bt
+
+
+## Dev (debug builds): key 5 puts the hex look on or takes it off every tile on the map.
+func _unhandled_key_input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if not OS.is_debug_build() or k == null or not k.pressed or k.echo or k.keycode != KEY_5:
+		return
+	_hex_look_on = not _hex_look_on
+	HEX_LOOK.dress(self, _hex_look_on)
+	print("[HexMapGenerator] hex look %s" % ["on" if _hex_look_on else "off"])
 
 
 # ── Teardown ──────────────────────────────────────────────────────────────────
@@ -528,6 +550,8 @@ func _spawn_all_tiles() -> void:
 		# Grass placeholder (spin phase)
 		var gt := _load_scene(GRASS_SCENE).instantiate() as Node3D
 		gt.name = rec.id + "_grass"
+		if _hex_look_on:
+			HEX_LOOK.dress(gt)
 		gt.position = base_pos
 		add_child(gt)
 		_grass_tiles.append(gt)
