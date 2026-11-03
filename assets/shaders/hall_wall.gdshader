@@ -15,7 +15,8 @@ uniform float floor_y = 0.1;
 uniform float stone_top = 1.15;
 uniform float stone_jag = 0.4;
 uniform float course_height = 0.26;
-// timber posts on the kit pieces' joints (2 m pieces centred on even metres) and one rail
+// timber posts every post_spacing metres from post_offset, and one rail (the posts follow world metres, not the kit
+// pieces' joints: only the north wall's 2 m pieces sit on even metres; the west, east and partition pieces don't)
 uniform float post_spacing = 2.0;
 uniform float post_offset = 1.0;
 uniform float post_width = 0.2;
@@ -52,12 +53,13 @@ float fbm(vec2 p) {
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	world_nrm = normalize(MODEL_NORMAL_MATRIX * NORMAL);   // right under non-uniform scale too
 }
 
 void fragment() {
 	// the coordinate along the wall: z on walls facing x, x on walls facing z (and on top faces)
-	float along = abs(world_nrm.x) > abs(world_nrm.z) ? world_pos.z : world_pos.x;
+	vec3 n = normalize(world_nrm);
+	float along = abs(n.x) > abs(n.z) ? world_pos.z : world_pos.x;
 	float y = world_pos.y - floor_y;
 	float ruin = stone_top + (fbm(vec2(along * 0.9, 3.0)) - 0.5) * stone_jag * 2.0;
 	vec3 col;

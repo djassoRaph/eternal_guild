@@ -40,10 +40,11 @@ float fbm(vec2 p) {
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	world_nrm = normalize(MODEL_NORMAL_MATRIX * NORMAL);   // right under non-uniform scale too
 }
 
 void fragment() {
+	vec3 n = normalize(world_nrm);
 	vec2 p = world_pos.xz;
 	float patch = fbm(p * 0.08);
 	vec3 g = mix(grass_b, grass_a, smoothstep(0.35, 0.65, patch));
@@ -56,7 +57,7 @@ void fragment() {
 	float flower = step(hash(cell + 7.7), flower_density) * (1.0 - smoothstep(0.03, 0.06, length(fp)));
 	g = mix(g, mix(flower_a, flower_b, step(0.5, hash(cell + 1.3))), flower);
 	// steep banks: bare earth and stone in layers
-	float steep = 1.0 - smoothstep(0.55, 0.8, world_nrm.y);
+	float steep = 1.0 - smoothstep(0.55, 0.8, n.y);
 	vec3 b = mix(bank_dark, bank, fbm(vec2((world_pos.x + world_pos.z) * 0.7, world_pos.y * 4.0)));
 	ALBEDO = mix(g, b, steep);
 	ROUGHNESS = 0.95;

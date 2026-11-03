@@ -36,5 +36,6 @@ void fragment() {
 	ALBEDO = c;
 	ROUGHNESS = 0.12;
 	SPECULAR = 0.7;
-	NORMAL_MAP = normalize(vec3(0.5 + (n1 - 0.5) * 0.3, 0.5 + (n2 - 0.5) * 0.3, 1.0));
+	// an encoded normal map (Godot decodes .xy * 2 - 1 and rebuilds z): 0.5 is flat, so no normalize here
+	NORMAL_MAP = vec3(0.5 + (n1 - 0.5) * 0.3, 0.5 + (n2 - 0.5) * 0.3, 1.0);
 }

@@ -1,6 +1,6 @@
 // ext_cobble.gdshader: the road and the village square as cobbles in world space (the exterior look; brainstorm #29,
-// the Octopath shot's textured cobbles): rounded stones of mixed greys and browns, dark earth between them, the middle
-// of the road worn paler, a little sheen on the stones. exterior_look.gd puts it on the terrain's path mesh.
+// the Octopath shot's textured cobbles): rounded stones of mixed greys and browns, dark earth between them, a little sheen
+// on the stones. exterior_look.gd puts it on the terrain's path mesh.
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
