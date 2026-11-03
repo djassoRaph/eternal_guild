@@ -48,6 +48,7 @@ An honest check against your own docs:
 > textured in world space at load (Story 25.33's hall_look.gd / exterior_look.gd), so the KayKit box's "flat colours"
 > now hold for the props and buildings, not for the floor, walls and ground. New environment pieces still follow the
 > box below; worn, aged materials ("this place has history") are the direction for anything modelled for the hall.
+> The world map's KayKit hexes keep their shapes and are reskinned the same way (H-9, hex_look.gd), beaches drawn.
 
 The style rule has two halves (A-1, 2026-09-26; the characters' half realistic since R-1, 2026-10-04):
 

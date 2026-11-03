@@ -657,7 +657,8 @@ Epic 5 is a thin *guiding layer* over other systems (it narrates them, it doesn'
 - Pass 2 (`scripts/game/hall_dressing.gd`; `hall_paper`, `hall_portrait`, `hall_root` shaders): the memorial placeholder, a beast skull over the hearth, the tankard ring, candles, plants and the bell on the counter, old notices round the board, four portraits with the last frame empty, roots with glowing runes on the pillar, dust.
 - The exterior (`scripts/world/exterior_look.gd`; `ext_grass`, `ext_cobble`, `ext_water`, `ext_building` shaders): cobbles, muted grass, dark water, the village windows lit by phase, haze and a little valley mist, braziers, lamp posts, leaves, following the day clock.
 - Switches: game_config `hall_look`, `exterior_look` (true when absent); dev key 5 in both scenes, key 2 outside (the next phase). The scenes are untouched: everything goes on at load.
-- Open: Raphael's verdicts on pass 2 and the exterior, the beast skull's light, the 3-reviewer code review. Suite 1768 pass / 0 fail on the committed tests. Sheets in `<art>/shots/look/`.
+- The world map (H-9): KayKit's hex shapes reskinned toward the same look (`scripts/world/hex_look.gd`, `hex_reskin.gdshader`; config `hex_look`, key 5 on the map), every land and sea piece, with beaches, shallows and foam drawn from each map's land and sea (a coast hex built as a grass tile over its hidden KayKit coast tile); follows every re-roll.
+- Code review done 2026-11-03 (28 patches applied; the look off = mood today). Open: Raphael's verdicts on pass 2 and the exterior, the `history` mood's readability, the beast skull's light. Suite 1770 pass / 0 fail on the committed tests. Sheets in `<art>/shots/look/`.
 ---
 
 ## Installed Plugins
