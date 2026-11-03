@@ -5,6 +5,9 @@ extends RefCounted
 
 const GAME_CONFIG_PATH := "res://data/config/game_config.json"
 const EDGE_SHADER_PATH := "res://assets/shaders/edge_detection.gdshader"
+## Every file that draws the edge pass: Raphael's copy at the project root has been MainTavern's quad since
+## 2026-10-08, so a quad on either one is the edge pass (else "edge_pass": false and dev key 4 miss the hall's).
+const EDGE_SHADER_PATHS := [EDGE_SHADER_PATH, "res://edge_detection-old.gdshader"]
 
 
 ## game_config.json's "edge_pass" (true when the file or the key is missing).
@@ -27,9 +30,14 @@ static func quads(cam: Node) -> Array:
 			continue
 		var mi := c as MeshInstance3D
 		var m: Material = mi.material_override if mi.material_override else mi.get_surface_override_material(0)
-		if m is ShaderMaterial and (m as ShaderMaterial).shader and (m as ShaderMaterial).shader.resource_path == EDGE_SHADER_PATH:
+		if is_edge_material(m):
 			out.append(mi)
 	return out
+
+
+## True when a material draws the edge pass (a ShaderMaterial on one of EDGE_SHADER_PATHS).
+static func is_edge_material(m: Material) -> bool:
+	return m is ShaderMaterial and (m as ShaderMaterial).shader != null and (m as ShaderMaterial).shader.resource_path in EDGE_SHADER_PATHS
 
 
 ## Show or hide a camera's edge pass by the config; returns how many quads it set.
