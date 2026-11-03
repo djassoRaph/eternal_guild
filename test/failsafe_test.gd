@@ -8082,6 +8082,39 @@ func test_light_and_mood() -> void:
 			if EP.is_edge_material(props.get("material_override", props.get("surface_material_override/0"))):
 				ep_found.append(p)
 		check(ep_found.size() == 1, "%s: the camera's edge pass quad is one edge_pass.gd finds (the config and dev key 4 reach it): %s" % [ep_scene.get_file(), ep_found])
+	# the hall look (hall_look.gd, brainstorm 2026-11-03): the shell kit takes its materials, the lanterns join
+	# tavern_candle hidden with a base_energy, the banners hang; off puts each piece's own material back and frees the props
+	var HL = load("res://scripts/game/hall_look.gd")
+	var hl_nav := Node3D.new()
+	var hl_arch := Node3D.new()
+	hl_arch.name = "Architecture"
+	hl_nav.add_child(hl_arch)
+	var hl_shell := Node3D.new()
+	hl_shell.name = "Shell"
+	hl_arch.add_child(hl_shell)
+	var hl_pieces := {}
+	for kit in ["b9_floor", "b9_wall_full", "b9_wall_low", "b9_beam"]:
+		var inst: Node = (load(HL.KIT_DIR + kit + ".gltf") as PackedScene).instantiate()
+		hl_shell.add_child(inst)
+		hl_pieces[kit] = inst
+	var hl_floor_mesh: MeshInstance3D = hl_pieces.b9_floor.find_children("*", "MeshInstance3D", true, false)[0]
+	var hl_low_mesh: MeshInstance3D = hl_pieces.b9_wall_low.find_children("*", "MeshInstance3D", true, false)[0]
+	var hl_own := StandardMaterial3D.new()
+	hl_floor_mesh.material_override = hl_own
+	var hl_host := Node3D.new()
+	var hl_on: Dictionary = HL.apply(hl_nav, hl_host, true)
+	var hl_lights: Array = hl_host.find_children("*", "OmniLight3D", true, false)
+	var hl_on_ok: bool = hl_on.floor >= 1 and hl_on.wall >= 1 and hl_on.low_wall >= 1 and hl_on.timber >= 1 \
+		and hl_on.lanterns == HL.LANTERNS.size() and hl_on.banners == HL.BANNERS.size() and HL.is_on(hl_host) \
+		and hl_floor_mesh.material_override == HL.floor_material() and hl_low_mesh.material_override == HL.wall_material(true) \
+		and hl_lights.size() == HL.LANTERNS.size() \
+		and hl_lights.all(func(l): return l.is_in_group("tavern_candle") and not l.visible and l.has_meta("base_energy"))
+	var hl_off: Dictionary = HL.apply(hl_nav, hl_host, false)
+	check(hl_on_ok and hl_floor_mesh.material_override == hl_own and hl_low_mesh.material_override == null
+		and not HL.is_on(hl_host) and hl_off.lanterns == 0 and hl_lights.all(func(l): return not is_instance_valid(l)),
+		"hall_look.gd: the shell kit takes the look (%s), the lanterns join tavern_candle hidden; off puts each piece's own material back and frees the props" % [hl_on])
+	hl_nav.free()
+	hl_host.free()
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
@@ -13820,7 +13853,7 @@ const T37_REP_FULL := {"rep_mission_success": 2, "rep_mission_failure": -1, "rep
 const T37_REP_DEMO := {"rep_mission_success": 3, "rep_mission_failure": -1, "rep_party_mission_success": 3,
 	"rep_party_mission_failure": -1, "rep_dismiss": -1, "rep_patron_satisfied": 1}
 ## Keys tools read straight from game_config.json by file path (no DataManager): a profile can't override them.
-const T37_DIRECT_READ_KEYS := ["anime_look_preset", "anime_look_presets", "edge_pass", "tavern_light_mood",
+const T37_DIRECT_READ_KEYS := ["anime_look_preset", "anime_look_presets", "edge_pass", "hall_look", "tavern_light_mood",
 	"tavern_light_phase_default", "tavern_light_blend_seconds", "tavern_light_moods",
 	"tavern_light_phases", "autosave_interval_seconds"]   # Story 3.7: the morning hold's key is gone (the day clock)
 ## The 40-gold model's typical row (sprint-change-proposal-2026-10-31.md; 14.6 "Run arc"): cumulative day-end medians.
