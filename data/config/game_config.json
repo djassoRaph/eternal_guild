@@ -97,7 +97,7 @@
 
 	"_edge_pass_comment": "edge_pass: the screen's edge/ink pass (assets/shaders/edge_detection.gdshader on the camera's quad) in MainTavern and ExteriorWorld; false hides it at load (Raphael, 2026-10-04). Dev key 4 in the hall toggles it live.",
 	"edge_pass": false,
-	"_hall_look_comment": "hall_look: the hall look, pass 1 (scripts/game/hall_look.gd; brainstorm 2026-11-03): the shell's world-space floor and wall materials, soot-dark timber, placeholder lanterns on chains and faded banners, put on by TavernLighting at load; false keeps the kit's own look. Dev key 5 in the hall toggles it live.",
+	"_hall_look_comment": "hall_look: the hall look (Story 25.33; scripts/game/hall_look.gd + hall_dressing.gd; brainstorm 2026-11-03): the shell's world-space floor and wall materials, soot-dark timber, placeholder lanterns, banners and pass 2's set dressing (the memorial, the trophy, the tankard ring, the bar top, old notices, portraits, roots, dust), put on by TavernLighting at load. false keeps the kit's own look AND the hall's old light (mood today) whatever tavern_light_mood says (review: Raphael's call, the look and its mood go together). Dev key 5 in the hall swaps both live.",
 	"hall_look": true,
 	"_exterior_look_comment": "exterior_look: the exterior look (scripts/world/exterior_look.gd; brainstorm 2026-11-03, Raphael's Octopath shot): grass, cobble and water materials, the village windows lit by phase, the light and the air per day phase (haze, valley mist, glow), placeholder braziers, lamp posts and falling leaves; false keeps the scene's own look. Dev keys outside: 5 on/off, 2 the next phase.",
 	"exterior_look": true,
