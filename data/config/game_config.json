@@ -101,7 +101,7 @@
 	"hall_look": true,
 	"_exterior_look_comment": "exterior_look: the exterior look (scripts/world/exterior_look.gd; brainstorm 2026-11-03, Raphael's Octopath shot): grass, cobble and water materials, the village windows lit by phase, the light and the air per day phase (haze, valley mist, glow), placeholder braziers, lamp posts and falling leaves; false keeps the scene's own look. Dev keys outside: 5 on/off, 2 the next phase.",
 	"exterior_look": true,
-	"_hex_look_comment": "hex_look: the world map's hexes reskinned toward the Octopath look (scripts/world/hex_look.gd, assets/shaders/hex_reskin.gdshader; Raphael 2026-11-03: grass, water and forest for now): the KayKit shapes kept, their atlas cells redrawn. false keeps KayKit. Dev key 5 on the map toggles it.",
+	"_hex_look_comment": "hex_look: the world map's hexes reskinned toward the Octopath look (scripts/world/hex_look.gd, assets/shaders/hex_reskin.gdshader; Raphael 2026-11-03): every land and sea piece (KayKit shapes kept, their atlas cells redrawn), with its own continuous beaches, shallows and foam drawn from the map's land and sea (a coast hex is built as a grass tile, KayKit's coast tile hidden under it). false keeps KayKit. Dev key 5 on the map toggles it.",
 	"hex_look": true,
 
 	"tavern_light_mood": "history",
