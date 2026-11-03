@@ -8123,10 +8123,16 @@ func test_light_and_mood() -> void:
 	var XL = load("res://scripts/world/exterior_look.gd")
 	var xl_bad := []
 	for ph in XL.PHASES:
+		if not XL.LOOKS.has(ph):
+			xl_bad.append(ph)
+			continue
+		var xl_missing: Array = XL.LOOK_KEYS.filter(func(k): return not (XL.LOOKS[ph] as Dictionary).has(k))
+		if not xl_missing.is_empty():
+			xl_bad.append("%s.%s" % [ph, xl_missing])
+			continue
 		var vals: Dictionary = XL.look_values(ph)
-		for k in XL.LOOK_KEYS:
-			if not (XL.LOOKS[ph] as Dictionary).has(k) or not vals.has(k):
-				xl_bad.append("%s.%s" % [ph, k])
+		if not XL.LOOK_KEYS.all(func(k): return vals.has(k)):
+			xl_bad.append("%s values" % ph)
 	var xl_mid: Dictionary = XL.blend(XL.look_values("day"), XL.look_values("evening"), 0.5)
 	var xl_world := Node3D.new()
 	var xl_terrain := Node3D.new()
@@ -8162,6 +8168,54 @@ func test_light_and_mood() -> void:
 		and xl_on_ok and xl_ground.all(func(m): return m.material_override == null) and xl_home_mesh.material_override == null,
 		"exterior_look.gd: every phase has every key (missing: %s), phases blend; the ground and the village's buildings (not the Street) take the look (%s) and off puts their own back" % [xl_bad, xl_on])
 	xl_world.free()
+	# the exterior look on -> off -> on in a live tree (review P11): its environment copy and the sun go back, the ground's
+	# own (null) override comes back, the props go; and a second on works again
+	var xr_world := Node3D.new()
+	xr_world.name = "XLRoundTrip"
+	var xr_we := WorldEnvironment.new()
+	xr_we.name = "WorldEnvironment"
+	var xr_env := Environment.new()
+	xr_we.environment = xr_env
+	xr_world.add_child(xr_we)
+	var xr_sun := DirectionalLight3D.new()
+	xr_sun.name = "DirectionalLight3D"
+	xr_sun.light_color = Color(1, 0.95, 0.85)
+	xr_sun.light_energy = 0.8
+	xr_world.add_child(xr_sun)
+	var xr_tp := Node3D.new()
+	xr_tp.name = "Terrain"
+	xr_world.add_child(xr_tp)
+	var xr_tm := Node3D.new()
+	xr_tm.name = "TerrainMesh"
+	xr_tp.add_child(xr_tm)
+	var xr_grass := MeshInstance3D.new()
+	xr_grass.name = "terrain"
+	xr_grass.mesh = BoxMesh.new()
+	xr_tm.add_child(xr_grass)
+	var xr_body := StaticBody3D.new()   # the ground the props' rays land on (as the terrain's collider)
+	var xr_shape := CollisionShape3D.new()
+	var xr_box := BoxShape3D.new()
+	xr_box.size = Vector3(200.0, 1.0, 200.0)
+	xr_shape.shape = xr_box
+	xr_body.position = Vector3(0.0, -0.5, 0.0)
+	xr_body.add_child(xr_shape)
+	xr_tm.add_child(xr_body)
+	var xr_look: Node = XL.new()
+	xr_look.name = "ExteriorLook"
+	xr_world.add_child(xr_look)
+	root.add_child(xr_world)    # the look's _ready: on, by the config (true)
+	await process_frame
+	await physics_frame
+	var xr_on1: bool = xr_look.is_on() and xr_we.environment != xr_env and xr_we.environment != null 		and xr_grass.material_override is ShaderMaterial and xr_world.get_node_or_null(XL.PROPS_NAME) != null
+	xr_look.set_on(false)
+	var xr_off: bool = not xr_look.is_on() and xr_we.environment == xr_env and xr_sun.light_color.is_equal_approx(Color(1, 0.95, 0.85)) 		and is_equal_approx(xr_sun.light_energy, 0.8) and xr_grass.material_override == null and xr_world.get_node_or_null(XL.PROPS_NAME) == null
+	xr_look.set_on(true)
+	await physics_frame
+	var xr_on2: bool = xr_look.is_on() and xr_we.environment != xr_env and xr_grass.material_override is ShaderMaterial 		and xr_world.get_node_or_null(XL.PROPS_NAME) != null and xr_world.find_children(XL.PROPS_NAME, "", false, false).size() == 1
+	xr_look.set_on(false)
+	check(xr_on1 and xr_off and xr_on2 and xr_we.environment == xr_env,
+		"exterior_look.gd on -> off -> on: the scene's environment, the sun and the ground's own material come back, the props go, a second on works (%s, %s, %s)" % [xr_on1, xr_off, xr_on2])
+	xr_world.free()
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
@@ -8493,6 +8547,7 @@ func _lm_rig(TL: GDScript, early_phase := "", shared_env: Environment = null, ea
 	ctl.name = "TavernLighting"
 	ctl.set_script(TL)
 	ctl.dev_keys = false
+	ctl.hall_path = NodePath("")   # a rig has no hall to dress (Story 25.33 review): no hall look, no warning
 	ctl.start_from_clock = from_clock
 	if early_phase != "":
 		ctl.set_phase(early_phase, 0.0)
