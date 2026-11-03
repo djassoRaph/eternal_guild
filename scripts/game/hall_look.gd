@@ -3,7 +3,9 @@
 # tiled ring and the compass rose round the bar; hall_wall.gdshader: ruin stone to waist height, plaster in a timber
 # frame, soot toward the top), its beams and posts go soot-dark, and code-made placeholder props join the hall:
 # lanterns on chains (each an OmniLight3D in group tavern_candle, saved hidden with base_energy, so TavernLighting's
-# mood lights them like the hall's other candles) and two faded banners on the partition.
+# mood lights them like the hall's other candles) and two faded banners on the partition. Pass 2's set dressing
+# (hall_dressing.gd: the memorial wall, the trophy, the tankard ring, the bar top, old notices, portraits, the roots
+# round the pillar, dust) goes under the same props node.
 #
 # TavernLighting applies it at _ready, before its light snapshot (game_config.json "hall_look", true when absent), and
 # dev key 5 toggles it. Nothing is written into MainTavern.tscn: off puts every piece's own material back and frees
@@ -13,6 +15,7 @@ extends RefCounted
 const FLOOR_SHADER := preload("res://assets/shaders/hall_floor.gdshader")
 const WALL_SHADER := preload("res://assets/shaders/hall_wall.gdshader")
 const BANNER_SHADER := preload("res://assets/shaders/hall_banner.gdshader")
+const HALL_DRESSING := preload("res://scripts/game/hall_dressing.gd")   # pass 2: the set dressing
 const SHELL_PATH := "Architecture/Shell"
 const KIT_DIR := "res://assets/environment/custom/"
 ## Which look each shell kit piece takes (by its glTF's file name).
@@ -91,6 +94,7 @@ static func apply(nav: Node, host: Node, on: bool) -> Dictionary:
 		for b in BANNERS:
 			props.add_child(_banner(b))
 			out.banners += 1
+		out.merge(HALL_DRESSING.build(props))
 	return out
 
 
