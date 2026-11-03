@@ -48,8 +48,8 @@ const SETTLE_DURATION := 0.8
 
 # ── Asset paths ───────────────────────────────────────────────────────────────
 const GRASS_SCENE := "res://assets/environment/hexagons/base/hex_grass.gltf"
-## The hex look (hex_look.gd; Raphael 2026-11-03 "Octopath reskin": grass, water and forest for now), on by game_config
-## "hex_look" (true when absent); dev key 5 on the map toggles it.
+## The hex look (hex_look.gd; Raphael 2026-11-03 "Octopath reskin": every land and sea piece, with its own beaches and
+## shallows), on by game_config "hex_look" (true when absent); dev key 5 on the map toggles it.
 const HEX_LOOK := preload("res://scripts/world/hex_look.gd")
 const WATER_SCENE := "res://assets/environment/hexagons/base/hex_water.gltf"
 
@@ -168,6 +168,8 @@ func generate_and_reveal() -> void:
 		map_seed = randi()
 	_clear_map()
 	_generate_records()
+	if _hex_look_on:
+		HEX_LOOK.set_map(_records, global_position)
 
 	for rec in _records:
 		if rec.is_zone:
@@ -444,13 +446,22 @@ func _load_scene(path: String) -> PackedScene:
 # ── Tile instantiation (shared by reveal + static modes) ──────────────────────
 
 func _instantiate_tile(rec: Dictionary) -> Node3D:
-	var packed := _load_scene(rec.base_path)
+	# the hex look draws its own beaches (hex_look.gd's shoreline), so a coast hex is built as a grass tile, KayKit's
+	# coast tile kept hidden under it for key 5 (the record keeps its base_path)
+	var swap: bool = _hex_look_on and rec.base_path in HEX_LOOK.COAST
+	var packed := _load_scene(HEX_LOOK.GRASS if swap else rec.base_path)
 	if packed == null:
 		push_error("[HexMapGenerator] Failed to load: " + rec.base_path)
 		return null
 	var bt := packed.instantiate() as Node3D
 	bt.name = rec.id
 	bt.rotation.y = rec.get("base_rot_y", 0.0)
+	if swap:
+		var kk := _load_scene(rec.base_path).instantiate() as Node3D
+		kk.name = HEX_LOOK.COAST_SWAP_CHILD
+		kk.visible = false
+		bt.add_child(kk)
+		bt.set_meta(HEX_LOOK.SWAP_META, true)
 	for tp in rec.topper_paths:
 		var tp_packed := _load_scene(tp)
 		if tp_packed != null:
@@ -466,6 +477,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not OS.is_debug_build() or k == null or not k.pressed or k.echo or k.keycode != KEY_5:
 		return
 	_hex_look_on = not _hex_look_on
+	if _hex_look_on:
+		HEX_LOOK.set_map(_records, global_position)
 	HEX_LOOK.dress(self, _hex_look_on)
 	print("[HexMapGenerator] hex look %s" % ["on" if _hex_look_on else "off"])
 
@@ -583,6 +596,8 @@ func display_stored_world() -> void:
 	# the render copy only — WorldManager.world_map is never rewritten here.
 	for rec in _records:
 		rec.topper_paths = home_toppers_for(rec)
+	if _hex_look_on:
+		HEX_LOOK.set_map(_records, global_position)
 	_spawn_tiles_static()
 
 
