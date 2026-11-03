@@ -8069,6 +8069,19 @@ func test_light_and_mood() -> void:
 	check(ep_n == 1 and ep_hidden and ep_quad.visible and ep_cfg is Dictionary and EP.enabled() == bool(ep_cfg.get("edge_pass", true)),
 		"edge_pass.gd: the camera's edge-shader quad (only it) hidden and shown; enabled() follows game_config edge_pass (%s)" % [ep_cfg.get("edge_pass", "absent") if ep_cfg is Dictionary else "no config"])
 	ep_cam.free()
+	# 2026-11-03: the hall's quad draws Raphael's copy (edge_detection-old.gdshader), which edge_pass.gd didn't know,
+	# so "edge_pass": false and dev key 4 left the hall inked. Each game scene's camera carries one quad it finds.
+	for ep_scene in [TAVERN_SCENE_PATH, "res://scenes/world/ExteriorWorld.tscn"]:
+		var ep_nodes := _scene_nodes(ep_scene)
+		var ep_found := []
+		for p in ep_nodes:
+			var parent: String = str(p).get_base_dir()
+			if ep_nodes[p].type != "MeshInstance3D" or not ep_nodes.has(parent) or ep_nodes[parent].type != "Camera3D":
+				continue
+			var props: Dictionary = ep_nodes[p].props
+			if EP.is_edge_material(props.get("material_override", props.get("surface_material_override/0"))):
+				ep_found.append(p)
+		check(ep_found.size() == 1, "%s: the camera's edge pass quad is one edge_pass.gd finds (the config and dev key 4 reach it): %s" % [ep_scene.get_file(), ep_found])
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
