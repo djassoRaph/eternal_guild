@@ -8216,6 +8216,22 @@ func test_light_and_mood() -> void:
 	check(xr_on1 and xr_off and xr_on2 and xr_we.environment == xr_env,
 		"exterior_look.gd on -> off -> on: the scene's environment, the sun and the ground's own material come back, the props go, a second on works (%s, %s, %s)" % [xr_on1, xr_off, xr_on2])
 	xr_world.free()
+	# the hex look (hex_look.gd; Raphael 2026-11-03, the Octopath reskin of grass, water and forest): its pieces are the
+	# generator's; a grass tile takes the reskin, a mountain topper on it keeps its KayKit look; off puts both back
+	var HXL = load("res://scripts/world/hex_look.gd")
+	var HXG = load("res://scripts/world/HexMapGenerator.gd")
+	var hx_pieces_ok: bool = HXL.PIECES.has(HXG.GRASS_SCENE) and HXL.PIECES.has(HXG.WATER_SCENE) 		and HXG.FOREST_TOPPERS.all(func(t): return HXL.PIECES.has(t)) and HXL.PIECES.size() == 2 + HXG.FOREST_TOPPERS.size()
+	var hx_tile: Node3D = (load(HXG.GRASS_SCENE) as PackedScene).instantiate()
+	var hx_mtn: Node3D = (load(HXG.MOUNTAIN_TOPPERS[0]) as PackedScene).instantiate()
+	hx_tile.add_child(hx_mtn)
+	var hx_tile_mesh: MeshInstance3D = hx_tile.find_children("*", "MeshInstance3D", false, false)[0] if not hx_tile.find_children("*", "MeshInstance3D", false, false).is_empty() else hx_tile.find_children("*", "MeshInstance3D", true, false)[0]
+	var hx_mtn_meshes: Array = hx_mtn.find_children("*", "MeshInstance3D", true, false)
+	var hx_on: int = HXL.dress(hx_tile)
+	var hx_on_ok: bool = hx_on >= 1 and hx_tile_mesh.material_override is ShaderMaterial 		and (hx_tile_mesh.material_override as ShaderMaterial).shader == HXL.SHADER and hx_mtn_meshes.all(func(m): return m.material_override == null)
+	HXL.dress(hx_tile, false)
+	check(hx_pieces_ok and hx_on_ok and hx_tile_mesh.material_override == null and HXL.dress(hx_tile) == hx_on and HXL.dress(hx_tile) == hx_on,
+		"hex_look.gd: its pieces are the generator's grass, water and forest toppers; a grass tile takes the reskin (%d meshes), the mountain on it keeps its look, off restores, a second dress counts the same" % hx_on)
+	hx_tile.free()
 	ctl.set_mood("today")
 	var back: bool = envn.ambient_light_source == Environment.AMBIENT_SOURCE_BG and envn.ambient_light_color.is_equal_approx(Color(0.4, 0.5, 0.7)) and is_equal_approx(envn.ambient_light_energy, 0.3)
 	back = back and sunl.light_cull_mask == 4294967295 and rig.fill.light_energy == 2.0 and rig.bar.light_energy == 1.5 and rig.desk.light_energy == 1.5
