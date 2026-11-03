@@ -46,6 +46,7 @@ const PORTRAIT_LOOKS := [
 ## Where each root starts round the pillar (degrees, atan2(z, x)): two down its left side, two down its right.
 const ROOT_ANGLES := [115.0, 145.0, 265.0, 290.0]
 const CANDLE_ENERGY := 0.45
+const FLAME_GROUP := "tavern_candle_flame"   # hall_look.gd's: the lit flames TavernLighting shows with the candles
 const CANDLE_COLOR := Color(1.0, 0.7, 0.4)
 
 static var _mats := {}
@@ -53,29 +54,24 @@ static var _mats := {}
 
 ## Build the dressing under `props`; returns how many of each it made.
 static func build(props: Node3D) -> Dictionary:
-	var out := {"memorial": 0, "trophy": 0, "tankards": 0, "bar_top": 0, "notices": 0, "portraits": 0, "roots": 0, "dust": 0}
 	props.add_child(_memorial())
-	out.memorial = 1
 	props.add_child(_trophy())
-	out.trophy = 1
 	var ring := _tankard_ring()
 	props.add_child(ring)
-	out.tankards = TANKARD_COUNT
 	var top := _bar_top()
 	props.add_child(top)
-	out.bar_top = top.get_child_count()
 	for i in NOTICES.size():
 		props.add_child(_notice(i, NOTICES[i]))
-		out.notices += 1
 	for i in PORTRAITS.size():
 		props.add_child(_portrait(i, PORTRAITS[i], i < PORTRAITS.size() - 1))
-		out.portraits += 1
 	for k in ROOT_ANGLES.size():
 		props.add_child(_root(k))
-		out.roots += 1
 	props.add_child(_dust())
-	out.dust = 1
-	return out
+	# counted from what was built, not from the loops' bounds
+	var count := func(parent: Node, pattern: String) -> int: return parent.find_children(pattern, "", false, false).size()
+	return {"memorial": count.call(props, "MemorialWall"), "trophy": count.call(props, "BeastTrophy"),
+		"tankards": count.call(ring, "Tankard*"), "bar_top": top.get_child_count(), "notices": count.call(props, "OldNotice*"),
+		"portraits": count.call(props, "Portrait*"), "roots": count.call(props, "Root*"), "dust": count.call(props, "Dust")}
 
 
 # ---------------------------------------------------------------- materials and parts ----------------------------
@@ -158,7 +154,9 @@ static func _candle(pos: Vector3, energy := CANDLE_ENERGY, light_range := 2.0) -
 	flame.emission = Color(1.0, 0.62, 0.28)
 	flame.emission_energy_multiplier = 3.0
 	flame.roughness = 0.0        # no ink on the flame
-	c.add_child(_part(_sphere(0.016, 8), flame, Vector3(0, 0.165, 0), Vector3.ZERO, Vector3(1, 1.8, 1)))
+	var flame_mesh := _part(_sphere(0.016, 8), flame, Vector3(0, 0.165, 0), Vector3.ZERO, Vector3(1, 1.8, 1))
+	flame_mesh.add_to_group(FLAME_GROUP)   # shown only while the mood lights the candles (TavernLighting)
+	c.add_child(flame_mesh)
 	var light := OmniLight3D.new()
 	light.name = "Light"
 	light.position = Vector3(0, 0.2, 0)

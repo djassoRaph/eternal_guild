@@ -28,9 +28,12 @@
 # the clock starts at 6:00 and morning lasts until 9:00.
 #
 # The logic is static and node-free (tests call it); the node only applies the result. Loaded by path: no class_name.
-# The hall look (hall_look.gd, brainstorm 2026-11-03): game_config.json "hall_look" (true when absent) puts the shell's
-# world-space materials and the placeholder lanterns and banners on at _ready, BEFORE the snapshot (the lanterns join
-# tavern_candle hidden, so "today" stays as saved).
+# The hall look (hall_look.gd + hall_dressing.gd, brainstorm 2026-11-03): game_config.json "hall_look" (true when
+# absent) puts the shell's world-space materials and the placeholder props on at _ready, BEFORE the snapshot (the
+# lanterns and candles join tavern_candle hidden, so "today" stays as saved; their lit glass and flames, group
+# tavern_candle_flame, show only while the mood lights the candles). The look off (the config, or key 5) also puts the
+# mood back to "today", the hall's old light (Story 25.33 review, Raphael's call "(b) swap the mood too"): key 5 is a
+# before/after; the look on puts the configured mood back. An empty hall_path (the tests' rigs) leaves the look out.
 # Dev selector (debug builds): 1 the mood, 2 the phase, 3 the cast's shading preset (anime_look.gd), 4 the edge pass on/off,
 # 5 the hall look on/off.
 extends Node
@@ -120,7 +123,7 @@ static var _loaded := false
 @export var scope_path := NodePath("../../..")
 ## The hall the hall look dresses (TavernNavigation: its Architecture/Shell); the props go under this node.
 @export var hall_path := NodePath("../..")
-## Keys 1 / 2 / 3 / 4 in debug builds.
+## Keys 1 / 2 / 3 / 4 / 5 in debug builds.
 @export var dev_keys := true
 ## Story 3.7: in a day scene (an ancestor in group day_clock_scene) start at the day clock's phase, not the config default.
 @export var start_from_clock := true
@@ -224,10 +227,14 @@ static func phase_default() -> String:
 	return p if p != "" else DEFAULT_PHASE
 
 
-## game_config.json › hall_look (true when absent): the hall look at _ready.
+## game_config.json › hall_look (true when absent; anything but true/false: true, with a warning): the hall look at _ready.
 static func hall_look_enabled() -> bool:
 	_ensure()
-	return bool(_cfg.get("hall_look", true))
+	var v = _cfg.get("hall_look", true)
+	if v is bool:
+		return v
+	_warn("[TavernLighting] hall_look = %s is not true/false; using true" % [v])
+	return true
 
 
 static func blend_seconds() -> float:
@@ -420,7 +427,7 @@ func _ready() -> void:
 	reload_config()
 	# the screen's edge pass by game_config "edge_pass" (deferred: the hall's camera is made current after this node)
 	_apply_edge_pass.call_deferred()
-	if hall_look_enabled():
+	if not hall_path.is_empty() and hall_look_enabled():
 		HALL_LOOK.apply(get_node_or_null(hall_path), self, true)
 	for l in _group("tavern_candle") + _group("tavern_window"):
 		_base_energy(l)                # the authored energy, once, before any scale is applied
@@ -428,7 +435,7 @@ func _ready() -> void:
 	var gb := get_node_or_null("/root/GameBus")
 	if gb and gb.has_signal("day_phase_changed"):
 		gb.day_phase_changed.connect(_on_day_phase)
-	mood = _pending_mood if _pending_mood != "" else configured_mood()
+	mood = _pending_mood if _pending_mood != "" else (TODAY if _look_off() else configured_mood())
 	_pending_mood = ""
 	var start := _pending_phase if _pending_phase != "" else _start_phase()
 	_pending_phase = ""
@@ -646,6 +653,11 @@ func _apply(v: Dictionary) -> void:
 		c.visible = e > 0.0005
 		c.shadow_enabled = false
 		n += 1
+	# the look's lit lantern glass and candle flames show only while the candles are lit
+	if is_inside_tree():
+		for f in get_tree().get_nodes_in_group(HALL_LOOK.FLAME_GROUP):
+			if f is Node3D and (_scope == null or _scope.is_ancestor_of(f)):
+				(f as Node3D).visible = float(v.candle_scale) > 0.0005
 	for w in _group("tavern_window"):
 		var e := _base_energy(w) * float(v.window_energy)
 		w.light_energy = e
@@ -741,14 +753,22 @@ func _input(event: InputEvent) -> void:
 	_show_label()
 
 
-## Dev: the hall look on/off (hall_look.gd), the light re-applied so the lanterns follow. Returns the new state.
+## Dev: the hall look on/off (hall_look.gd) with its mood: off is the hall's old look ("today"), on the configured mood
+## (set_mood re-applies the light, so the lanterns follow, and recaptures the probes). Returns the new state.
 func toggle_hall_look() -> bool:
+	if hall_path.is_empty():
+		return false
 	var on := not HALL_LOOK.is_on(self)
 	HALL_LOOK.apply(get_node_or_null(hall_path), self, on)
 	for l in _group("tavern_candle"):
 		_base_energy(l)
-	_apply(applied)
+	set_mood(configured_mood() if on else TODAY)
 	return on
+
+
+## The hall look is off in a hall that has one to dress (a rig without a hall_path keeps the configured mood).
+func _look_off() -> bool:
+	return not hall_path.is_empty() and not HALL_LOOK.is_on(self)
 
 
 ## Dev: show/hide the screen's edge pass (edge_detection.gdshader on the camera's quad, render layer 20) to see the

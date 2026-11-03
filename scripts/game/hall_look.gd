@@ -25,6 +25,9 @@ const KIT := {
 }
 const SAVED_META := &"hall_look_saved"    # a piece's own material_override, put back when the look goes off
 const PROPS_NAME := "HallLookProps"
+## The lit glass and flames of the look's lanterns and candles: TavernLighting shows them only while its mood lights
+## the candles (candle_scale > 0), so a dark lantern doesn't glow.
+const FLAME_GROUP := "tavern_candle_flame"
 ## The hall's numbers (MainTavern, measured 2026-11-03): the round bar's centre, the room's inside (min x, min z,
 ## max x, max z), and the worn lanes (ax, az, bx, bz): door -> bar front, door -> desk, door -> the west tables,
 ## bar -> hearth, bar -> notice board.
@@ -90,10 +93,10 @@ static func apply(nav: Node, host: Node, on: bool) -> Dictionary:
 		host.add_child(props)
 		for i in LANTERNS.size():
 			props.add_child(_lantern(i, LANTERNS[i]))
-			out.lanterns += 1
 		for b in BANNERS:
 			props.add_child(_banner(b))
-			out.banners += 1
+		out.lanterns = props.find_children("Lantern*", "", false, false).size()
+		out.banners = props.find_children("Banner*", "", false, false).size()
 		out.merge(HALL_DRESSING.build(props))
 	return out
 
@@ -164,14 +167,15 @@ static func _meshes(piece: Node) -> Array:
 	return out
 
 
-## On: keep the piece's own override (once) and put the look's on. Off: put the kept one back.
+## On: keep the piece's own override (once, wrapped in an array so even a null override is kept) and put the look's
+## on. Off: put the kept one back.
 static func _set_material(mi: MeshInstance3D, mat: Material, on: bool) -> void:
 	if on:
 		if not mi.has_meta(SAVED_META):
-			mi.set_meta(SAVED_META, mi.material_override)
+			mi.set_meta(SAVED_META, [mi.material_override])
 		mi.material_override = mat
 	elif mi.has_meta(SAVED_META):
-		mi.material_override = mi.get_meta(SAVED_META)
+		mi.material_override = (mi.get_meta(SAVED_META) as Array)[0]
 		mi.remove_meta(SAVED_META)
 
 
@@ -231,7 +235,9 @@ static func _lantern(i: int, at: Vector2) -> Node3D:
 	root.add_child(_part(base, _iron(), Vector3(0, 0.02, 0)))
 	var glass := BoxMesh.new()
 	glass.size = Vector3(0.17, 0.23, 0.17)
-	root.add_child(_part(glass, _glass(), Vector3(0, 0.155, 0)))
+	var lit_glass := _part(glass, _glass(), Vector3(0, 0.155, 0))
+	lit_glass.add_to_group(FLAME_GROUP)   # shown only while the mood lights the candles (TavernLighting)
+	root.add_child(lit_glass)
 	var bar := BoxMesh.new()
 	bar.size = Vector3(0.026, 0.27, 0.026)
 	for c in [Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1)]:
