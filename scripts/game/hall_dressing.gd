@@ -2,7 +2,7 @@
 # _bmad-output/brainstorming-session-2026-11-03.md). Code-made placeholders, built by hall_look.gd under its props
 # node (so key 5 and "hall_look": false take them away too), swappable for real models later:
 # the memorial wall (#21: helmets on a shelf with brass name plates, a shield with a crossed sword and axe, a memorial
-# candle), a horned beast skull over the hearth (#24), a ring of hanging tankards over the back bar (#27), a living bar
+# candle), a horned beast skull over the hearth with two candles on the mantel (#24), a ring of hanging tankards over the back bar (#27), a living bar
 # top (#33: candles, plants, the brass service bell), old notices round the guild board (#23), past guildmasters'
 # portraits with the last frame left empty (#26), roots wrapping the hourglass pillar with runes glowing in them (#30,
 # #11), and a little dust in the light (#10). Candle lights join tavern_candle hidden with a base_energy, like the
@@ -20,6 +20,16 @@ const PARTITION_Z := -14.483        # the partition's hall face
 const WEST_WALL_X := -4.82          # the west wall's inside face
 const CHIMNEY_X := -4.21            # the chimney breast's face above 3 m
 const HEARTH_Z := -8.96
+## The trophy: scaled up so it reads at the game's zoom (Raphael 2026-11-03: "still too dark to read"), lit by two
+## candles on the mantel (its top, and the middle of its shelf in front of the breast) whose light sits forward of the
+## flames, on the skull's face: no other light reaches the breast above the fire.
+const TROPHY_SCALE := 1.4
+const MANTEL_TOP := 2.1
+const MANTEL_X := -3.95
+const TROPHY_CANDLE_DZ := 0.24
+const TROPHY_LIGHT_AT := Vector3(0.4, 0.55, 0.0)
+const TROPHY_LIGHT_ENERGY := 0.9
+const TROPHY_LIGHT_RANGE := 2.2
 ## The memorial: a shelf centred here on the partition, between the two banners.
 const MEMORIAL_X := 11.0
 ## The bar top (angle in degrees round the bar centre, atan2(z, x); the staff opening is at -90): candles, plants, bell.
@@ -105,7 +115,7 @@ static func _brass() -> StandardMaterial3D:
 
 
 static func _bone() -> StandardMaterial3D:
-	return _mat("bone", Color(0.76, 0.7, 0.58), 0.0, 0.8)
+	return _mat("bone", Color(0.9, 0.82, 0.66), 0.0, 0.75)
 
 
 static func _part(mesh: Mesh, mat: Material, pos: Vector3, rot := Vector3.ZERO, scl := Vector3.ONE) -> MeshInstance3D:
@@ -142,8 +152,8 @@ static func _sphere(r: float, segments := 12) -> SphereMesh:
 	return s
 
 
-## A candle with its flame and its light (hidden, tavern_candle, base_energy).
-static func _candle(pos: Vector3, energy := CANDLE_ENERGY, light_range := 2.0) -> Node3D:
+## A candle with its flame and its light (hidden, tavern_candle, base_energy); `light_at` places the light (local).
+static func _candle(pos: Vector3, energy := CANDLE_ENERGY, light_range := 2.0, light_at := Vector3(0, 0.2, 0)) -> Node3D:
 	var c := Node3D.new()
 	c.name = "Candle"
 	c.position = pos
@@ -159,7 +169,7 @@ static func _candle(pos: Vector3, energy := CANDLE_ENERGY, light_range := 2.0) -
 	c.add_child(flame_mesh)
 	var light := OmniLight3D.new()
 	light.name = "Light"
-	light.position = Vector3(0, 0.2, 0)
+	light.position = light_at
 	light.light_color = CANDLE_COLOR
 	light.omni_range = light_range
 	light.light_energy = energy
@@ -283,23 +293,32 @@ static func _memorial() -> Node3D:
 	return m
 
 
-## A horned beast skull on a board over the hearth (on the chimney breast, facing the hall).
+## A horned beast skull on a board over the hearth (on the chimney breast, facing the hall), TROPHY_SCALE up about
+## the breast's face, and two candles on the mantel under it.
 static func _trophy() -> Node3D:
 	var t := Node3D.new()
 	t.name = "BeastTrophy"
-	var s := Vector3(CHIMNEY_X + 0.16, 3.38, HEARTH_Z)
-	t.add_child(_part(_box(Vector3(0.04, 0.46, 0.36)), _wood(), Vector3(CHIMNEY_X + 0.02, 3.35, HEARTH_Z)))
-	t.add_child(_part(_sphere(0.13), _bone(), s, Vector3.ZERO, Vector3(1.2, 0.9, 1.0)))
-	t.add_child(_part(_box(Vector3(0.26, 0.1, 0.12)), _bone(), s + Vector3(0.18, -0.07, 0)))
+	var k := Node3D.new()
+	k.name = "Skull"
+	k.position = Vector3(CHIMNEY_X, 3.38, HEARTH_Z)
+	k.scale = Vector3.ONE * TROPHY_SCALE
+	t.add_child(k)
+	var s := Vector3(0.16, 0, 0)
+	# the board reaches back past the face: the breast steps back above 3.3 m
+	k.add_child(_part(_box(Vector3(0.09, 0.46, 0.36)), _wood(), Vector3(-0.005, -0.03, 0)))
+	k.add_child(_part(_sphere(0.13), _bone(), s, Vector3.ZERO, Vector3(1.2, 0.9, 1.0)))
+	k.add_child(_part(_box(Vector3(0.26, 0.1, 0.12)), _bone(), s + Vector3(0.18, -0.07, 0)))
 	var socket := _mat("socket", Color(0.05, 0.04, 0.03), 0.0, 0.9)
 	for side in [-1.0, 1.0]:
-		t.add_child(_part(_sphere(0.028, 8), socket, s + Vector3(0.09, 0.05, side * 0.065)))
+		k.add_child(_part(_sphere(0.028, 8), socket, s + Vector3(0.09, 0.05, side * 0.065)))
 		var horn := [s + Vector3(0.0, 0.08, side * 0.1), s + Vector3(0.02, 0.2, side * 0.28), s + Vector3(0.1, 0.32, side * 0.42),
 			s + Vector3(0.22, 0.34, side * 0.5), s + Vector3(0.32, 0.28, side * 0.52)]
 		var hm := MeshInstance3D.new()
 		hm.mesh = _tube(horn, 0.05, 0.007, 8, 5)
 		hm.material_override = _mat("horn", Color(0.42, 0.36, 0.28), 0.0, 0.7, true)
-		t.add_child(hm)
+		k.add_child(hm)
+		t.add_child(_candle(Vector3(MANTEL_X, MANTEL_TOP, HEARTH_Z + side * TROPHY_CANDLE_DZ), TROPHY_LIGHT_ENERGY,
+			TROPHY_LIGHT_RANGE, TROPHY_LIGHT_AT))
 	return t
 
 
