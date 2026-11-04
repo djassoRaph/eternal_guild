@@ -376,6 +376,7 @@ func _initialize() -> void:
 	await test_day_clock()   # Story 3.7
 	await test_bard_visit()   # Story 9.1
 	await test_bard_performs()   # Story 9.2
+	await test_town_kit()   # Story 25.35
 
 	_finish()
 
@@ -1143,7 +1144,7 @@ func test_exterior_world() -> void:
 	var village_boxes := keep_out.size()
 	for k in ext:
 		var key := str(k)
-		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
+		if _is_village_building(key, ext[k]):
 			buildings.append((ext[k].world as Transform3D).origin)
 		if ext[k].instance == A1_PATH:
 			keep_out.append_array(_convex_rects(A1_PATH, ext[k].world))
@@ -2473,10 +2474,11 @@ func test_townsfolk_kit() -> void:
 	var street := []
 	for k in ext:
 		var key := str(k)
-		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
+		if _is_village_building(key, ext[k]):
 			buildings.append((ext[k].world as Transform3D).origin)
 		elif key.begins_with("Village/Street/") and key.count("/") == 2:
 			street.append([(ext[k].world as Transform3D).origin, 2.0 if key.get_file().begins_with("StallTent") else 1.0])
+	buildings.append_array(_village_footprints())   # Story 25.35
 	var problems := []
 	var used := []
 	var walkers := 0
@@ -2726,6 +2728,23 @@ func test_class_runtime() -> void:
 ## Where a villager may not stand or step: outside the play area, in the stream, inside a building
 ## (within 2.5 m of its origin, as Test 9's trees), or on a street prop (props = [origin, radius]:
 ## 1 m, 2 m for a stall tent). The bridge deck is fine: it's how you cross the stream.
+## Story 25.35: a village building is a KayKit one (".../blue/...", the old village) or a kit one ("/village_kit/").
+static func _is_village_building(key: String, n: Dictionary) -> bool:
+	return key.begins_with("Village/") and key.count("/") == 1 and (str(n.instance).contains("/blue/") or str(n.instance).contains("/village_kit/"))
+
+
+## Story 25.35: the village's footprints [[x0, x1], [z0, z1]] from its box colliders (the kit houses are far bigger
+## than the 2.5 m a building's origin used to stand for).
+static func _village_footprints() -> Array:
+	var out := []
+	var boxes := _scene_box_collider_aabbs(EXTERIOR_SCENE_PATH)
+	for k in boxes:
+		var key := str(k)
+		if key.begins_with("Village/") and not key.begins_with("Village/Street/") and key.contains("/Body/"):
+			out.append([boxes[k][0], boxes[k][2]])
+	return out
+
+
 static func _villager_spot_problem(hf: Dictionary, p: Vector2, buildings: Array, props: Array) -> String:
 	var play: Array = hf.play
 	if p.x < float(play[0]) or p.x > float(play[1]) or p.y < float(play[2]) or p.y > float(play[3]):
@@ -2734,8 +2753,11 @@ static func _villager_spot_problem(hf: Dictionary, p: Vector2, buildings: Array,
 	var on_bridge: bool = not br.is_empty() and p.x >= float(br.x0) and p.x <= float(br.x1) and absf(p.y - float(br.z)) <= float(br.width) / 2.0
 	if not on_bridge and absf(p.x - _hf_stream_x(hf, p.y)) < float(hf.stream_half) + 0.5:
 		return "in the stream"
-	for b in buildings:
-		if Vector2(b.x, b.z).distance_to(p) < 2.5:
+	for b in buildings:   # a building's origin (2.5 m round it), or (Story 25.35) a footprint [[x0, x1], [z0, z1]]
+		if b is Array:
+			if _circle_hits_rect(p, 0.4, b):
+				return "inside a building"
+		elif Vector2(b.x, b.z).distance_to(p) < 2.5:
 			return "inside a building"
 	for q in props:
 		if Vector2(q[0].x, q[0].z).distance_to(p) < float(q[1]):
@@ -2852,10 +2874,11 @@ func test_the_cat() -> void:
 	var street := []
 	for k in ext:
 		var key := str(k)
-		if key.begins_with("Village/") and key.count("/") == 1 and ext[k].instance.contains("/blue/"):
+		if _is_village_building(key, ext[k]):
 			buildings.append((ext[k].world as Transform3D).origin)
 		elif key.begins_with("Village/Street/") and key.count("/") == 2:
 			street.append([(ext[k].world as Transform3D).origin, 2.0 if key.get_file().begins_with("StallTent") else 1.0])
+	buildings.append_array(_village_footprints())   # Story 25.35
 	var villager_pts := _villager_path_points(ext)
 	var bad := []
 	var walked := []      # every key, plus points every 0.25 m along the legs she walks between them
@@ -19980,3 +20003,154 @@ func _check_t40_hall(gm, dm, nm) -> void:
 	world.queue_free()
 	await process_frame
 	await process_frame
+
+
+# --- Test 72: The kit town (Story 25.35) ---
+# The village and the forest from the Quaternius kits (CC0, licences beside them): rough-baked houses, the smithy, the
+# pottery, the watermill (its wheel turns) and the fountain, each in group village_kit with a box collider, the houses
+# with their roof colour; the forest pieces in group nature_kit, each with a body; the windmill gone (Raphael: a
+# watermill, not a windmill); the street ribbons beside the terrain, cobbled by the look. exterior_look gives the kit its own pass (never
+# the KayKit atlas): a toon copy of each kit material tinted by KIT_TINT, the roof by the building's roof_tint, the
+# windows one shared glowing pane; off puts every surface back.
+const TOWN_KIT_DIR := "res://assets/environment/village_kit/"
+const NATURE_KIT_DIR := "res://assets/environment/nature_kit/"
+const TOWN_STREETS_PATH := "res://assets/environment/custom/a6_town_streets.gltf"
+const WATER_WHEEL_PATH := "res://scripts/world/water_wheel.gd"
+const EXTERIOR_LOOK_PATH_2535 := "res://scripts/world/exterior_look.gd"
+
+
+func test_town_kit() -> void:
+	print("[Test 72] The kit town (Story 25.35)")
+	for f in ["S_smithy", "S_pottery", "S_watermill", "S_fountain", "H01", "H05", "H12"]:
+		check(ResourceLoader.exists(TOWN_KIT_DIR + f + ".gltf"), "kit building %s exists" % f)
+	for f in ["Pine_1", "CommonTree_1", "DeadTree_1", "Rock_Medium_1", "Bush_Common"]:
+		check(ResourceLoader.exists(NATURE_KIT_DIR + f + ".gltf"), "nature piece %s exists" % f)
+	check(FileAccess.file_exists(TOWN_KIT_DIR + "LICENSE_Quaternius_Medieval_Village_MegaKit_CC0.txt")
+		and FileAccess.file_exists(NATURE_KIT_DIR + "LICENSE_Quaternius_Stylized_Nature_MegaKit_CC0.txt"),
+		"both kits' CC0 licences ship beside them")
+
+	var ext := _scene_nodes(EXTERIOR_SCENE_PATH)
+	check(not ext.has("Village/Windmill"), "the windmill is gone")
+	var kit := []
+	var houses := 0
+	var problems := []
+	for k in ext:
+		var key := str(k)
+		if not (key.begins_with("Village/") and key.count("/") == 1 and str(ext[k].instance).contains("/village_kit/")):
+			continue
+		kit.append(key)
+		if not "village_kit" in ext[k].groups:
+			problems.append(key + " not in village_kit")
+		var shape_key := key + "/Body/CollisionShape3D"
+		if not (ext.has(shape_key) and ext[shape_key].props.get("shape") is BoxShape3D):
+			problems.append(key + " has no box collider")
+		if key.get_file().begins_with("House"):
+			houses += 1
+			if not (ext[k].props.get("metadata/roof_tint") is Color) or not (ext[k].props.get("metadata/glow") is Vector3):
+				problems.append(key + " lacks roof_tint / glow")
+	for n in ["Village/Watermill", "Village/Smithy", "Village/Pottery", "Village/Fountain"]:
+		check(n in kit, "%s is a kit building" % n)
+	check(houses >= 12, "the town has %d kit houses (>= 12)" % houses)
+	check(problems.is_empty(), "every kit building: in village_kit, a box collider, houses with roof and glow %s" % [problems.slice(0, 4)])
+	check(ext.has("Village/Watermill") and ext["Village/Watermill"].props.get("script") == load(WATER_WHEEL_PATH),
+		"the watermill carries water_wheel.gd")
+	check(ext.has("Terrain/Streets") and ext["Terrain/Streets"].instance == TOWN_STREETS_PATH, "the street ribbons sit under Terrain")
+	var forest := 0
+	var stray := []
+	for k in ext:
+		var key := str(k)
+		if key.begins_with("Forest/") and key.count("/") == 1:
+			forest += 1
+			if not str(ext[k].instance).begins_with(NATURE_KIT_DIR) or not "nature_kit" in ext[k].groups or not ext.has(key + "/Body/CollisionShape3D"):
+				stray.append(key)
+	check(forest >= 300 and stray.is_empty(), "the forest: %d nature-kit pieces, each in nature_kit with a body (off: %s)" % [forest, stray.slice(0, 4)])
+
+	# the assets themselves: the wheel is its own node, the streets' mesh is named for the cobble look
+	var mill_scene := load(TOWN_KIT_DIR + "S_watermill.gltf") as PackedScene
+	var mill: Node3D = mill_scene.instantiate() if mill_scene else null
+	var wheel: Node3D = mill.find_child("Wheel", true, false) as Node3D if mill else null
+	check(wheel != null, "the watermill's wheel is its own node")
+	if mill and wheel:
+		mill.set_script(load(WATER_WHEEL_PATH))
+		mill.call("_ready")
+		var before := wheel.transform.basis
+		mill.call("_process", 3.0)
+		var turned := before.get_rotation_quaternion().angle_to(wheel.transform.basis.get_rotation_quaternion())
+		var axis_kept := (wheel.transform.basis.x - before.x).length() < 0.001
+		check(absf(turned - TAU * 5.0 / 60.0 * 3.0) < 0.01 and axis_kept, "water_wheel turns the wheel about its axle (%.3f rad in 3 s)" % turned)
+	if mill:
+		mill.free()
+	var streets_scene := load(TOWN_STREETS_PATH) as PackedScene
+	var streets: Node = streets_scene.instantiate() if streets_scene else null
+	check(streets != null and streets.find_child("terrain_paths", true, false) is MeshInstance3D, "the streets' mesh is terrain_paths (the cobble look)")
+	if streets:
+		streets.free()
+
+	# exterior_look's kit pass, on a small world
+	var XL = load(EXTERIOR_LOOK_PATH_2535)
+	check(XL.kit_base_name("MI_Plaster.004") == "MI_Plaster" and XL.kit_base_name("MI_WoodTrim_Wear") == "MI_WoodTrim_Wear"
+		and XL.kit_base_name("Leaves") == "Leaves", "kit_base_name strips only Blender's .00N suffix")
+	var w := Node3D.new()
+	var vill := Node3D.new()
+	vill.name = "Village"
+	w.add_child(vill)
+	var b := Node3D.new()
+	b.name = "House01"
+	b.add_to_group("village_kit")
+	b.set_meta("roof_tint", Color(0.4, 0.5, 0.72))
+	vill.add_child(b)
+	var tex := ImageTexture.create_from_image(Image.create(4, 4, false, Image.FORMAT_RGB8))
+	var mesh := ArrayMesh.new()
+	for nm in ["MI_Plaster.004", "MI_WindowGlass.002", "MI_RoundTiles.001"]:
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		var m := StandardMaterial3D.new()
+		m.resource_name = nm
+		m.albedo_texture = tex
+		mesh.surface_set_material(mesh.get_surface_count() - 1, m)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	b.add_child(mi)
+	var atlas_on: Dictionary = XL.apply_materials(w, true)
+	check(atlas_on.buildings == 0 and mi.material_override == null, "the KayKit atlas pass leaves a kit building alone")
+	XL.apply_materials(w, false)
+	var cache := {}
+	var kon: Dictionary = XL.apply_kit(w, true, cache)
+	var p0 := mi.get_surface_override_material(0) as BaseMaterial3D
+	var p1 := mi.get_surface_override_material(1) as BaseMaterial3D
+	var p2 := mi.get_surface_override_material(2) as ShaderMaterial
+	check(kon.meshes == 1 and p0 != null and p0.diffuse_mode == BaseMaterial3D.DIFFUSE_TOON
+		and p0.albedo_color.is_equal_approx(XL.KIT_TINT["MI_Plaster"]) and p0.albedo_texture == tex,
+		"on: the plaster is a toon copy tinted by KIT_TINT, its texture kept")
+	check(p1 != null and p1 == kon.window and p1.emission_enabled, "on: the window glass is the shared glowing pane")
+	check(p2 != null and p2.get_shader_parameter("roof_color") == Color(0.4, 0.5, 0.72) and p2.get_shader_parameter("albedo_tex") == tex,
+		"on: the roof tiles take the building's roof_tint (kit_roof shader)")
+	XL.apply_kit(w, true, cache)
+	check(mi.get_surface_override_material(0) == p0, "a second on reuses the cached copies")
+	XL.apply_kit(w, false, cache)
+	check(mi.get_surface_override_material(0) == null and mi.get_surface_override_material(1) == null
+		and mi.get_surface_override_material(2) == null and not mi.has_meta(XL.KIT_SAVED_META),
+		"off puts every surface back")
+	w.free()
+
+	# the street ribbons take the cobble with the terrain (the look's STREETS_PATH; they were left plain at first)
+	var w2 := Node3D.new()
+	var terr := Node3D.new()
+	terr.name = "Terrain"
+	w2.add_child(terr)
+	var st := Node3D.new()
+	st.name = "Streets"
+	terr.add_child(st)
+	var smi := MeshInstance3D.new()
+	smi.name = "terrain_paths"
+	st.add_child(smi)
+	var gon: Dictionary = XL.apply_materials(w2, true)
+	var cob := smi.material_override as ShaderMaterial
+	check(XL.STREETS_PATH == "Terrain/Streets" and gon.ground == 1 and cob != null
+		and cob.shader.resource_path.ends_with("ext_cobble.gdshader"), "on: the street ribbons (Terrain/Streets) take the cobble")
+	XL.apply_materials(w2, false)
+	check(smi.material_override == null, "off: the streets' own material is back")
+	w2.free()
+	print("")
