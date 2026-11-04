@@ -7,7 +7,10 @@
 #   glow, exposure, saturation, the lamps and the windows), blended over BLEND_SECONDS when the day clock
 #   (GameBus.day_phase_changed) moves on; it starts at the clock's phase (GameManager.day_clock_phase()) like the hall;
 # - code-made placeholder props, on the ground by raycast: braziers along the road, lamp posts round the square, a warm
-#   glow at each house and at the guild tavern's door and windows, and falling leaves.
+#   glow at each house and at the guild tavern's door and windows, and falling leaves;
+# - (Story 25.35) the kit town: buildings in group village_kit and forest pieces in group nature_kit keep their own
+#   textured kit materials (Quaternius, CC0), tinted toward the hall's palette and toon-shaded, each building's roof in
+#   its own colour (metadata roof_tint), the kit windows glowing by phase (apply_kit).
 # Off (dev key 5) puts the scene's own environment, sun and materials back and frees the props. Dev key 2 steps the
 # phase. Nothing is written into ExteriorWorld.tscn. Loaded by path: no class_name.
 extends Node
@@ -16,6 +19,7 @@ const GRASS_SHADER := preload("res://assets/shaders/ext_grass.gdshader")
 const COBBLE_SHADER := preload("res://assets/shaders/ext_cobble.gdshader")
 const WATER_SHADER := preload("res://assets/shaders/ext_water.gdshader")
 const BUILDING_SHADER := preload("res://assets/shaders/ext_building.gdshader")
+const KIT_ROOF_SHADER := preload("res://assets/shaders/kit_roof.gdshader")
 const EDGE_PASS := preload("res://scripts/game/edge_pass.gd")
 const PHASES := ["morning", "day", "dusk", "evening", "late_night", "dawn"]
 const PHASE_ALIASES := {"reveal": "late_night"}
@@ -25,9 +29,29 @@ const SAVED_META := &"exterior_look_saved"
 const PROPS_NAME := "ExteriorLookProps"
 ## The terrain's meshes (a6_exterior_terrain.gltf) and the look each takes.
 const TERRAIN_PATH := "Terrain/TerrainMesh"
-const GROUND := {"terrain": "grass", "terrain_paths": "cobble", "terrain_water": "water"}
+## Story 25.35: the town's street ribbons (a6_town_streets.gltf, mesh terrain_paths) take the same ground pass.
+const STREETS_PATH := "Terrain/Streets"
+const GROUND :={"terrain": "grass", "terrain_paths": "cobble", "terrain_water": "water"}
 const VILLAGE_PATH := "Village"
-const VILLAGE_SKIP := ["Street", "Well"]   # not buildings with windows: they keep their own look and get no glow
+const VILLAGE_SKIP := ["Street", "Well", "Fountain"]   # not buildings with windows: no atlas look, no glow
+## Story 25.35: the kit town. Kit buildings (group KIT_GROUP) skip the KayKit atlas pass; they and the kit forest
+## (group NATURE_GROUP) take apply_kit instead: each kit material (named MI_* / P_* / the nature kit's, a Blender
+## ".00N" suffix ignored) multiplied by its KIT_TINT, toon-shaded; a building's roof tiles by its "roof_tint" metadata;
+## the kit window glass swapped for one shared pane that glows by phase (KIT_WINDOW_ENERGY x the look's windows).
+const KIT_GROUP := &"village_kit"
+const NATURE_GROUP := &"nature_kit"
+const KIT_SAVED_META := &"exterior_look_kit_saved"
+const KIT_ROOF := "MI_RoundTiles"
+const KIT_WINDOW := "MI_WindowGlass"
+const KIT_WINDOW_ENERGY := 2.2
+const KIT_TINT := {
+	"MI_RoundTiles": Color(0.50, 0.36, 0.40), "MI_WoodTrim": Color(0.52, 0.42, 0.38), "MI_WoodTrim_Wear": Color(0.48, 0.40, 0.36),
+	"MI_Plaster": Color(0.80, 0.80, 0.80), "MI_UnevenBrick": Color(0.72, 0.72, 0.76), "MI_RedBrick": Color(0.46, 0.38, 0.38),
+	"MI_Brick": Color(0.70, 0.66, 0.66), "MI_RockTrim": Color(0.72, 0.72, 0.76), "P_Terracotta": Color(0.70, 0.56, 0.52),
+	"Leaves_Pine": Color(0.78, 0.85, 0.72), "Leaves_NormalTree": Color(0.78, 0.85, 0.72), "Leaves_TwistedTree": Color(0.85, 0.80, 0.78),
+	"Leaves": Color(0.78, 0.85, 0.72), "Grass": Color(0.80, 0.86, 0.74), "Bark_NormalTree": Color(0.75, 0.70, 0.68),
+	"Bark_DeadTree": Color(0.70, 0.68, 0.70), "Bark_TwistedTree": Color(0.72, 0.68, 0.66), "Rocks": Color(0.78, 0.78, 0.82),
+}
 ## The guild tavern (a1_guild_tavern.gltf) and its own emissive window material, which follows the phase's windows
 ## (never below TAVERN_WINDOW_FLOOR: the guild's light is always a little on).
 const TAVERN_PATH := "GuildTavern"
@@ -86,6 +110,7 @@ var _sun: DirectionalLight3D
 var _sun_saved := {}
 var _building_mats := {}           # atlas texture -> its ext_building material (apply_materials' cache)
 var _tavern_windows: Array = []    # [mesh, surface, the look's copy, its base emission energy]
+var _kit := {}                     # apply_kit's cache: kit material copies and the shared "window" pane
 var _lamps: Array = []             # [light, base_energy, flicker, flicker phase]
 var _from := {}
 var _to := {}
@@ -195,8 +220,10 @@ static func ground_material(mesh_name: String) -> ShaderMaterial:
 ## `building_mat` is the first of them.
 static func apply_materials(world: Node, on: bool, building_mats: Dictionary = {}) -> Dictionary:
 	var out := {"ground": 0, "buildings": 0, "building_mats": building_mats, "building_mat": null}
-	var terrain := world.get_node_or_null(TERRAIN_PATH)
-	if terrain:
+	for ground_path in [TERRAIN_PATH, STREETS_PATH]:
+		var terrain := world.get_node_or_null(ground_path)
+		if terrain == null:
+			continue
 		for mi in terrain.find_children("*", "MeshInstance3D", true, false):
 			var m: ShaderMaterial = ground_material(mi.name) if on else null
 			if on and m == null:
@@ -206,7 +233,7 @@ static func apply_materials(world: Node, on: bool, building_mats: Dictionary = {
 	var village := world.get_node_or_null(VILLAGE_PATH)
 	if village:
 		for b in village.get_children():
-			if b.name in VILLAGE_SKIP:
+			if b.name in VILLAGE_SKIP or b.is_in_group(KIT_GROUP):
 				continue
 			var meshes: Array = b.find_children("*", "MeshInstance3D", true, false)
 			if b is MeshInstance3D:
@@ -238,6 +265,97 @@ static func _building_material(src: Material, cache: Dictionary) -> ShaderMateri
 	return cache[base.albedo_texture]
 
 
+## Story 25.35: put the kit look on (or back off) every kit building (KIT_GROUP) under Village and every kit piece
+## (NATURE_GROUP) under Forest. `cache` holds the material copies (source material [+ roof colour] -> copy) and the
+## shared window pane, so a re-apply reuses them. Returns {meshes, window}.
+static func apply_kit(world: Node, on: bool, cache: Dictionary) -> Dictionary:
+	var out := {"meshes": 0, "window": null}
+	for parent_path in [VILLAGE_PATH, "Forest"]:
+		var parent := world.get_node_or_null(parent_path)
+		if parent == null:
+			continue
+		for b in parent.get_children():
+			if not (b.is_in_group(KIT_GROUP) or b.is_in_group(NATURE_GROUP)):   # the Fountain too: the kit look, no glow
+				continue
+			var roof: Color = b.get_meta("roof_tint", KIT_TINT[KIT_ROOF])
+			for mi in b.find_children("*", "MeshInstance3D", true, false):
+				if _set_kit(mi, on, roof, cache):
+					out.meshes += 1
+	out.window = cache.get("window")
+	return out
+
+
+## "MI_Plaster.004" -> "MI_Plaster" (Blender's duplicate suffix); anything else unchanged.
+static func kit_base_name(material_name: String) -> String:
+	var i := material_name.rfind(".")
+	if i > 0 and material_name.substr(i + 1).is_valid_int():
+		return material_name.substr(0, i)
+	return material_name
+
+
+static func _set_kit(mi: MeshInstance3D, on: bool, roof: Color, cache: Dictionary) -> bool:
+	if mi.mesh == null:
+		return false
+	var n := mi.mesh.get_surface_count()
+	if on:
+		if not mi.has_meta(KIT_SAVED_META):
+			var saved := []
+			for s in n:
+				saved.append(mi.get_surface_override_material(s))
+			mi.set_meta(KIT_SAVED_META, saved)
+		for s in n:
+			mi.set_surface_override_material(s, _kit_material(mi.mesh.surface_get_material(s), roof, cache))
+		return true
+	if mi.has_meta(KIT_SAVED_META):
+		var saved: Array = mi.get_meta(KIT_SAVED_META)
+		for s in mini(saved.size(), n):
+			mi.set_surface_override_material(s, saved[s])
+		mi.remove_meta(KIT_SAVED_META)
+		return true
+	return false
+
+
+## The look's copy of a kit material (null keeps the mesh's own: not a BaseMaterial3D).
+static func _kit_material(src: Material, roof: Color, cache: Dictionary) -> Material:
+	var base := src as BaseMaterial3D
+	if base == null:
+		return null
+	var kind := kit_base_name(base.resource_name)
+	if kind == KIT_WINDOW:
+		if not cache.has("window"):
+			var w := StandardMaterial3D.new()
+			w.albedo_color = Color(0.10, 0.09, 0.11)
+			w.roughness = 1.0
+			w.emission_enabled = true
+			w.emission = Color(1.0, 0.62, 0.30)
+			w.emission_energy_multiplier = 0.0
+			cache["window"] = w
+		return cache["window"]
+	var key := "%d" % base.get_instance_id()
+	if kind == KIT_ROOF:
+		key += ":" + roof.to_html()
+		if not cache.has(key):
+			var r := ShaderMaterial.new()
+			r.shader = KIT_ROOF_SHADER
+			r.set_shader_parameter("albedo_tex", base.albedo_texture)
+			r.set_shader_parameter("use_normal", base.normal_enabled and base.normal_texture != null)
+			r.set_shader_parameter("normal_tex", base.normal_texture)
+			r.set_shader_parameter("roof_color", roof)
+			r.set_shader_parameter("uv1_scale", base.uv1_scale)
+			r.set_shader_parameter("uv1_offset", base.uv1_offset)
+			cache[key] = r
+		return cache[key]
+	if not cache.has(key):
+		var m := base.duplicate() as BaseMaterial3D
+		var tint: Color = roof if kind == KIT_ROOF else KIT_TINT.get(kind, Color.WHITE)
+		m.albedo_color = base.albedo_color * tint
+		m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m.roughness = 1.0
+		cache[key] = m
+	return cache[key]
+
+
 ## On: keep the mesh's own override (once, wrapped in an array so even a null override is kept) and put `mat` on.
 ## Off: put the kept one back. True when it changed.
 static func _set_material(mi: MeshInstance3D, mat: Material, on: bool) -> bool:
@@ -266,6 +384,7 @@ func set_on(on: bool) -> void:
 	if on == is_on():
 		return
 	apply_materials(_world, on, _building_mats)
+	apply_kit(_world, on, _kit)
 	_set_tavern_windows(on)
 	_we = _world.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	_sun = _world.get_node_or_null("DirectionalLight3D") as DirectionalLight3D
@@ -397,6 +516,8 @@ func _apply(v: Dictionary) -> void:
 		(m as ShaderMaterial).set_shader_parameter("window_glow", float(v.windows))
 	for w in _tavern_windows:
 		(w[2] as BaseMaterial3D).emission_energy_multiplier = float(w[3]) * maxf(float(v.windows), TAVERN_WINDOW_FLOOR)
+	if _kit.has("window"):
+		(_kit["window"] as BaseMaterial3D).emission_energy_multiplier = KIT_WINDOW_ENERGY * float(v.windows)
 	for l in _lamps:
 		var light := l[0] as OmniLight3D
 		if not is_instance_valid(light):
@@ -439,6 +560,9 @@ func _build_props() -> void:
 			if b.name in VILLAGE_SKIP or not b is Node3D:
 				continue
 			var at := (b as Node3D).global_position
+			if b.has_meta("glow"):   # a kit building: its door (local point, from the layout generator)
+				props.add_child(_glow((b as Node3D).to_global(b.get_meta("glow")), HOUSE_ENERGY, 4.5, false))
+				continue
 			var to_square := (SQUARE_CENTER - Vector2(at.x, at.z)).normalized() * 1.8
 			props.add_child(_glow(at + Vector3(to_square.x, 1.3, to_square.y), HOUSE_ENERGY, 4.5, false))
 	props.add_child(_leaves())
