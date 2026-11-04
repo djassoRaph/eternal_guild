@@ -92,7 +92,7 @@ const MIST_HEIGHT := -2.0
 const BRAZIERS := [Vector2(-16.5, 12.4), Vector2(-11.0, 7.6), Vector2(-4.0, 12.8), Vector2(3.2, 12.5), Vector2(9.8, 7.4)]
 const LAMP_POSTS := [Vector2(12.0, 2.5), Vector2(23.5, 2.5), Vector2(24.6, 12.2), Vector2(10.6, 12.0)]   # ~0.7 m clear of the stall tents
 const SQUARE_CENTER := Vector2(17.5, 8.0)
-const TAVERN_GLOWS := [Vector3(3.9, 1.6, -1.6), Vector3(2.7, 1.8, 2.2), Vector3(-1.1, 1.8, 3.4)]
+const TAVERN_GLOWS := [Vector3(4.9, 1.6, -1.0), Vector3(4.6, 1.8, 2.8), Vector3(1.0, 1.8, 8.6)]   # 25.36: door, front window, brewhouse
 const BRAZIER_ENERGY := 3.0
 const LAMP_ENERGY := 2.0
 const HOUSE_ENERGY := 1.2
@@ -270,17 +270,21 @@ static func _building_material(src: Material, cache: Dictionary) -> ShaderMateri
 ## shared window pane, so a re-apply reuses them. Returns {meshes, window}.
 static func apply_kit(world: Node, on: bool, cache: Dictionary) -> Dictionary:
 	var out := {"meshes": 0, "window": null}
+	var kit_nodes := []
 	for parent_path in [VILLAGE_PATH, "Forest"]:
 		var parent := world.get_node_or_null(parent_path)
-		if parent == null:
+		if parent:
+			kit_nodes.append_array(parent.get_children())
+	var tavern := world.get_node_or_null(TAVERN_PATH)   # Story 25.36: the kit tavern (its glass stays the tavern's own)
+	if tavern:
+		kit_nodes.append(tavern)
+	for b in kit_nodes:
+		if not (b.is_in_group(KIT_GROUP) or b.is_in_group(NATURE_GROUP)):   # the Fountain too: the kit look, no glow
 			continue
-		for b in parent.get_children():
-			if not (b.is_in_group(KIT_GROUP) or b.is_in_group(NATURE_GROUP)):   # the Fountain too: the kit look, no glow
-				continue
-			var roof: Color = b.get_meta("roof_tint", KIT_TINT[KIT_ROOF])
-			for mi in b.find_children("*", "MeshInstance3D", true, false):
-				if _set_kit(mi, on, roof, cache):
-					out.meshes += 1
+		var roof: Color = b.get_meta("roof_tint", KIT_TINT[KIT_ROOF])
+		for mi in b.find_children("*", "MeshInstance3D", true, false):
+			if _set_kit(mi, on, roof, cache):
+				out.meshes += 1
 	out.window = cache.get("window")
 	return out
 
@@ -304,15 +308,23 @@ static func _set_kit(mi: MeshInstance3D, on: bool, roof: Color, cache: Dictionar
 				saved.append(mi.get_surface_override_material(s))
 			mi.set_meta(KIT_SAVED_META, saved)
 		for s in n:
+			if _is_tavern_window(mi.mesh.surface_get_material(s)):
+				continue   # _set_tavern_windows owns that surface
 			mi.set_surface_override_material(s, _kit_material(mi.mesh.surface_get_material(s), roof, cache))
 		return true
 	if mi.has_meta(KIT_SAVED_META):
 		var saved: Array = mi.get_meta(KIT_SAVED_META)
 		for s in mini(saved.size(), n):
+			if _is_tavern_window(mi.mesh.surface_get_material(s)):
+				continue
 			mi.set_surface_override_material(s, saved[s])
 		mi.remove_meta(KIT_SAVED_META)
 		return true
 	return false
+
+
+static func _is_tavern_window(m: Material) -> bool:
+	return m != null and m.resource_name == TAVERN_WINDOW_MAT
 
 
 ## The look's copy of a kit material (null keeps the mesh's own: not a BaseMaterial3D).

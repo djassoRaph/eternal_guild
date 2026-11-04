@@ -13,7 +13,7 @@ PATH = [(-20.9, 10.0), (-12.0, 10.4), (-3.0, 9.6), (3.4, 10.0), (9.4, 10.0), (12
 PATH_HALF = 1.3
 BRIDGE = {"x0": 3.4, "x1": 9.4, "z": 10.0, "width": 2.6}
 SQUARE = (17.5, 8.0, 7.0)                         # centre x, z, radius
-TAVERN_RECT = (-31.5, -20.2, 7.4, 17.8)           # A1 footprint incl. chimney/step, + margin
+TAVERN_RECT = (-30.8, -19.4, 5.6, 20.4)           # A1 (Story 25.36's kit tavern) incl. eaves, porch, chimney + margin
 FARM_RECTS = [(-28.5, -23.5, 23.3, 28.3), (-27.6, -23.4, 31.2, 35.3)]
 
 

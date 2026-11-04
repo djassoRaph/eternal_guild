@@ -11,8 +11,10 @@ as a6_exterior_terrain.gltf and the test fixture) and the kit assets' glTF bound
   every building is in group village_kit with a box collider (Body), its roof colour (roof_tint) and its door glow;
 - re-routes the farmer along the east street; writes the streets as one ribbon mesh "terrain_paths" (the look gives it
   cobble) under Terrain/Streets; regrows the forest with the nature kit (each piece in group nature_kit with a body).
-Usage: python -I tools/exterior/gen_town.py [--dry]      (run from anywhere; re-runnable: it starts from git HEAD's
-scene when --from-head is given, else from the scene on disk if it has no Village/Fountain yet)
+- Story 25.36: places the kit Guild Tavern (A1) with its door where A1's always was, in group village_kit with its roof
+  colour (the look tints it like the town).
+Usage: python -I tools/exterior/gen_town.py [--dry] [--from-disk]   (run from anywhere; re-runnable: it reads the
+scene as it was before the kit town from git, BASE_REV below, unless --from-disk)
 """
 import hashlib
 import importlib.util
@@ -148,7 +150,14 @@ def dist_poly(x, z, poly):
 
 
 # ---------------------------------------------------------------- scene blocks
-src = open(SCENE, encoding="utf-8", newline="").read()
+# The input is the scene as it was before the kit town (Story 25.35's baseline commit), read from git, so a re-run
+# never stacks on its own output. --from-disk reads the scene on disk instead (it must not be generated yet).
+# Hand edits made to ExteriorWorld.tscn after BASE_REV are lost on a re-run unless they are made here.
+BASE_REV = "d97b977"
+if "--from-disk" in sys.argv:
+    src = open(SCENE, encoding="utf-8", newline="").read()
+else:
+    src = subprocess.check_output(["git", "-C", ROOT, "show", BASE_REV + ":scenes/world/ExteriorWorld.tscn"]).decode("utf-8")
 assert "\r\n" not in src, "CRLF scene"
 assert 'name="Fountain" parent="Village"' not in src, "already generated: check out the scene from git first"
 parts = [x for x in re.split(r"(?m)^(?=\[)", src) if x]
@@ -647,6 +656,25 @@ for z in range(int(pz0), int(pz1), 6):
     if rng.random() < 0.5:
         side = rng.choice((-1, 1))
         plant(et.stream_x(z) + side * (et.CH_HALF + et.BANK + rng.uniform(1.6, 2.8)), z, ROCKS, (0.35, 0.6))
+
+# ---------------------------------------------------------------- the guild tavern (Story 25.36)
+# a1_guild_tavern.gltf is the kit tavern now (tools/blender/village_kit/qtavern.py): origin = the main hall's centre,
+# door on +x. Its interact_point is at local (4.45, 0, -1): this origin puts the door where A1's always was
+# (world (-20.78, 10)), so the TavernEntranceZone and the arrival spawn (-19.58, 10) keep working.
+TAVERN_AT = (-25.234, 0.0, 11.0)
+TAVERN_ROOF = (0.50, 0.26, 0.28)
+for i, b in enumerate(kept):
+    if not b.startswith("[node") or block_key(b) != "GuildTavern":
+        continue
+    hdr, rest = b.split("\n", 1)
+    assert "groups=" not in hdr and " instance=" in hdr, hdr
+    hdr = hdr.replace(" instance=", ' groups=["village_kit"] instance=', 1)
+    rest = re.sub(r"transform = Transform3D\([^)]*\)", "transform = " + xform(*TAVERN_AT), rest, count=1)
+    rest = rest.rstrip("\n") + "\nmetadata/roof_tint = Color(%s, %s, %s, 1)\n\n" % TAVERN_ROOF
+    kept[i] = hdr + "\n" + rest
+    break
+else:
+    raise AssertionError("no GuildTavern node")
 
 # ---------------------------------------------------------------- the farmer walks the east street
 for i, b in enumerate(kept):
