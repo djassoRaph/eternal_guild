@@ -1,0 +1,1476 @@
+{
+ "buildings": [
+  {
+   "name": "Fountain",
+   "res": "res://assets/environment/village_kit/S_fountain.gltf",
+   "x": 17.5,
+   "z": 8.0,
+   "yaw_deg": 0.0,
+   "corners": [
+    [
+     15.04,
+     5.55
+    ],
+    [
+     19.93,
+     5.55
+    ],
+    [
+     19.93,
+     10.48
+    ],
+    [
+     15.04,
+     10.48
+    ]
+   ],
+   "roof": null
+  },
+  {
+   "name": "Watermill",
+   "res": "res://assets/environment/village_kit/S_watermill.gltf",
+   "x": 9.189,
+   "z": -14.0,
+   "yaw_deg": 180.0,
+   "corners": [
+    [
+     13.51,
+     -9.97
+    ],
+    [
+     3.51,
+     -9.97
+    ],
+    [
+     3.51,
+     -19.71
+    ],
+    [
+     13.51,
+     -19.71
+    ]
+   ],
+   "roof": null
+  },
+  {
+   "name": "Smithy",
+   "res": "res://assets/environment/village_kit/S_smithy.gltf",
+   "x": 36.5,
+   "z": -6.743,
+   "yaw_deg": 180.0,
+   "corners": [
+    [
+     42.79,
+     -2.68
+    ],
+    [
+     29.79,
+     -2.68
+    ],
+    [
+     29.79,
+     -11.5
+    ],
+    [
+     42.79,
+     -11.5
+    ]
+   ],
+   "roof": null
+  },
+  {
+   "name": "Pottery",
+   "res": "res://assets/environment/village_kit/S_pottery.gltf",
+   "x": 36.5,
+   "z": 21.271,
+   "yaw_deg": 0.0,
+   "corners": [
+    [
+     31.58,
+     17.36
+    ],
+    [
+     42.8,
+     17.36
+    ],
+    [
+     42.8,
+     25.8
+    ],
+    [
+     31.58,
+     25.8
+    ]
+   ],
+   "roof": null
+  },
+  {
+   "name": "House01",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 33.081,
+   "z": 13.365,
+   "yaw_deg": -179.09,
+   "corners": [
+    [
+     36.23,
+     16.41
+    ],
+    [
+     30.29,
+     16.5
+    ],
+    [
+     30.19,
+     10.57
+    ],
+    [
+     36.14,
+     10.48
+    ]
+   ],
+   "roof": [
+    0.36,
+    0.58,
+    0.58
+   ]
+  },
+  {
+   "name": "House02",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 40.081,
+   "z": 13.349,
+   "yaw_deg": -179.09,
+   "corners": [
+    [
+     43.23,
+     16.39
+    ],
+    [
+     37.29,
+     16.49
+    ],
+    [
+     37.2,
+     10.56
+    ],
+    [
+     43.14,
+     10.46
+    ]
+   ],
+   "roof": [
+    0.8,
+    0.62,
+    0.3
+   ]
+  },
+  {
+   "name": "House03",
+   "res": "res://assets/environment/village_kit/H11.gltf",
+   "x": 29.382,
+   "z": 2.712,
+   "yaw_deg": -0.86,
+   "corners": [
+    [
+     26.34,
+     -0.23
+    ],
+    [
+     32.36,
+     -0.14
+    ],
+    [
+     32.27,
+     5.85
+    ],
+    [
+     26.25,
+     5.76
+    ]
+   ],
+   "roof": [
+    0.62,
+    0.4,
+    0.46
+   ]
+  },
+  {
+   "name": "House04",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 36.917,
+   "z": 3.045,
+   "yaw_deg": 0.91,
+   "corners": [
+    [
+     33.77,
+     0.0
+    ],
+    [
+     39.71,
+     -0.09
+    ],
+    [
+     39.8,
+     5.84
+    ],
+    [
+     33.86,
+     5.93
+    ]
+   ],
+   "roof": [
+    0.44,
+    0.44,
+    0.48
+   ]
+  },
+  {
+   "name": "House05",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 22.648,
+   "z": -2.0,
+   "yaw_deg": -90.0,
+   "corners": [
+    [
+     25.74,
+     -5.1
+    ],
+    [
+     25.74,
+     0.84
+    ],
+    [
+     19.81,
+     0.84
+    ],
+    [
+     19.81,
+     -5.1
+    ]
+   ],
+   "roof": [
+    0.62,
+    0.4,
+    0.46
+   ]
+  },
+  {
+   "name": "House06",
+   "res": "res://assets/environment/village_kit/H11.gltf",
+   "x": 22.739,
+   "z": -18.751,
+   "yaw_deg": -90.54,
+   "corners": [
+    [
+     25.66,
+     -21.81
+    ],
+    [
+     25.6,
+     -15.79
+    ],
+    [
+     19.61,
+     -15.85
+    ],
+    [
+     19.67,
+     -21.86
+    ]
+   ],
+   "roof": [
+    0.52,
+    0.42,
+    0.66
+   ]
+  },
+  {
+   "name": "House07",
+   "res": "res://assets/environment/village_kit/H11.gltf",
+   "x": 11.97,
+   "z": -3.0,
+   "yaw_deg": 90.0,
+   "corners": [
+    [
+     9.08,
+     0.08
+    ],
+    [
+     9.08,
+     -5.93
+    ],
+    [
+     15.07,
+     -5.93
+    ],
+    [
+     15.07,
+     0.08
+    ]
+   ],
+   "roof": [
+    0.4,
+    0.5,
+    0.72
+   ]
+  },
+  {
+   "name": "House08",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 13.023,
+   "z": 31.03,
+   "yaw_deg": 90.35,
+   "corners": [
+    [
+     9.95,
+     34.15
+    ],
+    [
+     9.91,
+     28.21
+    ],
+    [
+     15.84,
+     28.17
+    ],
+    [
+     15.88,
+     34.11
+    ]
+   ],
+   "roof": [
+    0.36,
+    0.58,
+    0.58
+   ]
+  },
+  {
+   "name": "House09",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 12.858,
+   "z": 38.031,
+   "yaw_deg": 90.35,
+   "corners": [
+    [
+     9.79,
+     41.15
+    ],
+    [
+     9.75,
+     35.21
+    ],
+    [
+     15.68,
+     35.17
+    ],
+    [
+     15.71,
+     41.12
+    ]
+   ],
+   "roof": [
+    0.44,
+    0.44,
+    0.48
+   ]
+  },
+  {
+   "name": "House10",
+   "res": "res://assets/environment/village_kit/H08.gltf",
+   "x": 25.459,
+   "z": 23.0,
+   "yaw_deg": -90.0,
+   "corners": [
+    [
+     30.57,
+     20.06
+    ],
+    [
+     30.57,
+     26.05
+    ],
+    [
+     20.52,
+     26.05
+    ],
+    [
+     20.52,
+     20.06
+    ]
+   ],
+   "roof": [
+    0.52,
+    0.42,
+    0.66
+   ]
+  },
+  {
+   "name": "House11",
+   "res": "res://assets/environment/village_kit/H08.gltf",
+   "x": 25.206,
+   "z": 33.956,
+   "yaw_deg": -89.65,
+   "corners": [
+    [
+     30.3,
+     30.99
+    ],
+    [
+     30.33,
+     36.98
+    ],
+    [
+     20.29,
+     37.04
+    ],
+    [
+     20.25,
+     31.05
+    ]
+   ],
+   "roof": [
+    0.8,
+    0.62,
+    0.3
+   ]
+  },
+  {
+   "name": "House12",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 23.444,
+   "z": 40.967,
+   "yaw_deg": -89.65,
+   "corners": [
+    [
+     26.52,
+     37.85
+    ],
+    [
+     26.55,
+     43.79
+    ],
+    [
+     20.63,
+     43.83
+    ],
+    [
+     20.59,
+     37.88
+    ]
+   ],
+   "roof": [
+    0.8,
+    0.62,
+    0.3
+   ]
+  },
+  {
+   "name": "House13",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 22.426,
+   "z": -8.77,
+   "yaw_deg": 179.15,
+   "corners": [
+    [
+     25.48,
+     -5.63
+    ],
+    [
+     19.54,
+     -5.72
+    ],
+    [
+     19.63,
+     -11.65
+    ],
+    [
+     25.57,
+     -11.56
+    ]
+   ],
+   "roof": [
+    0.44,
+    0.44,
+    0.48
+   ]
+  },
+  {
+   "name": "House14",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 29.576,
+   "z": -18.82,
+   "yaw_deg": -0.85,
+   "corners": [
+    [
+     26.52,
+     -21.96
+    ],
+    [
+     32.46,
+     -21.87
+    ],
+    [
+     32.37,
+     -15.94
+    ],
+    [
+     26.43,
+     -16.03
+    ]
+   ],
+   "roof": [
+    0.52,
+    0.42,
+    0.66
+   ]
+  },
+  {
+   "name": "House15",
+   "res": "res://assets/environment/village_kit/H11.gltf",
+   "x": 36.832,
+   "z": -19.001,
+   "yaw_deg": 1.82,
+   "corners": [
+    [
+     33.66,
+     -21.79
+    ],
+    [
+     39.67,
+     -21.98
+    ],
+    [
+     39.86,
+     -16.0
+    ],
+    [
+     33.85,
+     -15.81
+    ]
+   ],
+   "roof": [
+    0.7,
+    0.32,
+    0.28
+   ]
+  },
+  {
+   "name": "House16",
+   "res": "res://assets/environment/village_kit/H01.gltf",
+   "x": 34.117,
+   "z": 33.06,
+   "yaw_deg": -178.64,
+   "corners": [
+    [
+     37.29,
+     36.08
+    ],
+    [
+     31.35,
+     36.22
+    ],
+    [
+     31.21,
+     30.29
+    ],
+    [
+     37.15,
+     30.15
+    ]
+   ],
+   "roof": [
+    0.7,
+    0.32,
+    0.28
+   ]
+  }
+ ],
+ "streets": {
+  "east": [
+   [
+    24.3,
+    8.2
+   ],
+   [
+    31.0,
+    8.3
+   ],
+   [
+    43.6,
+    8.1
+   ]
+  ],
+  "north": [
+   [
+    17.5,
+    1.0
+   ],
+   [
+    17.5,
+    -13.8
+   ],
+   [
+    17.6,
+    -24.5
+   ]
+  ],
+  "south": [
+   [
+    18.0,
+    15.0
+   ],
+   [
+    18.0,
+    28.0
+   ],
+   [
+    18.1,
+    44.5
+   ]
+  ],
+  "north_lane": [
+   [
+    17.5,
+    -13.8
+   ],
+   [
+    31.0,
+    -13.6
+   ],
+   [
+    43.6,
+    -14.0
+   ]
+  ],
+  "south_lane": [
+   [
+    18.0,
+    28.0
+   ],
+   [
+    31.0,
+    28.2
+   ],
+   [
+    43.6,
+    27.9
+   ]
+  ]
+ },
+ "street_half": 1.4,
+ "dropped": [
+  "Village/Market",
+  "Village/Market/Body",
+  "Village/Market/Body/CollisionShape3D",
+  "Village/Blacksmith",
+  "Village/Blacksmith/Body",
+  "Village/Blacksmith/Body/CollisionShape3D",
+  "Village/HomeA",
+  "Village/HomeA/Body",
+  "Village/HomeA/Body/CollisionShape3D",
+  "Village/HomeB",
+  "Village/HomeB/Body",
+  "Village/HomeB/Body/CollisionShape3D",
+  "Village/Residence",
+  "Village/Residence/Body",
+  "Village/Residence/Body/CollisionShape3D",
+  "Village/Well",
+  "Village/Well/Body",
+  "Village/Well/Body/CollisionShape3D",
+  "Village/Windmill",
+  "Village/Windmill/Body",
+  "Village/Windmill/Body/CollisionShape3D",
+  "Village/Watermill",
+  "Village/Watermill/Body",
+  "Village/Watermill/Body/CollisionShape3D",
+  "Village/Street/SmithLumber",
+  "Village/Street/SmithLumber/Body",
+  "Village/Street/SmithLumber/Body/CollisionShape3D",
+  "Village/Street/SmithStone",
+  "Village/Street/SmithStone/Body",
+  "Village/Street/SmithStone/Body/CollisionShape3D",
+  "Village/Street/SmithRack",
+  "Village/Street/SmithRack/Body",
+  "Village/Street/SmithRack/Body/CollisionShape3D",
+  "Village/Street/TrainingTarget",
+  "Village/Street/TrainingTarget/Body",
+  "Village/Street/TrainingTarget/Body/CollisionShape3D",
+  "Village/Street/HomeLadder",
+  "Village/Street/HomeLadder/Body",
+  "Village/Street/HomeLadder/Body/CollisionShape3D",
+  "Village/Street/MillSacks",
+  "Village/Street/MillSacks/Body",
+  "Village/Street/MillSacks/Body/CollisionShape3D",
+  "Village/Street/MillWheelbarrow",
+  "Village/Street/MillWheelbarrow/Body",
+  "Village/Street/MillWheelbarrow/Body/CollisionShape3D",
+  "Village/Street/MillCrateLong",
+  "Village/Street/MillCrateLong/Body",
+  "Village/Street/MillCrateLong/Body/CollisionShape3D",
+  "Forest",
+  "Forest/Tree_000",
+  "Forest/Tree_001",
+  "Forest/Rock_002",
+  "Forest/Rock_003",
+  "Forest/Tree_004",
+  "Forest/Tree_005",
+  "Forest/Tree_006",
+  "Forest/Tree_007",
+  "Forest/Tree_008",
+  "Forest/Tree_009",
+  "Forest/Tree_010",
+  "Forest/Tree_011",
+  "Forest/Tree_012",
+  "Forest/Tree_013",
+  "Forest/Tree_014",
+  "Forest/Tree_015",
+  "Forest/Tree_016",
+  "Forest/Tree_017",
+  "Forest/Tree_018",
+  "Forest/Rock_019",
+  "Forest/Tree_020",
+  "Forest/Tree_021",
+  "Forest/Tree_022",
+  "Forest/Tree_023",
+  "Forest/Tree_024",
+  "Forest/Tree_025",
+  "Forest/Tree_026",
+  "Forest/Tree_027",
+  "Forest/Rock_028",
+  "Forest/Rock_029",
+  "Forest/Tree_030",
+  "Forest/Tree_031",
+  "Forest/Rock_032",
+  "Forest/Tree_033",
+  "Forest/Tree_034",
+  "Forest/Tree_035",
+  "Forest/Tree_036",
+  "Forest/Tree_037",
+  "Forest/Tree_038",
+  "Forest/Rock_039",
+  "Forest/Tree_040",
+  "Forest/Tree_041",
+  "Forest/Tree_042",
+  "Forest/Tree_043",
+  "Forest/Tree_044",
+  "Forest/Tree_045",
+  "Forest/Tree_046",
+  "Forest/Tree_047",
+  "Forest/Tree_048",
+  "Forest/Tree_049",
+  "Forest/Rock_050",
+  "Forest/Tree_051",
+  "Forest/Tree_052",
+  "Forest/Tree_053",
+  "Forest/Tree_054",
+  "Forest/Tree_055",
+  "Forest/Tree_056",
+  "Forest/Tree_057",
+  "Forest/Tree_058",
+  "Forest/Rock_059",
+  "Forest/Tree_060",
+  "Forest/Tree_061",
+  "Forest/Tree_062",
+  "Forest/Rock_063",
+  "Forest/Tree_064",
+  "Forest/Tree_065",
+  "Forest/Tree_066",
+  "Forest/Tree_067",
+  "Forest/Tree_068",
+  "Forest/Tree_069",
+  "Forest/Tree_070",
+  "Forest/Tree_071",
+  "Forest/Tree_072",
+  "Forest/Tree_073",
+  "Forest/Rock_074",
+  "Forest/Tree_075",
+  "Forest/Tree_076",
+  "Forest/Tree_077",
+  "Forest/Tree_078",
+  "Forest/Tree_079",
+  "Forest/Tree_080",
+  "Forest/Tree_081",
+  "Forest/Tree_082",
+  "Forest/Tree_083",
+  "Forest/Tree_084",
+  "Forest/Tree_085",
+  "Forest/Tree_086",
+  "Forest/Tree_087",
+  "Forest/Rock_088",
+  "Forest/Tree_089",
+  "Forest/Tree_089/Body",
+  "Forest/Tree_089/Body/CollisionShape3D",
+  "Forest/Tree_090",
+  "Forest/Tree_090/Body",
+  "Forest/Tree_090/Body/CollisionShape3D",
+  "Forest/Tree_091",
+  "Forest/Tree_091/Body",
+  "Forest/Tree_091/Body/CollisionShape3D",
+  "Forest/Tree_092",
+  "Forest/Tree_092/Body",
+  "Forest/Tree_092/Body/CollisionShape3D",
+  "Forest/Tree_093",
+  "Forest/Tree_093/Body",
+  "Forest/Tree_093/Body/CollisionShape3D",
+  "Forest/Tree_094",
+  "Forest/Tree_094/Body",
+  "Forest/Tree_094/Body/CollisionShape3D",
+  "Forest/Tree_095",
+  "Forest/Tree_095/Body",
+  "Forest/Tree_095/Body/CollisionShape3D",
+  "Forest/Tree_096",
+  "Forest/Tree_096/Body",
+  "Forest/Tree_096/Body/CollisionShape3D",
+  "Forest/Rock_097",
+  "Forest/Rock_098",
+  "Forest/Tree_099",
+  "Forest/Tree_100",
+  "Forest/Rock_101",
+  "Forest/Tree_102",
+  "Forest/Tree_103",
+  "Forest/Rock_104",
+  "Forest/Tree_105",
+  "Forest/Tree_106",
+  "Forest/Tree_107",
+  "Forest/Tree_108",
+  "Forest/Tree_109",
+  "Forest/Tree_110",
+  "Forest/Tree_111",
+  "Forest/Tree_111/Body",
+  "Forest/Tree_111/Body/CollisionShape3D",
+  "Forest/Tree_112",
+  "Forest/Tree_112/Body",
+  "Forest/Tree_112/Body/CollisionShape3D",
+  "Forest/Tree_113",
+  "Forest/Tree_114",
+  "Forest/Tree_115",
+  "Forest/Tree_116",
+  "Forest/Tree_117",
+  "Forest/Tree_118",
+  "Forest/Tree_119",
+  "Forest/Tree_120",
+  "Forest/Tree_121",
+  "Forest/Tree_121/Body",
+  "Forest/Tree_121/Body/CollisionShape3D",
+  "Forest/Tree_122",
+  "Forest/Tree_122/Body",
+  "Forest/Tree_122/Body/CollisionShape3D",
+  "Forest/Tree_123",
+  "Forest/Tree_124",
+  "Forest/Tree_125",
+  "Forest/Rock_126",
+  "Forest/Tree_127",
+  "Forest/Rock_128",
+  "Forest/Tree_129",
+  "Forest/Tree_130",
+  "Forest/Tree_131",
+  "Forest/Tree_131/Body",
+  "Forest/Tree_131/Body/CollisionShape3D",
+  "Forest/Tree_132",
+  "Forest/Tree_133",
+  "Forest/Tree_134",
+  "Forest/Tree_135",
+  "Forest/Tree_136",
+  "Forest/Tree_137",
+  "Forest/Tree_138",
+  "Forest/Tree_139",
+  "Forest/Tree_139/Body",
+  "Forest/Tree_139/Body/CollisionShape3D",
+  "Forest/Tree_140",
+  "Forest/Tree_140/Body",
+  "Forest/Tree_140/Body/CollisionShape3D",
+  "Forest/Tree_141",
+  "Forest/Tree_142",
+  "Forest/Tree_143",
+  "Forest/Tree_144",
+  "Forest/Tree_145",
+  "Forest/Tree_146",
+  "Forest/Tree_147",
+  "Forest/Tree_148",
+  "Forest/Tree_149",
+  "Forest/Tree_149/Body",
+  "Forest/Tree_149/Body/CollisionShape3D",
+  "Forest/Tree_150",
+  "Forest/Tree_150/Body",
+  "Forest/Tree_150/Body/CollisionShape3D",
+  "Forest/Tree_151",
+  "Forest/Tree_152",
+  "Forest/Tree_153",
+  "Forest/Tree_154",
+  "Forest/Tree_155",
+  "Forest/Tree_156",
+  "Forest/Tree_157",
+  "Forest/Tree_157/Body",
+  "Forest/Tree_157/Body/CollisionShape3D",
+  "Forest/Tree_158",
+  "Forest/Tree_159",
+  "Forest/Tree_160",
+  "Forest/Tree_161",
+  "Forest/Tree_162",
+  "Forest/Tree_163",
+  "Forest/Tree_164",
+  "Forest/Tree_165",
+  "Forest/Tree_165/Body",
+  "Forest/Tree_165/Body/CollisionShape3D",
+  "Forest/Tree_166",
+  "Forest/Tree_167",
+  "Forest/Rock_168",
+  "Forest/Tree_169",
+  "Forest/Tree_170",
+  "Forest/Rock_171",
+  "Forest/Tree_172",
+  "Forest/Rock_173",
+  "Forest/Tree_174",
+  "Forest/Tree_174/Body",
+  "Forest/Tree_174/Body/CollisionShape3D",
+  "Forest/Tree_175",
+  "Forest/Tree_176",
+  "Forest/Tree_177",
+  "Forest/Tree_178",
+  "Forest/Tree_179",
+  "Forest/Tree_180",
+  "Forest/Tree_181",
+  "Forest/Tree_182",
+  "Forest/Tree_182/Body",
+  "Forest/Tree_182/Body/CollisionShape3D",
+  "Forest/Tree_183",
+  "Forest/Tree_183/Body",
+  "Forest/Tree_183/Body/CollisionShape3D",
+  "Forest/Tree_184",
+  "Forest/Tree_185",
+  "Forest/Rock_186",
+  "Forest/Tree_187",
+  "Forest/Tree_188",
+  "Forest/Tree_189",
+  "Forest/Tree_190",
+  "Forest/Tree_190/Body",
+  "Forest/Tree_190/Body/CollisionShape3D",
+  "Forest/Rock_191",
+  "Forest/Rock_191/Body",
+  "Forest/Rock_191/Body/CollisionShape3D",
+  "Forest/Tree_192",
+  "Forest/Tree_192/Body",
+  "Forest/Tree_192/Body/CollisionShape3D",
+  "Forest/Tree_193",
+  "Forest/Tree_193/Body",
+  "Forest/Tree_193/Body/CollisionShape3D",
+  "Forest/Tree_194",
+  "Forest/Tree_194/Body",
+  "Forest/Tree_194/Body/CollisionShape3D",
+  "Forest/Rock_195",
+  "Forest/Tree_196",
+  "Forest/Tree_197",
+  "Forest/Tree_198",
+  "Forest/Tree_199",
+  "Forest/Tree_200",
+  "Forest/Tree_200/Body",
+  "Forest/Tree_200/Body/CollisionShape3D",
+  "Forest/Tree_201",
+  "Forest/Tree_202",
+  "Forest/Tree_203",
+  "Forest/Tree_203/Body",
+  "Forest/Tree_203/Body/CollisionShape3D",
+  "Forest/Tree_204",
+  "Forest/Tree_205",
+  "Forest/Tree_206",
+  "Forest/Tree_207",
+  "Forest/Tree_208",
+  "Forest/Tree_208/Body",
+  "Forest/Tree_208/Body/CollisionShape3D",
+  "Forest/Tree_209",
+  "Forest/Tree_209/Body",
+  "Forest/Tree_209/Body/CollisionShape3D",
+  "Forest/Rock_210",
+  "Forest/Tree_211",
+  "Forest/Tree_211/Body",
+  "Forest/Tree_211/Body/CollisionShape3D",
+  "Forest/Rock_212",
+  "Forest/Tree_213",
+  "Forest/Rock_214",
+  "Forest/Tree_215",
+  "Forest/Rock_216",
+  "Forest/Tree_217",
+  "Forest/Rock_218",
+  "Forest/Tree_219",
+  "Forest/Tree_220",
+  "Forest/Tree_221",
+  "Forest/Tree_222",
+  "Forest/Tree_223",
+  "Forest/Tree_224",
+  "Forest/Tree_225",
+  "Forest/Tree_226",
+  "Forest/Rock_227",
+  "Forest/Tree_228",
+  "Forest/Tree_229",
+  "Forest/Tree_230",
+  "Forest/Tree_231",
+  "Forest/Tree_232",
+  "Forest/Tree_233",
+  "Forest/Tree_234",
+  "Forest/Tree_235",
+  "Forest/Rock_236",
+  "Forest/Tree_237",
+  "Forest/Tree_238",
+  "Forest/Tree_239",
+  "Forest/Rock_240",
+  "Forest/Tree_241",
+  "Forest/Rock_242",
+  "Forest/Rock_243",
+  "Forest/Rock_244",
+  "Forest/Tree_245",
+  "Forest/Tree_246",
+  "Forest/Tree_247",
+  "Forest/Tree_248",
+  "Forest/Tree_249",
+  "Forest/Tree_250",
+  "Forest/Tree_251",
+  "Forest/Tree_252",
+  "Forest/Tree_253",
+  "Forest/Tree_254",
+  "Forest/Rock_255",
+  "Forest/Tree_256",
+  "Forest/Tree_257",
+  "Forest/Tree_258",
+  "Forest/Tree_259",
+  "Forest/Tree_260",
+  "Forest/Tree_261",
+  "Forest/Tree_262",
+  "Forest/Tree_263",
+  "Forest/Tree_264",
+  "Forest/Tree_265",
+  "Forest/Rock_266",
+  "Forest/Rock_267",
+  "Forest/Rock_268",
+  "Forest/Tree_269",
+  "Forest/Tree_270",
+  "Forest/Rock_271",
+  "Forest/Tree_272",
+  "Forest/Tree_273",
+  "Forest/Tree_274",
+  "Forest/Tree_275",
+  "Forest/Tree_276",
+  "Forest/Tree_277",
+  "Forest/Tree_278",
+  "Forest/Rock_279",
+  "Forest/Rock_280",
+  "Forest/Tree_281",
+  "Forest/Tree_282",
+  "Forest/Tree_283",
+  "Forest/Tree_284",
+  "Forest/Rock_285",
+  "Forest/Tree_286",
+  "Forest/Tree_286/Body",
+  "Forest/Tree_286/Body/CollisionShape3D",
+  "Forest/Tree_287",
+  "Forest/Tree_287/Body",
+  "Forest/Tree_287/Body/CollisionShape3D",
+  "Forest/Tree_288",
+  "Forest/Tree_288/Body",
+  "Forest/Tree_288/Body/CollisionShape3D",
+  "Forest/Tree_289",
+  "Forest/Tree_289/Body",
+  "Forest/Tree_289/Body/CollisionShape3D",
+  "Forest/Tree_290",
+  "Forest/Tree_290/Body",
+  "Forest/Tree_290/Body/CollisionShape3D",
+  "Forest/Tree_291",
+  "Forest/Tree_291/Body",
+  "Forest/Tree_291/Body/CollisionShape3D",
+  "Forest/Tree_292",
+  "Forest/Tree_292/Body",
+  "Forest/Tree_292/Body/CollisionShape3D",
+  "Forest/Tree_293",
+  "Forest/Tree_293/Body",
+  "Forest/Tree_293/Body/CollisionShape3D",
+  "Forest/Tree_294",
+  "Forest/Tree_294/Body",
+  "Forest/Tree_294/Body/CollisionShape3D",
+  "Forest/Tree_295",
+  "Forest/Tree_295/Body",
+  "Forest/Tree_295/Body/CollisionShape3D",
+  "Forest/Tree_296",
+  "Forest/Tree_296/Body",
+  "Forest/Tree_296/Body/CollisionShape3D",
+  "Forest/Tree_297",
+  "Forest/Tree_297/Body",
+  "Forest/Tree_297/Body/CollisionShape3D",
+  "Forest/Tree_298",
+  "Forest/Tree_298/Body",
+  "Forest/Tree_298/Body/CollisionShape3D",
+  "Forest/Tree_299",
+  "Forest/Tree_299/Body",
+  "Forest/Tree_299/Body/CollisionShape3D",
+  "Forest/Tree_300",
+  "Forest/Tree_300/Body",
+  "Forest/Tree_300/Body/CollisionShape3D",
+  "Forest/Tree_301",
+  "Forest/Tree_301/Body",
+  "Forest/Tree_301/Body/CollisionShape3D",
+  "Forest/Tree_302",
+  "Forest/Tree_302/Body",
+  "Forest/Tree_302/Body/CollisionShape3D",
+  "Forest/Tree_303",
+  "Forest/Tree_303/Body",
+  "Forest/Tree_303/Body/CollisionShape3D",
+  "Forest/Tree_304",
+  "Forest/Tree_304/Body",
+  "Forest/Tree_304/Body/CollisionShape3D",
+  "Forest/Tree_305",
+  "Forest/Tree_305/Body",
+  "Forest/Tree_305/Body/CollisionShape3D",
+  "Forest/Tree_306",
+  "Forest/Tree_306/Body",
+  "Forest/Tree_306/Body/CollisionShape3D",
+  "Forest/Tree_307",
+  "Forest/Tree_307/Body",
+  "Forest/Tree_307/Body/CollisionShape3D",
+  "Forest/Tree_308",
+  "Forest/Tree_308/Body",
+  "Forest/Tree_308/Body/CollisionShape3D",
+  "Forest/Tree_309",
+  "Forest/Tree_309/Body",
+  "Forest/Tree_309/Body/CollisionShape3D",
+  "Forest/Tree_310",
+  "Forest/Tree_310/Body",
+  "Forest/Tree_310/Body/CollisionShape3D",
+  "Forest/Tree_311",
+  "Forest/Tree_311/Body",
+  "Forest/Tree_311/Body/CollisionShape3D",
+  "Forest/Tree_312",
+  "Forest/Tree_312/Body",
+  "Forest/Tree_312/Body/CollisionShape3D",
+  "Forest/Tree_313",
+  "Forest/Tree_313/Body",
+  "Forest/Tree_313/Body/CollisionShape3D",
+  "Forest/Tree_314",
+  "Forest/Tree_314/Body",
+  "Forest/Tree_314/Body/CollisionShape3D",
+  "Forest/Tree_315",
+  "Forest/Tree_315/Body",
+  "Forest/Tree_315/Body/CollisionShape3D",
+  "Forest/Tree_316",
+  "Forest/Tree_316/Body",
+  "Forest/Tree_316/Body/CollisionShape3D",
+  "Forest/Tree_317",
+  "Forest/Tree_317/Body",
+  "Forest/Tree_317/Body/CollisionShape3D",
+  "Forest/Tree_318",
+  "Forest/Tree_318/Body",
+  "Forest/Tree_318/Body/CollisionShape3D",
+  "Forest/Tree_319",
+  "Forest/Tree_319/Body",
+  "Forest/Tree_319/Body/CollisionShape3D",
+  "Forest/Tree_320",
+  "Forest/Tree_320/Body",
+  "Forest/Tree_320/Body/CollisionShape3D",
+  "Forest/Tree_321",
+  "Forest/Tree_321/Body",
+  "Forest/Tree_321/Body/CollisionShape3D",
+  "Forest/Tree_322",
+  "Forest/Tree_322/Body",
+  "Forest/Tree_322/Body/CollisionShape3D",
+  "Forest/Tree_323",
+  "Forest/Tree_323/Body",
+  "Forest/Tree_323/Body/CollisionShape3D",
+  "Forest/Tree_324",
+  "Forest/Tree_324/Body",
+  "Forest/Tree_324/Body/CollisionShape3D",
+  "Forest/Tree_325",
+  "Forest/Tree_325/Body",
+  "Forest/Tree_325/Body/CollisionShape3D",
+  "Forest/Tree_326",
+  "Forest/Tree_326/Body",
+  "Forest/Tree_326/Body/CollisionShape3D",
+  "Forest/Tree_327",
+  "Forest/Tree_327/Body",
+  "Forest/Tree_327/Body/CollisionShape3D",
+  "Forest/Tree_328",
+  "Forest/Tree_328/Body",
+  "Forest/Tree_328/Body/CollisionShape3D",
+  "Forest/Tree_329",
+  "Forest/Tree_329/Body",
+  "Forest/Tree_329/Body/CollisionShape3D",
+  "Forest/Tree_330",
+  "Forest/Tree_330/Body",
+  "Forest/Tree_330/Body/CollisionShape3D",
+  "Forest/Tree_331",
+  "Forest/Tree_331/Body",
+  "Forest/Tree_331/Body/CollisionShape3D",
+  "Forest/Tree_332",
+  "Forest/Tree_332/Body",
+  "Forest/Tree_332/Body/CollisionShape3D",
+  "Forest/Tree_333",
+  "Forest/Tree_333/Body",
+  "Forest/Tree_333/Body/CollisionShape3D",
+  "Forest/Tree_334",
+  "Forest/Tree_334/Body",
+  "Forest/Tree_334/Body/CollisionShape3D",
+  "Forest/Tree_335",
+  "Forest/Tree_335/Body",
+  "Forest/Tree_335/Body/CollisionShape3D",
+  "Forest/Tree_336",
+  "Forest/Tree_336/Body",
+  "Forest/Tree_336/Body/CollisionShape3D",
+  "Forest/Tree_337",
+  "Forest/Tree_337/Body",
+  "Forest/Tree_337/Body/CollisionShape3D",
+  "Forest/Tree_338",
+  "Forest/Tree_338/Body",
+  "Forest/Tree_338/Body/CollisionShape3D",
+  "Forest/Tree_339",
+  "Forest/Tree_339/Body",
+  "Forest/Tree_339/Body/CollisionShape3D",
+  "Forest/Tree_340",
+  "Forest/Tree_340/Body",
+  "Forest/Tree_340/Body/CollisionShape3D",
+  "Forest/Tree_341",
+  "Forest/Tree_341/Body",
+  "Forest/Tree_341/Body/CollisionShape3D",
+  "Forest/Tree_342",
+  "Forest/Tree_342/Body",
+  "Forest/Tree_342/Body/CollisionShape3D",
+  "Forest/Tree_343",
+  "Forest/Tree_343/Body",
+  "Forest/Tree_343/Body/CollisionShape3D",
+  "Forest/Tree_344",
+  "Forest/Tree_344/Body",
+  "Forest/Tree_344/Body/CollisionShape3D",
+  "Forest/Tree_345",
+  "Forest/Tree_345/Body",
+  "Forest/Tree_345/Body/CollisionShape3D",
+  "Forest/Tree_346",
+  "Forest/Tree_346/Body",
+  "Forest/Tree_346/Body/CollisionShape3D",
+  "Forest/Tree_347",
+  "Forest/Tree_347/Body",
+  "Forest/Tree_347/Body/CollisionShape3D",
+  "Forest/Tree_348",
+  "Forest/Tree_348/Body",
+  "Forest/Tree_348/Body/CollisionShape3D",
+  "Forest/Tree_349",
+  "Forest/Tree_349/Body",
+  "Forest/Tree_349/Body/CollisionShape3D",
+  "Forest/Tree_350",
+  "Forest/Tree_350/Body",
+  "Forest/Tree_350/Body/CollisionShape3D",
+  "Forest/Tree_351",
+  "Forest/Tree_351/Body",
+  "Forest/Tree_351/Body/CollisionShape3D",
+  "Forest/Tree_352",
+  "Forest/Tree_352/Body",
+  "Forest/Tree_352/Body/CollisionShape3D",
+  "Forest/Tree_353",
+  "Forest/Tree_353/Body",
+  "Forest/Tree_353/Body/CollisionShape3D",
+  "Forest/Tree_354",
+  "Forest/Tree_354/Body",
+  "Forest/Tree_354/Body/CollisionShape3D",
+  "Forest/Tree_355",
+  "Forest/Tree_355/Body",
+  "Forest/Tree_355/Body/CollisionShape3D",
+  "Forest/Tree_356",
+  "Forest/Tree_356/Body",
+  "Forest/Tree_356/Body/CollisionShape3D",
+  "Forest/Tree_357",
+  "Forest/Tree_357/Body",
+  "Forest/Tree_357/Body/CollisionShape3D",
+  "Forest/Tree_358",
+  "Forest/Tree_358/Body",
+  "Forest/Tree_358/Body/CollisionShape3D",
+  "Forest/Tree_359",
+  "Forest/Tree_359/Body",
+  "Forest/Tree_359/Body/CollisionShape3D",
+  "Forest/Tree_360",
+  "Forest/Tree_360/Body",
+  "Forest/Tree_360/Body/CollisionShape3D",
+  "Forest/Tree_361",
+  "Forest/Tree_361/Body",
+  "Forest/Tree_361/Body/CollisionShape3D",
+  "Forest/Tree_362",
+  "Forest/Tree_362/Body",
+  "Forest/Tree_362/Body/CollisionShape3D",
+  "Forest/Tree_363",
+  "Forest/Tree_363/Body",
+  "Forest/Tree_363/Body/CollisionShape3D",
+  "Forest/Tree_364",
+  "Forest/Tree_364/Body",
+  "Forest/Tree_364/Body/CollisionShape3D",
+  "Forest/Tree_365",
+  "Forest/Tree_365/Body",
+  "Forest/Tree_365/Body/CollisionShape3D",
+  "Forest/Tree_366",
+  "Forest/Tree_366/Body",
+  "Forest/Tree_366/Body/CollisionShape3D",
+  "Forest/Tree_367",
+  "Forest/Tree_367/Body",
+  "Forest/Tree_367/Body/CollisionShape3D",
+  "Forest/Tree_368",
+  "Forest/Tree_368/Body",
+  "Forest/Tree_368/Body/CollisionShape3D",
+  "Forest/Tree_369",
+  "Forest/Tree_369/Body",
+  "Forest/Tree_369/Body/CollisionShape3D",
+  "Forest/Tree_370",
+  "Forest/Tree_370/Body",
+  "Forest/Tree_370/Body/CollisionShape3D",
+  "Forest/Tree_371",
+  "Forest/Tree_371/Body",
+  "Forest/Tree_371/Body/CollisionShape3D",
+  "Forest/Tree_372",
+  "Forest/Tree_372/Body",
+  "Forest/Tree_372/Body/CollisionShape3D",
+  "Forest/Tree_373",
+  "Forest/Tree_373/Body",
+  "Forest/Tree_373/Body/CollisionShape3D",
+  "Forest/Tree_374",
+  "Forest/Tree_374/Body",
+  "Forest/Tree_374/Body/CollisionShape3D",
+  "Forest/Tree_375",
+  "Forest/Tree_375/Body",
+  "Forest/Tree_375/Body/CollisionShape3D",
+  "Forest/Tree_376",
+  "Forest/Tree_376/Body",
+  "Forest/Tree_376/Body/CollisionShape3D",
+  "Forest/Tree_377",
+  "Forest/Tree_377/Body",
+  "Forest/Tree_377/Body/CollisionShape3D",
+  "Forest/Tree_378",
+  "Forest/Tree_378/Body",
+  "Forest/Tree_378/Body/CollisionShape3D",
+  "Forest/Tree_379",
+  "Forest/Tree_379/Body",
+  "Forest/Tree_379/Body/CollisionShape3D",
+  "Forest/Tree_380",
+  "Forest/Tree_380/Body",
+  "Forest/Tree_380/Body/CollisionShape3D",
+  "Forest/Tree_381",
+  "Forest/Tree_381/Body",
+  "Forest/Tree_381/Body/CollisionShape3D",
+  "Forest/Tree_382",
+  "Forest/Tree_382/Body",
+  "Forest/Tree_382/Body/CollisionShape3D",
+  "Forest/Tree_383",
+  "Forest/Tree_383/Body",
+  "Forest/Tree_383/Body/CollisionShape3D",
+  "Forest/Tree_384",
+  "Forest/Tree_384/Body",
+  "Forest/Tree_384/Body/CollisionShape3D",
+  "Forest/Tree_385",
+  "Forest/Tree_385/Body",
+  "Forest/Tree_385/Body/CollisionShape3D",
+  "Forest/Tree_386",
+  "Forest/Tree_386/Body",
+  "Forest/Tree_386/Body/CollisionShape3D",
+  "Forest/Tree_387",
+  "Forest/Tree_387/Body",
+  "Forest/Tree_387/Body/CollisionShape3D",
+  "Forest/Tree_388",
+  "Forest/Tree_388/Body",
+  "Forest/Tree_388/Body/CollisionShape3D",
+  "Forest/Tree_389",
+  "Forest/Tree_389/Body",
+  "Forest/Tree_389/Body/CollisionShape3D",
+  "Forest/Tree_390",
+  "Forest/Tree_390/Body",
+  "Forest/Tree_390/Body/CollisionShape3D",
+  "Forest/Tree_391",
+  "Forest/Tree_391/Body",
+  "Forest/Tree_391/Body/CollisionShape3D",
+  "Forest/Tree_392",
+  "Forest/Tree_392/Body",
+  "Forest/Tree_392/Body/CollisionShape3D",
+  "Forest/Tree_393",
+  "Forest/Tree_393/Body",
+  "Forest/Tree_393/Body/CollisionShape3D",
+  "Forest/Tree_394",
+  "Forest/Tree_394/Body",
+  "Forest/Tree_394/Body/CollisionShape3D",
+  "Forest/Tree_395",
+  "Forest/Tree_395/Body",
+  "Forest/Tree_395/Body/CollisionShape3D",
+  "Forest/Tree_396",
+  "Forest/Tree_396/Body",
+  "Forest/Tree_396/Body/CollisionShape3D",
+  "Forest/Tree_397",
+  "Forest/Tree_397/Body",
+  "Forest/Tree_397/Body/CollisionShape3D",
+  "Forest/Tree_398",
+  "Forest/Tree_398/Body",
+  "Forest/Tree_398/Body/CollisionShape3D",
+  "Forest/Tree_399",
+  "Forest/Tree_399/Body",
+  "Forest/Tree_399/Body/CollisionShape3D",
+  "Forest/Tree_400",
+  "Forest/Tree_400/Body",
+  "Forest/Tree_400/Body/CollisionShape3D",
+  "Forest/Tree_401",
+  "Forest/Tree_401/Body",
+  "Forest/Tree_401/Body/CollisionShape3D",
+  "Forest/Tree_402",
+  "Forest/Tree_402/Body",
+  "Forest/Tree_402/Body/CollisionShape3D",
+  "Forest/Rock_403",
+  "Forest/Rock_403/Body",
+  "Forest/Rock_403/Body/CollisionShape3D",
+  "Forest/Rock_404",
+  "Forest/Rock_404/Body",
+  "Forest/Rock_404/Body/CollisionShape3D",
+  "Forest/Rock_405",
+  "Forest/Rock_405/Body",
+  "Forest/Rock_405/Body/CollisionShape3D",
+  "Forest/Rock_406",
+  "Forest/Rock_406/Body",
+  "Forest/Rock_406/Body/CollisionShape3D",
+  "Forest/Rock_407",
+  "Forest/Rock_407/Body",
+  "Forest/Rock_407/Body/CollisionShape3D",
+  "Forest/Rock_408",
+  "Forest/Rock_408/Body",
+  "Forest/Rock_408/Body/CollisionShape3D",
+  "Forest/Rock_409",
+  "Forest/Rock_409/Body",
+  "Forest/Rock_409/Body/CollisionShape3D",
+  "Forest/Rock_410",
+  "Forest/Rock_410/Body",
+  "Forest/Rock_410/Body/CollisionShape3D",
+  "Forest/Rock_411",
+  "Forest/Rock_411/Body",
+  "Forest/Rock_411/Body/CollisionShape3D",
+  "Forest/Rock_412",
+  "Forest/Rock_412/Body",
+  "Forest/Rock_412/Body/CollisionShape3D",
+  "Forest/Rock_413",
+  "Forest/Rock_413/Body",
+  "Forest/Rock_413/Body/CollisionShape3D",
+  "Forest/Rock_414",
+  "Forest/Rock_414/Body",
+  "Forest/Rock_414/Body/CollisionShape3D",
+  "Forest/Rock_415",
+  "Forest/Rock_415/Body",
+  "Forest/Rock_415/Body/CollisionShape3D",
+  "Forest/Rock_416",
+  "Forest/Rock_416/Body",
+  "Forest/Rock_416/Body/CollisionShape3D",
+  "Forest/Rock_417",
+  "Forest/Rock_417/Body",
+  "Forest/Rock_417/Body/CollisionShape3D",
+  "Forest/Rock_418",
+  "Forest/Rock_418/Body",
+  "Forest/Rock_418/Body/CollisionShape3D",
+  "Forest/Rock_419",
+  "Forest/Rock_419/Body",
+  "Forest/Rock_419/Body/CollisionShape3D",
+  "Forest/Rock_420",
+  "Forest/Rock_420/Body",
+  "Forest/Rock_420/Body/CollisionShape3D",
+  "Forest/Rock_421",
+  "Forest/Rock_421/Body",
+  "Forest/Rock_421/Body/CollisionShape3D",
+  "Village/Street/MarketCrates",
+  "Village/Street/MarketCrateSmall",
+  "Village/Street/MarketBarrel",
+  "Village/Street/MarketSacks",
+  "Village/Street/MarketPallet",
+  "Village/Street/WellBucket"
+ ]
+}

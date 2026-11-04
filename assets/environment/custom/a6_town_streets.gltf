@@ -1,0 +1,122 @@
+{
+ "asset": {
+  "version": "2.0",
+  "generator": "tools/exterior/gen_town.py (Story 25.35)",
+  "extras": {
+   "bin_md5": "9b4083d1747eaa205c5d8119b7ebd416"
+  }
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "name": "terrain_paths",
+   "mesh": 0
+  }
+ ],
+ "materials": [
+  {
+   "name": "town_street",
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.42,
+     0.38,
+     0.34,
+     1.0
+    ],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 1.0
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "terrain_paths",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "buffers": [
+  {
+   "uri": "a6_town_streets.bin",
+   "byteLength": 13696
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 3768,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 3768,
+   "byteLength": 3768,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 7536,
+   "byteLength": 2512,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 10048,
+   "byteLength": 3648,
+   "target": 34963
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 314,
+   "type": "VEC3",
+   "min": [
+    16.1,
+    -2.96,
+    -24.51308354077845
+   ],
+   "max": [
+    43.64442206556868,
+    -2.96,
+    44.508484692660886
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 314,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 314,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5125,
+   "count": 912,
+   "type": "SCALAR"
+  }
+ ]
+}
