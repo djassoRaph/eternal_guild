@@ -33,8 +33,11 @@ def load_piece(name):
     return load(name)
 
 
-def house(place, ox, oy, w=4, d=4, floors=2, seed=1, into="BUILD", balcony=True, styles=None, chimney=True):
-    """w, d in metres (even, w in 4/6/8). Door on the south (-y) side. Returns the pieces placed."""
+def house(place, ox, oy, w=4, d=4, floors=2, seed=1, into="BUILD", balcony=True, styles=None, chimney=True,
+          door_x=None, door="", windows=None):
+    """w, d in metres (even, w in 4/6/8). Door on the south (-y) side. Returns the pieces placed.
+    door_x: the door's wall slot (odd x, house frame); None = seeded. door: a wall piece name for the door slot
+    ("" = the style's). windows: the chance a wall slot is a window (None = 0.55). Story 25.36 (the tavern)."""
     rng = random.Random(seed)
     assert (w, d) in ROOFS, (w, d)
     hx, hy = w / 2.0, d / 2.0
@@ -57,7 +60,9 @@ def house(place, ox, oy, w=4, d=4, floors=2, seed=1, into="BUILD", balcony=True,
         if "Door_Round" in name or "Door_Flat" in name:
             P("Door_1_Round" if "Round" in name else "Door_1_Flat", x - 0.53, y, z, r)
 
-    door_x = rng.choice([x for x in range(int(-hx) + 1, int(hx), 2)])
+    seeded_door = rng.choice([x for x in range(int(-hx) + 1, int(hx), 2)])   # always drawn: the houses stay as baked
+    door_x = seeded_door if door_x is None else door_x
+    p_window = 0.55 if windows is None else windows
     for f in range(floors):
         z = 3.0 * f
         st = STYLE["stone" if (f == 0 and rng.random() < 0.7) else ("timber" if f > 0 and rng.random() < 0.5 else "plaster")]
@@ -72,9 +77,9 @@ def house(place, ox, oy, w=4, d=4, floors=2, seed=1, into="BUILD", balcony=True,
             sides.append(("W", -hx, y, -90))
         for side, a, b, r in sides:
             if f == 0 and side == "S" and a == door_x:
-                name = st["door"]
+                name = door or st["door"]
             else:
-                name = rng.choice(st["window"]) if rng.random() < 0.55 else st["plain"]
+                name = rng.choice(st["window"]) if rng.random() < p_window else st["plain"]
             if side in ("S", "N"):
                 wall(name, a, b, z, r)
             else:
