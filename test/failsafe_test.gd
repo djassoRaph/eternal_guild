@@ -263,6 +263,10 @@ const PLAYER_SPEED := 5.0                  # the gameplay speed (V9: unchanged)
 const TAVERN_LIGHTING_SCRIPT := "res://scripts/game/tavern_lighting.gd"
 const RUNE_CUE_SCENE := "res://scenes/game/FloorRuneCue.tscn"
 const RUNE_CUE_SCRIPT := "res://scripts/game/floor_rune_cue.gd"
+## The hall's floor rune cues (Raphael 2026-11-05: every E spot, not the fire's only): zone -> the node holding the
+## interact_point the cue snaps to ("" = the cue stays where it is placed).
+const RUNE_CUE_SPOTS := {"FireplaceArea": "Hearth", "MissionBoard": "GuildNoticeBoard", "RecruitmentDesk": "GuildDesk",
+	"NextDayArea": "", "BarArea": ""}
 const CAMERA_SCRIPT := "res://scripts/camera/camera_3d.gd"
 const BEDROOM_SCRIPT := "res://scenes/bedroom_popup.gd"
 const BRIEFING_SCRIPT := "res://scenes/ui/script/morning_briefing.gd"
@@ -8511,9 +8515,65 @@ func test_light_and_mood() -> void:
 	elif cue:
 		cue.free()
 	var cues := tav.keys().filter(func(k): return tav[k].instance == RUNE_CUE_SCENE)
-	check(cues.size() == 1 and str(tav[cues[0]].props.get("zone_path", "")).ends_with("FireplaceArea") and str(tav[cues[0]].props.get("hearth_path", "")).ends_with("Hearth"),
-		"MainTavern has one floor rune cue, for the fireplace's zone at the hearth (%s)" % [cues])
+	var cue_zones := {}
+	for k in cues:
+		cue_zones[str(tav[k].props.get("zone_path", "")).get_file()] = str(tav[k].props.get("hearth_path", "")).get_file()
+	check(cues.size() == RUNE_CUE_SPOTS.size() and cue_zones == RUNE_CUE_SPOTS,
+		"MainTavern has one floor rune cue per E spot: the fire at the hearth, the board and the desk at their interact_points, the bedroom and the bar where placed (%s)" % [cue_zones])
+	await _check_rune_cue_spots()
 	print("")
+
+
+## Raphael 2026-11-05: each floor rune cue marks a spot the player can stand on with its zone taking E. The hall is
+## instanced with every script stripped (Test 19), so a cue's spot is worked out as _place does it: its holder's
+## interact_point (12 mm up), else where the cue is placed. The spot lies inside its zone's box, the cue sits 12 mm above
+## the floor there, and the player's capsule (r 0.5, h 1.5) fits standing on it.
+func _check_rune_cue_spots() -> void:
+	var scene: Node = (load(TAVERN_SCENE_PATH) as PackedScene).instantiate()
+	var specs := []
+	for cue in scene.find_children("*", "Node3D", true, false):
+		if cue.scene_file_path == RUNE_CUE_SCENE:
+			specs.append([cue, cue.get("zone_path"), cue.get("hearth_path"), str(cue.get("anchor_name"))])
+	_strip_scripts(scene)
+	root.add_child(scene)
+	await physics_frame
+	await physics_frame
+	var bad := []
+	var report := []
+	for s in specs:
+		var cue := s[0] as Node3D
+		var zone: Area3D = cue.get_node_or_null(s[1]) as Area3D if s[1] is NodePath and not (s[1] as NodePath).is_empty() else null
+		var spot := cue.global_position
+		if s[2] is NodePath and not (s[2] as NodePath).is_empty():
+			var holder := cue.get_node_or_null(s[2])
+			var ip: Node3D = holder.find_child(s[3], true, false) as Node3D if holder else null
+			spot = ip.global_position + Vector3(0, 0.012, 0) if ip else Vector3(INF, INF, INF)
+		var box: CollisionShape3D = zone.get_child(0) as CollisionShape3D if zone and zone.get_child_count() > 0 else null
+		var inside := false
+		if box and box.shape is BoxShape3D and spot.is_finite():
+			var lp := box.global_transform.affine_inverse() * Vector3(spot.x, box.global_position.y, spot.z)
+			var half := (box.shape as BoxShape3D).size * 0.5
+			inside = absf(lp.x) <= half.x and absf(lp.z) <= half.z
+		var ss := cue.get_world_3d().direct_space_state
+		var fy := NAN
+		var fits := false
+		if spot.is_finite():
+			var hit := ss.intersect_ray(PhysicsRayQueryParameters3D.create(spot + Vector3(0, 0.5, 0), spot - Vector3(0, 0.5, 0)))
+			fy = hit.position.y if not hit.is_empty() else NAN
+			var cap := CapsuleShape3D.new()
+			cap.radius = 0.5
+			cap.height = 1.5
+			var q := PhysicsShapeQueryParameters3D.new()
+			q.shape = cap
+			q.transform = Transform3D(Basis(), Vector3(spot.x, (spot.y if hit.is_empty() else fy) + 0.79, spot.z))
+			fits = not hit.is_empty() and ss.intersect_shape(q, 1).is_empty()
+		var on_floor := not is_nan(fy) and absf(spot.y - 0.012 - fy) < 0.02
+		report.append("%s (%.2f, %.2f)" % [zone.name if zone else "?", spot.x, spot.z])
+		if not (inside and on_floor and fits):
+			bad.append("%s at %s: in its zone %s, floor %.3f, player fits %s" % [cue.name, spot, inside, fy, fits])
+	scene.free()
+	check(specs.size() == RUNE_CUE_SPOTS.size() and bad.is_empty(),
+		"each floor rune cue marks a spot inside its zone, 12 mm above the floor, where the player can stand (%s)%s" % [", ".join(report), "" if bad.is_empty() else " BAD: %s" % [bad]])
 
 
 ## Test 25's fixture rig: the hall's light nodes on the paths TavernLighting expects (SubViewport/TavernNavigation/...),

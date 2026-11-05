@@ -3,15 +3,17 @@
 # the player stands in, nothing else taking the key), and hides when the player leaves or another zone (the cat,
 # Den Fa) takes E; a paused tree hides it at once. It never changes who takes E: it only reads owns_e. The ring is unshaded, warm gold, roughness 0
 # (the edge pass leaves it un-inked), transparent at render_priority 1 (drawn after the EdgeQuad, which would
-# otherwise repaint over it), depth-tested (bodies hide it), no shadow. MainTavern puts one at the hearth's
-# interact_point for the fire; other zones get one only if Raphael asks (Open question 2).
+# otherwise repaint over it), depth-tested (bodies hide it), no shadow. MainTavern puts one at each E spot (Open
+# question 2, Raphael 2026-11-05): the fire, the notice board and the guild desk on their model's interact_point, the
+# bedroom's next-day spot and the bar where they are placed.
 extends Node3D
 
 const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
 
 ## The Area3D whose E ownership shows the cue.
 @export var zone_path: NodePath
-## A node holding the marker the cue stands on (the Hearth: its model's interact_point). Empty = stay where placed.
+## A node holding the marker the cue stands on (the Hearth, the GuildNoticeBoard, the GuildDesk: its model's
+## interact_point). Empty = stay where placed.
 @export var hearth_path: NodePath
 @export var anchor_name := "interact_point"
 @export var fade_seconds := 0.25

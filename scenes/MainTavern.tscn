@@ -1451,6 +1451,24 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.98, 0.112, -9.3)
 zone_path = NodePath("../../Interactive/FireplaceArea")
 hearth_path = NodePath("../Hearth")
 
+[node name="BoardRuneCue" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s2523_cue")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.287, 0.146, -13.305)
+zone_path = NodePath("../../Interactive/MissionBoard")
+hearth_path = NodePath("../GuildNoticeBoard")
+
+[node name="DeskRuneCue" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s2523_cue")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.587, 0.146, -3.105)
+zone_path = NodePath("../../Interactive/RecruitmentDesk")
+hearth_path = NodePath("../GuildDesk")
+
+[node name="BedroomRuneCue" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s2523_cue")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.237, 0.146, -13.505)
+zone_path = NodePath("../../Interactive/NextDayArea")
+
+[node name="BarRuneCue" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s2523_cue")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.197, 0.146, -9.025)
+zone_path = NodePath("../../Interactive/BarArea")
+
 [node name="CatBasket" parent="SubViewportContainer/SubViewport/TavernNavigation/Furniture" instance=ExtResource("s2515_basket")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -2.92, 0.134378, -7.02)
 
