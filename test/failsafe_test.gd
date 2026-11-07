@@ -381,6 +381,7 @@ func _initialize() -> void:
 	await test_bard_visit()   # Story 9.1
 	await test_bard_performs()   # Story 9.2
 	await test_town_kit()   # Story 25.35
+	await test_story_panels()   # Story 10.1
 
 	_finish()
 
@@ -16409,7 +16410,7 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 		"review P2: a day jump while he waits ('coming' again): the hall calls him arrived (no second banner), so hearing him still ends the demo")
 	# heard, with Story 10.1's panel director playing: the banners cleared (review P4), the hall stopped, the panel awaited, then ONE card
 	var pd := GDScript.new()
-	pd.source_code = "extends Node\nsignal finished\nvar asked: Array = []\nvar give_null := false\nfunc play(id: String):\n\tasked.append(id)\n\treturn null if give_null else self\n"
+	pd.source_code = "extends Node\nsignal finished\nvar asked: Array = []\nvar give_null := false\nvar closed: Array = []\nfunc play(id: String):\n\tasked.append(id)\n\treturn null if give_null else self\nfunc close(reason):\n\tclosed.append(reason)\n"
 	pd.reload()
 	var director := Node.new()
 	director.set_script(pd)
@@ -16430,8 +16431,8 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	await process_frame
 	var cards: Array = get_nodes_in_group("demo_end_card")
 	check(c.ending and gm.demo_ending.state == "ended" and ss.run_active == false and events == [["ended", 8]] and stopped and waited and cards.size() == 1
-		and had_banner and cleared,
-		"heard: the state 'ended', no automatic save after it, the banners cleared (review P4), the hall stopped (its SubViewportContainer frozen, the tree paused); Story 10.1's court panel plays first (play('the_kings_request') awaited), then ONE end card")
+		and had_banner and cleared and director.closed.is_empty(),
+		"heard: the state 'ended', no automatic save after it, the banners cleared (review P4), the hall stopped (its SubViewportContainer frozen, the tree paused); Story 10.1's court panel plays first (play('the_kings_request') awaited, a finished panel not closed again: 10.1 T7b), then ONE end card")
 	paused = false
 	var card = cards[0] if cards.size() == 1 else null
 	t0 = Time.get_ticks_msec()
@@ -16445,6 +16446,7 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 	await process_frame
 	# no director, one whose play() returns null, and (review P8) one that never says it is done: the card still opens
 	var instant := []
+	var closes := []
 	c.panel_timeout_seconds = 0.3
 	for mode_i in 3:
 		if mode_i == 0:
@@ -16466,14 +16468,16 @@ func _check_t53_hall(gm, dm, nm, ss, events: Array) -> void:
 		while get_nodes_in_group("demo_end_card").is_empty() and Time.get_ticks_msec() - t0 < 3000:
 			await process_frame
 		instant.append([at_once, get_nodes_in_group("demo_end_card").size() == 1])
+		closes.append(director.closed.duplicate())
+		director.closed.clear()
 		paused = false
 		for n in get_nodes_in_group("demo_end_card"):
 			n.queue_free()
 		await process_frame
 	svc.process_mode = Node.PROCESS_MODE_INHERIT   # the last end froze the stand-in world: thaw it for what follows
 	svc.mouse_filter = Control.MOUSE_FILTER_STOP
-	check(instant == [[true, true], [true, true], [false, true]],
-		"no panel director (today) or one whose play() returns null: the card opens at once; a panel that never finishes: the card opens after panel_timeout_seconds (review P8) %s" % [instant])
+	check(instant == [[true, true], [true, true], [false, true]] and closes == [[], [], ["timeout"]],
+		"no panel director or one whose play() returns null: the card opens at once, nothing closed; a panel that never finishes: the card opens after panel_timeout_seconds (review P8) and is closed with 'timeout' (10.1 T7b) %s %s" % [instant, closes])
 	director.queue_free()
 	# the stop uses the scene's set_world_frozen when it has one (Story 18.1)
 	var fz := GDScript.new()
@@ -20214,3 +20218,735 @@ func test_town_kit() -> void:
 	check(smi.material_override == null, "off: the streets' own material is back")
 	w2.free()
 	print("")
+
+
+# --- Test 57: the illustrated story panels (Story 10.1) ---
+const T57_DIRECTOR := "res://scripts/narrative/story_panels.gd"
+const T57_OVERLAY := "res://scripts/ui/story_panel.gd"
+const T57_DATA := "res://data/narrative/panels.json"
+const T57_ART := "res://assets/ui/panels/placeholder_panel_the_kings_request.png"
+const T57_NO_ART := "res://test/no_such_story_panel_art_t57.png"
+## Every GameManager field Test 57 (or _reset_dialogue_state / _load_dialogue_data) may change; restored after.
+const T57_GM_FIELDS := ["dialogue_flags", "current_day", "deaths_this_run", "tavern_reputation", "has_pending_briefing",
+	"game_over_active", "adventurers_hired_this_run", "fallen_this_run", "den_fa_state", "_den_fa_tier_warnings",
+	"codex_first_opened"]
+
+
+## AC 1-10 (Story 10.1): the data and its parser, the rules (conditions, due panels, the free screen), the overlay
+## (layer, groups, the picture or its plate, pages, skippable and hard gate, keys eaten, every exit says `finished`
+## once), the freeze rules, the director in a stand-in hall (the opening once, the day window after the briefing, the
+## proximity radius and its re-arm, request, play's refusals and the 10.7 case, the flags through a reset and a save,
+## the load-time check), and the source checks. Never touches the real save or codex; no hire, death, load or save call.
+func test_story_panels() -> void:
+	print("[Test 57] Illustrated story panels (Story 10.1)")
+	var gm = root.get_node_or_null("GameManager")
+	var dm = root.get_node_or_null("DataManager")
+	if gm == null or dm == null or not ResourceLoader.exists(T57_DIRECTOR) or not ResourceLoader.exists(T57_OVERLAY):
+		check(false, "the GameManager and DataManager autoloads, story_panels.gd and story_panel.gd")
+		return
+	var real_shas := [_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)]
+	var snap := {}
+	for f in T57_GM_FIELDS:
+		var v = gm.get(f)
+		snap[f] = v.duplicate(true) if (v is Dictionary or v is Array) else v
+	var scene_before = current_scene
+	var paused_before := paused
+	paused = false
+	gm.game_over_active = false
+	_check_t57_data(dm)
+	_check_t57_parser()
+	_check_t57_rules()
+	await _check_t57_screen_free(gm)
+	await _check_t57_overlay()
+	await _check_t57_freeze()
+	await _check_t57_director(gm)
+	_check_t57_sources()
+	for f in T57_GM_FIELDS:
+		gm.set(f, snap[f])
+	paused = paused_before
+	_d1_set_scene(scene_before)
+	await process_frame
+	check(get_nodes_in_group("story_panel_open").is_empty() and get_nodes_in_group("story_panels").is_empty(),
+		"Test 57 left no panel and no director behind")
+	check([_d1_sha(REAL_SAVE_PATH), _d1_sha(REAL_CODEX_PATH)] == real_shas, "Test 57 never touched the real save or codex")
+	print("")
+
+
+## AC 1, 7, 8: the shipped data, its art, the config keys, 10.7's cross-check.
+func _check_t57_data(dm) -> void:
+	var j := JSON.new()
+	var parsed_ok := j.parse(FileAccess.get_file_as_string(T57_DATA)) == OK and j.data is Dictionary
+	var data: Dictionary = j.data if parsed_ok else {}
+	check(parsed_ok and str(data.get("_comment", "")).contains("DRAFT"), "panels.json parses with Godot's parser; its _comment says DRAFT")
+	var r: Dictionary = load(T57_DIRECTOR).parse_panels(data)
+	var p: Dictionary = r.panels
+	check((r.warnings as Array).is_empty() and p.keys() == ["the_inheritance", "the_kings_request", "the_first_death"],
+		"the three shipped panels parse without a warning, in file order %s %s" % [p.keys(), r.warnings])
+	if p.size() != 3:
+		return
+	var inh: Dictionary = p.the_inheritance
+	var king: Dictionary = p.the_kings_request
+	var death: Dictionary = p.the_first_death
+	check(inh.trigger.type == "run_start" and inh.skippable and not inh.repeatable and inh.enabled and inh.title == "The Inheritance"
+		and (inh.pages as Array).size() == 3,
+		"the_inheritance: the opening (run_start), skippable, once a run, three pages (the tavern, the pillar, the stranger)")
+	check(king.trigger.type == "event" and not king.skippable and king.repeatable and king.enabled and is_equal_approx(king.min_seconds, 3.0),
+		"the_kings_request: an event panel behind a 3 s hard gate, repeatable (Continue replays the final day)")
+	check(death.trigger.type == "day_end" and not death.enabled and death.conditions.size() == 1
+		and is_equal_approx(float(death.conditions.get("min_deaths", 0)), 1.0),
+		"the_first_death: a day_end panel after a death, shipped off")
+	var arts: Array = []
+	for id in p:
+		arts.append(p[id].illustration)
+		for pg in p[id].pages:
+			arts.append(pg.illustration)
+	var bad := arts.filter(func(a): return not (ResourceLoader.exists(a) and load(a) is Texture2D))
+	check(bad.is_empty() and arts.size() == 6, "every panel's and page's illustration loads as a Texture2D %s" % [bad])
+	check(is_equal_approx(float(dm.get_config("story_panel_hard_gate_seconds", -1.0)), 3.0)
+		and is_equal_approx(float(dm.get_config("story_panel_input_grace_seconds", -1.0)), 0.3),
+		"game_config: story_panel_hard_gate_seconds 3.0, story_panel_input_grace_seconds 0.3")
+	var ending = JSON.parse_string(FileAccess.get_file_as_string("res://data/narrative/demo_ending.json"))
+	var pid := str(ending.get("panel_id", "")) if ending is Dictionary else ""
+	check(p.has(pid) and p[pid].enabled and not p[pid].skippable, "10.7's panel_id '%s' names an enabled, non-skippable panel" % pid)
+
+
+## AC 1 (robustness): parse_panels with fixtures never fails; defaults, skips and warnings.
+func _check_t57_parser() -> void:
+	var D = load(T57_DIRECTOR)
+	var none: Dictionary = D.parse_panels(null)
+	var junk: Dictionary = D.parse_panels("not an object")
+	check(none.panels.is_empty() and (none.warnings as Array).size() == 1 and str(none.warnings[0]).begins_with("fallback:")
+		and junk.panels.is_empty() and str(junk.warnings[0]).begins_with("fallback:") and none.look.has("ink"),
+		"a missing or broken panels.json: no panels, one fallback warning, the house style")
+	var fx := {"look": {"ink": "not-a-colour", "illustration_size": [0, 5], "title": "#ff0000"},
+		"panels": {
+			"ok_min": {"title": "T", "text": "X", "trigger": {"type": "event"}},
+			"bad_kind": {"title": "T", "text": "X", "trigger": {"type": "whenever"}},
+			"no_title": {"text": "X", "trigger": {"type": "event"}},
+			"no_text": {"title": "T", "trigger": {"type": "event"}},
+			"Bad-Id": {"title": "T", "text": "X", "trigger": {"type": "event"}},
+			"near_nothing": {"title": "T", "text": "X", "trigger": {"type": "proximity", "radius": 2}},
+			"near": {"title": "T", "text": "X", "trigger": {"type": "proximity", "target": "A/B", "radius": 2}},
+			"junk_opts": {"title": "T", "text": "X", "trigger": {"type": "event"}, "skippable": "no", "min_seconds": -2,
+				"conditions": [1], "pages": [{"text": "one"}, {"illustration": "x"}, 5], "look": {"border": 7}},
+		}}
+	var r: Dictionary = D.parse_panels(fx)
+	var p: Dictionary = r.panels
+	var w := "\n".join(r.warnings)
+	check(p.keys() == ["ok_min", "near", "junk_opts"],
+		"an unknown trigger, a missing title or text, a bad id or a proximity panel without a target is skipped %s" % [p.keys()])
+	var m: Dictionary = p.get("ok_min", {})
+	check(m.get("skippable") == true and m.get("repeatable") == false and m.get("enabled") == true and m.get("button") == "Continue"
+		and m.get("min_seconds") == -1.0 and m.get("conditions") == {} and m.get("pages") == [] and m.get("look") == {},
+		"missing optional keys take their defaults (skippable, once a run, enabled, Continue, the config's gate, no conditions, one page)")
+	var n: Dictionary = p.get("near", {})
+	check(n.get("trigger", {}).get("target") == "A/B" and n.get("trigger", {}).get("radius") == 2.0, "a proximity trigger keeps its target and radius")
+	var jo: Dictionary = p.get("junk_opts", {})
+	check(jo.get("skippable") == true and jo.get("min_seconds") == -1.0 and jo.get("conditions") == {} and (jo.get("pages", []) as Array).size() == 1
+		and jo.get("look") == {}, "bad optional values take their defaults; a page without text is dropped")
+	check(r.look.ink == load(T57_OVERLAY).DEFAULT_LOOK.ink and r.look.illustration_size == Vector2(960, 540) and r.look.title == Color(1, 0, 0),
+		"a bad look value keeps the house style's; a good one is used")
+	check(w.contains("whenever") and w.contains("no_title") and w.contains("Bad-Id") and w.contains("near_nothing") and w.contains("skippable")
+		and w.contains("min_seconds") and w.contains("conditions") and w.contains("pages[1]") and w.contains("not-a-colour")
+		and w.contains("illustration_size") and w.contains("border"), "each problem is named in a warning")
+
+
+## AC 6's statics: the conditions table, due_ids, flat distance.
+func _check_t57_rules() -> void:
+	var D = load(T57_DIRECTOR)
+	var ctx := {"day": 5, "deaths": 1, "reputation": 20, "profile": "demo", "flags": {"a": true}}
+	var rows := [
+		[{"min_day": 5}, true], [{"min_day": 6}, false], [{"min_day": 4}, true],
+		[{"max_day": 5}, true], [{"max_day": 4}, false], [{"max_day": 6}, true],
+		[{"min_deaths": 1}, true], [{"min_deaths": 2}, false], [{"min_deaths": 0}, true],
+		[{"min_reputation": 20}, true], [{"min_reputation": 21}, false], [{"min_reputation": 19}, true],
+		[{"profile": "demo"}, true], [{"profile": "full"}, false],
+		[{"flag": "a"}, true], [{"flag": "b"}, false], [{"not_flag": "b"}, true], [{"not_flag": "a"}, false],
+		[{"min_day": 5, "max_day": 5, "flag": "a", "profile": "demo"}, true], [{"min_day": 5, "flag": "b"}, false],
+		[{}, true], [{"_note": "a comment"}, true],
+	]
+	var wrong: Array = []
+	for row in rows:
+		var got: Dictionary = D.conditions_hold(row[0], ctx)
+		if got.ok != row[1] or not (got.unknown as Array).is_empty():
+			wrong.append([row[0], got])
+	check(wrong.is_empty(), "conditions: each key at, under and over its edge, combined keys, profile, flag and not_flag %s" % [wrong])
+	var unk: Dictionary = D.conditions_hold({"min_day": 1, "min_dya": 3}, ctx)
+	var nan: Dictionary = D.conditions_hold({"min_day": "3"}, ctx)
+	check(unk.ok == false and unk.unknown == ["min_dya"] and nan.ok == false and nan.unknown == ["min_day"],
+		"an unknown key (or a number key that isn't a number) fails closed and is named")
+	var all := {
+		"a": {"enabled": true, "repeatable": false, "trigger": {"type": "day_end"}, "conditions": {}},
+		"b": {"enabled": true, "repeatable": true, "trigger": {"type": "day_end"}, "conditions": {}},
+		"c": {"enabled": false, "repeatable": false, "trigger": {"type": "day_end"}, "conditions": {}},
+		"d": {"enabled": true, "repeatable": false, "trigger": {"type": "event"}, "conditions": {}},
+		"e": {"enabled": true, "repeatable": false, "trigger": {"type": "day_end"}, "conditions": {"min_day": 99}},
+		"f": {"enabled": true, "repeatable": false, "trigger": {"type": "day_end"}, "conditions": {}},
+	}
+	var none_seen := func(_id): return false
+	var all_seen := func(_id): return true
+	check(D.due_ids(all, "day_end", ctx, none_seen) == ["a", "b", "f"] and D.due_ids(all, "day_end", ctx, all_seen) == ["b"]
+		and D.due_ids(all, "event", ctx, none_seen) == ["d"] and D.due_ids(all, "run_start", ctx, none_seen) == [],
+		"due panels: file order, only the asked kind, seen ones out unless repeatable, disabled and unmet ones out")
+	check(is_equal_approx(D.flat_distance(Vector3(0, 0, 0), Vector3(3, 50, 4)), 5.0), "proximity is measured flat (x, z)")
+
+
+## PS-8: screen_free, each blocker alone.
+func _check_t57_screen_free(gm) -> void:
+	var D = load(T57_DIRECTOR)
+	var hall := _t57_hall()
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var player := Node3D.new()
+	player.name = "T57Player"
+	player.add_to_group("player")
+	hall.add_child(player)
+	await process_frame
+	var base: bool = D.screen_free(self)
+	var busy: Array = []
+	for g in D.BLOCK_GROUPS + ["blocks_player", "mission_board"]:
+		if not get_nodes_in_group(g).is_empty():
+			busy.append(g)
+	var leaks: Array = []
+	paused = true
+	if D.screen_free(self):
+		leaks.append("paused")
+	paused = false
+	gm.game_over_active = true
+	if D.screen_free(self):
+		leaks.append("game over")
+	gm.game_over_active = false
+	for g in D.BLOCK_GROUPS:
+		var n := Node.new()
+		n.add_to_group(g)
+		root.add_child(n)
+		if D.screen_free(self):
+			leaks.append(g)
+		n.free()
+	var hidden_free := true
+	for g in ["blocks_player", "mission_board"]:
+		var c := Control.new()
+		c.add_to_group(g)
+		root.add_child(c)
+		if D.screen_free(self):
+			leaks.append("visible " + g)
+		c.visible = false
+		hidden_free = hidden_free and D.screen_free(self)
+		c.free()
+	hall.set_world_frozen(true)
+	if D.screen_free(self):
+		leaks.append("frozen")
+	hall.set_world_frozen(false)
+	player.remove_from_group("player")
+	if D.screen_free(self):
+		leaks.append("no player")
+	player.add_to_group("player")
+	var after: bool = D.screen_free(self)
+	check(base and after and leaks.is_empty() and hidden_free,
+		"the screen is free with none of them; each alone blocks: a paused tree, the fall, a node in %s, a visible blocks_player or mission_board (hidden: free), a frozen world, no player %s (busy before: %s)"
+		% [D.BLOCK_GROUPS, leaks, busy])
+	hall.queue_free()
+	_d1_set_scene(null)
+	await process_frame
+
+
+## AC 2, 4 (and 5's pages): the overlay alone over a stand-in hall.
+func _check_t57_overlay() -> void:
+	var spy := Node.new()
+	spy.set_script(_t57_spy_script())
+	root.add_child(spy)   # before the hall in tree order: it hears keys only after the overlay
+	var hall := _t57_hall()
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var one := {"title": "A Title", "text": "Some words.", "illustration": T57_ART, "skippable": true}
+	var gate := {"title": "Gate", "text": "Wait.", "illustration": T57_ART, "skippable": false}
+	# open, skippable: layer, groups, the picture, the words, the button at once
+	var o = _t57_open(one, "t57_one", 0.4, 0.3)
+	var fin := [0]
+	o.finished.connect(func(): fin[0] += 1)
+	var t_open := Time.get_ticks_msec()
+	await process_frame
+	check(o.layer == 118 and o.process_mode == Node.PROCESS_MODE_ALWAYS and o.is_in_group("story_panel_open") and o.is_in_group("blocks_player")
+		and o.illustration.texture == load(T57_ART) and o.title_label.text == "A Title" and o.text_label.text == "Some words."
+		and o.button.visible and not o.gated and not o.counter_label.visible and o.backdrop.mouse_filter == Control.MOUSE_FILTER_STOP,
+		"the overlay: layer 118, process ALWAYS, in story_panel_open and blocks_player, the file's picture, the title and the text, a backdrop that stops the mouse; skippable: the button at once")
+	await _press("ui_accept")
+	var in_grace := Time.get_ticks_msec() - t_open < 300
+	var held_grace: bool = fin[0] == 0 and not o.is_closed()
+	await _t57_wait(0.35)
+	var echo := InputEventKey.new()
+	echo.keycode = KEY_ENTER
+	echo.physical_keycode = KEY_ENTER
+	echo.pressed = true
+	echo.echo = true
+	Input.parse_input_event(echo)
+	await _t57_frames(2)
+	var held_echo: bool = fin[0] == 0 and not o.is_closed()
+	var up := InputEventKey.new()
+	up.keycode = KEY_ENTER
+	up.physical_keycode = KEY_ENTER
+	Input.parse_input_event(up)
+	await _t57_frames(2)
+	await _press("ui_accept")
+	await process_frame
+	check((held_grace or not in_grace) and held_echo and fin[0] == 1 and not is_instance_valid(o)
+		and get_nodes_in_group("story_panel_open").is_empty() and get_nodes_in_group("blocks_player").is_empty() and spy.actions.is_empty(),
+		"skippable: Enter inside the grace and an echo do nothing; Enter after it closes: finished once, freed, both groups left; the keys never reached the hall")
+	# hard gate: no button, no dismiss for min_seconds; Tab and F10 eaten; then the button fades in and closes it
+	var g = _t57_open(gate, "t57_gate", 0.8, 0.05)
+	var gfin := [0]
+	g.finished.connect(func(): gfin[0] += 1)
+	await process_frame
+	var hidden_btn: bool = g.gated and not g.button.visible
+	await _t57_wait(0.1)
+	for a in ["interact", "ui_accept", "ui_cancel"]:
+		await _press(a)
+	await _press_key(KEY_TAB)
+	await _press_key(KEY_F10)
+	g._on_button()
+	var held: bool = gfin[0] == 0 and not g.is_closed()
+	var eaten: bool = spy.actions.is_empty() and spy.keys.is_empty()
+	await _t57_until(func(): return not g.gated, 2.0)
+	var shown: bool = g.button.visible
+	g.button.emit_signal("pressed")
+	check(hidden_btn and held and eaten and shown and gfin[0] == 1 and g.is_closed(),
+		"hard gate: no button and E / Enter / Esc / a click do nothing for min_seconds; Tab and F10 are eaten (nothing behind sees them); then the button and a press closes it (finished once) %s" % [[hidden_btn, held, spy.actions, spy.keys, shown, gfin[0]]])
+	# pages: E or the button turns the page, a counter, Esc skips the rest of a skippable panel
+	var paged := {"title": "Pages", "text": "one two three", "illustration": T57_ART, "skippable": true,
+		"pages": [{"illustration": T57_ART, "text": "one"}, {"illustration": T57_ART, "text": "two"}, {"illustration": T57_ART, "text": "three"}]}
+	var pg = _t57_open(paged, "t57_pages", 0.4, 0.05)
+	var pfin := [0]
+	pg.finished.connect(func(): pfin[0] += 1)
+	await _t57_wait(0.1)
+	var p1: bool = pg.page == 0 and pg.text_label.text == "one" and pg.counter_label.visible and pg.counter_label.text == "1 / 3"
+	await _press("interact")
+	var p2: bool = pg.page == 1 and pg.text_label.text == "two" and pg.counter_label.text == "2 / 3" and not pg.is_closed()
+	pg.button.emit_signal("pressed")
+	var p3: bool = pg.page == 2 and pg.text_label.text == "three" and pfin[0] == 0
+	await _t57_wait(0.1)
+	await _press("ui_cancel")
+	check(p1 and p2 and p3 and pfin[0] == 1 and get_nodes_in_group("story_panel_open").is_empty(),
+		"pages: one picture and line at a time (1 / 3, 2 / 3, 3 / 3), E or the button turns the page, Esc skips the rest of a skippable panel (finished once)")
+	# a hard-gated paged panel: the gate holds on every page; Esc turns the page instead of skipping
+	var gated_pages := paged.duplicate(true)
+	gated_pages.skippable = false
+	var gp = _t57_open(gated_pages, "t57_gpages", 0.25, 0.05)
+	await _t57_until(func(): return not gp.gated, 1.0)
+	await _press("ui_cancel")
+	var turned: bool = gp.page == 1 and gp.gated and not gp.button.visible and not gp.is_closed()
+	gp.close("test")
+	check(turned, "a hard-gated panel with pages: Esc turns the page, and the gate holds again on the next one")
+	# a missing picture: a drawn plate, one warning per panel (a second open: none)
+	var key := "t57_plate|" + T57_NO_ART
+	var probe = load(T57_OVERLAY).new()
+	var warned_before: bool = probe.warned_plates.has(key)
+	probe.free()
+	var noart := {"title": "Plate", "text": "No picture.", "illustration": T57_NO_ART}
+	var a = _t57_open(noart, "t57_plate", 0.4, 0.05)
+	await process_frame
+	var plate_ok: bool = a.illustration.texture != null and a.illustration.texture == a.plate()
+	var warned_now: bool = a.warned_plates.has(key)
+	var n_first: int = a.warned_plates.size()
+	a.close("test")
+	var b = _t57_open(noart, "t57_plate", 0.4, 0.05)
+	await process_frame
+	var n_second: int = b.warned_plates.size()
+	b.close("test")
+	check(not warned_before and plate_ok and warned_now and n_second == n_first,
+		"a missing picture: a drawn plate and one warning for that panel (a second open warns no more)")
+	# freed while open; close("timeout") inside a hard gate; the fall
+	var f = _t57_open(one, "t57_freed", 0.4, 0.05)
+	var ffin := [0]
+	f.finished.connect(func(): ffin[0] += 1)
+	await process_frame
+	var froze_f: bool = hall.is_world_frozen()
+	f.free()
+	check(froze_f and ffin[0] == 1 and get_nodes_in_group("story_panel_open").is_empty() and not hall.is_world_frozen(),
+		"freed while open (a scene change): finished once, no group left, the freeze undone")
+	var t = _t57_open(gate, "t57_timeout", 5.0, 0.05)
+	var tfin := [0]
+	t.finished.connect(func(): tfin[0] += 1)
+	await process_frame
+	var froze_t: bool = hall.is_world_frozen()
+	t.close("timeout")
+	var at_once: bool = t.is_closed() and tfin[0] == 1 and not t.is_in_group("story_panel_open") and not t.is_in_group("blocks_player") and not hall.is_world_frozen()
+	t.close("again")
+	await process_frame
+	check(froze_t and at_once and tfin[0] == 1 and not is_instance_valid(t),
+		"close('timeout') inside a hard gate: closed at once, both groups left, the freeze undone, finished once, freed; a second close() does nothing")
+	var go = _t57_open(gate, "t57_fall", 5.0, 0.05)
+	var gofin := [0]
+	go.finished.connect(func(): gofin[0] += 1)
+	await process_frame
+	go._on_game_over("test")
+	await process_frame
+	check(gofin[0] == 1 and not is_instance_valid(go) and not hall.is_world_frozen(), "the fall (its game_over_triggered handler) closes it: finished once")
+	spy.free()
+	hall.queue_free()
+	_d1_set_scene(null)
+	await process_frame
+
+
+## AC 3 (PS-4): what the overlay freezes, and that it undoes only that.
+func _check_t57_freeze() -> void:
+	var one := {"title": "Freeze", "text": "Still.", "illustration": T57_ART, "skippable": true}
+	var hall := _t57_hall()
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var mover = hall.get_node("SubViewportContainer/Mover")
+	await process_frame
+	var t0: int = mover.ticks
+	await process_frame
+	var moving: bool = mover.ticks > t0
+	var o = _t57_open(one, "t57_freeze", 0.4, 0.05)
+	await process_frame
+	var frozen_now: bool = hall.is_world_frozen() and not paused
+	var t1: int = mover.ticks
+	await _t57_frames(2)
+	var still: bool = mover.ticks == t1
+	o.close("test")
+	await _t57_frames(2)
+	check(moving and frozen_now and still and not hall.is_world_frozen() and mover.ticks > t1 and not paused and hall.frozen_calls == [true, false],
+		"a hall with set_world_frozen: frozen while a panel is open (its world stands still, the tree never paused), thawed after, and it moves again")
+	hall.frozen_calls.clear()
+	hall.set_world_frozen(true)
+	var o2 = _t57_open(one, "t57_freeze2", 0.4, 0.05)
+	await process_frame
+	o2.close("test")
+	check(hall.is_world_frozen() and hall.frozen_calls == [true] and not paused, "an already frozen hall: still frozen after (the panel touched nothing)")
+	paused = true
+	hall.frozen_calls.clear()
+	var o3 = _t57_open(one, "t57_freeze3", 0.4, 0.05)
+	await process_frame
+	o3.close("test")
+	check(paused and hall.is_world_frozen() and hall.frozen_calls.is_empty(), "10.7's stop (a paused tree, a frozen hall): both left as they were")
+	paused = false
+	hall.set_world_frozen(false)
+	hall.queue_free()
+	await process_frame
+	var plain := Node3D.new()
+	plain.name = "T57Plain"
+	root.add_child(plain)
+	_d1_set_scene(plain)
+	var o4 = _t57_open(one, "t57_pause", 0.4, 0.05)
+	await process_frame
+	var paused_open := paused
+	o4.close("test")
+	var paused_after := paused
+	paused = true
+	var o5 = _t57_open(one, "t57_pause2", 0.4, 0.05)
+	await process_frame
+	o5.close("test")
+	var stayed := paused
+	paused = false
+	check(paused_open and not paused_after and stayed,
+		"a scene without set_world_frozen: the tree paused while open, unpaused after; an already paused tree stays paused")
+	plain.queue_free()
+	_d1_set_scene(null)
+	await process_frame
+
+
+## AC 5, 6, 7: the director in a stand-in hall, with fixture data.
+func _check_t57_director(gm) -> void:
+	gm.dialogue_flags = {}
+	gm.deaths_this_run = 0
+	gm.has_pending_briefing = false
+	gm.current_day = 4
+	var hall := _t57_hall()
+	root.add_child(hall)
+	_d1_set_scene(hall)
+	var pillar := Node3D.new()
+	pillar.name = "Pillar"
+	hall.add_child(pillar)
+	pillar.position = Vector3(10, 0, 0)
+	var player := Node3D.new()
+	player.name = "T57Player"
+	player.add_to_group("player")
+	hall.add_child(player)
+	var d = _t57_director(hall)
+	await _t57_frames(4)
+	var quiet_load: bool = d.current == null and not d.day_window and d.is_in_group("story_panels")
+	# the run-start window: once
+	d.open_run_start_window()
+	await _t57_until(func(): return d.current != null, 1.0)
+	var start_ok: bool = d.current != null and d.current.panel_id == "t_start" and gm.dialogue_flags.get("panel_t_start") == true
+	_t57_close(d)
+	await _t57_frames(3)
+	d.open_run_start_window()
+	await _t57_frames(5)
+	check(quiet_load and start_ok and d.current == null and d.queue.is_empty(),
+		"the director: a quiet load (nothing due); the run-start window shows its panel once (panel_t_start set as it opens); a second window: nothing (seen)")
+	# the day window waits for the morning briefing, then the due panels one at a time in file order
+	gm.deaths_this_run = 1
+	var briefing := Node.new()
+	briefing.add_to_group("morning_briefing")
+	root.add_child(briefing)
+	d._on_day_changed(5)
+	await _t57_frames(5)
+	var waited: bool = d.current == null and d.day_window
+	briefing.free()
+	await _t57_until(func(): return d.current != null, 1.0)
+	var first_id: String = d.current.panel_id if d.current != null else ""
+	var one_open: bool = get_nodes_in_group("story_panel_open").size() == 1
+	_t57_close(d)
+	await _t57_until(func(): return d.current != null, 1.0)
+	var second_id: String = d.current.panel_id if d.current != null else ""
+	_t57_close(d)
+	await _t57_frames(3)
+	check(waited and first_id == "t_day" and one_open and second_id == "t_day2" and d.current == null,
+		"a day window: nothing while the morning briefing is up; then the due day_end panels, one at a time, in file order %s" % [[waited, first_id, second_id]])
+	# reports still waiting at the desk hold the window
+	gm.dialogue_flags.erase("panel_t_day")
+	gm.dialogue_flags.erase("panel_t_day2")
+	gm.has_pending_briefing = true
+	d._on_day_changed(6)
+	await _t57_frames(5)
+	var held_pending: bool = d.current == null and d.day_window
+	gm.has_pending_briefing = false
+	var after_pending: bool = await _t57_until(func(): return d.current != null, 1.0)
+	_t57_close(d)
+	await _t57_until(func(): return d.current != null, 1.0)
+	_t57_close(d)
+	await _t57_frames(3)
+	check(held_pending and after_pending, "has_pending_briefing (reports at the desk): the day window waits until it is false")
+	# proximity: the radius, then the re-arm at radius + 0.5
+	player.position = Vector3(12.1, 0, 0)
+	await _t57_frames(5)
+	var far_quiet: bool = d.current == null
+	player.position = Vector3(11.9, 0, 0)
+	var near: bool = await _t57_until(func(): return d.current != null, 1.0)
+	var near_id: String = d.current.panel_id if d.current != null else ""
+	_t57_close(d)
+	await _t57_frames(5)
+	var inside_quiet: bool = d.current == null
+	player.position = Vector3(12.4, 0, 0)
+	await _t57_frames(3)
+	player.position = Vector3(11.5, 0, 0)
+	await _t57_frames(5)
+	var still_disarmed: bool = d.current == null
+	player.position = Vector3(12.6, 0, 0)
+	await _t57_frames(3)
+	player.position = Vector3(11.5, 0, 0)
+	var again: bool = await _t57_until(func(): return d.current != null, 1.0)
+	_t57_close(d)
+	player.position = Vector3.ZERO
+	await _t57_frames(3)
+	check(far_quiet and near and near_id == "t_near" and inside_quiet and still_disarmed and again,
+		"proximity: at radius + 0.1 nothing, at radius - 0.1 the panel; a repeatable one re-arms only once the player is past radius + 0.5 %s" % [[far_quiet, near, inside_quiet, still_disarmed, again]])
+	# request: queued while a conversation is open, an unknown id dropped
+	var talk := Node.new()
+	talk.add_to_group("dialogue_open")
+	root.add_child(talk)
+	d.request("t_event")
+	d.request("no_such_panel")
+	await _t57_frames(5)
+	var req_wait: bool = d.current == null and d.queue == ["t_event"]
+	talk.free()
+	var req_shown: bool = await _t57_until(func(): return d.current != null and d.current.panel_id == "t_event", 1.0)
+	_t57_close(d)
+	await _t57_frames(3)
+	check(req_wait and req_shown, "request(): queued while a conversation is open (an unknown id dropped), shown once the screen is free")
+	# play: the refusals, and the 10.7 case (a paused tree, a frozen hall)
+	var refusals := [d.play("nope"), d.play(""), d.play("t_off"), d.play("t_start"), d.play("t_cond")]
+	var opened = d.play("t_gate")
+	var while_open = d.play("t_gate")
+	var refused: bool = refusals.all(func(x): return x == null) and opened != null and while_open == null
+	if opened != null:
+		opened.close("test")
+	await _t57_frames(2)
+	paused = true
+	hall.set_world_frozen(true)
+	var kp = d.play("t_gate")
+	await process_frame
+	var under_stop: bool = kp != null and kp.gated and not kp.button.visible
+	var gate_ran: bool = await _t57_until(func(): return is_instance_valid(kp) and not kp.gated, 1.0)
+	if is_instance_valid(kp):
+		kp.button.emit_signal("pressed")
+	await process_frame
+	var left_alone: bool = paused and hall.is_world_frozen()
+	paused = false
+	hall.set_world_frozen(false)
+	check(refused and under_stop and gate_ran and left_alone and not is_instance_valid(kp),
+		"play(): null for an unknown, empty, disabled, seen or unmet id and while another panel is open; under 10.7's stop it shows, its gate runs while paused, and the pause and the freeze are left as they were")
+	# the seen flag rides the run's dialogue flags: saved, reset by New Game, loaded
+	var saved: Dictionary = gm._dialogue_save_data()
+	var in_save: bool = (saved.get("dialogue_flags", {}) as Dictionary).get("panel_t_start") == true
+	gm._reset_dialogue_state()
+	var cleared: bool = not gm.dialogue_flags.has("panel_t_start")
+	d.open_run_start_window()
+	var reshown: bool = await _t57_until(func(): return d.current != null and d.current.panel_id == "t_start", 1.0)
+	_t57_close(d)
+	await _t57_frames(2)
+	gm._load_dialogue_data(saved)
+	var restored: bool = gm.dialogue_flags.get("panel_t_start") == true
+	d.open_run_start_window()
+	await _t57_frames(5)
+	check(in_save and cleared and reshown and restored and d.current == null,
+		"the seen flag (panel_<id>) is in the run's save data, cleared by New Game's reset (the opening shows again) and back after a load (it doesn't)")
+	d.queue_free()
+	await process_frame
+	# the load-time check: a day_end panel earned before a quit shows when the hall loads
+	gm.deaths_this_run = 1
+	gm.dialogue_flags.erase("panel_t_day")
+	gm.dialogue_flags.erase("panel_t_day2")
+	var d2 = _t57_director(hall)
+	var loaded: bool = await _t57_until(func(): return d2.current != null, 1.0)
+	var load_id: String = d2.current.panel_id if d2.current != null else ""
+	_t57_close(d2)
+	await _t57_until(func(): return d2.current != null, 1.0)
+	_t57_close(d2)
+	check(loaded and load_id == "t_day", "the load-time check: an earned day_end panel shows when the hall loads, without a day change")
+	d2.free()   # before the scene changes: a director left to run a frame would look for its target in no scene
+	hall.queue_free()
+	_d1_set_scene(null)
+	await process_frame
+
+
+## AC 10's source checks.
+func _check_t57_sources() -> void:
+	var mt := _code_lines(FileAccess.get_file_as_string("res://scripts/game/main_tavern.gd"))
+	var rd := _func_body(mt, "_ready")
+	var branch_at := rd.find("if GameManager.pending_new_game_save:")
+	var set_at := rd.find("new_run = true")
+	var add_at := rd.find("load(STORY_PANELS).new()")
+	var guard_at := rd.find("if new_run:")
+	var call_at := rd.find("open_run_start_window()")
+	check(branch_at > 0 and set_at > branch_at and add_at > set_at and guard_at > add_at and call_at > guard_at
+		and rd.count("new_run = true") == 1 and mt.count("open_run_start_window") == 1,
+		"main_tavern.gd adds story_panels.gd at the end of _ready and calls open_run_start_window() only for a run that came through its pending_new_game_save branch")
+	var rm := _code_lines(FileAccess.get_file_as_string("res://scripts/game/royal_messenger.gd"))
+	var cp := _func_body(rm, "_play_court_panel")
+	check(cp.contains(".play(id)") and cp.contains("\"close\", \"timeout\"") and cp.find("if timed_out[0]") > cp.rfind("disconnect(finish)"),
+		"royal_messenger.gd _play_court_panel(): play(id), and a won timeout closes the panel after the disconnects (T7b)")
+	var after_wait := cp.substr(maxi(cp.find("while not done[0]"), 0))
+	check(after_wait.contains("if not is_instance_valid(p):") and not after_wait.contains("p is Object"),
+		"after the wait, _play_court_panel() asks is_instance_valid(p) before anything else (a panel that closed itself is freed: 'p is' on it was a script error, Stage D 2026-11-07)")
+	var sp := _code_lines(FileAccess.get_file_as_string(T57_DIRECTOR))
+	check(_func_body(sp, "_ready").contains("day_changed.connect(_on_day_changed)") and not sp.contains("class_name"),
+		"story_panels.gd connects GameManager.day_changed to a method (gone with the director); no class_name")
+	var ov := _code_lines(FileAccess.get_file_as_string(T57_OVERLAY))
+	var named := ["GameManager", "GameBus", "DataManager", "SaveSystem", "NotificationManager", "PlayerManager", "WorldManager"].filter(func(n): return ov.contains(n + "."))
+	check(named.is_empty() and not ov.contains("class_name") and _func_body(ov, "_ready").contains("\"game_over_triggered\", _on_game_over"),
+		"story_panel.gd names no autoload and has no class_name; it hears the fall through the tree's GameBus %s" % [named])
+	var nmsrc := FileAccess.get_file_as_string("res://scripts/autoload/notification_manager.gd")
+	if nmsrc.contains("card_reveal_pending"):
+		check(nmsrc.contains("story_panel_open"), "17.3's reveal pump also waits while a story panel is open")
+	else:
+		print("  (17.3's card reveal isn't built yet: no pump line to check)")
+
+
+static func _t57_fixture() -> Dictionary:
+	var art := T57_ART
+	return {"panels": {
+		"t_start": {"title": "Start", "text": "The opening.", "illustration": art, "trigger": {"type": "run_start"}},
+		"t_day": {"title": "Day", "text": "A death.", "illustration": art, "trigger": {"type": "day_end"}, "conditions": {"min_deaths": 1}},
+		"t_day2": {"title": "Day too", "text": "Also.", "illustration": art, "trigger": {"type": "day_end"}, "conditions": {"min_deaths": 1}},
+		"t_near": {"title": "Near", "text": "Close by.", "illustration": art, "repeatable": true,
+			"trigger": {"type": "proximity", "target": "Pillar", "radius": 2.0}},
+		"t_event": {"title": "Event", "text": "Asked for.", "illustration": art, "trigger": {"type": "event"}},
+		"t_off": {"title": "Off", "text": "Never.", "illustration": art, "enabled": false, "trigger": {"type": "event"}},
+		"t_cond": {"title": "Later", "text": "Not yet.", "illustration": art, "trigger": {"type": "event"}, "conditions": {"min_day": 99}},
+		"t_gate": {"title": "Gate", "text": "Wait.", "illustration": art, "skippable": false, "min_seconds": 0.2, "repeatable": true,
+			"trigger": {"type": "event"}},
+	}}
+
+
+func _t57_director(hall: Node) -> Node:
+	var d = load(T57_DIRECTOR).new()
+	d.use_data(_t57_fixture())
+	hall.add_child(d)
+	d.grace_seconds = 0.05
+	return d
+
+
+func _t57_close(d) -> void:
+	if d.current != null and is_instance_valid(d.current):
+		d.current.close("test")
+
+
+func _t57_open(panel: Dictionary, id: String, min_s: float, grace: float) -> CanvasLayer:
+	var o = load(T57_OVERLAY).new()
+	o.panel = panel
+	o.look = {}
+	o.panel_id = id
+	o.trigger_type = "test"
+	o.min_seconds = min_s
+	o.grace_seconds = grace
+	if current_scene != null:
+		current_scene.add_child(o)
+	else:
+		root.add_child(o)
+	return o
+
+
+## A stand-in hall: main_tavern.gd's two DC-11 methods (recording their calls) over a SubViewportContainer that holds a
+## node counting its frames.
+func _t57_hall() -> Node3D:
+	var hs := GDScript.new()
+	hs.source_code = """extends Node3D
+var frozen_calls: Array = []
+func set_world_frozen(on: bool) -> void:
+	frozen_calls.append(on)
+	var svc = get_node_or_null("SubViewportContainer")
+	if svc:
+		svc.mouse_filter = Control.MOUSE_FILTER_IGNORE if on else Control.MOUSE_FILTER_STOP
+		svc.process_mode = Node.PROCESS_MODE_DISABLED if on else Node.PROCESS_MODE_INHERIT
+func is_world_frozen() -> bool:
+	var svc = get_node_or_null("SubViewportContainer")
+	return svc != null and svc.process_mode == Node.PROCESS_MODE_DISABLED
+"""
+	hs.reload()
+	var hall := Node3D.new()
+	hall.set_script(hs)
+	hall.name = "T57Hall"
+	var svc := SubViewportContainer.new()
+	svc.name = "SubViewportContainer"
+	hall.add_child(svc)
+	var ms := GDScript.new()
+	ms.source_code = "extends Node\nvar ticks := 0\nfunc _process(_d: float) -> void:\n\tticks += 1\n"
+	ms.reload()
+	var mover := Node.new()
+	mover.set_script(ms)
+	mover.name = "Mover"
+	svc.add_child(mover)
+	return hall
+
+
+## Records the pressed keys and actions that reach it (in _input or _unhandled_input).
+static func _t57_spy_script() -> GDScript:
+	var gs := GDScript.new()
+	gs.source_code = """extends Node
+var keys: Array = []
+var actions: Array = []
+func _note(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed:
+		keys.append(e.keycode)
+	elif e is InputEventAction and e.pressed:
+		actions.append(e.action)
+func _input(e: InputEvent) -> void:
+	_note(e)
+func _unhandled_input(e: InputEvent) -> void:
+	_note(e)
+"""
+	gs.reload()
+	return gs
+
+
+func _t57_frames(n: int) -> void:
+	for i in n:
+		await process_frame
+
+
+func _t57_wait(seconds: float) -> void:
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < int(seconds * 1000.0):
+		await process_frame
+
+
+func _t57_until(cond: Callable, seconds: float) -> bool:
+	var t0 := Time.get_ticks_msec()
+	while not bool(cond.call()):
+		if Time.get_ticks_msec() - t0 > int(seconds * 1000.0):
+			return false
+		await process_frame
+	return true
