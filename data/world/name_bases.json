@@ -1,0 +1,56 @@
+{
+	"_comment": "World Gen v2 name bases (scripts/world/name_generator.gd; Raphael 2026-11-07). Each base is a culture's sample names: the generator learns their syllables and invents new names from them, so a run never shows these samples, only names built from their sound. min / max: name length in letters; double: letters that may appear doubled (others are collapsed). blocked: letter runs no invented name may contain (crude or unlucky words). forms: how a feature's name is written ({name} is the invented word; DRAFT wording). Canon: every proper noun is generated per run (narrative-design.md); none of these is a fixed world name. Add a base or a form here to mod the names; a missing or broken file falls back to one plain base.",
+	"bases": {
+		"heartland": {
+			"label": "Heartland",
+			"min": 5, "max": 11, "double": "lrstfnoe",
+			"samples": ["Ashby", "Ambleford", "Applecombe", "Barrowdale", "Bellmere", "Birchholt", "Blackwell", "Bramblewick",
+				"Brightwater", "Broadhollow", "Caldmoor", "Carrowfield", "Clayhithe", "Coldharbour", "Dunmere", "Elderbrook",
+				"Elmstead", "Fairholm", "Fernley", "Foxhollow", "Galewick", "Glenhurst", "Greywater", "Hartwell", "Hazelby",
+				"Hollowmere", "Kettlewick", "Larkhill", "Linwood", "Millbrook", "Mossbury", "Northwick", "Oakhurst",
+				"Pebblecombe", "Quarrydale", "Redbank", "Rookwood", "Rushford", "Saltmarsh", "Sedgeley", "Shepcote",
+				"Stillwater", "Stonebridge", "Thornbury", "Tidewell", "Underhill", "Wainfleet", "Whitcombe", "Willowmere",
+				"Wrenfield", "Yarrowby", "Ashcombe", "Briarwick", "Cobbleton", "Dewhurst", "Emberley", "Honeystead"]
+		},
+		"northmark": {
+			"label": "Northmark",
+			"min": 4, "max": 10, "double": "lnrk",
+			"samples": ["Arnvik", "Bjornholt", "Brekka", "Dalrun", "Eirsvald", "Fjallmar", "Frostheim", "Gjellin", "Grimstad",
+				"Haldor", "Hrafnsey", "Isvik", "Jarnfell", "Kaldbak", "Kjelvar", "Kolgrim", "Lundvik", "Myrkdal", "Nordhavn",
+				"Olvund", "Ravnholt", "Runvik", "Sigrheim", "Skarvik", "Skjoldun", "Snaerholm", "Solvik", "Stavfjord",
+				"Thorvald", "Torsby", "Ulfheim", "Vargholm", "Vesterby", "Vindhal", "Hvitstein", "Eldvik", "Gnupar",
+				"Helgavik", "Ormstad", "Stjornfell", "Tindur", "Vaglar", "Asgrim", "Breidvik", "Hallvard", "Kvitholm"]
+		},
+		"southreach": {
+			"label": "Southreach",
+			"min": 5, "max": 10, "double": "lnrst",
+			"samples": ["Alcana", "Aldovia", "Ambrosa", "Belcara", "Calvessa", "Castavel", "Corvena", "Doranza", "Esmira",
+				"Fiorenza", "Galisca", "Isorra", "Lucana", "Marisel", "Mirabel", "Montessa", "Orvella", "Palmira", "Quintara",
+				"Ribera", "Salvane", "Seravel", "Sorrena", "Tavera", "Valcera", "Velenza", "Vistana", "Zarella", "Cassoria",
+				"Delmara", "Fenara", "Larissa", "Mondella", "Petrana", "Selvaro", "Tirenza", "Varenna", "Lorcasa", "Amarra",
+				"Bellonia", "Corsina", "Estrava", "Lunessa", "Miravel", "Solvara", "Terrano"]
+		},
+		"elder": {
+			"label": "Elder",
+			"min": 5, "max": 10, "double": "rlsn",
+			"samples": ["Aethun", "Caelith", "Eolun", "Ithrael", "Iyrun", "Khaessa", "Lothruin", "Myrrith", "Naeveth", "Omueth",
+				"Ossaril", "Qaleth", "Rhuunel", "Saevun", "Sirrath", "Thessuun", "Uthriel", "Vaelith", "Vyrnaeth", "Xaelun",
+				"Yrrin", "Zhaeruth", "Aurael", "Elunith", "Haeloth", "Ithuun", "Maerith", "Nuvaeth", "Orrinth", "Sylveth",
+				"Thaerun", "Ulmaeth", "Vessiar", "Yssolin", "Caernoth", "Eshaal", "Iolveth", "Quorath", "Saelun", "Tyrrhes"]
+		}
+	},
+	"blocked": ["ass", "arse", "shit", "fuck", "cunt", "cock", "dick", "piss", "slut", "whore", "twat", "tit", "cum",
+		"jizz", "fag", "nig", "rape", "porn", "anal", "anus", "turd", "poop", "nazi", "sex", "penis", "vagin", "boob",
+		"butt", "bitch", "wank", "crap", "damn", "hell"],
+	"forms": {
+		"world": ["{name}"],
+		"land": ["{name}"],
+		"island": ["Isle of {name}", "{name} Isle", "{name}"],
+		"settlement": ["{name}"],
+		"river": ["River {name}", "the {name}", "{name} River"],
+		"lake": ["Lake {name}", "{name} Mere", "{name} Water"],
+		"forest": ["{name} Wood", "the {name}wood", "{name} Forest", "the Woods of {name}"],
+		"mountains": ["the {name} Peaks", "the {name} Mountains", "the {name} Range"],
+		"hills": ["the {name} Hills", "the {name} Downs", "{name} Heights"]
+	}
+}
