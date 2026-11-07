@@ -19,6 +19,7 @@ const ZONE_PROMPT_UI := preload("res://scripts/game/ZonePromptUI.gd")
 const DISTURBANCE_DIRECTOR := "res://scripts/game/disturbance_director.gd"   # Story 14.4 (loaded by path)
 const ROYAL_MESSENGER := "res://scripts/game/royal_messenger.gd"   # Story 10.7: the demo's ending (loaded by path)
 const BARD := "res://scripts/game/bard.gd"   # Epic 9: the travelling Bard (loaded by path)
+const STORY_PANELS := "res://scripts/narrative/story_panels.gd"   # Story 10.1: the story panel director (loaded by path)
 const DAY_CLOCK_RULES := preload("res://scripts/game/day_clock_rules.gd")   # Story 3.7: the HUD clock's words
 
 
@@ -91,10 +92,20 @@ func _ready():
 	# New-Game overwrite-window fix (Epic 11) — write the fresh Day 1 state to disk now,
 	# rather than waiting for the Day-2 autosave, so quitting early doesn't leave the
 	# previous run's save behind for Continue to pick up.
+	var new_run := false
 	if GameManager.pending_new_game_save:
+		new_run = true
 		GameManager.pending_new_game_save = false
 		SaveSystem.start_new_run_save()   # also starts the run: the automatic saves may now write (Story 11.2 review)
 		GameManager.check_tax_warning()   # Story 14.6 review P10: a first tax due within the warning days (the demo's Day 3) is warned on Day 1
+
+	# Story 10.1: the illustrated story panels (data/narrative/panels.json): the opening on a new run, the day-end ones,
+	# the King's court panel in 10.7's ending. A direct MainTavern launch or a Continue never shows the opening.
+	var story_panels = load(STORY_PANELS).new()
+	story_panels.name = "StoryPanels"
+	add_child(story_panels)
+	if new_run:
+		story_panels.open_run_start_window()   # "The Inheritance": once, on a new run's first hall load
 
 
 # === UI UPDATE FUNCTIONS (Connected to GameManager signals) ===

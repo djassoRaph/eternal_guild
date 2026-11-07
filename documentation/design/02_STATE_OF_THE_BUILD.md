@@ -22,7 +22,8 @@ any other document.** Update it when a feature ships, not before.
 | Party mission UI | — | done |
 | F12 debug menu | — | done |
 | Morning briefing + deferred missions | — | done |
-| New Game spine: MainMenu → intro slides → HexMapTest reveal → settle confirm → MainTavern | WorldManager + PlayerManager; the intro: `GameManager.NEW_RUN_SCENE` = `scenes/ui/IntroSequence.tscn` → `WORLD_MAP_SCENE` | done 2026-06-02; the intro (6 slides, placeholder art, DRAFT words, `data/narrative/intro.json`) 2026-11-07 |
+| New Game spine: MainMenu → intro slides → HexMapTest reveal → settle confirm → MainTavern (opens on "The Inheritance") | WorldManager + PlayerManager; the intro: `GameManager.NEW_RUN_SCENE` = `scenes/ui/IntroSequence.tscn` → `WORLD_MAP_SCENE` | done 2026-06-02; the intro (6 slides, placeholder art, DRAFT words, `data/narrative/intro.json`) 2026-11-07 |
+| Illustrated story panels (Story 10.1): a new run's hall opens on "The Inheritance" (3 pages: the tavern, the pillar, the stranger); "The King Hears of You" in the demo's ending; "The First Death" shipped off | `scripts/narrative/story_panels.gd` (per-scene director, group `story_panels`, added by `main_tavern.gd`) + `scripts/ui/story_panel.gd` (overlay, layer 118, freezes the hall); content `data/narrative/panels.json`; seen flags in the run's `dialogue_flags` | built 2026-11-07, in review (placeholder art, DRAFT words); failsafe Test 57 |
 | Unified world map: hex grid + biomes + landmarks, rendered under pixel shader | WorldManager + HexMapGenerator | done — verified in-game 2026-06-14 |
 | PlayerManager spawn-bleed fix (`player_scene` group) | PlayerManager | done |
 | WorldMapBoard (mission board = world map) | WorldMapBoard.tscn / world_map_board.gd | SubViewport re-render, no reveal anim |

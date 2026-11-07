@@ -400,7 +400,11 @@ interaction feedback ("floating icons and/or glowing runes on the floor"; the fi
 since Story 25.23 (V5): `scenes/game/FloorRuneCue.tscn`, a warm-gold rune ring at the hearth's
 interact_point while the fire owns E; the other zones' old InteractionInfo planes still don't show);
 speech bubbles; narrative panels (Den Fa, Hidden Threshold, Kingdom Chronicle, not
-started); the New Game intro's six slides (the Priors, the Forgetting, you, the letter, the road, the map):
+started); Story 10.1's story panels, `placeholder` since 2026-11-07 (`assets/ui/panels/placeholder_panel_<name>.png`,
+`tools/ui/make_placeholder_panels.py`; swap: write the inked art at the same path, or point the panel's or page's
+`illustration` in `data/narrative/panels.json` elsewhere): `the_inheritance_tavern`, `the_inheritance` (the pillar) and
+`the_inheritance_stranger` (the opening's three pages), `the_kings_request` (the King's panel), `the_first_death`
+(shipped off); the New Game intro's six slides (the Priors, the Forgetting, you, the letter, the road, the map):
 `placeholder` since 2026-11-07 (`assets/ui/panels/placeholder_intro_<id>.png`, `tools/ui/make_placeholder_intro.py`),
 the inked art to come at the same paths. Sources: 04_Art_and_Interaction:42-66, EPIC_PROGRESS:9,206-252,329-346,
 05_REVEAL_REWORK_PLAN:99.

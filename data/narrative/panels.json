@@ -1,0 +1,45 @@
+{
+	"_comment": "Story 10.1: the illustrated story panels. EVERY WORD IS DRAFT: Raphael rewrites them (plain modern speech; canon: the King never named or met, the kingdom unnamed, the Demon King never named, the stranger's face never shown). The hall's director (scripts/narrative/story_panels.gd) shows them full-screen through scripts/ui/story_panel.gd, one at a time, only while the screen is free (no conversation, briefing, Codex, card reveal, pause or fall over it), the hall frozen while one is open. look: the house style (the morning briefing's colours): backdrop, panel_bg, border, title, ink (the text) as #RRGGBB or #RRGGBBAA; illustration_size [w, h], the picture's size before it is fitted to the window (at most 60% of its height); a bad value keeps the built-in one. panels: id (a-z, 0-9, _) -> title, text (\\n for a new paragraph), illustration (a res:// image; missing: a drawn plate and one warning); skippable (default true; false = a hard gate: no button and no dismiss key for min_seconds, default game_config story_panel_hard_gate_seconds, then the button fades in); repeatable (default false: once per run, flagged in the run's dialogue_flags as panel_<id>, saved with the run, cleared by New Game); enabled (default true); button (default Continue); trigger.type: run_start (the first load of a NEW run's hall), day_end (after the morning briefing that follows a sleep, and once when the hall loads), proximity (the player within trigger.radius metres, flat, of trigger.target, a NodePath from the hall's root, e.g. SubViewportContainer/SubViewport/TavernNavigation/Interactive/BarArea; a repeatable one re-arms once the player is radius + 0.5 m away) or event (only when code asks: play(id) now, request(id) when the screen is free); conditions (all must hold): min_day, max_day, min_deaths, min_reputation, profile (demo or full), flag (a run flag that must be set), not_flag; an unknown key keeps the panel from ever showing (one warning). pages (optional, added 2026-11-07 for the opening's three pictures): [{illustration, text}], shown in order behind one button each (Esc skips the rest of a skippable panel); title and text above stay required (text: all pages' words). look (optional, per panel): overrides of the house style. To swap the art: write the real image at the same path (assets/ui/panels/placeholder_panel_<name>.png, drawn by tools/ui/make_placeholder_panels.py) or point illustration at the new file.",
+	"look": {
+		"backdrop": "#000000d9",
+		"panel_bg": "#1f1c1a",
+		"border": "#cca64d99",
+		"title": "#e6bf66",
+		"ink": "#d9d9cc",
+		"illustration_size": [960, 540]
+	},
+	"panels": {
+		"the_inheritance": {
+			"title": "The Inheritance",
+			"text": "The marked place was a tavern. The key in the letter fit its door.\nInside stood one of the old pillars, its hourglass glowing. The letter said nothing about it, and no one could tell you why.\nBy the fire sat a stranger who seemed to have been waiting.",
+			"illustration": "res://assets/ui/panels/placeholder_panel_the_inheritance.png",
+			"pages": [
+				{"illustration": "res://assets/ui/panels/placeholder_panel_the_inheritance_tavern.png",
+					"text": "The marked place was a tavern. The key in the letter fit its door."},
+				{"illustration": "res://assets/ui/panels/placeholder_panel_the_inheritance.png",
+					"text": "Inside stood one of the old pillars, its hourglass glowing. The letter said nothing about it, and no one could tell you why."},
+				{"illustration": "res://assets/ui/panels/placeholder_panel_the_inheritance_stranger.png",
+					"text": "By the fire sat a stranger who seemed to have been waiting."}
+			],
+			"skippable": true,
+			"trigger": {"type": "run_start"}
+		},
+		"the_kings_request": {
+			"title": "The King Hears of You",
+			"text": "Far from here, in a hall you will never see, the King reads your guild's name aloud and presses his seal into the wax.\nA very tall man in a blue coat stands at his side. Last night he was sitting by your fire.",
+			"illustration": "res://assets/ui/panels/placeholder_panel_the_kings_request.png",
+			"skippable": false,
+			"min_seconds": 3.0,
+			"repeatable": true,
+			"trigger": {"type": "event"}
+		},
+		"the_first_death": {
+			"enabled": false,
+			"title": "The First Death",
+			"text": "Someone you sent out did not come back.\nThat is when a guild becomes real.",
+			"illustration": "res://assets/ui/panels/placeholder_panel_the_first_death.png",
+			"trigger": {"type": "day_end"},
+			"conditions": {"min_deaths": 1}
+		}
+	}
+}

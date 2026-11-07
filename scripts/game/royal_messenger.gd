@@ -378,15 +378,23 @@ func _play_court_panel() -> void:
 	(p as Object).connect("finished", finish, CONNECT_ONE_SHOT)
 	if p is Node:
 		(p as Node).tree_exited.connect(finish, CONNECT_ONE_SHOT)
-	get_tree().create_timer(panel_timeout_seconds, true).timeout.connect(finish)
+	var timed_out := [false]   # Story 10.1 (T7b): only a won timeout closes the panel
+	var on_timeout := func():
+		timed_out[0] = true
+		done[0] = true
+	get_tree().create_timer(panel_timeout_seconds, true).timeout.connect(on_timeout)
 	while not done[0] and is_inside_tree():
 		await get_tree().process_frame
-	if not (p is Object and is_instance_valid(p)):
+	if not is_instance_valid(p):   # Story 10.1: a closed panel frees itself; `p is Object` on a freed one is a script error
 		return
 	if (p as Object).is_connected("finished", finish):
 		(p as Object).disconnect("finished", finish)
 	if p is Node and (p as Node).tree_exited.is_connected(finish):
 		(p as Node).tree_exited.disconnect(finish)
+	# Story 10.1 (T7b): the timeout won, so the panel never finished: close it (its groups left, its freeze undone), or it
+	# would stay open under the end card and eat its keys. After the disconnects, its finished can't re-enter `finish`.
+	if timed_out[0] and (p as Object).has_method("close"):
+		(p as Object).call("close", "timeout")
 
 
 func _open_end_card() -> void:

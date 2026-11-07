@@ -26,6 +26,9 @@
 	"notification_duration_seconds": 4.0,
 	"notification_cooldown_seconds": 15.0,
 	"reveal_death_pause_seconds": 2.0,
+	"_story_panel_comment": "Story 10.1: the illustrated story panels (data/narrative/panels.json, scripts/narrative/story_panels.gd). story_panel_hard_gate_seconds: how long a non-skippable panel (skippable false) withholds its button and every dismiss key, per page, unless the panel sets its own min_seconds. story_panel_input_grace_seconds: key presses in the first moments of a page do nothing (the E or Enter that ended a conversation can't dismiss the panel that follows it); the mouse works on the button at once.",
+	"story_panel_hard_gate_seconds": 3.0,
+	"story_panel_input_grace_seconds": 0.3,
 
 	"fire_burn_high_seconds": 240,
 	"fire_burn_low_seconds": 120,
