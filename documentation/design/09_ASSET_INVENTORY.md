@@ -400,7 +400,9 @@ interaction feedback ("floating icons and/or glowing runes on the floor"; the fi
 since Story 25.23 (V5): `scenes/game/FloorRuneCue.tscn`, a warm-gold rune ring at the hearth's
 interact_point while the fire owns E; the other zones' old InteractionInfo planes still don't show);
 speech bubbles; narrative panels (Den Fa, Hidden Threshold, Kingdom Chronicle, not
-started). Sources: 04_Art_and_Interaction:42-66, EPIC_PROGRESS:9,206-252,329-346,
+started); the New Game intro's six slides (the Priors, the Forgetting, you, the letter, the road, the map):
+`placeholder` since 2026-11-07 (`assets/ui/panels/placeholder_intro_<id>.png`, `tools/ui/make_placeholder_intro.py`),
+the inked art to come at the same paths. Sources: 04_Art_and_Interaction:42-66, EPIC_PROGRESS:9,206-252,329-346,
 05_REVEAL_REWORK_PLAN:99.
 
 ### 7.7 VFX

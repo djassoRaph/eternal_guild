@@ -22,7 +22,7 @@ any other document.** Update it when a feature ships, not before.
 | Party mission UI | — | done |
 | F12 debug menu | — | done |
 | Morning briefing + deferred missions | — | done |
-| New Game spine: MainMenu → HexMapTest reveal → settle confirm → MainTavern | WorldManager + PlayerManager | done 2026-06-02 |
+| New Game spine: MainMenu → intro slides → HexMapTest reveal → settle confirm → MainTavern | WorldManager + PlayerManager; the intro: `GameManager.NEW_RUN_SCENE` = `scenes/ui/IntroSequence.tscn` → `WORLD_MAP_SCENE` | done 2026-06-02; the intro (6 slides, placeholder art, DRAFT words, `data/narrative/intro.json`) 2026-11-07 |
 | Unified world map: hex grid + biomes + landmarks, rendered under pixel shader | WorldManager + HexMapGenerator | done — verified in-game 2026-06-14 |
 | PlayerManager spawn-bleed fix (`player_scene` group) | PlayerManager | done |
 | WorldMapBoard (mission board = world map) | WorldMapBoard.tscn / world_map_board.gd | SubViewport re-render, no reveal anim |

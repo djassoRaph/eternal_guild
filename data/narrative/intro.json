@@ -1,0 +1,22 @@
+{
+	"_comment": "The New Game intro (scenes/ui/IntroSequence.tscn, scripts/ui/intro_sequence.gd; Raphael 2026-11-07: a 'power point' introduction that plays while the world map loads). Every new run passes through it (GameManager.NEW_RUN_SCENE), then the world map (GameManager.WORLD_MAP_SCENE) shows the place the letter marked. Every word is DRAFT: plain modern speech, and canon kept (narrative-design.md: nothing named, nothing explained; the Priors, the pillar and the seal stay mysteries; the player has no face). illustration: the slide's art (placeholders from tools/ui/make_placeholder_intro.py; the inked art replaces them at the same path). A slide holds hold_seconds once its line is written out; the player can always go on early (click, Space, Enter, Right; a press while the line is still writing finishes it) or hold Esc / press Skip to leave. The arrival in the hall (the tavern, the pillar, the stranger) is Story 10.1's run-start panel, not part of this.",
+	"chars_per_second": 38.0,
+	"fade_seconds": 0.6,
+	"hold_seconds": 3.5,
+	"skip_hold_seconds": 0.8,
+	"input_grace_seconds": 0.3,
+	"slides": [
+		{"id": "priors", "illustration": "res://assets/ui/panels/placeholder_intro_priors.png",
+			"text": "Before the kingdoms, someone built in stone that doesn't weather. No one living can read what they carved. People call them the Priors."},
+		{"id": "forgetting", "illustration": "res://assets/ui/panels/placeholder_intro_forgetting.png",
+			"text": "Their pillars became furniture. People built houses and taverns around them, and stopped asking why they glow."},
+		{"id": "you", "illustration": "res://assets/ui/panels/placeholder_intro_you.png",
+			"text": "You were an adventurer once. You went into the dark more times than most, and came back. Then one day you stopped going."},
+		{"id": "letter", "illustration": "res://assets/ui/panels/placeholder_intro_letter.png",
+			"text": "The letter was short and unsigned. A tavern was yours now, and the guild that came with it, such as it was. The guild had no name."},
+		{"id": "road", "illustration": "res://assets/ui/panels/placeholder_intro_road.png",
+			"text": "On the road, people talked about villages past the border that had stopped sending letters. It hadn't reached here. Not yet."},
+		{"id": "map", "illustration": "res://assets/ui/panels/placeholder_intro_map.png",
+			"text": "A map came with the letter. One place on it was marked."}
+	]
+}

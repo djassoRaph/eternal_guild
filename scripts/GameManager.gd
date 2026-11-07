@@ -3046,8 +3046,12 @@ var saved_player_scene: String = ""
 # Day-2 autosave -> Continue restores the fresh game instead of stale state from the prior run.
 var pending_new_game_save: bool = false
 
-## Story 13.4 (DG-5): where a new run starts (today the world map; Story 5.1 puts the guild naming screen in front).
-const NEW_RUN_SCENE := "res://scenes/HexMapTest.tscn"
+## Story 13.4 (DG-5): where a new run starts. Since 2026-11-07 the New Game intro (scenes/ui/IntroSequence.tscn, its
+## slides in data/narrative/intro.json) plays first and hands over to WORLD_MAP_SCENE; Story 5.1 puts the guild naming
+## screen in front.
+const NEW_RUN_SCENE := "res://scenes/ui/IntroSequence.tscn"
+## Where the intro hands over: the world map, where the player confirms the tavern's place.
+const WORLD_MAP_SCENE := "res://scenes/HexMapTest.tscn"
 
 func _player_pos_array() -> Array:
 	if PlayerManager and is_instance_valid(PlayerManager.player):
