@@ -406,7 +406,9 @@ started); Story 10.1's story panels, `placeholder` since 2026-11-07 (`assets/ui/
 `the_inheritance_stranger` (the opening's three pages), `the_kings_request` (the King's panel), `the_first_death`
 (shipped off); the New Game intro's six slides (the Priors, the Forgetting, you, the letter, the road, the map):
 `placeholder` since 2026-11-07 (`assets/ui/panels/placeholder_intro_<id>.png`, `tools/ui/make_placeholder_intro.py`),
-the inked art to come at the same paths. Sources: 04_Art_and_Interaction:42-66, EPIC_PROGRESS:9,206-252,329-346,
+the inked art to come at the same paths; New Game's map table (2026-11-08, `scripts/world/map_table.gd`): the stock
+`table.glb` is real, the scroll's paper, its two rollers and the window's frame are `placeholder` (plain shapes built in
+code: a noise-textured box, cylinders, dark bars), to be replaced by modelled pieces. Sources: 04_Art_and_Interaction:42-66, EPIC_PROGRESS:9,206-252,329-346,
 05_REVEAL_REWORK_PLAN:99.
 
 ### 7.7 VFX
