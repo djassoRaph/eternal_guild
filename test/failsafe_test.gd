@@ -382,6 +382,9 @@ func _initialize() -> void:
 	await test_bard_performs()   # Story 9.2
 	await test_town_kit()   # Story 25.35
 	await test_story_panels()   # Story 10.1
+	test_map_distances()   # 2026-11-08: mission distances on the map
+	await test_new_run_map()   # 2026-11-08: New Game on the map table, World Gen v2
+	await test_quest_scrolls()   # 2026-11-08: the World Map's quest scrolls
 
 	_finish()
 
@@ -20950,3 +20953,502 @@ func _t57_until(cond: Callable, seconds: float) -> bool:
 			return false
 		await process_frame
 	return true
+
+
+# --- Test 58: Mission distances on the map (2026-11-08) ---
+# The map's records carry odd-r offset coords (col, row), as HexMapGenerator makes them. WorldManager
+# placed missions by a distance that read them as axial (q, r), so most hexes got the wrong one (932 of
+# 1,261 from the tavern on the radius-20 map, off by up to 10). And a save writes the tavern's coord as
+# JSON's "(x, y)" text, which WorldManager read back as (0, 0): right today only because the tavern is
+# there. The truth here is a walk over the map's own neighbours (HexMapGenerator._neighbors_of).
+func test_map_distances() -> void:
+	print("[Test 58] Mission distances on the map")
+	var gen_script = load("res://scripts/world/HexMapGenerator.gd")
+	var wm_script = load("res://systems/WorldManager.gd")
+	if gen_script == null or wm_script == null:
+		check(false, "HexMapGenerator.gd and WorldManager.gd load")
+		print("")
+		return
+	var gen = gen_script.new()
+	var recs := _generate_world(gen, 12345)
+	gen.free()
+	var centre_recs := recs.filter(func(r): return r.is_center)
+	if centre_recs.size() != 1:
+		check(false, "seed 12345: the world has one tavern hex")
+		print("")
+		return
+	var wm = wm_script.new()
+	wm.set_generated_world(recs, centre_recs[0])
+	var centre: Vector2i = centre_recs[0].coord
+
+	# 1. Worked by hand. Row -1 is odd (shifted right), so (-1,-1) and (0,-1) touch (0,0) and (1,-1)
+	#    doesn't; (5,10) and (-10,10) sit on the two diagonals; two hexes away from the tavern.
+	var known := [[Vector2i(0, 0), Vector2i(-1, -1), 1], [Vector2i(0, 0), Vector2i(0, -1), 1],
+		[Vector2i(0, 0), Vector2i(1, -1), 2], [Vector2i(0, 0), Vector2i(5, 10), 10],
+		[Vector2i(0, 0), Vector2i(-10, 10), 15], [Vector2i(2, -3), Vector2i(4, 5), 8],
+		[Vector2i(3, 7), Vector2i(3, 7), 0]]
+	var wrong := []
+	for k in known:
+		var d1: int = wm._hex_distance(k[0], k[1])
+		var d2: int = wm._hex_distance(k[1], k[0])
+		if d1 != k[2] or d2 != k[2]:
+			wrong.append("%s-%s: %d/%d, not %d" % [k[0], k[1], d1, d2, k[2]])
+	check(wrong.is_empty(), "WorldManager._hex_distance on hand-worked pairs, both ways %s" % [wrong])
+
+	# 2. Every hex, from the tavern and from an odd row above it: the steps a walk over the map takes.
+	var by_coord := {}
+	for r in recs:
+		by_coord[r.coord] = r
+	for start in [centre, Vector2i(4, -7)]:
+		if not by_coord.has(start):
+			check(false, "seed 12345: the map has a hex at %s" % [start])
+			continue
+		var steps := _t58_walk(gen_script, by_coord, start)
+		var off_wm := []
+		var off_gen := []
+		for r in recs:
+			var truth: int = steps.get(r.coord, -1)
+			if wm._hex_distance(start, r.coord) != truth:
+				off_wm.append(r.coord)
+			if gen_script._hex_distance(start, r.coord) != truth:
+				off_gen.append(r.coord)
+		check(steps.size() == recs.size() and off_wm.is_empty(),
+			"from %s: WorldManager's distance is the walk's for all %d hexes (%d wrong, first %s)"
+			% [start, recs.size(), off_wm.size(), off_wm.slice(0, 3)])
+		check(off_gen.is_empty(), "from %s: HexMapGenerator's distance is the walk's too (%d wrong)" % [start, off_gen.size()])
+
+	# 3. Placement: errands land within their band of true steps, long dangerous jobs past every errand.
+	var steps_home := _t58_walk(gen_script, by_coord, centre)
+	var max_d := 1
+	for r in wm.world_map:
+		if wm_script.is_mission_eligible(r):
+			max_d = maxi(max_d, steps_home[r.coord])
+	var errand := {"duration_days": 1, "danger": 1}
+	var band: Vector2 = wm._distance_band_for(errand, max_d)
+	var missions := []
+	for i in 4:
+		missions.append({"name": "T58 errand %d" % i, "duration_days": 1, "danger": 1})
+	for i in 2:
+		missions.append({"name": "T58 expedition %d" % i, "duration_days": 5, "danger": 3})
+	wm.assign_missions_to_hexes(missions)
+	var errand_d := []
+	var far_d := []
+	for r in wm.world_map:
+		var m = r.get("active_mission")
+		if m is Dictionary and str(m.get("name", "")).begins_with("T58 "):
+			(errand_d if str(m.name).begins_with("T58 errand") else far_d).append(steps_home[r.coord])
+	check(errand_d.size() == 4 and errand_d.all(func(d): return d >= floori(band.x) and d <= ceili(band.y)),
+		"1-day errands land %d-%d steps from the tavern (got %s)" % [floori(band.x), ceili(band.y), errand_d])
+	check(far_d.size() == 2 and errand_d.size() == 4 and far_d.min() > errand_d.max(),
+		"5-day dangerous jobs land past every errand (got %s, max reach %d)" % [far_d, max_d])
+	var rumour := {"name": "T58 rumour", "duration_days": 1, "danger": 1}
+	var placed: bool = wm.assign_one_mission(rumour)
+	var rumour_d := -1
+	for r in wm.world_map:
+		if r.get("active_mission") is Dictionary and r.active_mission.get("name", "") == "T58 rumour":
+			rumour_d = steps_home[r.coord]
+	check(placed and rumour_d >= floori(band.x) and rumour_d <= ceili(band.y),
+		"a rumour's 1-day mission lands %d-%d steps out too (got %d)" % [floori(band.x), ceili(band.y), rumour_d])
+
+	# 4. Through a save (JSON, as SaveSystem writes it): the tavern's coord comes back, even off (0,0).
+	var wm2 = wm_script.new()
+	wm2.load_save_data(JSON.parse_string(JSON.stringify(wm.get_save_data())))
+	check(wm2._center_coord() == centre, "after a save, the tavern is still at %s (got %s)" % [centre, wm2._center_coord()])
+	var moved: Dictionary = wm.get_save_data()
+	moved.chosen_center["coord"] = Vector2i(4, -7)
+	var wm3 = wm_script.new()
+	wm3.load_save_data(JSON.parse_string(JSON.stringify(moved)))
+	check(wm3._center_coord() == Vector2i(4, -7),
+		"a tavern off (0,0) keeps its coord through a save (got %s)" % [wm3._center_coord()])
+	check(wm3._coord_to_vec("nonsense") == Vector2i.ZERO and wm3._coord_to_vec("(3, x)") == Vector2i.ZERO
+		and wm3._coord_to_vec("(-12, 7)") == Vector2i(-12, 7) and wm3._coord_to_vec([2, -5]) == Vector2i(2, -5),
+		"_coord_to_vec reads JSON's \"(x, y)\" text and an array; anything else is (0,0), never a crash")
+
+	# 5. One copy of the hex math: WorldManager measures with the generator's rule.
+	var src := FileAccess.get_file_as_string("res://systems/WorldManager.gd")
+	check(_func_body(src, "_hex_distance").contains("HEX_GENERATOR_PATH"),
+		"WorldManager._hex_distance uses HexMapGenerator's rule (no second copy of the hex math)")
+	for w in [wm, wm2, wm3]:
+		w.free()
+	print("")
+
+
+## Steps from `start` to every hex of the map, walking HexMapGenerator's own neighbours (breadth first).
+func _t58_walk(gen_script, by_coord: Dictionary, start: Vector2i) -> Dictionary:
+	var steps := {start: 0}
+	var queue := [start]
+	var i := 0
+	while i < queue.size():
+		var c: Vector2i = queue[i]
+		i += 1
+		for n in gen_script._neighbors_of(c):
+			if by_coord.has(n) and not steps.has(n):
+				steps[n] = steps[c] + 1
+				queue.append(n)
+	return steps
+
+
+# --- Test 59: New Game on the map table, with World Gen v2 (2026-11-08) ---
+# Raphael 2026-11-08: "yes newgame map and the world gen v2". The intro hands over to the map table
+# (scenes/world/NewRunMap.tscn, scripts/world/map_table.gd with new_run on); its world is World Gen v2 at game_config's
+# size; the tavern's panel settles it into WorldManager. A v2 world must then live through WorldManager (missions, a
+# save), the hall's World Map must look at its tavern (board_view), and the hex look must dress its river tiles.
+func test_new_run_map() -> void:
+	print("[Test 59] New Game on the map table (World Gen v2)")
+	var gm: Node = root.get_node_or_null("GameManager")
+	var wm_node: Node = root.get_node_or_null("WorldManager")
+	var dm: Node = root.get_node_or_null("DataManager")
+	var MT = load("res://scripts/world/map_table.gd")
+	var V2 = load("res://scripts/world/world_gen_v2.gd")
+	var GEN = load("res://scripts/world/HexMapGenerator.gd")
+	var WMS = load("res://systems/WorldManager.gd")
+	var BOARD = load("res://scenes/world/world_map_board.gd")
+	var HXL = load("res://scripts/world/hex_look.gd")
+	if gm == null or wm_node == null or dm == null or MT == null or V2 == null or GEN == null or WMS == null or BOARD == null or HXL == null:
+		check(false, "Test 59's autoloads and scripts load")
+		print("")
+		return
+
+	# 1. The hand-over: the intro's next scene is the table, in New Game mode; the dev table is still the dev table.
+	var wms: String = gm.get_script().get_script_constant_map().get("WORLD_MAP_SCENE", "")
+	var run_props := _t59_root_props(wms)
+	var dev_props := _t59_root_props("res://scenes/dev/MapTable.tscn")
+	check(wms == "res://scenes/world/NewRunMap.tscn" and run_props.get("script") == MT and run_props.get("new_run", false) == true,
+		"GameManager.WORLD_MAP_SCENE is the map table with new_run on (%s)" % wms)
+	check(dev_props.get("script") == MT and not dev_props.get("new_run", false),
+		"the dev MapTable scene uses the same script, new_run off")
+	var ss: Node = root.get_node_or_null("SaveSystem")
+	check(ss != null and not ss.is_player_scene(wms), "NewRunMap is not a player scene (no autosave, no resume there)")
+
+	# 2. game_config's world: the shipped keys are clean; bad values fall back, each with a warning.
+	var cfg: Dictionary = MT.run_world(dm.get_config("world_gen_width", null), dm.get_config("world_gen_height", null),
+		dm.get_config("world_gen_type", null), dm.get_config("world_gen_tavern_sites", null))
+	check(cfg.warnings.is_empty() and cfg.width == 100 and cfg.height == 64 and cfg.type == "random" and cfg.sites == Vector2i(20, 30),
+		"game_config: world_gen_width 100, world_gen_height 64, world_gen_type random, world_gen_tavern_sites [20, 30] (%s)" % [cfg])
+	var bad: Dictionary = MT.run_world(10, 64.5, "moon", [30, 20])
+	var edge: Dictionary = MT.run_world(24.0, 160, "twin", [1.0, 60])
+	check(bad.width == 100 and bad.height == 64 and bad.type == "random" and bad.sites == Vector2i(20, 30) and bad.warnings.size() == 4
+		and edge.width == 24 and edge.height == 160 and edge.type == "twin" and edge.sites == Vector2i(1, 60) and edge.warnings.is_empty()
+		and MT.run_world("100", true, null, "many").warnings.size() == 4 and MT.run_world(100, 64, "random", [0, 5]).warnings.size() == 1,
+		"run_world: 24..160 whole numbers, the world types and [least, most] places (1..60) pass; anything else is the default, with a warning")
+
+	# 3. A v2 world: 20-30 places to settle and no tavern until one is settled; then the tavern off (0,0), the ruin
+	#    by it, missions, a save.
+	var gen = V2.new()
+	gen.world_width = 100
+	gen.world_height = 64
+	gen.world_type = "random"
+	var raw := _generate_world(gen, 4242)
+	var sites := raw.filter(func(r): return r.get("settle_site", false))
+	var towns := raw.filter(func(r): return r.get("is_zone", false))
+	var raw_by := {}
+	for r in raw:
+		raw_by[r.coord] = r
+	var site_bad := []
+	for s in sites:
+		var dry_free := 0
+		for nb in GEN._neighbors_of(s.coord):
+			var r = raw_by.get(nb)
+			if r is Dictionary and r.biome in ["grass", "forest", "mountain", "coast"] and int(r.get("river_mask", 0)) == 0 and not r.is_zone:
+				dry_free += 1
+		var near_town := towns.any(func(z): return GEN._hex_distance(s.coord, z.coord) < V2.SITE_TOWN_GAP)
+		if s.is_zone or int(s.get("river_mask", 0)) != 0 or s.get("is_lake", false) or s.biome == "sea" or dry_free < 2 or near_town:
+			site_bad.append(s.id)
+	var closest := 1 << 30
+	for a in sites.size():
+		for b in range(a + 1, sites.size()):
+			closest = mini(closest, GEN._hex_distance(sites[a].coord, sites[b].coord))
+	check(sites.size() >= 20 and sites.size() <= 30 and site_bad.is_empty() and closest >= 2
+		and raw.filter(func(r): return r.get("is_center", false) or r.get("is_ruin", false)).is_empty()
+		and sites.any(func(r): return r.coord == gen.tavern_coord) and gen.stats.get("sites", -1) == sites.size(),
+		"seed 4242: %d places to settle, each on dry ground with room for the ruin, %d+ steps from every town, at least %d apart; no tavern or ruin before the player settles %s"
+		% [sites.size(), V2.SITE_TOWN_GAP, closest, site_bad])
+	var live_sites: Array = gen._records.filter(func(r): return r.get("settle_site", false))
+	var chosen: Dictionary = live_sites[live_sites.size() - 1] if not live_sites.is_empty() else {}
+	var not_site: Dictionary = gen._records.filter(func(r): return r.biome == "grass" and not r.get("settle_site", false))[0]
+	var refused: bool = not gen.settle_at(not_site) and not gen.settle_at(live_sites[0].duplicate())   # another hex; a copy of a place
+	var settled: bool = gen.settle_at(chosen)
+	var settled_twice: bool = gen.settle_at(chosen)
+	var recs: Array = gen._records.duplicate(true)
+	gen.free()
+	check(refused and settled and not settled_twice and chosen.get("is_center", false) and chosen.biome == "tavern_site"
+		and chosen.topper_paths.size() == 2 and recs.all(func(r): return not r.has("settle_site")),
+		"settle_at: a place to settle becomes the tavern (its toppers, the tavern_site biome), once; any other hex is refused; no record keeps settle_site")
+	var homes := recs.filter(func(r): return r.get("is_center", false))
+	var ruins := recs.filter(func(r): return r.get("is_ruin", false))
+	if homes.size() != 1:
+		check(false, "seed 4242: the v2 world has one tavern hex (%d)" % homes.size())
+		print("")
+		return
+	var home: Dictionary = homes[0]
+	var tavern: Vector2i = home.coord
+	var wm = WMS.new()
+	wm.set_generated_world(recs, home)
+	check(recs.size() == 6400 and tavern != Vector2i.ZERO and ruins.size() == 1
+		and wm._hex_distance(ruins[0].coord, tavern) == 1 and recs.all(func(r): return str(r.get("base_path", "")) != ""),
+		"seed 4242: 6,400 hexes, the tavern at %s, the ruin next to it, every hex has a tile" % [tavern])
+	var errands := []
+	for i in 4:
+		errands.append({"name": "T59 errand %d" % i, "duration_days": 1, "danger": 1})
+	wm.assign_missions_to_hexes(errands + [{"name": "T59 expedition", "duration_days": 5, "danger": 3}])
+	var max_d := 1
+	for r in wm.world_map:
+		if WMS.is_mission_eligible(r):
+			max_d = maxi(max_d, wm._hex_distance(tavern, r.coord))
+	var band: Vector2 = wm._distance_band_for({"duration_days": 1, "danger": 1}, max_d)
+	var got := []
+	var far := -1
+	for r in wm.world_map:
+		var m = r.get("active_mission")
+		if m is Dictionary and str(m.get("name", "")).begins_with("T59 errand"):
+			got.append(wm._hex_distance(tavern, r.coord))
+		elif m is Dictionary and str(m.get("name", "")) == "T59 expedition":
+			far = wm._hex_distance(tavern, r.coord)
+	check(got.size() == 4 and got.all(func(d): return d >= floori(band.x) and d <= ceili(band.y)) and far > got.max(),
+		"missions on a v2 world: errands %s steps from its tavern (band %d-%d), the 5-day job %d" % [got, floori(band.x), ceili(band.y), far])
+	var text := JSON.stringify(wm.get_save_data(), "\t")
+	var wm2 = WMS.new()
+	wm2.load_save_data(JSON.parse_string(text))
+	var rivers_in := recs.filter(func(r): return str(r.base_path).begins_with("res://assets/environment/hexagons/rivers/"))
+	var rivers_out: Array = wm2.world_map.filter(func(r): return str(r.base_path).begins_with("res://assets/environment/hexagons/rivers/"))
+	var same_rivers := rivers_in.size() > 0 and rivers_in.size() == rivers_out.size()
+	for i in mini(rivers_in.size(), rivers_out.size()):
+		same_rivers = same_rivers and rivers_in[i].id == rivers_out[i].id and rivers_in[i].base_path == rivers_out[i].base_path \
+			and is_equal_approx(float(rivers_in[i].base_rot_y), float(rivers_out[i].base_rot_y))
+	check(wm2.world_map.size() == 6400 and wm2._center_coord() == tavern
+		and wm2.world_map.all(func(r): return r.coord is Vector2i)
+		and wm2.world_map.filter(func(r): return r.get("is_ruin", false)).size() == 1 and same_rivers,
+		"through a save (%d KB): 6,400 hexes, the tavern at %s, one ruin, %d river tiles with their turns" % [text.length() / 1024, wm2._center_coord(), rivers_out.size()])
+	check(text.length() < 6 * 1024 * 1024, "a v2 world's save stays under 6 MB (%d KB)" % [text.length() / 1024])
+
+	# 4. The hall's World Map: the old island keeps its view exactly; a v2 world is framed on its tavern.
+	var old_gen = GEN.new()
+	var old_recs := _generate_world(old_gen, 12345)
+	old_gen.free()
+	var old_wm = WMS.new()
+	old_wm.set_generated_world(old_recs, old_recs.filter(func(r): return r.is_center)[0])
+	var long_jobs := []
+	for i in 6:
+		long_jobs.append({"name": "T59 old %d" % i, "duration_days": 5, "danger": 5})
+	old_wm.assign_missions_to_hexes(long_jobs)
+	var old_view: Dictionary = BOARD.board_view(old_wm.world_map)
+	check(old_view.target == Vector3.ZERO and old_view.position == BOARD.BOARD_CAM_OFFSET,
+		"board_view: the old island (contracts out to its edge) keeps the board's old camera exactly (%s)" % [old_view.position])
+	var view: Dictionary = BOARD.board_view(wm.world_map)
+	var home_w := HexGrid.offset_to_world(tavern.x, tavern.y)
+	var pull: float = (view.position - view.target).length() / BOARD.BOARD_CAM_OFFSET.length()
+	var fits := true
+	for r in wm.world_map:
+		if r.get("active_mission") is Dictionary:
+			var w := HexGrid.offset_to_world(r.coord.x, r.coord.y)
+			fits = fits and Vector2(w.x - home_w.x, w.z - home_w.z).length() <= BOARD.BOARD_REACH * pull + 0.01
+	check(view.target == home_w and pull >= 1.0 and pull <= BOARD.BOARD_MAX_PULL + 0.001 and fits
+		and (view.position - view.target).normalized().is_equal_approx(BOARD.BOARD_CAM_OFFSET.normalized()),
+		"board_view: a v2 world is looked at from its tavern %s, pulled back %.2fx so every contract fits" % [home_w, pull])
+	var corner: Dictionary = wm.world_map[0]
+	corner["active_mission"] = {"name": "T59 the far corner", "duration_days": 9, "danger": 5}
+	var far_view: Dictionary = BOARD.board_view(wm.world_map)
+	check(is_equal_approx((far_view.position - far_view.target).length(), BOARD.BOARD_CAM_OFFSET.length() * BOARD.BOARD_MAX_PULL),
+		"board_view: a contract in the far corner pulls back at most %.0fx" % BOARD.BOARD_MAX_PULL)
+	corner["active_mission"] = null
+	for w in [wm, wm2, old_wm]:
+		w.free()
+	var bsrc := FileAccess.get_file_as_string("res://scenes/world/world_map_board.gd")
+	check(_func_body(bsrc, "open_mission_board").contains("_frame_camera()") and _func_body(bsrc, "_on_missions_changed").contains("_frame_camera()")
+		and _func_body(bsrc, "_frame_camera").contains("board_view(WorldManager.world_map)"),
+		"the World Map aims its camera with board_view when it opens and when the contracts change (the hall may place them only on open)")
+
+	# 5. The hex look dresses river tiles (the hall's map draws a stored v2 world through HexMapGenerator).
+	var river_path := "res://assets/environment/hexagons/rivers/hex_river_A.gltf"
+	var tile_gen = GEN.new()
+	tile_gen._hex_look_on = true
+	var tile: Node3D = tile_gen._instantiate_tile({"id": "t59", "base_path": river_path, "base_rot_y": 0.0, "topper_paths": []})
+	var dressed := 0
+	if tile != null:
+		for m in tile.find_children("*", "MeshInstance3D", true, false) + ([tile] if tile is MeshInstance3D else []):
+			if m.has_meta(HXL.SAVED_META):
+				dressed += 1
+		tile.free()
+	tile_gen.free()
+	var v2_src := FileAccess.get_file_as_string("res://scripts/world/world_gen_v2.gd")
+	check(HXL.is_piece(river_path) and dressed > 0 and not v2_src.contains("\nfunc _instantiate_tile("),
+		"the hex look's pieces include the river tiles: one drawn through HexMapGenerator is dressed (%d meshes); v2 has no rule of its own" % dressed)
+
+	# 6. The scene: the table unrolls, a v2 world at the config's size is revealed, the tavern's panel settles it.
+	var saved_map = wm_node.world_map
+	var saved_centre = wm_node.chosen_center
+	var scene = (load(wms) as PackedScene).instantiate()
+	root.add_child(scene)
+	var live := await _t57_until(func(): return bool(scene._live), 30.0)
+	var map = scene._map
+	var n_recs: int = map.call("get_records").size() if map != null else 0
+	check(live and map != null and map.get_script() == V2 and n_recs == 6400 and scene._title.text != ""
+		and scene._back_btn != null and scene._another_btn != null and not scene._another_btn.disabled,
+		"NewRunMap: the world is revealed (World Gen v2, %d hexes, \"%s\"); Back and Another world are there" % [n_recs, scene._title.text])
+	if live and map != null:
+		var key := InputEventKey.new()
+		key.keycode = KEY_R
+		key.pressed = true
+		scene._unhandled_input(key)
+		check(scene._map == map and scene._live, "NewRunMap: the dev keys (R) do nothing in New Game")
+		var t_rec: Dictionary = scene._by_coord.get(scene._home, {})
+		var n_sites: int = scene._sites.size()
+		scene._open_detail(t_rec)
+		var has_settle: bool = scene._detail != null and scene._detail.find_child("SettleButton", true, false) != null
+		var other: Dictionary = {}
+		for r in map.call("get_records"):
+			if r.biome == "grass" and not r.get("is_center", false) and not r.get("settle_site", false):
+				other = r
+				break
+		scene._open_detail(other)
+		var other_settle: bool = scene._detail != null and scene._detail.find_child("SettleButton", true, false) != null
+		scene._close_detail()
+		var refused_other: bool = not other.is_empty() and not scene.settle(other)
+		check(t_rec.get("settle_site", false) and n_sites >= 20 and n_sites <= 30 and has_settle and not other_settle and refused_other
+			and map.call("get_records").filter(func(r): return r.get("is_center", false)).is_empty(),
+			"NewRunMap: %d places to settle and no tavern yet; the window opens on one; a place's panel offers Settle here, another hex's doesn't and can't be settled" % n_sites)
+		var pick: Dictionary = scene._sites[n_sites - 1] if n_sites > 0 else {}
+		var first: bool = scene.settle(pick)
+		var second: bool = scene.settle(pick)
+		var stored: Array = wm_node.world_map
+		var stored_home: Array = stored.filter(func(r): return r.get("is_center", false))
+		var stored_ruin: Array = stored.filter(func(r): return r.get("is_ruin", false))
+		check(first and not second and pick.get("is_center", false) and scene._home == pick.coord and stored.size() == n_recs
+			and stored_home.size() == 1 and stored_home[0].coord == pick.coord and wm_node._center_coord() == pick.coord
+			and stored_ruin.size() == 1 and wm_node._hex_distance(stored_ruin[0].coord, pick.coord) == 1
+			and wm_node.chosen_center.get("is_center", false) and not is_same(stored, map.call("get_records"))
+			and stored.all(func(r): return not r.has("settle_site")) and scene._sites.is_empty(),
+			"NewRunMap: settling at another place (%s) makes it the tavern with the ruin beside it and hands WorldManager its own copy; once" % [pick.get("coord")])
+		scene._settled = false
+		scene._on_another_pressed()
+		var rolled: bool = not scene._live and scene._map != map
+		var again := await _t57_until(func(): return bool(scene._live), 30.0)
+		check(rolled and again and scene._map.call("get_records").size() == 6400,
+			"NewRunMap: Another world rolls and reveals a new one")
+	wm_node.world_map = saved_map
+	wm_node.chosen_center = saved_centre
+	scene.queue_free()
+	await _t57_frames(2)
+	print("")
+
+
+## The root node's properties of a packed scene (script, exported fields), or {}.
+func _t59_root_props(path: String) -> Dictionary:
+	var packed = load(path) if ResourceLoader.exists(path) else null
+	if not packed is PackedScene:
+		return {}
+	var st: SceneState = (packed as PackedScene).get_state()
+	var out := {}
+	for i in st.get_node_property_count(0):
+		out[st.get_node_property_name(0, i)] = st.get_node_property_value(0, i)
+	return out
+
+
+# --- Test 71: The World Map's quest scrolls (2026-11-08) ---
+# Raphael: "little clickable scrolls that zoom out/pan out and display more information". Each contract on the hall's
+# World Map is a small rolled scroll drawn in 2D; hovering one unrolls a preview above it; a click grows the full
+# scroll out of it (Story 6.5's dispatch scroll, open at once as before); closing rolls it back into the marker.
+func test_quest_scrolls() -> void:
+	print("[Test 71] The World Map's quest scrolls")
+	var gm = root.get_node_or_null("GameManager")
+	var wm = root.get_node_or_null("WorldManager")
+	var dm = root.get_node_or_null("DataManager")
+	if gm == null or wm == null or dm == null or not ResourceLoader.exists(WORLD_MAP_BOARD_PATH):
+		check(false, "Test 71's autoloads and WorldMapBoard.tscn")
+		print("")
+		return
+	var snap := _t28_snapshot(gm, wm, dm)
+	var S = AdventurerStatus.Status
+	var m := _t28_missions()
+	var dara := _t28_adv(9104, "Dara", S.ON_MISSION, 4, 4)
+	gm.adventurers = [_t28_adv(9101, "Ada", S.READY, 8, 8), dara]
+	gm.current_day = 5
+	var hex_a := _t28_hex("t71_a", 2, 1, m.solo)
+	var hex_b := _t28_hex("t71_b", 4, 4, m.party)
+	var hex_d := _t28_hex("t71_d", -4, 4, m.solo.duplicate(true))
+	hex_d["locked"] = true
+	var center := _t28_center()
+	wm.world_map = [center, hex_a, hex_b, hex_d]
+	wm.chosen_center = center
+	gm.active_missions = [{"adventurer": dara, "mission": hex_d.active_mission, "days_remaining": 2, "total_duration": 2,
+		"success_chance": 64, "sent_day": 4, "hex_id": "t71_d"}]
+	var board: Control = (load(WORLD_MAP_BOARD_PATH) as PackedScene).instantiate()
+	board.attach_to(root)
+	board.open_mission_board()
+	await _t57_frames(3)
+
+	# 1. The markers: a drawn scroll per contract (no glyph labels); the open ones float, the deployed one is still.
+	var nodes: Dictionary = board._marker_nodes
+	var glyphs := 0
+	var drawn := 0
+	for n in nodes.values():
+		glyphs += (n as Node).find_children("*", "Label", true, false).size()
+		drawn += 1 if (n as Control).draw.get_connections().size() > 0 else 0
+	var src := FileAccess.get_file_as_string("res://scenes/world/world_map_board.gd")
+	check(nodes.size() == 3 and nodes.has("t71_a") and nodes.has("t71_b") and nodes.has("t71_d") and glyphs == 0 and drawn == 3
+		and board._marker_tweens.size() == 2 and not src.contains("RUNE"),
+		"each contract is a drawn scroll marker (%d, %d glyph labels); the two open ones float (%d tweens), the deployed one is still"
+		% [nodes.size(), glyphs, board._marker_tweens.size()])
+
+	# 2. Hover: the preview unrolls above the scroll with its lines, the scroll grows, the bubble stays hidden.
+	var pa: Vector2 = board._marker_pos("t71_a")
+	board._handle_hover(pa + Vector2(6.0, 4.0))
+	var prev = board._preview
+	var lines_a: Array = board.preview_lines(hex_a)
+	check(prev != null and board._preview_hex == "t71_a" and not board._bubble.visible
+		and lines_a == ["Clear the Cellar", "Safe", "2 days · 10–12 gold", "Click to unroll"]
+		and is_equal_approx((nodes["t71_a"] as Control).scale.x, board.MARKER_HOT_SCALE)
+		and (prev.position.y + prev.size.y < pa.y or prev.position.y <= 4.0)   # above it, unless the screen's top stops it
+		and prev.pivot_offset.is_equal_approx(Vector2(prev.size.x * 0.5, prev.size.y)) and prev.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+		"hovering a scroll unrolls its preview upward over it %s; the scroll grows; no bubble" % [lines_a])
+	var info: Dictionary = gm.deployment_info("t71_d")
+	var lines_b: Array = board.preview_lines(hex_b)
+	var lines_d: Array = board.preview_lines(hex_d)
+	check(lines_b.has("Party of 2") and lines_b.has("Click to unroll") and lines_d.size() == 4
+		and lines_d[3] == board.out_text(info.get("names", []), int(info.get("return_day", -1))) and str(lines_d[3]).contains("Dara")
+		and not lines_d.has("Click to unroll"),
+		"the party contract's preview names its party; the deployed one's says who is out: '%s'" % [lines_d[3] if lines_d.size() > 3 else "?"])
+	board._handle_hover(pa + Vector2(400.0, 300.0))
+	check(board._preview == null and board._preview_hex == "" and (nodes["t71_a"] as Control).scale == Vector2.ONE,
+		"off the scroll the preview goes and the scroll is its size again")
+
+	# 3. A click: the scroll is open at once (as Story 6.5's checks need), starts tiny and unseen on the marker, flies
+	#    out of it and lands in the middle at full size.
+	board._handle_hover(pa)
+	board._open_detail_panel(hex_a)
+	var wrapper: Control = board._detail_panel
+	var panel: Control = wrapper.get_node_or_null("Scroll") if wrapper != null else null
+	var tiny: bool = panel != null and panel.scale.x < 0.1 and panel.modulate.a == 0.0 and board._preview == null
+	# The flight starts on the next frame's process_frame, before this resumes (the board connected first) and before
+	# its tween has stepped: the scroll is scaled about the marker's own point, so at 6% it sits on the marker.
+	await process_frame
+	var near_marker := false
+	if panel != null:
+		var origin: Vector2 = wrapper.global_position + panel.position
+		near_marker = panel.pivot_offset.is_equal_approx(pa - origin) and panel.scale.x < 0.1
+	await _t57_wait(board.ZOOM_SECONDS + board.UNFURL_SECONDS + 0.2)
+	check(tiny and near_marker and panel.scale.is_equal_approx(Vector2.ONE) and is_equal_approx(panel.modulate.a, 1.0)
+		and panel.pivot_offset.is_equal_approx(panel.size * 0.5) and board._detail_panel == wrapper,
+		"a click opens the scroll at once; it starts tiny on its marker, flies out and lands in the middle at full size")
+
+	# 4. Closing: no scroll at once (a click can't reach the old one), it rolls back into the marker and goes.
+	board._close_detail_panel()
+	var buttons: Array = wrapper.find_children("*", "BaseButton", true, false)
+	var all_off := buttons.size() >= 2 and buttons.all(func(b): return b.disabled and b.mouse_filter == Control.MOUSE_FILTER_IGNORE)
+	var rolling: bool = is_instance_valid(wrapper) and board._detail_panel == null
+	await _t57_wait(board.CLOSE_SECONDS + 0.2)
+	check(rolling and all_off and not is_instance_valid(wrapper),
+		"closing: the board has no scroll at once, the old one's %d buttons are off while it rolls back into its marker, then it goes" % buttons.size())
+
+	# 5. The deployed contract's scroll flies out of its grey marker too.
+	board._open_detail_panel(hex_d)
+	var dwrap: Control = board._detail_panel
+	var dpanel: Control = dwrap.get_node_or_null("Scroll") if dwrap != null else null
+	await _t57_wait(board.ZOOM_SECONDS + board.UNFURL_SECONDS + 0.2)
+	check(board._panel_read_only and dpanel != null and dpanel.scale.is_equal_approx(Vector2.ONE),
+		"the deployed contract's read-only scroll grows out of its grey marker too")
+	board._close_detail_panel()
+	board._close()
+	await _t57_frames(2)
+	_t28_restore(snap, gm, wm, dm)
+	print("")
