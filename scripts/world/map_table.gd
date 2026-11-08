@@ -50,6 +50,7 @@ const EDGE_SHADER := "res://assets/shaders/edge_detection.gdshader"
 const WINDOW_SHADER := "res://assets/shaders/map_window.gdshader"
 const WORLD_MANAGER := "res://systems/WorldManager.gd"   # is_mission_eligible(), static
 const WORLD_GEN_V2 := "res://scripts/world/world_gen_v2.gd"
+const MAP_PLACES := preload("res://scripts/world/map_places.gd")   # what settlements and monuments say (shared with the hall's map)
 const MENU_SCENE := "res://scenes/MainMenu.tscn"
 const TAVERN_SCENE := "res://scenes/MainTavern.tscn"
 ## new_run: game_config's world size, kept to what the per-hex tiles can draw (100 x 64 = 6,400 hexes by default).
@@ -86,7 +87,8 @@ const CAM_FOV := 38.0
 const CAM_DIR := Vector3(-0.42, 1.05, 1.0)   # from the table toward the camera: front-left, above
 const CAM_DIST := 205.0
 const CAM_TARGET_Z := 4.0
-const LEAN_MIN := 0.42                       # the wheel leans the camera between these (fractions of CAM_DIST)
+const LEAN_MIN := 0.16                       # the wheel leans the camera between these (fractions of CAM_DIST);
+                                             # 0.42 until 2026-11-08, closer now so a town's houses read
 const LEAN_MAX := 1.0
 const LEAN_STEP := 0.07
 
@@ -169,6 +171,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_lean = lerpf(_lean, _lean_target, 1.0 - exp(-delta * 10.0))
 	if _live:
+		_set_pan(_pan)   # leaning out tightens the limit again
 		_key_pan(delta)
 	_update_cameras()
 	_update_hover()
@@ -262,12 +265,15 @@ func _index(records: Array) -> void:
 
 
 ## Keeps the window over the map: at most SEA_SLACK of open sea shows past the map's edge.
+## Leaned in, the screen shows only the window's middle (about _lean of it), so the limit shrinks with the lean and
+## every edge of the map can still come to the screen (2026-11-08, with the closer LEAN_MIN).
 func _set_pan(p: Vector2) -> void:
 	if _by_coord.is_empty():
 		_pan = p
 		return
-	_pan = Vector2(-_clamp_centre(-p.x, _lo.x - 1.0, _hi.x + 1.0, WIN_W * 0.5),
-		-_clamp_centre(-p.y, _lo.y - HEX_R, _hi.y + HEX_R, WIN_D * 0.5))
+	var k := clampf(_lean, LEAN_MIN, 1.0)
+	_pan = Vector2(-_clamp_centre(-p.x, _lo.x - 1.0, _hi.x + 1.0, WIN_W * 0.5 * k),
+		-_clamp_centre(-p.y, _lo.y - HEX_R, _hi.y + HEX_R, WIN_D * 0.5 * k))
 
 
 ## Where the window's centre may sit along one axis, given the map's extent [lo, hi] and the window's half size; a map
@@ -474,6 +480,9 @@ func _short_name(rec: Dictionary) -> String:
 		return "Your tavern"
 	if rec.get("settle_site", false):
 		return "A place to settle"   # DRAFT
+	var place := MAP_PLACES.short_line(rec)   # a settlement with its size, or a monument's name
+	if place != "":
+		return place
 	if rec.get("is_zone", false):
 		return str(rec.get("location_name", "Settlement"))
 	if int(rec.get("river_mask", 0)) != 0 and str(rec.get("river", "")) != "":
@@ -519,6 +528,7 @@ func _open_detail(rec: Dictionary) -> void:
 		lines.append(str(rec.feature))
 	if rec.get("settle_site", false):
 		lines.append_array(_site_lines(rec))
+	lines.append_array(MAP_PLACES.detail_lines(rec))
 	lines.append("Hex %d, %d" % [c.x, c.y])
 	if not rec.get("is_center", false) and _map != null and _sites.is_empty():   # a tavern stands: how far from it
 		var d: int = _map.call("_hex_distance", _home, c)   # HexMapGenerator's (offset coords, static)

@@ -4,6 +4,7 @@ signal board_closed
 
 const HEX_MAP_SCENE := preload("res://scenes/HexMapTest.tscn")
 const MISSION_SLOT_SCRIPT := preload("res://scenes/world/mission_slot.gd")
+const MAP_PLACES := preload("res://scripts/world/map_places.gd")
 
 ## 2026-11-08 (Raphael: "little clickable scrolls that zoom out/pan out and display more information"): each contract
 ## is a small rolled scroll drawn in 2D (its ribbon and seal in the danger's colour; a deployed one grey and still).
@@ -438,7 +439,8 @@ func _handle_hover(mouse_pos: Vector2) -> void:
 
 
 func _show_bubble(rec: Dictionary, mouse_pos: Vector2) -> void:
-	_bubble_biome.text = _biome_line(rec.get("biome", ""))
+	var place := MAP_PLACES.short_line(rec)   # 2026-11-08: a settlement with its size, or a monument's name
+	_bubble_biome.text = place if place != "" else _biome_line(rec.get("biome", ""))
 
 	var mission = rec.get("active_mission", null)
 	if rec.get("is_ruin", false) and not rec.get("ruin_discovered", false):

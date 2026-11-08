@@ -51,6 +51,15 @@
 		"lake": ["Lake {name}", "{name} Mere", "{name} Water"],
 		"forest": ["{name} Wood", "the {name}wood", "{name} Forest", "the Woods of {name}"],
 		"mountains": ["the {name} Peaks", "the {name} Mountains", "the {name} Range"],
-		"hills": ["the {name} Hills", "the {name} Downs", "{name} Heights"]
+		"hills": ["the {name} Hills", "the {name} Downs", "{name} Heights"],
+		"pillar": ["the Pillar of {name}", "the Old Pillar at {name}", "{name}'s Pillar"],
+		"stones": ["the {name} Stones", "the Stones of {name}", "the {name} Ring"],
+		"watch": ["{name} Watch", "the {name} Lookout", "{name} Tower"],
+		"crypt": ["the Crypt of {name}", "the {name} Crypt", "the Tomb of {name}"],
+		"lair": ["{name}'s Lair", "the Lair of {name}", "the {name} Caves"],
+		"hideout": ["{name}'s Camp", "the {name} Hideout", "the Camp at {name}"],
+		"warren": ["the {name} Warren", "the {name} Burrows", "the Holes of {name}"],
+		"bog": ["the {name} Bog", "{name} Mire", "the {name} Fen"],
+		"glade": ["{name} Glade", "the Glade of {name}", "{name} Meadow"]
 	}
 }

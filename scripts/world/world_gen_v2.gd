@@ -67,6 +67,48 @@ const LAND_SHARE := {"continent": 0.46, "archipelago": 0.30, "twin": 0.40, "inla
 @export var tavern_sites := Vector2i(20, 30)
 ## A place to settle keeps this many steps from every town (the old single tavern kept 3).
 const SITE_TOWN_GAP := 3
+## The settlements and monuments on the map (2026-11-08, Raphael: "work on 3D models of world map monuments and
+## towns"). A settlement's topper by its size: scenes of scaled KayKit pieces on one hex (tools/world/
+## build_map_towns.gd; scripts/world/map_town.gd gives the roofs the culture's colour); a city spreads into quarters
+## round it. The monuments are built in Blender (tools/blender/map_landmarks/build_map_landmarks.py), the watchtower
+## from KayKit's tower.
+const TOWNS_DIR := "res://assets/environment/custom/map_towns/"
+const TOWN_TOPPERS := {
+	"hamlet": [TOWNS_DIR + "hamlet_a.tscn", TOWNS_DIR + "hamlet_b.tscn"],
+	"town": [TOWNS_DIR + "town_a.tscn", TOWNS_DIR + "town_b.tscn"],   # town_b: an old Prior pillar in its square
+	"city": [TOWNS_DIR + "city_keep.tscn"],
+	"city_quarter": [TOWNS_DIR + "city_quarter_a.tscn", TOWNS_DIR + "city_quarter_b.tscn"],
+}
+const MONUMENT_TOPPERS := {
+	"prior_pillar": "res://assets/environment/custom/d20_prior_pillar.gltf",
+	"standing_stones": "res://assets/environment/custom/d21_standing_stones.gltf",
+	"watchtower": TOWNS_DIR + "watchtower.tscn",
+	"hermit_tower": "res://assets/environment/custom/d8_hermit_tower.gltf",
+}
+## Per world, [least, most] of each monument (placed in this order), and the hexes they keep from every town.
+const MONUMENTS := {"hermit_tower": [1, 1], "watchtower": [2, 5], "standing_stones": [2, 4], "prior_pillar": [3, 7]}
+const MONUMENT_TOWN_GAP := 3
+const CITY_QUARTERS := 3   # at most, round a city's keep
+## The mission landmarks (08 §5 D2-D7, 2026-11-08; tools/blender/map_landmarks/build_map_landmarks.py): their models, how
+## many a world has ([least, most], placed in this order), how far they keep from towns. A mission template names its
+## landmark in data/missions/mission_types.json ("landmark"); WorldManager places that contract on one when it can.
+const LANDMARK_TOPPERS := {
+	"dragon_lair": "res://assets/environment/custom/d3_dragon_lair.gltf",
+	"demon_crypt": "res://assets/environment/custom/d2_demon_crypt.gltf",
+	"bandit_hideout": "res://assets/environment/custom/d4_bandit_hideout.gltf",
+	"goblin_warren": "res://assets/environment/custom/d5_goblin_warren.gltf",
+	"slime_bog": "res://assets/environment/custom/d6_slime_bog.gltf",
+	"herb_glade": "res://assets/environment/custom/d7_herb_glade.gltf",
+}
+const LANDMARKS := {"dragon_lair": [1, 1], "demon_crypt": [1, 2], "bandit_hideout": [2, 3], "goblin_warren": [3, 5],
+	"slime_bog": [3, 5], "herb_glade": [3, 5]}
+const LANDMARK_TOWN_GAP := 2
+const LANDMARK_FORMS := {"demon_crypt": "crypt", "dragon_lair": "lair", "bandit_hideout": "hideout",
+	"goblin_warren": "warren", "slime_bog": "bog", "herb_glade": "glade"}
+## On settling, the Tier 1 contracts' landmarks are made sure of between EARLY_REACH hexes of the tavern (the first
+## days' errands land 1-5 hexes out), so the early board has its places.
+const EARLY_LANDMARKS := ["slime_bog", "herb_glade", "goblin_warren"]
+const EARLY_REACH := Vector2i(2, 5)
 
 var world_name := ""
 var world_kind := ""
@@ -235,7 +277,12 @@ func _build_records() -> Array:
 		if rec.is_lake:
 			lakes += 1
 	stats = {"kind": world_kind, "hexes": n, "land": land, "river_hexes": rivers, "lake_hexes": lakes,
-		"sites": recs.filter(func(r): return r.get("settle_site", false)).size()}
+		"sites": recs.filter(func(r): return r.get("settle_site", false)).size(),
+		"cities": recs.filter(func(r): return r.get("town_tier", "") == "city").size(),
+		"towns": recs.filter(func(r): return r.get("town_tier", "") == "town").size(),
+		"hamlets": recs.filter(func(r): return r.get("town_tier", "") == "hamlet").size(),
+		"monuments": recs.filter(func(r): return r.has("monument")).size(),
+		"landmarks": recs.filter(func(r): return r.has("landmark")).size()}
 	return recs
 
 
@@ -458,7 +505,214 @@ func _place_people(recs: Array, px: PackedFloat32Array, pz: PackedFloat32Array) 
 				rec["zone_building"] = buildings[placed.size() % buildings.size()]
 				placed.append(rec)
 		spacing -= 1
-	_place_sites(recs, px, pz, placed, land)
+	_rank_towns(recs, placed)
+	var zones := recs.filter(func(r): return r.is_zone)   # with the cities' quarters
+	_place_monuments(recs, land)
+	_place_landmarks(recs, land)
+	_place_sites(recs, px, pz, zones, land)
+
+
+## The mission landmarks (rec.landmark), in LANDMARKS' order, each on the hexes that suit it best (_landmark_score),
+## the same kind spread apart and 3+ hexes from any monument or other landmark.
+func _place_landmarks(recs: Array, land: int) -> void:
+	var town_dist := _town_distances(recs)
+	var gap := maxi(5, int(sqrt(float(land) / 40.0)))
+	var taken := recs.filter(func(r): return r.has("monument"))
+	for kind in LANDMARKS:
+		var want := _rng.randi_range(int(LANDMARKS[kind][0]), int(LANDMARKS[kind][1]))
+		var cands := []
+		for i in recs.size():
+			var s := _landmark_score(kind, recs, i, town_dist[i])
+			if s >= 0.0:
+				cands.append([s + _rng.randf(), i])
+		cands.sort_custom(func(a, b): return a[0] > b[0])
+		var mine := []
+		for c in cands:
+			if mine.size() >= want:
+				break
+			var r: Dictionary = recs[c[1]]
+			var ok := true
+			for m in mine:
+				if _hex_distance(r.coord, m.coord) < gap:
+					ok = false
+					break
+			if ok:
+				for m in taken:
+					if _hex_distance(r.coord, m.coord) < 3:
+						ok = false
+						break
+			if ok:
+				r["landmark"] = kind
+				mine.append(r)
+				taken.append(r)
+
+
+## How well hex i suits a landmark kind (higher is better), or -1 when it can't hold one: dry land, never a town, a
+## monument, another landmark, a mountain, a lake or the border, and LANDMARK_TOWN_GAP+ hexes from every town.
+func _landmark_score(kind: String, recs: Array, i: int, town_dist: int) -> float:
+	var r: Dictionary = recs[i]
+	if r.is_zone or r.has("monument") or r.has("landmark") or r.biome in ["sea", "mountain", "tavern_site"] \
+			or r.river_mask != 0 or r.is_lake or _on_border(i) or town_dist < LANDMARK_TOWN_GAP:
+		return -1.0
+	var wet := false
+	var by_mountain := false
+	for k in 6:
+		var nb := _nb[i * 6 + k]
+		if nb < 0:
+			continue
+		var o: Dictionary = recs[nb]
+		wet = wet or o.biome == "sea" or o.river_mask != 0 or o.is_lake
+		by_mountain = by_mountain or o.biome == "mountain"
+	match kind:
+		"dragon_lair":
+			return 2.0 if by_mountain else (0.5 if r.biome == "hills" else -1.0)
+		"demon_crypt":
+			return 0.1 * float(mini(town_dist, 30)) + (0.5 if r.biome == "forest" else 0.0)
+		"bandit_hideout":
+			return (1.0 if r.biome == "forest" else 0.0) + (0.5 if town_dist <= 8 else 0.0)
+		"goblin_warren":
+			return 1.0 if r.biome in ["hills", "forest"] else 0.2
+		"slime_bog":
+			return (1.5 if wet else 0.0) + float(r.get("moisture", 0.0))
+		"herb_glade":   # open grass first; a glade in the woods or the hills will do
+			return {"grass": 1.0, "coast": 0.3, "forest": 0.2, "hills": 0.1}.get(r.biome, 0.0) + float(r.get("moisture", 0.0))
+	return 0.0
+
+
+## Hexes from the nearest town (cities' quarters included).
+func _town_distances(recs: Array) -> PackedInt32Array:
+	var marks := PackedByteArray()
+	marks.resize(recs.size())
+	for i in recs.size():
+		marks[i] = 1 if recs[i].is_zone else 0
+	return _distance_from(marks)
+
+
+## A landmark's name: the crypt and the lair in the old tongue, the rest in the land's (data/world/name_bases.json forms).
+func _landmark_name(names, kind: String, rec: Dictionary) -> String:
+	var tongue := "elder" if kind in ["demon_crypt", "dragon_lair"] else str(rec.get("culture", "heartland"))
+	return names.place(str(LANDMARK_FORMS.get(kind, "")), tongue)
+
+
+## Settling: the Tier 1 contracts' landmarks (EARLY_LANDMARKS) are made sure of near the tavern. A kind already within
+## EARLY_REACH.y + 1 hexes stays as it is; otherwise the hex that suits it best between EARLY_REACH hexes out becomes
+## one (no RNG drawn; a tie goes to the first record), with a name and its model, marked early_landmark.
+func _early_landmarks(home: Dictionary) -> void:
+	var town_dist := _town_distances(_records)
+	var nrng := RandomNumberGenerator.new()
+	nrng.seed = map_seed ^ 0xEA51
+	var names = NAME_GEN.new(nrng)
+	for kind in EARLY_LANDMARKS:
+		var have := false
+		for r in _records:
+			if r.get("landmark", "") == kind and _hex_distance(r.coord, home.coord) <= EARLY_REACH.y + 1:
+				have = true
+				break
+		if have:
+			continue
+		var best := -1
+		var best_s := -INF
+		for i in _records.size():
+			var r: Dictionary = _records[i]
+			if r.get("is_ruin", false) or r.get("is_center", false):
+				continue
+			var d := _hex_distance(r.coord, home.coord)
+			if d < EARLY_REACH.x or d > EARLY_REACH.y:
+				continue
+			var s := _landmark_score(kind, _records, i, town_dist[i])
+			if s > best_s:
+				best_s = s
+				best = i
+		if best < 0 or best_s < 0.0:
+			continue
+		var r: Dictionary = _records[best]
+		r["landmark"] = kind
+		r["landmark_name"] = _landmark_name(names, kind, r)
+		r["early_landmark"] = true
+		r.topper_paths = [LANDMARK_TOPPERS[kind]]
+
+
+## The settlements by size, best ground first (`placed` is in score order): the first few are cities, the next
+## two-fifths towns, the rest hamlets (town_tier). A city spreads over up to CITY_QUARTERS dry land hexes beside it,
+## its quarters (is_zone, town_tier "city_quarter", city_of its hex's id; named after it in _name_world).
+## town_variant picks a layout (a town's 1 has an old Prior pillar in its square).
+func _rank_towns(recs: Array, placed: Array) -> void:
+	var n := placed.size()
+	var n_city := clampi(int(round(n / 10.0)), 1, 4) if n > 0 else 0
+	var n_town := int(round(n * 0.4))
+	for k in n:
+		var rec: Dictionary = placed[k]
+		rec["town_tier"] = "city" if k < n_city else ("town" if k < n_city + n_town else "hamlet")
+		rec["town_variant"] = _rng.randi_range(0, 1)
+	var by_coord := {}
+	for r in recs:
+		by_coord[r.coord] = r
+	for k in n_city:
+		var city: Dictionary = placed[k]
+		var around: Array = _neighbors_of(city.coord)
+		for i in range(around.size() - 1, 0, -1):   # Fisher-Yates with the seeded RNG
+			var j := _rng.randi_range(0, i)
+			var t = around[i]
+			around[i] = around[j]
+			around[j] = t
+		var quarters := 0
+		for c in around:
+			if quarters >= CITY_QUARTERS:
+				break
+			var o = by_coord.get(c)
+			if o == null or o.is_zone or not o.biome in ["grass", "forest", "coast", "hills"] or o.river_mask != 0 \
+					or o.is_lake:
+				continue
+			o.is_zone = true
+			o["town_tier"] = "city_quarter"
+			o["city_of"] = city.id
+			o["town_variant"] = _rng.randi_range(0, 1)
+			quarters += 1
+
+
+## The monuments (rec.monument), in MONUMENTS' order: one Hermit's Tower on the land farthest from every town, then
+## watchtowers on the coast or the hills, standing stones (hills preferred) and old Prior pillars anywhere. Each is dry
+## land (never a mountain, a river, a lake or the border), MONUMENT_TOWN_GAP+ hexes from every town and spread apart.
+## They can still hold contracts.
+func _place_monuments(recs: Array, land: int) -> void:
+	var marks := PackedByteArray()
+	marks.resize(recs.size())
+	for i in recs.size():
+		marks[i] = 1 if recs[i].is_zone else 0
+	var town_dist := _distance_from(marks)
+	var gap := maxi(4, int(sqrt(float(land) / 20.0)))
+	var placed := []
+	for kind in MONUMENTS:
+		var want := _rng.randi_range(int(MONUMENTS[kind][0]), int(MONUMENTS[kind][1]))
+		var cands := []
+		for i in recs.size():
+			var r: Dictionary = recs[i]
+			if town_dist[i] < MONUMENT_TOWN_GAP or r.is_zone or r.has("monument") or r.biome in ["sea", "mountain"] \
+					or r.river_mask != 0 or r.is_lake or _on_border(i):
+				continue
+			var s := _rng.randf()
+			if kind == "hermit_tower":
+				s += float(mini(town_dist[i], 999))
+			elif kind == "watchtower" and not r.biome in ["coast", "hills"]:
+				continue
+			elif kind == "standing_stones" and r.biome == "hills":
+				s += 1.0
+			cands.append([s, i])
+		cands.sort_custom(func(a, b): return a[0] > b[0])
+		var got := 0
+		for c in cands:
+			if got >= want:
+				break
+			var r: Dictionary = recs[c[1]]
+			var ok := true
+			for m in placed:
+				if _hex_distance(r.coord, m.coord) < gap:
+					ok = false
+					break
+			if ok:
+				r["monument"] = kind
+				placed.append(r)
+				got += 1
 
 
 ## The places the player may settle (Raphael 2026-11-08: "put the N amount that was planned initially": the old
@@ -518,7 +772,7 @@ func _place_sites(recs: Array, px: PackedFloat32Array, pz: PackedFloat32Array, t
 ## Prior Ruins' room, pick_ruin_hex's biomes); SITE_TOWN_GAP steps or more from every town.
 func _site_ok(recs: Array, i: int, towns: Array) -> bool:
 	var rec: Dictionary = recs[i]
-	if rec.is_zone or rec.river_mask != 0 or rec.is_lake or _on_border(i):
+	if rec.is_zone or rec.river_mask != 0 or rec.is_lake or _on_border(i) or rec.has("monument") or rec.has("landmark"):
 		return false
 	var free := 0
 	for k in 6:
@@ -550,12 +804,14 @@ func settle_at(site: Dictionary) -> bool:
 	site.base_rot_y = 0.0
 	site.topper_paths = [TAVERN_TOPPER, HOME_MARKER]
 	tavern_coord = site.coord
-	var dry := _records.filter(func(r): return r.get("river_mask", 0) == 0)
+	var dry := _records.filter(func(r): return r.get("river_mask", 0) == 0 and not r.has("monument") \
+		and not r.has("landmark"))   # never over a monument or a landmark
 	var pick: Dictionary = pick_ruin_hex(dry, tavern_coord, map_seed)
 	if pick.is_empty():
 		push_warning("[WorldGenV2] ruin: no free land next to the tavern; none reserved.")
 	else:
 		mark_ruin(pick)
+	_early_landmarks(site)
 	return true
 
 
@@ -575,9 +831,27 @@ func _name_world(recs: Array, down: PackedInt32Array, river: PackedByteArray) ->
 	nrng.seed = map_seed ^ 0x5EED ^ hash(world_kind)   # each world type of a seed gets its own names
 	var names = NAME_GEN.new(nrng)
 	world_name = names.place("world", "elder")
+	var cities := {}
 	for rec in recs:
-		if rec.is_zone:
+		if rec.is_zone and rec.get("town_tier", "") != "city_quarter":
 			rec.location_name = names.make(rec.culture)
+			cities[rec.id] = rec
+	for rec in recs:   # a city's quarters carry its name
+		if rec.get("town_tier", "") == "city_quarter" and cities.has(rec.get("city_of", "")):
+			rec.location_name = cities[rec.city_of].location_name
+	for rec in recs:   # the monuments, DRAFT forms (data/world/name_bases.json)
+		match str(rec.get("monument", "")):
+			"prior_pillar":
+				rec["monument_name"] = names.place("pillar", "elder")
+			"standing_stones":
+				rec["monument_name"] = names.place("stones", "elder" if nrng.randf() < 0.5 else rec.culture)
+			"watchtower":
+				rec["monument_name"] = names.place("watch", rec.culture)
+			"hermit_tower":
+				rec["monument_name"] = "The Hermit's Tower"
+	for rec in recs:   # the mission landmarks
+		if rec.has("landmark"):
+			rec["landmark_name"] = _landmark_name(names, rec.landmark, rec)
 	# landmasses: the biggest are lands, the small ones isles
 	var lands := _components(recs, func(r): return r.biome != "sea")
 	var biggest := 1
@@ -684,8 +958,14 @@ func _resolve_visuals() -> void:
 				_:
 					if _rng.randf() < grass_decor_chance * 0.5:
 						rec.topper_paths.append(GRASS_DECOR[_rng.randi_range(0, GRASS_DECOR.size() - 1)])
-		if rec.is_zone:
-			rec.topper_paths = [rec.get("zone_building", ZONE_BUILDINGS[0])]
+		if rec.is_zone:   # its size's layout (town_variant); a world from before 2026-11-08 had one building
+			var opts: Array = TOWN_TOPPERS.get(str(rec.get("town_tier", "")), [])
+			rec.topper_paths = [opts[int(rec.get("town_variant", 0)) % opts.size()]] if not opts.is_empty() \
+				else [rec.get("zone_building", ZONE_BUILDINGS[0])]
+		elif rec.has("monument"):
+			rec.topper_paths = [MONUMENT_TOPPERS.get(rec.monument, MONUMENT_TOPPERS.prior_pillar)]
+		elif rec.has("landmark"):
+			rec.topper_paths = [LANDMARK_TOPPERS.get(rec.landmark, LANDMARK_TOPPERS.herb_glade)]
 
 
 ## The Prior Ruins go next to the tavern, and a v2 world has no tavern until the player settles: settle_at() reserves

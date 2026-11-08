@@ -29,6 +29,7 @@
   "mission_templates": [
 	{
 	  "id": "slime_extermination",
+	  "landmark": "slime_bog",
 	  "name": "Clear Slime Infestation",
 	  "category": "combat",
 	  "tier": 1,
@@ -43,6 +44,7 @@
 	},
 	{
 	  "id": "herb_collection",
+	  "landmark": "herb_glade",
 	  "name": "Gather Healing Herbs",
 	  "category": "gathering",
 	  "tier": 1,
@@ -71,6 +73,7 @@
 	},
 	{
 	  "id": "goblin_patrol",
+	  "landmark": "goblin_warren",
 	  "name": "Goblin Patrol Elimination",
 	  "category": "combat",
 	  "tier": 1,
@@ -225,6 +228,7 @@
 	},
 	{
 	  "id": "bandit_camp",
+	  "landmark": "bandit_hideout",
 	  "name": "Destroy Bandit Hideout",
 	  "category": "combat",
 	  "tier": 3,
@@ -267,6 +271,7 @@
 	},
 	{
 	  "id": "dragon_reconnaissance",
+	  "landmark": "dragon_lair",
 	  "name": "Dragon Lair Scouting",
 	  "category": "investigation",
 	  "tier": 3,
@@ -281,6 +286,7 @@
 	},
 	{
 	  "id": "demon_cult_investigation",
+	  "landmark": "demon_crypt",
 	  "name": "Investigate Demon Cult",
 	  "category": "investigation",
 	  "tier": 3,

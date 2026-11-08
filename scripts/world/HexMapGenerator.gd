@@ -465,7 +465,10 @@ func _instantiate_tile(rec: Dictionary) -> Node3D:
 	for tp in rec.topper_paths:
 		var tp_packed := _load_scene(tp)
 		if tp_packed != null:
-			bt.add_child(tp_packed.instantiate() as Node3D)
+			var topper := tp_packed.instantiate() as Node3D
+			if topper.has_method("dress_for"):
+				topper.call("dress_for", rec)   # a map town takes its culture's colours (scripts/world/map_town.gd)
+			bt.add_child(topper)
 	if _hex_look_on:
 		HEX_LOOK.dress(bt)
 	return bt

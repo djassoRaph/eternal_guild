@@ -129,7 +129,7 @@ func assign_missions_to_hexes(missions: Array) -> void:
 	for mission in missions:
 		var band := _distance_band_for(mission, max_d)
 		var target := randf_range(band.x, band.y)
-		var idx := _closest_unused_to(eligible, used, target)
+		var idx := _pick_hex(eligible, used, mission, band, target)
 		if idx == -1:
 			break  # every eligible hex is taken
 		eligible[idx]["hex"]["active_mission"] = mission
@@ -163,7 +163,7 @@ func assign_one_mission(mission: Dictionary) -> bool:
 
 	var band := _distance_band_for(mission, max_d)
 	var target := randf_range(band.x, band.y)
-	var idx := _closest_unused_to(eligible, {}, target)
+	var idx := _pick_hex(eligible, {}, mission, band, target)
 	if idx == -1:
 		return false
 
@@ -184,6 +184,43 @@ func _distance_band_for(mission: Dictionary, max_d: int) -> Vector2:
 	if lo > hi:
 		lo = hi
 	return Vector2(lo, hi)
+
+
+## 2026-11-08: a contract whose template names a landmark (data/missions/mission_types.json "landmark": "slime_bog") goes
+## to a free hex with that landmark (World Gen v2's mission landmarks) when one lies within its band, LANDMARK_SLACK
+## hexes of give either side, the one nearest its target. Otherwise to the free hex nearest its target that isn't
+## another kind's landmark (no herb-gathering at a demon crypt), and only when there is none, to any free hex.
+const LANDMARK_SLACK := 2.0
+
+func _pick_hex(eligible: Array, used: Dictionary, mission: Dictionary, band: Vector2, target: float) -> int:
+	var kind := str(mission.get("landmark", ""))
+	if kind != "":
+		var best := -1
+		var best_diff := INF
+		for i in eligible.size():
+			if used.has(i) or str(eligible[i]["hex"].get("landmark", "")) != kind:
+				continue
+			var d := float(eligible[i]["d"])
+			if d < band.x - LANDMARK_SLACK or d > band.y + LANDMARK_SLACK:
+				continue
+			if absf(d - target) < best_diff:
+				best_diff = absf(d - target)
+				best = i
+		if best != -1:
+			return best
+	var plain := -1
+	var plain_diff := INF
+	for i in eligible.size():
+		var lm := str(eligible[i]["hex"].get("landmark", ""))
+		if used.has(i) or (lm != "" and lm != kind):
+			continue
+		var diff: float = absf(float(eligible[i]["d"]) - target)
+		if diff < plain_diff:
+			plain_diff = diff
+			plain = i
+	if plain != -1:
+		return plain
+	return _closest_unused_to(eligible, used, target)
 
 
 func _closest_unused_to(eligible: Array, used: Dictionary, target: float) -> int:
