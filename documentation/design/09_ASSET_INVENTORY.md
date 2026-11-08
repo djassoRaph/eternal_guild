@@ -229,19 +229,34 @@ exterior or the tavern, which leaves the 89 unique files.)
 | Asset | Mission templates | Status |
 |---|---|---|
 | D1 Prior Ruins (gate asset) | `ancient_artifact`, Hidden missions | `in game` (2026-09-24, Story 25.2: `custom/d1_prior_ruins.gltf`, 1,956 tris; the reserved ruin hex next to the tavern) |
-| D2 Demon Cult Crypt | `demon_cult_investigation` | `concept` (crypt v2) |
-| D3 Dragon's Lair (+ skull) | `dragon_reconnaissance` | `planned` (Batch 2) |
-| D4 Bandit Hideout | `bandit_camp` | `planned` (Batch 2) |
-| D5 Goblin Warren | `goblin_patrol` | `planned` (Batch 2) |
-| D6 Slime Bog | `slime_extermination` | `planned` (Batch 2) |
-| D7 Herb Glade | `herb_collection` | `planned` (Batch 2) |
-| Den Fa's Hermit Tower | Hidden missions hub | `planned` (backlog) |
+| D2 Demon Cult Crypt | `demon_cult_investigation` | `in game` (2026-11-08: `custom/d2_demon_crypt.gltf`, 1,148 tris, after the picked concept (crypt v2); built headless in Blender, `tools/blender/map_landmarks/build_map_landmarks.py -- missions`; 1-2 per World Gen v2 world, far from towns) |
+| D3 Dragon's Lair (+ skull) | `dragon_reconnaissance` | `in game` (2026-11-08: `custom/d3_dragon_lair.gltf`, 608 tris, after the card's words (no concept yet); the skull modelled, not Route 2; one per world beside the mountains) |
+| D4 Bandit Hideout | `bandit_camp` | `in game` (2026-11-08: `custom/d4_bandit_hideout.gltf`, 1,186 tris, modelled, not assembled from KayKit props; 2-3 per world, forest near towns) |
+| D5 Goblin Warren | `goblin_patrol` | `in game` (2026-11-08: `custom/d5_goblin_warren.gltf`, 442 tris; 3-5 per world, hills or forest; one is made sure of near the tavern on settling) |
+| D6 Slime Bog | `slime_extermination` | `in game` (2026-11-08: `custom/d6_slime_bog.gltf`, 700 tris, the slimes `slime_01`-`03` their own objects; 3-5 per world beside water; one near the tavern on settling) |
+| D7 Herb Glade | `herb_collection` | `in game` (2026-11-08: `custom/d7_herb_glade.gltf`, 524 tris; 3-5 per world, grass first; one near the tavern on settling) |
+| D8 Den Fa's Hermit Tower | Hidden missions hub | `in game` (2026-11-08: `custom/d8_hermit_tower.gltf`, 700 tris, 2.0 m; built headless in Blender by `tools/blender/map_landmarks/build_map_landmarks.py`; World Gen v2 puts one per world on the land farthest from every town) |
+| D20 Prior pillar (map) | none yet (a monument; contracts may land on it) | `in game` (2026-11-08: `custom/d20_prior_pillar.gltf`, 706 tris, 1.3 m, the hourglass and runes `emissive_prior_teal`; 3-7 per World Gen v2 world, and one in the square of a `town_b`) |
+| D21 Standing stones | none yet (a monument) | `in game` (2026-11-08: `custom/d21_standing_stones.gltf`, 512 tris, seven stones round an altar with one teal rune; 2-4 per world, hills preferred) |
 | Demon Lord's Fortress | endgame | `planned` (backlog) |
 | Refugee camp | `refugee_escort` | `planned` (backlog) |
 | Broken caravan | `missing_caravan` | `planned` (backlog) |
 
+D2-D7 are placed by World Gen v2 and named ("The Thorbrook Bog"); their templates name them in
+`data/missions/mission_types.json` (`landmark`) and `WorldManager._pick_hex` puts the contract there when one is in reach
+(2026-11-08, failsafe Test 74). Concepts for D3-D7 can still be run in n8n to refine the models.
+
 The other mission templates use map buildings from §3 (mine, tower, castle, market, village,
 river crossing).
+
+**Map settlements and watchtowers (C14, 2026-11-08):** World Gen v2 sizes its settlements, and each takes a scene of
+scaled KayKit pieces on its hex (`assets/environment/custom/map_towns/*.tscn`, built by `tools/world/build_map_towns.gd`):
+`hamlet_a` (houses, a well), `hamlet_b` (houses, a windmill), `town_a` (a market), `town_b` (a church round a D20
+pillar), `city_keep` (the castle) and `city_quarter_a/b` (a tower, houses, a smithy or a well) on up to three hexes round
+it, and `watchtower` (KayKit's tower on rocks). `scripts/world/map_town.gd` gives the buildings their culture's colour
+by swapping KayKit's team swatch in a copy of the atlas (`map_towns/hexagons_medieval_heartland.png` red,
+`_southreach.png` ochre, from `tools/world/make_town_atlases.py`; the northmark keeps the blue). `in game`; placeholder
+until bespoke town art: the layouts are lists in the build tool.
 
 ---
 
