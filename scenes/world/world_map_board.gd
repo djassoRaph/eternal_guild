@@ -5,8 +5,19 @@ signal board_closed
 const HEX_MAP_SCENE := preload("res://scenes/HexMapTest.tscn")
 const MISSION_SLOT_SCRIPT := preload("res://scenes/world/mission_slot.gd")
 
-# If ۩ (U+06E9) renders as a tofu box, change this one constant to "" or any glyph you prefer.
-const RUNE := "۩"
+## 2026-11-08 (Raphael: "little clickable scrolls that zoom out/pan out and display more information"): each contract
+## is a small rolled scroll drawn in 2D (its ribbon and seal in the danger's colour; a deployed one grey and still).
+## Hovering one unrolls a short preview above it; a click grows the full scroll out of it, and closing rolls it back.
+const MARKER_PAPER := Color(0.91, 0.83, 0.63, 1.0)
+const MARKER_PAPER_SHADE := Color(0.74, 0.63, 0.44, 1.0)
+const MARKER_WOOD := Color(0.38, 0.23, 0.12, 1.0)
+const MARKER_LINE := Color(0.12, 0.08, 0.05, 0.95)
+const MARKER_HALO := Color(1.0, 0.86, 0.40, 0.22)
+const MARKER_DIM := Color(0.62, 0.64, 0.70, 1.0)     # a deployed contract's scroll, multiplied over its colours
+const MARKER_HOT_SCALE := 1.25                         # the hovered scroll
+const PREVIEW_SECONDS := 0.14                          # the hover preview unrolls
+const ZOOM_SECONDS := 0.22                             # the full scroll flies out of its marker, then unrolls (UNFURL_SECONDS)
+const CLOSE_SECONDS := 0.16                            # and rolls back into it
 
 ## Story 6.5: a click this close to a marker's drawn centre opens its hex (the nearest marker wins).
 const MARKER_HIT_RADIUS := 36.0
@@ -28,6 +39,12 @@ const UNFURL_SECONDS := 0.18
 ## lighting dev overlay (101), so the map is a clean full screen while it is open; the dialogue box (110) and the Codex
 ## (128) still draw above it. attach_to() makes the layer.
 const CANVAS_LAYER := 105
+## board_view(): the camera's place from what it looks at (the board's fixed view before 2026-11-08), the distance
+## from the tavern that view keeps (13 steps reach at most 29.1 units on HexGrid's 2 x 2 spacing, so the old island's
+## contracts never move it), and how far it may pull back.
+const BOARD_CAM_OFFSET := Vector3(20.0, 50.0, 23.0)
+const BOARD_REACH := 30.0
+const BOARD_MAX_PULL := 3.0
 
 var _sv: SubViewport
 var _svc: SubViewportContainer
@@ -41,6 +58,9 @@ var _bubble_danger: Label
 var _marker_layer: Control
 var _marker_tweens: Array = []
 var _markers: Array = []          # [{hex_id, pos}]: where each marker is drawn (Story 6.5: a click on one opens its hex)
+var _marker_nodes: Dictionary = {}   # hex_id -> its scroll marker (the hovered one grows)
+var _preview: PanelContainer = null  # the hover preview over a scroll marker (freed when it goes)
+var _preview_hex := ""
 var _badges: Dictionary = {}      # hex_id -> the party size shown on its marker
 var _chips: Dictionary = {}       # hex_id -> the deployed chip's text
 
@@ -104,8 +124,7 @@ func _ready() -> void:
 	if _cam:
 		_cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 		_cam.fov = 50.0
-		_cam.position = Vector3(20.0, 50.0, 23.0)
-		_cam.look_at(Vector3.ZERO, Vector3.UP)
+		_frame_camera()
 
 	# Marker layer sits above the SubViewport but below the hover bubble.
 	_marker_layer = Control.new()
@@ -127,6 +146,44 @@ func _ready() -> void:
 	hint.offset_right = -12.0
 	hint.offset_bottom = -12.0
 	add_child(hint)
+
+
+## Where the board's camera looks from and at (2026-11-08, World Gen v2 on New Game): at the tavern wherever it stands,
+## from BOARD_CAM_OFFSET, pulled back (up to BOARD_MAX_PULL times) until the farthest contract or taken hex fits. The
+## old island (the tavern at (0, 0), contracts within 13 steps) keeps exactly the view it always had. Static so the
+## headless suite can check it.
+static func board_view(records: Array) -> Dictionary:
+	var target := Vector3.ZERO
+	for rec in records:
+		if rec is Dictionary and rec.get("is_center", false):
+			target = _hex_world(rec.get("coord"))
+			break
+	var reach := 0.0
+	for rec in records:
+		if rec is Dictionary and (rec.get("active_mission") is Dictionary or rec.get("locked", false)):
+			var w := _hex_world(rec.get("coord"))
+			reach = maxf(reach, Vector2(w.x - target.x, w.z - target.z).length())
+	var pull := clampf(reach / BOARD_REACH, 1.0, BOARD_MAX_PULL)
+	return {"target": target, "position": target + BOARD_CAM_OFFSET * pull}
+
+
+## Aims the camera with board_view() at the contracts as they are now: when the board is made, when it opens (the hall
+## may place the day's contracts only then) and when they change.
+func _frame_camera() -> void:
+	if _cam == null:
+		return
+	var view := board_view(WorldManager.world_map)
+	_cam.position = view.position
+	_cam.look_at(view.target, Vector3.UP)
+
+
+## A record's coord (Vector2i in memory, [x, y] in a save) as the hex's world position; (0, 0) for anything else.
+static func _hex_world(c) -> Vector3:
+	if c is Vector2i or c is Vector2:
+		return HexGrid.offset_to_world(int(c.x), int(c.y))
+	if c is Array and c.size() == 2:
+		return HexGrid.offset_to_world(int(c[0]), int(c[1]))
+	return Vector3.ZERO
 
 
 func _build_bubble() -> void:
@@ -321,7 +378,7 @@ func _record_at_screen(mouse_pos: Vector2) -> Dictionary:
 	var origin    := _cam.project_ray_origin(sv_pos)
 	var direction := _cam.project_ray_normal(sv_pos)
 	var space_state := _cam.get_world_3d().direct_space_state
-	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * 200.0)
+	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * 2000.0)   # far enough for board_view's pull
 	query.collide_with_areas = true
 	query.collide_with_bodies = false
 	var result := space_state.intersect_ray(query)
@@ -357,10 +414,22 @@ static func marker_hit(markers: Array, pos: Vector2, radius: float) -> String:
 
 
 func _handle_hover(mouse_pos: Vector2) -> void:
-	# No hover bubble while the scroll is showing.
+	# No hover bubble or preview while the scroll is showing.
 	if _detail_panel != null:
 		_hide_bubble()
+		_hide_preview()
 		return
+	# Over a contract's scroll marker: its preview unrolls (instead of the bubble).
+	var hid := marker_hit(_markers, mouse_pos, MARKER_HIT_RADIUS)
+	if hid != "":
+		if hid != _preview_hex:
+			var mrec := _record_by_id(hid)
+			if not mrec.is_empty():
+				_show_preview(mrec)
+		if _preview != null:
+			_hide_bubble()
+			return
+	_hide_preview()
 	var rec := _record_at_screen(mouse_pos)
 	if rec.is_empty():
 		_hide_bubble()
@@ -411,11 +480,105 @@ func _hide_bubble() -> void:
 		_bubble.visible = false
 
 
+## The lines a scroll marker's preview shows: the contract's name, its danger, days and reward, then the party it needs
+## or, out on a deployment, who is out and when they're back. DRAFT words.
+func preview_lines(rec: Dictionary) -> Array:
+	var mission = rec.get("active_mission")
+	if not mission is Dictionary:
+		return []
+	var lines := [str(mission.get("name", "Unknown Mission")), _danger_text(int(mission.get("danger", 1)))]
+	var days: int = int(mission.get("duration_days", 1))
+	var line := "%d %s" % [days, "day" if days == 1 else "days"]
+	var reward = mission.get("reward_range", [])
+	if reward is Array and reward.size() >= 2:
+		line += " · %d–%d gold" % [int(reward[0]), int(reward[1])]
+	lines.append(line)
+	if GameManager.is_hex_taken(rec):
+		var info: Dictionary = GameManager.deployment_info(str(rec.get("id", "")))
+		lines.append(out_text(info.get("names", []), int(info.get("return_day", -1))))
+	else:
+		var n: int = GameManager.required_party_size(mission)
+		if n > 1:
+			lines.append(party_text(n))
+		lines.append("Click to unroll")
+	return lines
+
+
+## The hovered scroll grows and a small parchment preview unrolls upward from it (2D, never over the open scroll).
+func _show_preview(rec: Dictionary) -> void:
+	_hide_preview()
+	var lines := preview_lines(rec)
+	var hex_id := str(rec.get("id", ""))
+	var at: Vector2 = Vector2.ZERO
+	var found := false
+	for m in _markers:
+		if m is Dictionary and str(m.get("hex_id", "")) == hex_id:
+			at = m.pos
+			found = true
+			break
+	if lines.is_empty() or not found:
+		return
+	var mission: Dictionary = rec.active_mission
+	var card := PanelContainer.new()
+	card.name = "ScrollPreview"
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = SCROLL_PAPER
+	style.border_color = SCROLL_EDGE
+	style.set_border_width_all(2)
+	style.border_width_top = 6       # the rolled ends, as on the full scroll
+	style.border_width_bottom = 6
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
+	card.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 1)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(box)
+	for i in lines.size():
+		var color := INK if i == 0 else (_danger_ink(int(mission.get("danger", 1))) if i == 1 else INK_SOFT)
+		var label := _ink_label(str(lines[i]), 16 if i == 0 else 13, color)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if i == lines.size() - 1 and lines[i] == "Click to unroll":
+			label.add_theme_color_override("font_color", Color(INK_SOFT, 0.7))
+		box.add_child(label)
+	add_child(card)
+	var card_size := card.get_combined_minimum_size()
+	card.size = card_size
+	var vp := get_viewport().get_visible_rect().size
+	card.position = Vector2(clampf(at.x - card_size.x * 0.5, 4.0, vp.x - card_size.x - 4.0), clampf(at.y - card_size.y - 30.0, 4.0, vp.y - card_size.y - 4.0))
+	card.pivot_offset = Vector2(card_size.x * 0.5, card_size.y)   # unrolls upward from the marker
+	card.scale = Vector2(1.0, 0.1)
+	card.modulate.a = 0.0
+	var tw := card.create_tween().set_parallel(true)
+	tw.tween_property(card, "scale:y", 1.0, PREVIEW_SECONDS).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(card, "modulate:a", 1.0, PREVIEW_SECONDS * 0.6)
+	_preview = card
+	_preview_hex = hex_id
+	var marker = _marker_nodes.get(hex_id)
+	if marker is Control and is_instance_valid(marker):
+		(marker as Control).scale = Vector2.ONE * MARKER_HOT_SCALE
+
+
+func _hide_preview() -> void:
+	if _preview != null and is_instance_valid(_preview):
+		_preview.queue_free()
+	_preview = null
+	var marker = _marker_nodes.get(_preview_hex)
+	if marker is Control and is_instance_valid(marker):
+		(marker as Control).scale = Vector2.ONE
+	_preview_hex = ""
+
+
 func _biome_line(biome: String) -> String:
 	match biome:
 		"grass":       return "Open grassland. Quiet, for now."
 		"forest":      return "Dense woods. Beasts roam the deep paths."
 		"mountain":    return "Jagged peaks. Old stone, old dangers."
+		"hills":       return "Rolling hills. Sheep, standing stones, places to hide."   # DRAFT (World Gen v2)
 		"coast":       return "Water's edge. Trade winds and restless tides."
 		"river":       return "Water's edge. Trade winds and restless tides."
 		"sea":         return "Open waters. The deep hides unknown things."
@@ -466,6 +629,7 @@ func _close() -> void:
 
 func open_mission_board() -> void:
 	visible = true
+	_frame_camera()
 	GameManager.missions_changed.connect(_on_missions_changed)
 	call_deferred("_build_markers")
 
@@ -474,6 +638,7 @@ func open_mission_board() -> void:
 
 func _on_missions_changed() -> void:
 	if visible:
+		_frame_camera()
 		_build_markers()
 
 
@@ -485,6 +650,8 @@ func _clear_markers() -> void:
 	for child in _marker_layer.get_children():
 		child.free()
 	_markers.clear()
+	_marker_nodes.clear()
+	_hide_preview()
 	_badges.clear()
 	_chips.clear()
 
@@ -516,7 +683,7 @@ func _build_markers() -> void:
 		var hex_id := str(rec.get("id", ""))
 		var locked: bool = GameManager.is_hex_taken(rec)   # review P6: a stale lock (nobody out) is an open contract
 		_markers.append({"hex_id": hex_id, "pos": screen_pos})
-		_spawn_marker(screen_pos, locked)
+		_marker_nodes[hex_id] = _spawn_marker(screen_pos, locked, int(rec.active_mission.get("danger", 1)))
 		if locked:
 			# Story 6.5 (DD-8): the deployed token chip, under the dimmed rune.
 			var info: Dictionary = GameManager.deployment_info(hex_id)
@@ -533,70 +700,50 @@ func _build_markers() -> void:
 	_refresh_header()
 
 
-func _spawn_marker(screen_pos: Vector2, is_locked: bool = false) -> void:
+## A contract's marker: a small rolled scroll drawn at `screen_pos` (its ribbon and seal in the danger's colour). An open
+## contract floats gently over a soft halo; a deployed one is grey and still.
+func _spawn_marker(screen_pos: Vector2, is_locked: bool = false, danger: int = 1) -> Control:
 	var marker := Control.new()
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	marker.position = screen_pos
+	marker.draw.connect(_draw_scroll_marker.bind(marker, danger, is_locked))
 	_marker_layer.add_child(marker)
-
-	# High-contrast palette: gold body, near-black outline/backing — reads against
-	# grass and water alike. Locked/dispatched markers stay dim grey-blue.
-	var glow_color   := Color(1.0, 0.84, 0.0, 0.40)  if not is_locked else Color(0.45, 0.45, 0.55, 0.25)
-	var stroke_color := Color(0.05, 0.05, 0.05, 0.95) if not is_locked else Color(0.05, 0.05, 0.05, 0.85)
-	var rune_color   := Color(1.0, 0.84, 0.0, 1.0)   if not is_locked else Color(0.55, 0.58, 0.65, 0.80)
-
-	# Glow ring — centered behind rune. 2x previous size (48 -> 96).
-	var glow := Label.new()
-	glow.text = RUNE
-	glow.add_theme_font_size_override("font_size", 96)
-	glow.add_theme_color_override("font_color", glow_color)
-	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glow.position = Vector2(-48.0, -48.0)
-	marker.add_child(glow)
-
-	# Stroke layer: four 2-px offset copies — fakes a bold outline. 2x previous size (32 -> 64).
-	for off in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2)]:
-		var stroke := Label.new()
-		stroke.text = RUNE
-		stroke.add_theme_font_size_override("font_size", 64)
-		stroke.add_theme_color_override("font_color", stroke_color)
-		stroke.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		stroke.position = Vector2(-32.0, -32.0) + off
-		marker.add_child(stroke)
-
-	# Rune: on top. 2x previous size (32 -> 64).
-	var rune := Label.new()
-	rune.text = RUNE
-	rune.add_theme_font_size_override("font_size", 64)
-	rune.add_theme_color_override("font_color", rune_color)
-	rune.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rune.position = Vector2(-32.0, -32.0)
-	marker.add_child(rune)
-
-	# Pulse: locked markers breathe slower and stay dim; available markers are bright.
-	var pulse_max := 1.0 if not is_locked else 0.55
-	var pulse_min := 0.4 if not is_locked else 0.25
-	var pulse_dur := 1.4 if not is_locked else 2.2
-	marker.modulate.a = 0.65
-	var tw := create_tween()
-	tw.set_loops()
-	tw.tween_property(marker, "modulate:a", pulse_max, pulse_dur) \
-		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(marker, "modulate:a", pulse_min, pulse_dur) \
-		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	_marker_tweens.append(tw)
-
-	# Bob: available markers only — fast 0.3s-period vertical bob is what catches
-	# the eye at distance. Locked markers stay still (deliberately less attention-grabbing).
 	if not is_locked:
 		var base_y := marker.position.y
 		var bob := create_tween()
 		bob.set_loops()
-		bob.tween_property(marker, "position:y", base_y - 8.0, 0.15) \
-			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-		bob.tween_property(marker, "position:y", base_y, 0.15) \
-			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		bob.tween_property(marker, "position:y", base_y - 4.0, 1.1).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		bob.tween_property(marker, "position:y", base_y, 1.1).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 		_marker_tweens.append(bob)
+	return marker
+
+
+## The rolled scroll, centred on the marker's origin: a shadow, (open) a halo, the paper roll with its shaded underside,
+## two wooden ends, the ribbon and the wax seal; dark outlines so it reads on grass, sand and water alike.
+func _draw_scroll_marker(marker: Control, danger: int, is_locked: bool) -> void:
+	var tint := MARKER_DIM if is_locked else Color.WHITE
+	var paper := MARKER_PAPER * tint
+	var shade := MARKER_PAPER_SHADE * tint
+	var wood := MARKER_WOOD * tint
+	var seal := (_danger_ink(danger) if not is_locked else Color(0.40, 0.42, 0.48, 1.0))
+	var ribbon := (_danger_color(danger).darkened(0.15) if not is_locked else Color(0.55, 0.57, 0.63, 1.0))
+	marker.draw_set_transform(Vector2(0.0, 15.0), 0.0, Vector2(1.0, 0.28))
+	marker.draw_circle(Vector2.ZERO, 20.0, Color(0.0, 0.0, 0.0, 0.35))
+	marker.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if not is_locked:
+		marker.draw_circle(Vector2.ZERO, 27.0, MARKER_HALO)
+	var body := Rect2(-17.0, -8.0, 34.0, 16.0)
+	marker.draw_rect(body, paper)
+	marker.draw_rect(Rect2(body.position.x, 3.0, body.size.x, 5.0), shade)
+	marker.draw_line(Vector2(-15.0, -5.5), Vector2(15.0, -5.5), paper.lightened(0.35), 1.5)
+	marker.draw_rect(body, MARKER_LINE, false, 1.5)
+	for side in [-1.0, 1.0]:
+		var knob := Rect2(Vector2(side * 19.5 - 2.5, -10.0), Vector2(5.0, 20.0))
+		marker.draw_rect(knob, wood)
+		marker.draw_rect(knob, MARKER_LINE, false, 1.5)
+	marker.draw_rect(Rect2(-3.0, -8.0, 6.0, 16.0), ribbon)
+	marker.draw_circle(Vector2(0.0, 0.5), 5.5, MARKER_LINE)
+	marker.draw_circle(Vector2(0.0, 0.5), 4.5, seal)
 
 
 ## Story 6.5: a small dark tag centred on `center` (a party size, or a deployed chip). Not part of the pulsing marker.
@@ -736,6 +883,7 @@ static func _same_id(a, b) -> bool:
 
 func _open_detail_panel(rec: Dictionary) -> void:
 	_close_detail_panel()  # ensure only one scroll at a time
+	_hide_preview()
 
 	var mission = rec.get("active_mission", null)
 	if not (mission is Dictionary):
@@ -840,7 +988,64 @@ func _open_detail_panel(rec: Dictionary) -> void:
 	_update_chance_and_accept()
 
 
-## The parchment scroll (placeholder_scroll, DD-9): it unfurls from its top edge; name, danger, duration, reward.
+## Where `hex_id`'s marker is drawn (its resting place), or (-1, -1) when it has none.
+func _marker_pos(hex_id: String) -> Vector2:
+	for m in _markers:
+		if m is Dictionary and str(m.get("hex_id", "")) == hex_id and m.get("pos") is Vector2:
+			return m.pos
+	return Vector2(-1.0, -1.0)
+
+
+## The full scroll flies out of its marker: it is scaled about a pivot that travels from the marker's point to its own
+## middle while it grows to full width (ZOOM_SECONDS), so a tiny scroll leaves the marker and lands in the centre;
+## then it unrolls from its middle (UNFURL_SECONDS). Runs the frame after it was made, when the container has placed it.
+func _grow_from_marker(panel: Control, from: Vector2) -> void:
+	if not is_instance_valid(panel) or panel.is_queued_for_deletion() or panel.has_meta("closing"):
+		return
+	var origin := (panel.get_parent() as Control).global_position + panel.position
+	var middle := panel.size * 0.5
+	panel.pivot_offset = from - origin
+	panel.scale = Vector2(0.06, 0.06)   # again: placing it (Container.fit_child_in_rect) put its scale back to 1
+	var tw := panel.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(panel, "scale", Vector2(1.0, 0.12), ZOOM_SECONDS).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(panel, "pivot_offset", middle, ZOOM_SECONDS).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(panel, "modulate:a", 1.0, ZOOM_SECONDS * 0.4)
+	tw.chain().tween_property(panel, "scale:y", 1.0, UNFURL_SECONDS).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	panel.set_meta("open_tween", tw)
+
+
+## Closing: the scroll rolls up to its middle, then flies back into its marker and fades (CLOSE_SECONDS); nothing in it
+## takes a click or a key meanwhile, and it is freed at the end. With no marker, or never shown, it goes at once.
+func _roll_back(wrapper: Control, to: Vector2) -> void:
+	var panel := wrapper.get_node_or_null("Scroll") as Control
+	if panel == null or to.x < 0.0 or not is_inside_tree() or panel.modulate.a <= 0.01:
+		wrapper.queue_free()
+		return
+	panel.set_meta("closing", true)
+	var open_tw = panel.get_meta("open_tween", null)
+	if open_tw is Tween and (open_tw as Tween).is_valid():
+		(open_tw as Tween).kill()
+	if panel.scale.is_equal_approx(Vector2.ONE):
+		panel.pivot_offset = panel.size * 0.5   # its size may have changed while open; at full scale this moves nothing
+	for c in wrapper.find_children("*", "Control", true, false):
+		var ctl := c as Control
+		ctl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ctl.focus_mode = Control.FOCUS_NONE
+		if ctl is BaseButton:
+			(ctl as BaseButton).disabled = true
+	var origin := wrapper.global_position + panel.position
+	var tw := wrapper.create_tween()
+	tw.tween_property(panel, "scale:y", 0.12, CLOSE_SECONDS * 0.45).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	tw.set_parallel(true)
+	tw.chain().tween_property(panel, "scale", Vector2(0.06, 0.06), CLOSE_SECONDS * 0.55).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(panel, "pivot_offset", to - origin, CLOSE_SECONDS * 0.55).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(panel, "modulate:a", 0.0, CLOSE_SECONDS * 0.55)
+	tw.chain().tween_callback(wrapper.queue_free)
+
+
+## The parchment scroll (placeholder_scroll, DD-9): name, danger, duration, reward. Since 2026-11-08 it grows out of its
+## contract's marker (_grow_from_marker) and rolls back into it on close (_roll_back); with no marker it unfurls in place.
 func _make_scroll(mission: Dictionary) -> VBoxContainer:
 	var wrapper := CenterContainer.new()
 	wrapper.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -861,9 +1066,16 @@ func _make_scroll(mission: Dictionary) -> VBoxContainer:
 	style.set_content_margin_all(20.0)
 	panel.add_theme_stylebox_override("panel", style)
 	wrapper.add_child(panel)
-	panel.scale = Vector2(1.0, 0.05)
-	var unfurl := panel.create_tween()   # bound to the panel: freed with it if the scroll closes mid-roll
-	unfurl.tween_property(panel, "scale:y", 1.0, UNFURL_SECONDS).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	var from := _marker_pos(str(_panel_rec.get("id", "")))
+	if from.x < 0.0 or not is_inside_tree():
+		panel.scale = Vector2(1.0, 0.05)
+		var unfurl := panel.create_tween()   # bound to the panel: freed with it if the scroll closes mid-roll
+		unfurl.tween_property(panel, "scale:y", 1.0, UNFURL_SECONDS).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	else:
+		# The CenterContainer places the panel at the end of this frame: from the next one, it grows out of the marker.
+		panel.scale = Vector2(0.06, 0.06)
+		panel.modulate.a = 0.0
+		get_tree().process_frame.connect(_grow_from_marker.bind(panel, from), CONNECT_ONE_SHOT)
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
@@ -1041,7 +1253,7 @@ func _open_deployed_scroll(rec: Dictionary) -> void:
 
 func _close_detail_panel() -> void:
 	if _detail_panel != null and is_instance_valid(_detail_panel):
-		_detail_panel.queue_free()
+		_roll_back(_detail_panel, _marker_pos(str(_panel_rec.get("id", ""))))   # rolls back into its marker, then goes
 		_closed_frame = Engine.get_process_frames()
 	_detail_panel = null
 	_panel_mission = {}
