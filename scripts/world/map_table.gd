@@ -1,4 +1,12 @@
 # map_table.gd
+# New Game's world map since 2026-11-08 (scenes/world/NewRunMap.tscn, new_run on; GameManager.WORLD_MAP_SCENE): the
+# intro hands over here, a World Gen v2 world at game_config's size (world_gen_width / world_gen_height /
+# world_gen_type) is revealed on the table with its 20-30 places to settle (world_gen_tavern_sites; 2D gold marks;
+# Raphael 2026-11-08, the old settlement-choice plan's number). Any place's panel offers "Settle here": World Gen v2's
+# settle_at() makes it the tavern, the records go to WorldManager.set_generated_world() and the hall loads, as
+# HexMapTest's MapControls did. Back returns to the main menu; Another world rolls a new one. The dev scene (scenes/dev/MapTable.tscn, new_run off) is the prototype below,
+# with its R / T keys, and hands nothing on.
+#
 # Prototype (Raphael 2026-11-07, his sketch): the world map on a scroll on a table. The scroll unrolls on the existing
 # table (assets/environment/furniture/table.glb), the real HexMapTest reveal (spin, flip, settle) plays in a window
 # cut into the scroll, then the map slides UNDER the scroll: drag it (left or middle button), or WASD / arrows; the
@@ -12,14 +20,16 @@
 # SCREEN_UV, so the map has the table's perspective but only shows through the window, framed by the paper. Picking
 # is hex math on the window plane (no Area3D per hex), the way a 100,000-hex map would have to do it.
 #
-# Standalone dev scene (run it with F6): it writes nothing to WorldManager or any save, and the map is never handed
-# on. SaveSystem's autosave can't fire here: can_autosave() needs a live run and a scene root in the player_scene
-# group, and this root is in neither (so PlayerManager stands down too). Placeholder art: the scroll and frame are
-# plain shapes; the root is assumed to sit at the origin.
+# Nothing here writes a save: SaveSystem's autosave can't fire (can_autosave() needs a live run and a scene root in
+# the player_scene group, and this root is in neither, so PlayerManager stands down too). Only settle() writes, to
+# WorldManager, just before the hall loads. The dev scene (run it with F6) hands nothing on. Placeholder art: the
+# scroll and frame are plain shapes; the root is assumed to sit at the origin.
 extends Node3D
 
+## New Game's map: World Gen v2 at game_config's size, Settle / Back / Another world, no dev keys. Off = the dev table.
+@export var new_run: bool = false
 ## World Gen v2 (scripts/world/world_gen_v2.gd: world types, ranges, climate, rivers, names); off = the game's
-## HexMapGenerator island.
+## HexMapGenerator island. Always on for new_run.
 @export var use_world_gen_v2: bool = true
 ## v2: the world's size in hexes (100 x 64 = 6,400) and its type ("random" rolls one; T cycles them).
 @export var world_width: int = 100
@@ -31,6 +41,8 @@ extends Node3D
 @export var map_seed: int = 0
 ## World units a second the map slides with the keys at full view (half that leaning all the way in).
 @export var key_pan_speed: float = 70.0
+## v2: how many places to settle a world offers, rolled between x and y (new_run: game_config world_gen_tavern_sites).
+@export var tavern_sites := Vector2i(20, 30)
 
 const TABLE_SCENE := "res://assets/environment/furniture/table.glb"
 const HEX_MAP_SCENE := "res://scenes/HexMapTest.tscn"
@@ -38,6 +50,12 @@ const EDGE_SHADER := "res://assets/shaders/edge_detection.gdshader"
 const WINDOW_SHADER := "res://assets/shaders/map_window.gdshader"
 const WORLD_MANAGER := "res://systems/WorldManager.gd"   # is_mission_eligible(), static
 const WORLD_GEN_V2 := "res://scripts/world/world_gen_v2.gd"
+const MENU_SCENE := "res://scenes/MainMenu.tscn"
+const TAVERN_SCENE := "res://scenes/MainTavern.tscn"
+## new_run: game_config's world size, kept to what the per-hex tiles can draw (100 x 64 = 6,400 hexes by default).
+const RUN_SIZE_DEFAULT := Vector2i(100, 64)
+const RUN_SIZE_MIN := 24
+const RUN_SIZE_MAX := 160
 const WORLD_KINDS := ["continent", "archipelago", "twin", "inland_sea"]
 const KIND_NAMES := {"continent": "a continent", "archipelago": "an archipelago", "twin": "twin continents",
 	"inland_sea": "lands round an inland sea"}
@@ -77,6 +95,14 @@ const CLICK_SLOP := 6.0    # pixels a press may move and still count as a click
 const BIOME_NAMES := {"sea": "Sea", "coast": "Coast", "grass": "Grassland", "forest": "Forest", "hills": "Hills",
 	"mountain": "Mountains", "tavern_site": "Your tavern"}
 const HINT := "Drag or WASD / arrows: slide the map   ·   Wheel: lean in / out   ·   Click a hex: details   ·   R: new world   ·   T: next world type"
+const RUN_HINT := "Drag or WASD / arrows: slide the map   ·   Wheel: lean in / out   ·   Click a hex: details   ·   Click a gold mark to settle there"   # DRAFT
+## The places to settle (World Gen v2's settle_site records): their 2D marks, and how far their panel counts towns.
+const SITE_GOLD := Color(0.98, 0.82, 0.38, 0.95)
+const SITE_SHADE := Color(0.10, 0.07, 0.05, 0.80)
+const SITE_NEAR := 12
+## new_run: game_config world_gen_tavern_sites, [least, most] places to settle per world (whole numbers 1..RUN_SITES_MAX).
+const RUN_SITES_DEFAULT := Vector2i(20, 30)
+const RUN_SITES_MAX := 60
 
 var _paper_y := 0.0        # the window plane (the paper's top); the map's tile tops (its y = 0) sit on it
 var _cam: Camera3D
@@ -113,13 +139,23 @@ var _drag_moved := 0.0
 var _drag_last := Vector3.ZERO
 var _wm_script = null
 
+var _sites: Array = []    # the world's places to settle (World Gen v2 records with settle_site), until one is settled
+var _towns: Array = []    # its settlements (is_zone)
+var _back_btn: Button = null      # new_run only
+var _another_btn: Button = null
+var _settled := false
+
 
 func _ready() -> void:
 	_wm_script = load(WORLD_MANAGER)
+	if new_run:
+		_read_run_config()
 	_paper_y = TABLE_HEIGHT * TABLE_SCALE + PAPER_THICK
 	_build_map_view()
 	_build_table()
 	_build_ui()
+	if new_run:
+		_build_run_buttons()
 	_update_cameras()
 	get_viewport().size_changed.connect(_fit_map_view)
 	_hint.text = "Unrolling the map…"
@@ -144,6 +180,8 @@ func _process(delta: float) -> void:
 ## map camera take over); _ready() then runs generate_and_reveal(). R calls this again for a new world.
 func _spawn_map() -> void:
 	_live = false
+	if _another_btn != null:
+		_another_btn.disabled = true
 	_close_detail()
 	_hover_rec = {}
 	if _map != null:
@@ -160,6 +198,7 @@ func _spawn_map() -> void:
 		map.set("world_width", world_width)
 		map.set("world_height", world_height)
 		map.set("world_type", world_type)
+		map.set("tavern_sites", tavern_sites)
 	else:
 		map.set("map_radius", map_radius)
 	map.set("randomize_seed_on_generate", map_seed == 0)
@@ -181,26 +220,45 @@ func _show_title() -> void:
 	_title.text = wn
 	_title.visible = wn != ""
 	var kind := str(_map.get("world_kind")) if use_world_gen_v2 and _map.get("world_kind") != null else ""
-	_subtitle.text = "%s · seed %d" % [KIND_NAMES.get(kind, "an island"), int(_map.get("map_seed"))]
+	if new_run:
+		_subtitle.text = KIND_NAMES.get(kind, "an island")
+		if not _sites.is_empty():
+			_subtitle.text += " · %d places to settle" % _sites.size()   # DRAFT
+	else:
+		_subtitle.text = "%s · seed %d" % [KIND_NAMES.get(kind, "an island"), int(_map.get("map_seed"))]
 
 
 func _on_reveal_finished() -> void:
 	_live = true
-	_hint.text = HINT
+	_hint.text = RUN_HINT if new_run else HINT
+	if _another_btn != null:
+		_another_btn.disabled = false
 
 
+## The map's records by coord, its extent, its places to settle and towns. _home: the tavern, or (World Gen v2, before
+## the player settles) the world's first place to settle, its tavern_coord: where the window opens.
 func _index(records: Array) -> void:
 	_by_coord.clear()
+	_sites.clear()
+	_towns.clear()
 	_lo = Vector2(INF, INF)
 	_hi = Vector2(-INF, -INF)
+	var centre_found := false
 	for rec in records:
 		var c: Vector2i = rec.coord
 		_by_coord[c] = rec
 		if rec.get("is_center", false):
 			_home = c
+			centre_found = true
+		if rec.get("settle_site", false):
+			_sites.append(rec)
+		if rec.get("is_zone", false):
+			_towns.append(rec)
 		var w := HexGrid.offset_to_world(c.x, c.y)
 		_lo = Vector2(minf(_lo.x, w.x), minf(_lo.y, w.z))
 		_hi = Vector2(maxf(_hi.x, w.x), maxf(_hi.y, w.z))
+	if not centre_found and _map != null and _map.get("tavern_coord") is Vector2i:
+		_home = _map.get("tavern_coord")
 
 
 ## Keeps the window over the map: at most SEA_SLACK of open sea shows past the map's edge.
@@ -305,6 +363,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if k and k.pressed and not k.echo:
 		if k.keycode == KEY_ESCAPE:
 			_close_detail()
+		elif new_run:
+			return   # the dev keys below are the dev table's; New Game has its buttons
 		elif k.keycode == KEY_R and _live:
 			_spawn_map()
 		elif k.keycode == KEY_T and _live and use_world_gen_v2:
@@ -370,6 +430,7 @@ func _update_hover() -> void:
 
 
 func _draw_outline() -> void:
+	_draw_sites()
 	if _hover_rec.is_empty():
 		return
 	var c: Vector2i = _hover_rec.coord
@@ -386,12 +447,33 @@ func _draw_outline() -> void:
 	_outline.draw_polyline(pts, OUTLINE, 2.5, true)
 
 
+## The places to settle, as 2D gold marks over the window (UI cues stay 2D), sized to a hex at the current lean; the
+## hovered one larger. Drawn once the reveal is done.
+func _draw_sites() -> void:
+	if not _live or _sites.is_empty():
+		return
+	for s in _sites:
+		var sc: Vector2i = s.coord
+		var sw := HexGrid.offset_to_world(sc.x, sc.y)
+		var p := Vector3(sw.x + _pan.x, _paper_y + 0.05, sw.z + _pan.y)
+		if not _in_window(p) or _cam.is_position_behind(p):
+			continue
+		var at := _cam.unproject_position(p)
+		var hex_px := at.distance_to(_cam.unproject_position(p + Vector3(1.0, 0.0, 0.0)))
+		var r := clampf(hex_px * (0.95 if is_same(s, _hover_rec) else 0.7), 5.0, 16.0)
+		_outline.draw_circle(at, r + 2.0, SITE_SHADE)
+		_outline.draw_arc(at, r, 0.0, TAU, 28, SITE_GOLD, 2.0, true)
+		_outline.draw_circle(at, maxf(r * 0.3, 2.0), SITE_GOLD)
+
+
 ## The hover's one line: the most particular name the hex has (settlement, river, lake, forest, range), else its terrain.
 func _short_name(rec: Dictionary) -> String:
 	if rec.get("is_ruin", false) and not rec.get("ruin_discovered", false):
 		return "Unknown Ruins"
 	if rec.get("is_center", false):
 		return "Your tavern"
+	if rec.get("settle_site", false):
+		return "A place to settle"   # DRAFT
 	if rec.get("is_zone", false):
 		return str(rec.get("location_name", "Settlement"))
 	if int(rec.get("river_mask", 0)) != 0 and str(rec.get("river", "")) != "":
@@ -435,8 +517,10 @@ func _open_detail(rec: Dictionary) -> void:
 		lines.append("River: %s" % rec.river)
 	if str(rec.get("feature", "")) != "" and title.text != str(rec.feature):
 		lines.append(str(rec.feature))
+	if rec.get("settle_site", false):
+		lines.append_array(_site_lines(rec))
 	lines.append("Hex %d, %d" % [c.x, c.y])
-	if not rec.get("is_center", false) and _map != null:
+	if not rec.get("is_center", false) and _map != null and _sites.is_empty():   # a tavern stands: how far from it
 		var d: int = _map.call("_hex_distance", _home, c)   # HexMapGenerator's (offset coords, static)
 		var per_day: float = 3.0
 		var dm := get_node_or_null("/root/DataManager")
@@ -444,7 +528,8 @@ func _open_detail(rec: Dictionary) -> void:
 			per_day = float(dm.get_config("mission_hexes_per_day", 3.0))
 		lines.append("From the tavern: %d hexes, about %d days out" % [d, maxi(1, ceili(d / maxf(per_day, 0.1)))])
 	lines.append(_contract_line(rec))
-	lines.append("Mission types: shown here once missions use the big map")
+	if not new_run:
+		lines.append("Mission types: shown here once missions use the big map")
 	for line in lines:
 		var l := Label.new()
 		l.text = line
@@ -452,6 +537,13 @@ func _open_detail(rec: Dictionary) -> void:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size = Vector2(296.0, 0.0)   # a wrap width up front, so the panel sizes to its text
 		box.add_child(l)
+	if new_run and _can_settle(rec):
+		var settle_btn := Button.new()
+		settle_btn.name = "SettleButton"
+		settle_btn.text = "Settle here"   # DRAFT
+		settle_btn.focus_mode = Control.FOCUS_NONE
+		settle_btn.pressed.connect(_on_settle_pressed.bind(rec))
+		box.add_child(settle_btn)
 	var close := Button.new()
 	close.text = "Close"
 	close.pressed.connect(_close_detail)
@@ -466,6 +558,8 @@ func _open_detail(rec: Dictionary) -> void:
 func _contract_line(rec: Dictionary) -> String:
 	if rec.get("is_center", false):
 		return "Your guild's home"
+	if rec.get("settle_site", false):
+		return "Your tavern could stand here"   # DRAFT
 	if rec.get("is_zone", false):
 		return "A settlement: it posts its own contracts"
 	if rec.get("is_ruin", false):
@@ -481,6 +575,160 @@ func _close_detail() -> void:
 	if _detail != null and is_instance_valid(_detail):
 		_detail.queue_free()
 	_detail = null
+
+
+# ── New Game (new_run) ────────────────────────────────────────────────────────
+
+## new_run: World Gen v2 at game_config's size and type, a new seed every time.
+func _read_run_config() -> void:
+	var dm := get_node_or_null("/root/DataManager")
+	var w = dm.get_config("world_gen_width", RUN_SIZE_DEFAULT.x) if dm else RUN_SIZE_DEFAULT.x
+	var h = dm.get_config("world_gen_height", RUN_SIZE_DEFAULT.y) if dm else RUN_SIZE_DEFAULT.y
+	var t = dm.get_config("world_gen_type", "random") if dm else "random"
+	var s = dm.get_config("world_gen_tavern_sites", [RUN_SITES_DEFAULT.x, RUN_SITES_DEFAULT.y]) if dm \
+		else [RUN_SITES_DEFAULT.x, RUN_SITES_DEFAULT.y]
+	var run := run_world(w, h, t, s)
+	for warning in run.warnings:
+		push_warning("[MapTable] game_config " + str(warning))
+	use_world_gen_v2 = true
+	world_width = run.width
+	world_height = run.height
+	world_type = run.type
+	tavern_sites = run.sites
+	map_seed = 0
+
+
+## game_config's world_gen_width / world_gen_height (whole numbers, RUN_SIZE_MIN..RUN_SIZE_MAX), world_gen_type
+## ("random" or one of WORLD_KINDS) and world_gen_tavern_sites ([least, most], whole numbers 1..RUN_SITES_MAX); a bad
+## value falls back to the default with a warning. Static for the suite.
+static func run_world(width, height, kind, sites = [20, 30]) -> Dictionary:
+	var out := {"width": RUN_SIZE_DEFAULT.x, "height": RUN_SIZE_DEFAULT.y, "type": "random", "sites": RUN_SITES_DEFAULT,
+		"warnings": []}
+	var whole := func(v, lo: int, hi: int) -> bool:
+		return (v is int or v is float) and float(v) == floorf(float(v)) and int(v) >= lo and int(v) <= hi
+	if sites is Array and sites.size() == 2 and whole.call(sites[0], 1, RUN_SITES_MAX) \
+			and whole.call(sites[1], 1, RUN_SITES_MAX) and int(sites[0]) <= int(sites[1]):
+		out.sites = Vector2i(int(sites[0]), int(sites[1]))
+	else:
+		out.warnings.append("world_gen_tavern_sites = %s is not [least, most], whole numbers from 1 to %d; using [%d, %d]"
+			% [str(sites), RUN_SITES_MAX, RUN_SITES_DEFAULT.x, RUN_SITES_DEFAULT.y])
+	for spec in [["width", width, "world_gen_width"], ["height", height, "world_gen_height"]]:
+		var v = spec[1]
+		if (v is int or v is float) and float(v) == floorf(float(v)) and int(v) >= RUN_SIZE_MIN and int(v) <= RUN_SIZE_MAX:
+			out[spec[0]] = int(v)
+		else:
+			out.warnings.append("%s = %s is not a whole number from %d to %d; using %d"
+				% [spec[2], str(v), RUN_SIZE_MIN, RUN_SIZE_MAX, out[spec[0]]])
+	if kind is String and (kind == "random" or kind in WORLD_KINDS):
+		out.type = kind
+	else:
+		out.warnings.append("world_gen_type = %s is not \"random\" or one of %s; using random" % [str(kind), WORLD_KINDS])
+	return out
+
+
+## Whether the player may settle at this hex: one of the world's places to settle, or (a world without them) its tavern.
+func _can_settle(rec: Dictionary) -> bool:
+	return rec.get("settle_site", false) or (_sites.is_empty() and rec.get("is_center", false))
+
+
+## What a place to settle shows before you choose (the old plan's visible indicators; its hidden consequences are not
+## built): the water beside it, the nearest town and how many towns lie within SITE_NEAR steps. DRAFT words.
+func _site_lines(rec: Dictionary) -> Array:
+	var c: Vector2i = rec.coord
+	var water := []
+	for nb in _map.call("_neighbors_of", c):
+		var o = _by_coord.get(nb)
+		if not o is Dictionary:
+			continue
+		var w := ""
+		if int(o.get("river_mask", 0)) != 0:
+			w = "a river"
+		elif o.get("is_lake", false):
+			w = "a lake"
+		elif str(o.get("biome", "")) == "sea":
+			w = "the sea"
+		if w != "" and not w in water:
+			water.append(w)
+	var lines := ["By %s" % " and ".join(PackedStringArray(water)) if not water.is_empty() else "Inland"]
+	var nearest: Dictionary = {}
+	var nearest_d := 1 << 30
+	var near := 0
+	for z in _towns:
+		var d: int = _map.call("_hex_distance", c, z.coord)
+		if d < nearest_d:
+			nearest_d = d
+			nearest = z
+		if d <= SITE_NEAR:
+			near += 1
+	if not nearest.is_empty():
+		lines.append("Nearest town: %s, %d hexes" % [str(nearest.get("location_name", "a town")), nearest_d])
+	lines.append("%s within %d hexes" % ["No town" if near == 0 else ("1 town" if near == 1 else "%d towns" % near), SITE_NEAR])
+	return lines
+
+
+## new_run: makes `site` the tavern (World Gen v2's settle_at(): the Prior Ruins beside it, the other places cleared),
+## hands the world to WorldManager with it as the centre, and returns true; false (nothing changed or stored) before
+## the reveal ends, twice, or for a hex that isn't a place to settle. No site = the one the window opened on. The hall
+## loads after, in _on_settle_pressed(), so the suite can settle without leaving the scene.
+func settle(site: Dictionary = {}) -> bool:
+	if not new_run or not _live or _map == null or _settled:
+		return false
+	if site.is_empty():
+		site = _by_coord.get(_home, {})
+	if not _can_settle(site):
+		push_warning("[MapTable] settle: %s is not a place to settle; nothing stored" % str(site.get("id", "?")))
+		return false
+	var wm := get_node_or_null("/root/WorldManager")
+	if wm == null or not wm.has_method("set_generated_world"):
+		push_warning("[MapTable] settle: WorldManager.set_generated_world() is missing; nothing stored")
+		return false
+	if site.get("settle_site", false):
+		if not _map.has_method("settle_at") or not _map.call("settle_at", site):
+			push_warning("[MapTable] settle: %s could not be made the tavern; nothing stored" % str(site.get("id", "?")))
+			return false
+		_sites.clear()
+	_home = site.coord
+	var records: Array = _map.call("get_records")
+	wm.set_generated_world(records, site)
+	_settled = true
+	print("[MapTable] settled: \"%s\" (%s), %d hexes, the tavern at %s" % [_title.text, _subtitle.text, records.size(), str(_home)])
+	return true
+
+
+func _on_settle_pressed(site: Dictionary = {}) -> void:
+	if settle(site):
+		_close_detail()
+		get_tree().change_scene_to_file(TAVERN_SCENE)
+
+
+func _on_back_pressed() -> void:
+	get_tree().change_scene_to_file(MENU_SCENE)
+
+
+func _on_another_pressed() -> void:
+	if _live:
+		_spawn_map()
+
+
+func _build_run_buttons() -> void:
+	var box := VBoxContainer.new()
+	box.position = Vector2(24.0, 24.0)
+	box.add_theme_constant_override("separation", 8)
+	_ui.add_child(box)
+	_back_btn = _run_button("← Back", _on_back_pressed)   # DRAFT words
+	box.add_child(_back_btn)
+	_another_btn = _run_button("⟳ Another world", _on_another_pressed)
+	_another_btn.disabled = true   # until the first reveal ends
+	box.add_child(_another_btn)
+
+
+func _run_button(text: String, on_press: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(180.0, 40.0)
+	b.focus_mode = Control.FOCUS_NONE   # the keys slide the map; they never press these
+	b.pressed.connect(on_press)
+	return b
 
 
 # ── Building ──────────────────────────────────────────────────────────────────

@@ -106,6 +106,11 @@
 	"exterior_look": true,
 	"_hex_look_comment": "hex_look: the world map's hexes reskinned toward the Octopath look (scripts/world/hex_look.gd, assets/shaders/hex_reskin.gdshader; Raphael 2026-11-03): every land and sea piece (KayKit shapes kept, their atlas cells redrawn), with its own continuous beaches, shallows and foam drawn from the map's land and sea (a coast hex is built as a grass tile, KayKit's coast tile hidden under it). false keeps KayKit. Dev key 5 on the map toggles it.",
 	"hex_look": true,
+	"_world_gen_comment": "New Game's world (2026-11-08): World Gen v2 (scripts/world/world_gen_v2.gd) on the map table (scenes/world/NewRunMap.tscn). world_gen_width x world_gen_height hexes (whole numbers, 24..160; 100 x 64 = 6,400; every hex is its own 3D tile, so much bigger worlds slow the map and the hall's World Map); world_gen_type: random, continent, archipelago, twin or inland_sea. world_gen_tavern_sites: [least, most] places the player may settle (whole numbers, 1..60; the old settlement-choice plan's 20-30, Raphael 2026-11-08), rolled per world; the table opens on the first (good ground near the middle). A save keeps its own world: these only shape new runs. A bad value falls back with a warning.",
+	"world_gen_width": 100,
+	"world_gen_height": 64,
+	"world_gen_type": "random",
+	"world_gen_tavern_sites": [20, 30],
 
 	"tavern_light_mood": "history",
 	"tavern_light_phase_default": "day",

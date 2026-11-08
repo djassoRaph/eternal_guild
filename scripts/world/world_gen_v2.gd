@@ -1,7 +1,8 @@
 # world_gen_v2.gd — World Gen v2 (prototype; Raphael 2026-11-07: "our world is always the same shape ... noise stuff
-# with rivers", "inspire from catlike", "the name generation too that azgaar has"). Not wired into the game yet: the
-# map table (scenes/dev/MapTable.tscn) swaps it in. It extends HexMapGenerator and replaces only how the records are
-# BUILT; the reveal, the tile instancing, the hex look and the record format are the parent's.
+# with rivers", "inspire from catlike", "the name generation too that azgaar has"). Every new run's world since
+# 2026-11-08: New Game's map table (scenes/world/NewRunMap.tscn, scripts/world/map_table.gd) swaps it in, as the dev
+# table (scenes/dev/MapTable.tscn) does. It extends HexMapGenerator and replaces only how the records are BUILT; the
+# reveal, the tile instancing, the hex look (rivers included) and the record format are the parent's.
 #
 # The world, in passes (ideas after Catlike Coding's Hex Map series, MIT-0 code, and Red Blob Games' "Making maps with
 # noise functions"; written fresh in GDScript):
@@ -16,7 +17,9 @@
 #     knows the edges its water comes in by and leaves by, and takes the KayKit river tile and rotation that match.
 #  4. Land: mountains and hills are the top land heights (quantiles), forest grows where it is wet, the rest is grass;
 #     grass by water is coast (the hex look paints its beach).
-#  5. People: the tavern goes on good land near the middle; settlements score land by river, coast and lake, spaced out.
+#  5. People: settlements score land by river, coast and lake, spaced out; then 20-30 places to settle (settle_site),
+#     the first on good land near the middle. The player picks one on the map table; settle_at() makes it the tavern
+#     and reserves the Prior Ruins beside it.
 #  6. Names (name_generator.gd): the world, each landmass or isle, forest, range, hill country, lake, river system and
 #     settlement, each in the tongue of its latitude (Northmark, Heartland, Southreach; old Elder names for the world
 #     and some ranges).
@@ -60,6 +63,10 @@ const LAND_SHARE := {"continent": 0.46, "archipelago": 0.30, "twin": 0.40, "inla
 @export_enum("random", "continent", "archipelago", "twin", "inland_sea") var world_type: String = "random"
 ## About this share of the land carries a river.
 @export_range(0.0, 0.2) var river_share: float = 0.06
+## How many places to settle a world offers, rolled per world between x and y (game_config world_gen_tavern_sites).
+@export var tavern_sites := Vector2i(20, 30)
+## A place to settle keeps this many steps from every town (the old single tavern kept 3).
+const SITE_TOWN_GAP := 3
 
 var world_name := ""
 var world_kind := ""
@@ -211,7 +218,7 @@ func _build_records() -> Array:
 		if rec.biome == "coast":
 			rec.base_rot_y = _coast_rotation(rec, by_coord)
 
-	# 5. the tavern, then the settlements
+	# 5. the settlements, then the places to settle (no tavern until the player picks one)
 	_place_people(recs, px, pz)
 
 	# 6. names
@@ -227,7 +234,8 @@ func _build_records() -> Array:
 			rivers += 1
 		if rec.is_lake:
 			lakes += 1
-	stats = {"kind": world_kind, "hexes": n, "land": land, "river_hexes": rivers, "lake_hexes": lakes}
+	stats = {"kind": world_kind, "hexes": n, "land": land, "river_hexes": rivers, "lake_hexes": lakes,
+		"sites": recs.filter(func(r): return r.get("settle_site", false)).size()}
 	return recs
 
 
@@ -416,38 +424,8 @@ func _place_people(recs: Array, px: PackedFloat32Array, pz: PackedFloat32Array) 
 	for rec in recs:
 		if rec.biome != "sea":
 			land += 1
-	# the tavern: good ground near the middle of the map, with room for the Prior Ruins next door
-	var best := -1
-	var best_s := -INF
-	for i in n:
-		var rec: Dictionary = recs[i]
-		var s := _settle_score(rec, recs, i)
-		if s < 0.0:
-			continue
-		var free := 0
-		for k in 6:
-			var nb := _nb[i * 6 + k]
-			if nb >= 0 and recs[nb].biome in ["grass", "forest", "mountain", "coast"] and recs[nb].river_mask == 0:
-				free += 1
-		if free < 2:
-			continue
-		s -= (absf(px[i]) / float(_w) + absf(pz[i]) / float(_h)) * 2.2
-		if rec.culture == "heartland":
-			s += 0.3
-		if s > best_s:
-			best_s = s
-			best = i
-	if best < 0:
-		for i in n:
-			if recs[i].biome != "sea":
-				best = i
-				break
-	var home: Dictionary = recs[best]
-	home.biome = "tavern_site"
-	home.is_center = true
-	tavern_coord = home.coord
 
-	# settlements: best ground first, spaced out
+	# settlements: best ground first, spaced out (then the places to settle, _place_sites, keep clear of them)
 	var want := clampi(int(round(land / 160.0)), 6, 48)
 	var spacing := maxi(4, int(sqrt(float(land) / want) * 0.9))
 	var cands := []
@@ -468,7 +446,7 @@ func _place_people(recs: Array, px: PackedFloat32Array, pz: PackedFloat32Array) 
 			if placed.size() >= want:
 				break
 			var rec: Dictionary = recs[cand[1]]
-			if rec.is_zone or _hex_distance(rec.coord, tavern_coord) < 3:
+			if rec.is_zone:
 				continue
 			var ok := true
 			for z in placed:
@@ -480,6 +458,105 @@ func _place_people(recs: Array, px: PackedFloat32Array, pz: PackedFloat32Array) 
 				rec["zone_building"] = buildings[placed.size() % buildings.size()]
 				placed.append(rec)
 		spacing -= 1
+	_place_sites(recs, px, pz, placed, land)
+
+
+## The places the player may settle (Raphael 2026-11-08: "put the N amount that was planned initially": the old
+## settlement-choice plan's 20-30 places): tavern_sites.x..tavern_sites.y records get settle_site = true. Each is good
+## ground (_settle_score), never a town, a river or a lake, at least SITE_TOWN_GAP steps from every town, with room for
+## the Prior Ruins beside it (2+ dry land neighbours), spread over the land. The first is the old single pick (good
+## ground near the middle, heartland preferred): tavern_coord, where the table opens. No hex is the tavern until
+## settle_at().
+func _place_sites(recs: Array, px: PackedFloat32Array, pz: PackedFloat32Array, towns: Array, land: int) -> void:
+	var n := recs.size()
+	var lo := maxi(1, mini(tavern_sites.x, tavern_sites.y))
+	var want := _rng.randi_range(lo, maxi(lo, maxi(tavern_sites.x, tavern_sites.y)))
+	var scored := []
+	var best := -1
+	var best_s := -INF
+	for i in n:
+		var s := _settle_score(recs[i], recs, i)
+		if s <= 0.0 or not _site_ok(recs, i, towns):
+			continue
+		scored.append([s + _rng.randf() * 0.6, i])
+		var m := s - (absf(px[i]) / float(_w) + absf(pz[i]) / float(_h)) * 2.2 + (0.3 if recs[i].culture == "heartland" else 0.0)
+		if m > best_s:
+			best_s = m
+			best = i
+	if best < 0:   # no good ground anywhere: the first land hex that isn't a town
+		for i in n:
+			if recs[i].biome != "sea" and not recs[i].is_zone:
+				best = i
+				break
+	if best < 0:
+		push_warning("[WorldGenV2] no land to settle on")
+		return
+	recs[best]["settle_site"] = true
+	tavern_coord = recs[best].coord
+	var sites := [recs[best]]
+	scored.sort_custom(func(a, b): return a[0] > b[0])
+	var spacing := maxi(3, int(sqrt(float(land) / float(want)) * 0.8))
+	while sites.size() < want and spacing >= 2:
+		for c in scored:
+			if sites.size() >= want:
+				break
+			var rec: Dictionary = recs[c[1]]
+			if rec.get("settle_site", false):
+				continue
+			var ok := true
+			for s in sites:
+				if _hex_distance(rec.coord, s.coord) < spacing:
+					ok = false
+					break
+			if ok:
+				rec["settle_site"] = true
+				sites.append(rec)
+		spacing -= 1
+
+
+## A place to settle: not a town, a river, a lake or the map's border; 2+ dry land neighbours that aren't towns (the
+## Prior Ruins' room, pick_ruin_hex's biomes); SITE_TOWN_GAP steps or more from every town.
+func _site_ok(recs: Array, i: int, towns: Array) -> bool:
+	var rec: Dictionary = recs[i]
+	if rec.is_zone or rec.river_mask != 0 or rec.is_lake or _on_border(i):
+		return false
+	var free := 0
+	for k in 6:
+		var nb := _nb[i * 6 + k]
+		if nb >= 0 and recs[nb].biome in ["grass", "forest", "mountain", "coast"] and recs[nb].river_mask == 0 \
+				and not recs[nb].is_zone:
+			free += 1
+	if free < 2:
+		return false
+	for z in towns:
+		if _hex_distance(rec.coord, z.coord) < SITE_TOWN_GAP:
+			return false
+	return true
+
+
+## The player settles at `site`, one of this world's settle_site records: it becomes the tavern (is_center, the
+## tavern_site biome on a grass tile with the guild's tavern and banner, as _resolve_visuals draws it), the Prior Ruins
+## are reserved beside it (dry land, the parent's rule, no RNG drawn), and no record keeps settle_site. False, and
+## nothing changed, for any other record or once a tavern exists.
+func settle_at(site: Dictionary) -> bool:
+	if not site.get("settle_site", false) or _records.any(func(r): return r.get("is_center", false)) \
+			or not _records.any(func(r): return is_same(r, site)):
+		return false
+	for r in _records:
+		r.erase("settle_site")
+	site.is_center = true
+	site.biome = "tavern_site"
+	site.base_path = GRASS_SCENE
+	site.base_rot_y = 0.0
+	site.topper_paths = [TAVERN_TOPPER, HOME_MARKER]
+	tavern_coord = site.coord
+	var dry := _records.filter(func(r): return r.get("river_mask", 0) == 0)
+	var pick: Dictionary = pick_ruin_hex(dry, tavern_coord, map_seed)
+	if pick.is_empty():
+		push_warning("[WorldGenV2] ruin: no free land next to the tavern; none reserved.")
+	else:
+		mark_ruin(pick)
+	return true
 
 
 # ── Names ─────────────────────────────────────────────────────────────────────
@@ -611,34 +688,10 @@ func _resolve_visuals() -> void:
 			rec.topper_paths = [rec.get("zone_building", ZONE_BUILDINGS[0])]
 
 
-## The Prior Ruins go next to the tavern wherever it stands (the parent assumes the centre hex), never on a river.
+## The Prior Ruins go next to the tavern, and a v2 world has no tavern until the player settles: settle_at() reserves
+## them (the parent's generation-time reservation assumes the centre hex).
 func _reserve_ruin() -> void:
-	var dry := _records.filter(func(r): return r.get("river_mask", 0) == 0)
-	var pick: Dictionary = pick_ruin_hex(dry, tavern_coord, map_seed)
-	if pick.is_empty():
-		push_warning("[WorldGenV2] ruin: no free land next to the tavern; none reserved.")
-		return
-	mark_ruin(pick)
-
-
-## River tiles live outside the hex look's folders, so they are dressed here with its material (same atlas, same
-## shader), or they would keep KayKit's flat colours beside the reskinned land.
-func _instantiate_tile(rec: Dictionary) -> Node3D:
-	var bt: Node3D = super(rec)
-	if bt != null and _hex_look_on and str(rec.get("base_path", "")).begins_with(RIVER_DIR):
-		var meshes: Array = bt.find_children("*", "MeshInstance3D", true, false)
-		if bt is MeshInstance3D:
-			meshes.push_front(bt)
-		for m in meshes:
-			var mi := m as MeshInstance3D
-			if mi.has_meta(HEX_LOOK.SAVED_META):
-				continue
-			var mat = HEX_LOOK._material(mi.get_active_material(0), false)
-			if mat == null:
-				continue
-			mi.set_meta(HEX_LOOK.SAVED_META, [mi.material_override])
-			mi.material_override = mat
-	return bt
+	pass
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

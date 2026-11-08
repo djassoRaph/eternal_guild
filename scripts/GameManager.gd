@@ -3050,8 +3050,9 @@ var pending_new_game_save: bool = false
 ## slides in data/narrative/intro.json) plays first and hands over to WORLD_MAP_SCENE; Story 5.1 puts the guild naming
 ## screen in front.
 const NEW_RUN_SCENE := "res://scenes/ui/IntroSequence.tscn"
-## Where the intro hands over: the world map, where the player confirms the tavern's place.
-const WORLD_MAP_SCENE := "res://scenes/HexMapTest.tscn"
+## Where the intro hands over: the world map, where the player confirms the tavern's place. Since 2026-11-08 it is the
+## map table (scripts/world/map_table.gd, new_run) with a World Gen v2 world; HexMapTest still draws the hall's map.
+const WORLD_MAP_SCENE := "res://scenes/world/NewRunMap.tscn"
 
 func _player_pos_array() -> Array:
 	if PlayerManager and is_instance_valid(PlayerManager.player):

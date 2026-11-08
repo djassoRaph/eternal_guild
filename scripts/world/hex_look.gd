@@ -17,9 +17,10 @@ const SAVED_META := &"hex_look_saved"
 const SWAP_META := &"hex_coast_swap"      # on a coast hex built as a grass tile
 const COAST_SWAP_CHILD := "KayKitCoast"   # the hidden KayKit coast tile under it
 const HEX_DIR := "res://assets/environment/hexagons/"
-## The folders of the map's land and sea pieces (the generator's base, coast and nature pieces), and the pieces in
-## them that aren't land (the fog clouds).
-const LAND_DIRS := ["base", "coast", "nature"]
+## The folders of the map's land and sea pieces (the generator's base, coast and nature pieces, and World Gen v2's
+## river tiles since 2026-11-08, so a stored v2 world shows its rivers reskinned on the hall's map too), and the pieces
+## in them that aren't land (the fog clouds).
+const LAND_DIRS := ["base", "coast", "nature", "rivers"]
 const NOT_LAND := ["cloud_big.gltf", "cloud_small.gltf"]
 const GRASS := "res://assets/environment/hexagons/base/hex_grass.gltf"
 const WATER := "res://assets/environment/hexagons/base/hex_water.gltf"
