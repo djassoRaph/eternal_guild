@@ -385,6 +385,8 @@ func _initialize() -> void:
 	test_map_distances()   # 2026-11-08: mission distances on the map
 	await test_new_run_map()   # 2026-11-08: New Game on the map table, World Gen v2
 	await test_quest_scrolls()   # 2026-11-08: the World Map's quest scrolls
+	test_map_towns_and_monuments()   # 2026-11-08: the map's towns and monuments
+	test_mission_landmarks()   # 2026-11-08: the mission landmarks
 
 	_finish()
 
@@ -21451,4 +21453,326 @@ func test_quest_scrolls() -> void:
 	board._close()
 	await _t57_frames(2)
 	_t28_restore(snap, gm, wm, dm)
+	print("")
+
+
+# --- Test 73: The map's towns and monuments (2026-11-08) ---
+# Raphael: "work on 3D models of world map monuments and towns". World Gen v2 sizes its settlements (cities with
+# quarters round them, towns, hamlets: scenes of KayKit pieces whose roofs take the culture's colour) and places
+# monuments (old Prior pillars, standing stones, watchtowers, the Hermit's Tower: built in Blender). The map table and
+# the hall's World Map name them.
+func test_map_towns_and_monuments() -> void:
+	print("[Test 73] The map's towns and monuments")
+	var V2 = load("res://scripts/world/world_gen_v2.gd")
+	var GEN = load("res://scripts/world/HexMapGenerator.gd")
+	var WMS = load("res://systems/WorldManager.gd")
+	var PLACES = load("res://scripts/world/map_places.gd")
+	var TOWN_SCRIPT = load("res://scripts/world/map_town.gd")
+	if V2 == null or GEN == null or WMS == null or PLACES == null or TOWN_SCRIPT == null:
+		check(false, "Test 73's scripts load")
+		print("")
+		return
+
+	# 1. The models: each loads, sits on the hex (origin at its foot) and fits it; the monuments keep the topper budget.
+	var bad := []
+	for kind in V2.MONUMENT_TOPPERS:
+		var path: String = V2.MONUMENT_TOPPERS[kind]
+		var info := _t73_measure(path)
+		if info.is_empty() or info.size.x > 2.0 or info.size.z > 2.3 or info.size.y > 2.6 or info.min_y < -0.05 \
+				or (path.ends_with(".gltf") and (info.tris > 3000 or info.size.y > 2.1)):
+			bad.append("%s %s" % [path.get_file(), info])
+	var town_paths := []
+	for tier in V2.TOWN_TOPPERS:
+		town_paths.append_array(V2.TOWN_TOPPERS[tier])
+	for path in town_paths:
+		var info := _t73_measure(path)
+		var root_script = (load(path) as PackedScene).get_state().get_node_property_value(0, 0) if ResourceLoader.exists(path) else null
+		if info.is_empty() or info.size.x > 2.0 or info.size.z > 2.3 or info.min_y < -0.4 or root_script != TOWN_SCRIPT:
+			bad.append("%s %s" % [path.get_file(), info])
+	check(bad.is_empty() and town_paths.size() == 7,
+		"the 3 monuments (≤ 3,000 tris, ≤ 2.1 m) and the 8 settlement scenes load and fit one hex (2.0 x 2.3 m) %s" % [bad])
+
+	# 2. A world: sized settlements, cities with named quarters, monuments by their rules, each with its topper.
+	var gen = V2.new()
+	gen.world_width = 100
+	gen.world_height = 64
+	gen.world_type = "random"
+	var recs := _generate_world(gen, 4242)
+	var by_coord := {}
+	var by_id := {}
+	for r in recs:
+		by_coord[r.coord] = r
+		by_id[r.id] = r
+	var zones := recs.filter(func(r): return r.is_zone)
+	var tiers := {}
+	for z in zones:
+		tiers[str(z.get("town_tier", ""))] = int(tiers.get(str(z.get("town_tier", "")), 0)) + 1
+	var quarter_bad := []
+	for z in zones:
+		if z.get("town_tier", "") != "city_quarter":
+			continue
+		var city = by_id.get(z.get("city_of", ""))
+		if city == null or city.get("town_tier", "") != "city" or GEN._hex_distance(z.coord, city.coord) != 1 \
+				or z.location_name != city.location_name or z.location_name == "" or int(z.get("river_mask", 0)) != 0:
+			quarter_bad.append(z.id)
+	var topper_bad := []
+	for z in zones:
+		var opts: Array = V2.TOWN_TOPPERS.get(str(z.get("town_tier", "")), [])
+		if z.topper_paths.size() != 1 or not opts.has(z.topper_paths[0]):
+			topper_bad.append(z.id)
+	check(tiers.get("city", 0) >= 1 and tiers.get("town", 0) >= 1 and tiers.get("hamlet", 0) >= 1
+		and tiers.get("city_quarter", 0) >= 1 and tiers.size() == 4 and quarter_bad.is_empty() and topper_bad.is_empty(),
+		"seed 4242: settlements by size %s; each quarter touches its city and carries its name; each takes its size's model %s %s"
+		% [tiers, quarter_bad, topper_bad])
+	var mons := recs.filter(func(r): return r.has("monument"))
+	var counts := {}
+	var mon_bad := []
+	var names := {}
+	for m in mons:
+		counts[m.monument] = int(counts.get(m.monument, 0)) + 1
+		var near_town := zones.any(func(z): return GEN._hex_distance(m.coord, z.coord) < V2.MONUMENT_TOWN_GAP)
+		if m.is_zone or m.biome in ["sea", "mountain"] or int(m.get("river_mask", 0)) != 0 or m.get("is_lake", false) \
+				or near_town or m.topper_paths != [V2.MONUMENT_TOPPERS[m.monument]] or str(m.get("monument_name", "")) == "":
+			mon_bad.append(m.id)
+		names[str(m.get("monument_name", ""))] = true
+	var ranges_ok := true
+	for kind in V2.MONUMENTS:
+		var got: int = counts.get(kind, 0)
+		ranges_ok = ranges_ok and got <= int(V2.MONUMENTS[kind][1]) and (got >= 1 or kind != "hermit_tower")
+	var closest := 1 << 30
+	for a in mons.size():
+		for b in range(a + 1, mons.size()):
+			closest = mini(closest, GEN._hex_distance(mons[a].coord, mons[b].coord))
+	check(mons.size() >= 6 and ranges_ok and counts.get("hermit_tower", 0) == 1 and mon_bad.is_empty()
+		and names.size() == mons.size() and closest >= 4,
+		"seed 4242: %d monuments %s on dry land, %d+ hexes from every town, %d+ apart, each named and modelled %s"
+		% [mons.size(), counts, V2.MONUMENT_TOWN_GAP, closest, mon_bad])
+	var sites := recs.filter(func(r): return r.get("settle_site", false))
+	var site_bad := sites.filter(func(s): return s.has("monument") or zones.any(func(z): return GEN._hex_distance(s.coord, z.coord) < V2.SITE_TOWN_GAP))
+	# settle beside a monument when one is two hexes from a place, else anywhere: the ruin is never the monument
+	var pick: Dictionary = {}
+	for s in gen._records.filter(func(r): return r.get("settle_site", false)):
+		for nb in GEN._neighbors_of(s.coord):
+			var o = by_coord.get(nb)
+			if o is Dictionary and o.has("monument"):
+				pick = s
+	if pick.is_empty():
+		pick = gen._records.filter(func(r): return r.get("settle_site", false))[0]
+	gen.settle_at(pick)
+	var ruin: Array = gen._records.filter(func(r): return r.get("is_ruin", false))
+	check(site_bad.is_empty() and ruin.size() == 1 and not ruin[0].has("monument") and gen.stats.get("monuments", -1) == mons.size(),
+		"places to settle keep off monuments and city quarters; settling never turns a monument into the Prior Ruins %s" % [site_bad.map(func(s): return s.id)])
+
+	# 3. Culture colours: a heartland town's KayKit materials take the red atlas, nothing else; a northmark town keeps KayKit's.
+	gen._hex_look_on = false
+	var heart := {}
+	var north := {}
+	for r in gen._records:
+		if r.is_zone and r.get("town_tier", "") == "town":
+			if r.culture == "heartland" and heart.is_empty():
+				heart = r
+			elif r.culture == "northmark" and north.is_empty():
+				north = r
+	var tint_ok := true
+	var tinted := 0
+	for r in [heart, north]:
+		if r.is_empty():
+			continue
+		var bt: Node3D = gen._instantiate_tile(r)
+		var town: Node = bt.get_child(bt.get_child_count() - 1)
+		for mi in town.find_children("*", "MeshInstance3D", true, false):
+			for i in (mi as MeshInstance3D).mesh.get_surface_count():
+				var o = (mi as MeshInstance3D).get_surface_override_material(i)
+				var a = (mi as MeshInstance3D).get_active_material(i)
+				if r.culture == "northmark":
+					tint_ok = tint_ok and o == null
+				elif o != null:
+					tinted += 1
+					tint_ok = tint_ok and o.albedo_texture.resource_path.ends_with("hexagons_medieval_heartland.png")
+				elif a is BaseMaterial3D and a.albedo_texture != null and a.albedo_texture.resource_path.ends_with("hexagons_medieval.png"):
+					tint_ok = false   # an atlas material left blue
+		tint_ok = tint_ok and str(town.get("culture")) == ("heartland" if r.culture == "heartland" else "")
+		bt.free()
+	check(not heart.is_empty() and tint_ok and tinted > 0,
+		"a heartland town's KayKit materials take the red atlas (%d surfaces; a glowing part keeps its glow); a northmark town keeps KayKit's blue" % tinted)
+	gen.free()
+
+	# 4. What the map says: one line on hover, a few on a click; an ordinary hex says nothing new; an older world's town just its name.
+	var city: Dictionary = zones.filter(func(z): return z.get("town_tier", "") == "city")[0]
+	var quarter: Dictionary = zones.filter(func(z): return z.get("town_tier", "") == "city_quarter")[0]
+	var pillar: Dictionary = mons.filter(func(m): return m.monument == "prior_pillar")[0] if counts.has("prior_pillar") else mons[0]
+	var plain := {"id": "t73_plain", "biome": "grass", "is_zone": false}
+	var old := {"id": "t73_old", "biome": "grass", "is_zone": true, "location_name": "Settlement 3"}
+	check(PLACES.short_line(city) == "%s, a city" % city.location_name and PLACES.short_line(quarter) == "%s, a city" % quarter.location_name
+		and PLACES.detail_lines(quarter) == ["A quarter of %s." % quarter.location_name]
+		and PLACES.short_line(pillar) == pillar.monument_name and PLACES.detail_lines(pillar).size() == 1
+		and PLACES.short_line(plain) == "" and PLACES.detail_lines(plain).is_empty()
+		and PLACES.short_line(old) == "Settlement 3" and PLACES.detail_lines(old).is_empty(),
+		"map_places: '%s', '%s', '%s'; an ordinary hex nothing; an older world's town its name" % [PLACES.short_line(city), PLACES.short_line(quarter), PLACES.short_line(pillar)])
+	var table_src := FileAccess.get_file_as_string("res://scripts/world/map_table.gd")
+	var board_src := FileAccess.get_file_as_string("res://scenes/world/world_map_board.gd")
+	var gen_src := FileAccess.get_file_as_string("res://scripts/world/HexMapGenerator.gd")
+	check(_func_body(table_src, "_short_name").contains("MAP_PLACES.short_line(rec)") and _func_body(table_src, "_open_detail").contains("MAP_PLACES.detail_lines(rec)")
+		and _func_body(board_src, "_show_bubble").contains("MAP_PLACES.short_line(rec)") and _func_body(gen_src, "_instantiate_tile").contains("dress_for"),
+		"the map table and the hall's World Map name them through map_places.gd; HexMapGenerator dresses a topper for its hex")
+
+	# 5. Through a save: the new keys come back.
+	var wm = WMS.new()
+	wm.set_generated_world(recs, city)
+	var wm2 = WMS.new()
+	wm2.load_save_data(JSON.parse_string(JSON.stringify(wm.get_save_data())))
+	var back_city: Array = wm2.world_map.filter(func(r): return r.id == city.id)
+	var back_mons: Array = wm2.world_map.filter(func(r): return r.has("monument"))
+	check(back_city.size() == 1 and back_city[0].get("town_tier", "") == "city" and back_mons.size() == mons.size()
+		and back_mons.all(func(m): return str(m.get("monument_name", "")) != "" and m.topper_paths.size() == 1),
+		"through a save the settlements keep their size and the monuments their names and models")
+	wm.free()
+	wm2.free()
+	print("")
+
+
+## A scene's measure: {size (Vector3 of its meshes' AABB), min_y, tris}, or {} when it doesn't load.
+func _t73_measure(path: String) -> Dictionary:
+	if not ResourceLoader.exists(path):
+		return {}
+	var packed = load(path)
+	if not packed is PackedScene:
+		return {}
+	var node: Node3D = (packed as PackedScene).instantiate()
+	var box := AABB()
+	var first := true
+	var tris := 0
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var xf := Transform3D.IDENTITY
+		var cur: Node = m
+		while cur != null and cur != node:
+			if cur is Node3D:
+				xf = (cur as Node3D).transform * xf
+			cur = cur.get_parent()
+		var b: AABB = xf * m.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+		for s in m.mesh.get_surface_count():
+			var arr := m.mesh.surface_get_arrays(s)
+			var idx = arr[Mesh.ARRAY_INDEX]
+			tris += (idx.size() if idx != null else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+	node.free()
+	return {} if first else {"size": box.size, "min_y": box.position.y, "tris": tris}
+
+
+# --- Test 74: The mission landmarks (2026-11-08) ---
+# 08 §5's cards D2-D7 built in Blender (tools/blender/map_landmarks/build_map_landmarks.py -- missions): World Gen v2
+# places them by their ground and names them; settling makes sure the first contracts' three (bog, glade, warren) are
+# near the tavern; a contract whose template names a landmark (data/missions/mission_types.json) goes there when it can.
+func test_mission_landmarks() -> void:
+	print("[Test 74] The mission landmarks")
+	var V2 = load("res://scripts/world/world_gen_v2.gd")
+	var GEN = load("res://scripts/world/HexMapGenerator.gd")
+	var WMS = load("res://systems/WorldManager.gd")
+	var PLACES = load("res://scripts/world/map_places.gd")
+	if V2 == null or GEN == null or WMS == null or PLACES == null:
+		check(false, "Test 74's scripts load")
+		print("")
+		return
+
+	# 1. The models: each loads and fits a hex within its card's budget; the bog's slimes are their own objects.
+	var budgets := {"demon_crypt": [2500, 2.0], "dragon_lair": [3000, 1.8], "bandit_hideout": [2500, 2.0],
+		"goblin_warren": [2500, 2.0], "slime_bog": [2000, 2.0], "herb_glade": [1200, 2.0]}
+	var bad := []
+	for kind in V2.LANDMARK_TOPPERS:
+		var info := _t73_measure(V2.LANDMARK_TOPPERS[kind])
+		if info.is_empty() or info.size.x > 1.9 or info.size.z > 2.2 or info.min_y < -0.05 or info.tris > budgets[kind][0] \
+				or info.size.y > budgets[kind][1] + 0.01:
+			bad.append("%s %s" % [kind, info])
+	var bog: Node = (load(V2.LANDMARK_TOPPERS.slime_bog) as PackedScene).instantiate()
+	var slimes := ["slime_01", "slime_02", "slime_03"].filter(func(n): return bog.find_child(n, true, false) != null)
+	bog.free()
+	check(bad.is_empty() and budgets.size() == V2.LANDMARK_TOPPERS.size() and slimes.size() == 3,
+		"the 6 mission landmarks load, fit one hex within their cards' budgets; the bog's 3 slimes are their own objects %s" % [bad])
+
+	# 2. The data: the six templates name their landmark, and every landmark has its template.
+	var types = JSON.parse_string(FileAccess.get_file_as_string("res://data/missions/mission_types.json"))
+	var named := {}
+	for t in types.mission_templates:
+		if str(t.get("landmark", "")) != "":
+			named[str(t.landmark)] = str(t.id)
+	check(named.size() == 6 and named.keys().all(func(k): return V2.LANDMARK_TOPPERS.has(k))
+		and named.slime_bog == "slime_extermination" and named.demon_crypt == "demon_cult_investigation",
+		"mission_types.json: six templates name their landmark %s" % [named])
+
+	# 3. A world: each kind on its ground, named and modelled, spread out; places to settle keep off them.
+	var gen = V2.new()
+	gen.world_width = 100
+	gen.world_height = 64
+	gen.world_type = "random"
+	_generate_world(gen, 4242)
+	var recs: Array = gen._records
+	var zones := recs.filter(func(r): return r.is_zone)
+	var lms := recs.filter(func(r): return r.has("landmark"))
+	var counts := {}
+	var lm_bad := []
+	for m in lms:
+		counts[m.landmark] = int(counts.get(m.landmark, 0)) + 1
+		var near_town := zones.any(func(z): return GEN._hex_distance(m.coord, z.coord) < V2.LANDMARK_TOWN_GAP)
+		if m.is_zone or m.has("monument") or m.biome in ["sea", "mountain"] or int(m.get("river_mask", 0)) != 0 \
+				or m.get("is_lake", false) or near_town or m.topper_paths != [V2.LANDMARK_TOPPERS[m.landmark]] \
+				or str(m.get("landmark_name", "")) == "" or m.get("settle_site", false):
+			lm_bad.append(m.id)
+		if m.landmark == "herb_glade" and not m.biome in ["grass", "coast", "forest", "hills"]:
+			lm_bad.append(m.id + " (glade)")
+	var ranges_ok := true
+	for kind in V2.LANDMARKS:
+		ranges_ok = ranges_ok and int(counts.get(kind, 0)) >= 1 and int(counts.get(kind, 0)) <= int(V2.LANDMARKS[kind][1])
+	check(ranges_ok and lm_bad.is_empty() and gen.stats.get("landmarks", -1) == lms.size(),
+		"seed 4242: %d landmarks %s, each on its ground, named and modelled, %d+ hexes from towns, never a place to settle %s"
+		% [lms.size(), counts, V2.LANDMARK_TOWN_GAP, lm_bad])
+
+	# 4. Settling: the first contracts' three landmarks are near the tavern.
+	var site: Dictionary = recs.filter(func(r): return r.get("settle_site", false))[0]
+	gen.settle_at(site)
+	var near := {}
+	var early_bad := []
+	for r in recs:
+		if r.has("landmark") and r.landmark in V2.EARLY_LANDMARKS and GEN._hex_distance(r.coord, site.coord) <= V2.EARLY_REACH.y + 1:
+			near[r.landmark] = true
+		if r.get("early_landmark", false):
+			var d: int = GEN._hex_distance(r.coord, site.coord)
+			if d < V2.EARLY_REACH.x or d > V2.EARLY_REACH.y or r.get("is_ruin", false) or r.get("is_center", false) \
+					or str(r.get("landmark_name", "")) == "" or r.topper_paths != [V2.LANDMARK_TOPPERS[r.landmark]]:
+				early_bad.append(r.id)
+	check(near.size() == V2.EARLY_LANDMARKS.size() and early_bad.is_empty(),
+		"settling: a slime bog, an herb glade and a goblin warren lie within %d hexes of the tavern %s %s"
+		% [V2.EARLY_REACH.y + 1, near.keys(), early_bad])
+
+	# 5. Contracts: each Tier 1 errand lands on its own landmark; one whose landmark is out of reach lands anyway.
+	var wm = WMS.new()
+	wm.set_generated_world(recs, site)
+	var errands := [{"name": "T74 slimes", "id": "slime_extermination", "landmark": "slime_bog", "duration_days": 1, "danger": 1},
+		{"name": "T74 herbs", "id": "herb_collection", "landmark": "herb_glade", "duration_days": 1, "danger": 1},
+		{"name": "T74 goblins", "id": "goblin_patrol", "landmark": "goblin_warren", "duration_days": 1, "danger": 2},
+		{"name": "T74 far dragon", "id": "dragon_reconnaissance", "landmark": "dragon_lair", "duration_days": 1, "danger": 1},
+		{"name": "T74 message", "id": "urgent_message", "duration_days": 1, "danger": 1}]
+	wm.assign_missions_to_hexes(errands)
+	var on := {}
+	for r in wm.world_map:
+		var m = r.get("active_mission")
+		if m is Dictionary and str(m.get("name", "")).begins_with("T74"):
+			on[m.name] = [str(r.get("landmark", "")), wm._hex_distance(r.coord, site.coord)]
+	var lairs: Array = wm.world_map.filter(func(r): return r.get("landmark", "") == "dragon_lair")
+	var lair_near := lairs.any(func(r): return wm._hex_distance(r.coord, site.coord) <= 5 + int(wm.LANDMARK_SLACK))
+	check(on.size() == 5 and on["T74 slimes"][0] == "slime_bog" and on["T74 herbs"][0] == "herb_glade"
+		and on["T74 goblins"][0] == "goblin_warren" and on["T74 message"][0] == ""
+		and (lair_near or (on["T74 far dragon"][1] <= 5 + int(wm.LANDMARK_SLACK) and on["T74 far dragon"][0] == "")),
+		"Tier 1 errands land on their own landmarks; one whose landmark is out of reach, and one with none, take a plain hex in their band %s" % [on])
+	wm.free()
+	gen.free()
+
+	# 6. What the map says about one.
+	var glade: Dictionary = lms.filter(func(r): return r.landmark == "herb_glade")[0]
+	check(PLACES.short_line(glade) == glade.landmark_name and PLACES.detail_lines(glade).size() == 1
+		and PLACES.detail_lines(glade)[0].contains("herbs"),
+		"map_places: '%s': %s" % [PLACES.short_line(glade), PLACES.detail_lines(glade)])
 	print("")
