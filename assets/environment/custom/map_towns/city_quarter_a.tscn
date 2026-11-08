@@ -1,0 +1,22 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/map_town.gd" id="1_75svd"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_tower_A_blue.gltf" id="2_p4q4a"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_B_blue.gltf" id="3_tby0c"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_A_blue.gltf" id="4_taroh"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_blacksmith_blue.gltf" id="5_btnqu"]
+
+[node name="city_quarter_a" type="Node3D"]
+script = ExtResource("1_75svd")
+
+[node name="tower_A_0" type="Node3D" parent="." instance=ExtResource("2_p4q4a")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, -0.52, 0, -0.4)
+
+[node name="home_B_1" type="Node3D" parent="." instance=ExtResource("3_tby0c")]
+transform = Transform3D(0.48864, 0, 0.17785, 0, 0.52, 0, -0.17785, 0, 0.48864, 0.3, 0, -0.32)
+
+[node name="home_A_2" type="Node3D" parent="." instance=ExtResource("4_taroh")]
+transform = Transform3D(0.383022, 0, -0.321394, 0, 0.5, 0, 0.321394, 0, 0.383022, -0.1, 0, 0.42)
+
+[node name="blacksmith_3" type="Node3D" parent="." instance=ExtResource("5_btnqu")]
+transform = Transform3D(0.434667, 0, -0.116469, 0, 0.45, 0, 0.116469, 0, 0.434667, 0.56, 0, 0.42)

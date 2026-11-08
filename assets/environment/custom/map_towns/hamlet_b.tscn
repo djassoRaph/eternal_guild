@@ -1,0 +1,22 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/map_town.gd" id="1_fodmj"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_B_blue.gltf" id="2_ucrlb"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_windmill_blue.gltf" id="3_y50t6"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_A_blue.gltf" id="4_o0vj4"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/nature/rock_single_A.gltf" id="5_is2c0"]
+
+[node name="hamlet_b" type="Node3D"]
+script = ExtResource("1_fodmj")
+
+[node name="home_B_0" type="Node3D" parent="." instance=ExtResource("2_ucrlb")]
+transform = Transform3D(0.590885, 0, 0.104189, 0, 0.6, 0, -0.104189, 0, 0.590885, -0.34, 0, -0.2)
+
+[node name="windmill_1" type="Node3D" parent="." instance=ExtResource("3_y50t6")]
+transform = Transform3D(0.47128, 0, -0.219761, 0, 0.52, 0, 0.219761, 0, 0.47128, 0.42, 0, 0.06)
+
+[node name="home_A_2" type="Node3D" parent="." instance=ExtResource("4_o0vj4")]
+transform = Transform3D(0.286788, 0, 0.409576, 0, 0.5, 0, -0.409576, 0, 0.286788, -0.06, 0, 0.46)
+
+[node name="rock_A_3" type="Node3D" parent="." instance=ExtResource("5_is2c0")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0.5, 0, -0.52)

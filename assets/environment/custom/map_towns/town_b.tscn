@@ -1,0 +1,25 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/map_town.gd" id="1_xkbwa"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_church_blue.gltf" id="2_8dye2"]
+[ext_resource type="PackedScene" path="res://assets/environment/custom/d20_prior_pillar.gltf" id="3_xsu0g"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_B_blue.gltf" id="4_g631h"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_A_blue.gltf" id="5_kok1e"]
+
+[node name="town_b" type="Node3D"]
+script = ExtResource("1_xkbwa")
+
+[node name="church_0" type="Node3D" parent="." instance=ExtResource("2_8dye2")]
+transform = Transform3D(0.531259, 0, 0.14235, 0, 0.55, 0, -0.14235, 0, 0.531259, -0.42, 0, -0.3)
+
+[node name="pillar_1" type="Node3D" parent="." instance=ExtResource("3_xsu0g")]
+transform = Transform3D(0.55, 0, 0, 0, 0.55, 0, 0, 0, 0.55, 0.14, 0, 0.1)
+
+[node name="home_B_2" type="Node3D" parent="." instance=ExtResource("4_g631h")]
+transform = Transform3D(0.433013, 0, -0.25, 0, 0.5, 0, 0.25, 0, 0.433013, 0.56, 0, -0.38)
+
+[node name="home_A_3" type="Node3D" parent="." instance=ExtResource("5_kok1e")]
+transform = Transform3D(0.24, 0, -0.415692, 0, 0.48, 0, 0.415692, 0, 0.24, 0.46, 0, 0.54)
+
+[node name="home_A_4" type="Node3D" parent="." instance=ExtResource("5_kok1e")]
+transform = Transform3D(0.367701, 0, 0.308538, 0, 0.48, 0, -0.308538, 0, 0.367701, -0.52, 0, 0.5)

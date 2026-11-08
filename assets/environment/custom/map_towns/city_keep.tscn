@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/map_town.gd" id="1_1mvgu"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_castle_blue.gltf" id="2_kx851"]
+
+[node name="city_keep" type="Node3D"]
+script = ExtResource("1_1mvgu")
+
+[node name="castle_0" type="Node3D" parent="." instance=ExtResource("2_kx851")]
+transform = Transform3D(0.78, 0, 0, 0, 0.78, 0, 0, 0, 0.78, 0, 0, -0.04)

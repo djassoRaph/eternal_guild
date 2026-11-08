@@ -1,0 +1,26 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/map_town.gd" id="1_363bj"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_A_blue.gltf" id="2_5mepo"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_home_B_blue.gltf" id="3_sj1t3"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/blue/building_well_blue.gltf" id="4_kk4g0"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/nature/tree_single_A.gltf" id="5_dl71d"]
+[ext_resource type="PackedScene" path="res://assets/environment/hexagons/props/barrel.gltf" id="6_dy4ni"]
+
+[node name="hamlet_a" type="Node3D"]
+script = ExtResource("1_363bj")
+
+[node name="home_A_0" type="Node3D" parent="." instance=ExtResource("2_5mepo")]
+transform = Transform3D(0.582609, 0, 0.212052, 0, 0.62, 0, -0.212052, 0, 0.582609, -0.36, 0, 0.1)
+
+[node name="home_B_1" type="Node3D" parent="." instance=ExtResource("3_sj1t3")]
+transform = Transform3D(0.484974, 0, -0.28, 0, 0.56, 0, 0.28, 0, 0.484974, 0.36, 0, -0.24)
+
+[node name="well_2" type="Node3D" parent="." instance=ExtResource("4_kk4g0")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0.2, 0, 0.44)
+
+[node name="tree_A_3" type="Node3D" parent="." instance=ExtResource("5_dl71d")]
+transform = Transform3D(0.55, 0, 0, 0, 0.55, 0, 0, 0, 0.55, -0.22, 0, -0.54)
+
+[node name="barrel_4" type="Node3D" parent="." instance=ExtResource("6_dy4ni")]
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0.55, 0, 0.2)
