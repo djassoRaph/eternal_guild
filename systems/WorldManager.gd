@@ -215,14 +215,25 @@ func _coord_to_vec(c) -> Vector2i:
 		return Vector2i(int(c.x), int(c.y))
 	if c is Array and c.size() == 2:
 		return Vector2i(int(c[0]), int(c[1]))
+	# A save writes chosen_center's Vector2i through JSON as the text "(x, y)"; until 2026-11-08 it came
+	# back as (0, 0), right only because the tavern sat there (Test 58).
+	if c is String:
+		var parts: PackedStringArray = c.strip_edges().trim_prefix("(").trim_suffix(")").split(",")
+		if parts.size() == 2 and parts[0].strip_edges().is_valid_int() and parts[1].strip_edges().is_valid_int():
+			return Vector2i(parts[0].strip_edges().to_int(), parts[1].strip_edges().to_int())
 	return Vector2i.ZERO
 
 
+var _hex_gen_script = null   # HexMapGenerator.gd, loaded on first use by _hex_distance
+
+
+## Steps between two hexes. The records' coords are odd-r offset (col, row), as HexMapGenerator makes
+## them, so this is the generator's own rule (one copy of the hex math). Until 2026-11-08 this read
+## them as axial (q, r): 932 of the 1,261 hexes got the wrong distance from the tavern (Test 58).
 func _hex_distance(a: Vector2i, b: Vector2i) -> int:
-	# Axial (q, r) → cube distance.
-	var dq := a.x - b.x
-	var dr := a.y - b.y
-	return int((abs(dq) + abs(dq + dr) + abs(dr)) / 2.0)
+	if _hex_gen_script == null:
+		_hex_gen_script = load(HEX_GENERATOR_PATH)
+	return _hex_gen_script._hex_distance(a, b)
 
 
 # --- Data Loading ---
